@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Bucket
+   uuid = "F61F2148-C290-4DD8-815D-11D067C5EE4F"
+   type = "1"
+   version = "2.0">
+   <Breakpoints>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            uuid = "BD478BF7-D809-4EA7-A0B6-67B3DC31BB4E"
+            shouldBeEnabled = "Yes"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "Gravity/Login/LoginViewModel.swift"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "49"
+            endingLineNumber = "49"
+            landmarkName = "login()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  uuid = "BD478BF7-D809-4EA7-A0B6-67B3DC31BB4E - 72f38439234fb534"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Gravity.SimpleLoginViewModel.login() -&gt; ()"
+                  moduleName = "Gravity"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/dholovko/Developer/Gravity/Gravity/Login/LoginViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "41"
+                  endingLineNumber = "41"
+                  offsetFromSymbolStart = "1304">
+               </Location>
+               <Location
+                  uuid = "BD478BF7-D809-4EA7-A0B6-67B3DC31BB4E - 72f38439234fb534"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Gravity.SimpleLoginViewModel.login() -&gt; ()"
+                  moduleName = "Gravity"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/dholovko/Developer/Gravity/Gravity/Login/LoginViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "41"
+                  endingLineNumber = "41"
+                  offsetFromSymbolStart = "1276">
+               </Location>
+               <Location
+                  uuid = "BD478BF7-D809-4EA7-A0B6-67B3DC31BB4E - 72f38439234fb40c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Gravity.SimpleLoginViewModel.login() -&gt; ()"
+                  moduleName = "Gravity"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/dholovko/Developer/Gravity/Gravity/Login/LoginViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "49"
+                  endingLineNumber = "49"
+                  offsetFromSymbolStart = "1020">
+               </Location>
+               <Location
+                  uuid = "BD478BF7-D809-4EA7-A0B6-67B3DC31BB4E - 1f2b043649c120aa"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "closure #1 (Combine.Subscribers.Completion&lt;Networking.ServiceError&gt;) -&gt; () in Gravity.SimpleLoginViewModel.login() -&gt; ()"
+                  moduleName = "Gravity"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/dholovko/Developer/Gravity/Gravity/Login/LoginViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "49"
+                  endingLineNumber = "49"
+                  offsetFromSymbolStart = "288">
+               </Location>
+               <Location
+                  uuid = "BD478BF7-D809-4EA7-A0B6-67B3DC31BB4E - 72f38439234fb40c"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Gravity.SimpleLoginViewModel.login() -&gt; ()"
+                  moduleName = "Gravity"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/dholovko/Developer/Gravity/Gravity/Login/LoginViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "49"
+                  endingLineNumber = "49"
+                  offsetFromSymbolStart = "1740">
+               </Location>
+               <Location
+                  uuid = "BD478BF7-D809-4EA7-A0B6-67B3DC31BB4E - 62a9c395ba9208b3"
+                  shouldBeEnabled = "Yes"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "Rep_Social.SimpleLoginViewModel.login() -&gt; ()"
+                  moduleName = "Rep Social"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/dholovko/Developer/Gravity/Gravity/Login/LoginViewModel.swift"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "49"
+                  endingLineNumber = "49"
+                  offsetFromSymbolStart = "1860">
+               </Location>
+            </Locations>
+         </BreakpointContent>
+      </BreakpointProxy>
+   </Breakpoints>
+</Bucket>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="15100" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none">
+    <objects>
+        <scene sceneID="EHX-0c-8hA">
+            <objects>
+                <viewController id="1" customClass="ViewController" customModule="my-ios-app" customModuleProvider="target">
+                    <view key="view" contentMode="scaleToFill" id="2">
+                        <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
+                        <autoresizingMask key="autoresizingMask" flexibleWidth="yes" flexibleHeight="yes"/>
+                        <subviews>
+                            <label id="3" userLabel="Hello, World!" text="Hello, World!" textAlignment="center" lineBreakMode="wordWrap" adjustsFontSizeToFitWidth="YES">
+                                <rect key="frame" x="20" y="20" width="335" height="40"/>
+                                <font key="font" name="System" size="34"/>
+                                <color key="textColor" red="0.0" green="0.0" blue="0.0" alpha="1.0"/>
+                            </label>
+                        </subviews>
+                    </view>
+                </viewController>
+            </objects>
+        </scene>
+    </objects>
+</document>

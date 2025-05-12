@@ -1,0 +1,103 @@
+PODS:
+  - DACircularProgress (2.3.1)
+  - Flurry-iOS-SDK (7.6.6):
+    - Flurry-iOS-SDK/FlurrySDK (= 7.6.6)
+  - Flurry-iOS-SDK/FlurrySDK (7.6.6)
+  - INTULocationManager (4.2.0)
+  - ISO8601DateFormatterValueTransformer (0.6.1):
+    - RKValueTransformers (~> 1.1.0)
+  - LEAlertController (0.1.7)
+  - LUKeychainAccess (1.2.5)
+  - MBProgressHUD (0.9.2)
+  - ObjectiveLuhn (1.0.2)
+  - pop (1.0.8)
+  - RestKit (0.27.0):
+    - RestKit/Core (= 0.27.0)
+  - RestKit/Core (0.27.0):
+    - RestKit/CoreData
+    - RestKit/Network
+    - RestKit/ObjectMapping
+  - RestKit/CoreData (0.27.0):
+    - RestKit/ObjectMapping
+  - RestKit/Network (0.27.0):
+    - RestKit/ObjectMapping
+    - RestKit/Support
+    - SOCKit
+  - RestKit/ObjectMapping (0.27.0):
+    - ISO8601DateFormatterValueTransformer (~> 0.6.1)
+    - RestKit/Support
+    - RKValueTransformers (~> 1.1.0)
+  - RestKit/Support (0.27.0):
+    - TransitionKit (~> 2.2)
+  - RKValueTransformers (1.1.3)
+  - SDWebImage (3.8.1):
+    - SDWebImage/Core (= 3.8.1)
+  - SDWebImage/Core (3.8.1)
+  - SEHumanizedTimeDiff (0.0.1)
+  - SHSPhoneComponent (2.15)
+  - SOCKit (1.1)
+  - Stripe (5.1.4):
+    - Stripe/Core (= 5.1.4)
+  - Stripe/Core (5.1.4)
+  - SZTextView (1.2.2)
+  - TransitionKit (2.2.1)
+  - TWMessageBarManager (1.8.1)
+  - UIActivityIndicator-for-SDWebImage (1.2):
+    - SDWebImage (~> 3.7)
+  - UIAlertView+Blocks (0.9)
+
+DEPENDENCIES:
+  - DACircularProgress (~> 2.3.1)
+  - Flurry-iOS-SDK (~> 7.6.6)
+  - INTULocationManager (~> 4.2.0)
+  - LEAlertController (from `https://github.com/brightsider/LEAlertController.git`, commit `f7fda7a60b`)
+  - LUKeychainAccess (~> 1.2.5)
+  - MBProgressHUD (~> 0.9.2)
+  - ObjectiveLuhn
+  - pop (= 1.0.8)
+  - RestKit (~> 0.27.0)
+  - SDWebImage (~> 3.8.1)
+  - SEHumanizedTimeDiff (~> 0.0.1)
+  - SHSPhoneComponent (~> 2.15)
+  - Stripe (~> 5.1.4)
+  - SZTextView (~> 1.2.2)
+  - TWMessageBarManager (~> 1.8.1)
+  - UIActivityIndicator-for-SDWebImage (~> 1.2)
+  - UIAlertView+Blocks (~> 0.9)
+
+EXTERNAL SOURCES:
+  LEAlertController:
+    :commit: f7fda7a60b
+    :git: https://github.com/brightsider/LEAlertController.git
+
+CHECKOUT OPTIONS:
+  LEAlertController:
+    :commit: f7fda7a60b
+    :git: https://github.com/brightsider/LEAlertController.git
+
+SPEC CHECKSUMS:
+  DACircularProgress: 4dd437c0fc3da5161cb289e07ac449493d41db71
+  Flurry-iOS-SDK: 97bbeec09cca666c2f1772f6e161c4f8ccff611e
+  INTULocationManager: 73f8254b3d05c897c56bb13c190e5b7c648c0998
+  ISO8601DateFormatterValueTransformer: 52da467d6ec899d6aedda8e48280ac92e8ee97e6
+  LEAlertController: 54984a3b6d45d5898990d6d5de060b4ad7753b51
+  LUKeychainAccess: d22fc00b33ad92c7532962b86daa94c14b85ecbe
+  MBProgressHUD: 1569cf7ace17a8bac47aabfbb8580a49690386d1
+  ObjectiveLuhn: 7ffbe89856145a65f60ce1fa0f928ce95fdb9509
+  pop: bb773ae2c791ca2629de13b347e7a8b450fa6a57
+  RestKit: a0244db34e14ed9cf059fcee2be6733cc162c34a
+  RKValueTransformers: e5ed67e3811229b616fe01bddeeafe3bb337b1b9
+  SDWebImage: 35f9627a3e44b4f292a8a8ce6a531fa488239b91
+  SEHumanizedTimeDiff: b04ed03a535b0968ff2151ac3c6d752e2d96d1ec
+  SHSPhoneComponent: 4cec0653a150ad63cbc52b0c8b29ce2d3c9c26f0
+  SOCKit: c7376ac262bea9115b8f749358f762522a47d392
+  Stripe: 6864be95b09092f05526bc2e0a50804bc556aa0d
+  SZTextView: 3a81174dce0710a9ab069bc73a813e6df53b9c82
+  TransitionKit: 9ceccda4cd0cdc0a05ef85eb235e5a3292c3c250
+  TWMessageBarManager: fd84e7948ba7968a2b5d9454859135761214ec56
+  UIActivityIndicator-for-SDWebImage: 7bf7ebbf0ed1747dedc0d6e949c4603a6d0f9e0c
+  UIAlertView+Blocks: a46c99c5144f6c5dbc7d62fd2a0678daceec89a3
+
+PODFILE CHECKSUM: 86e60c58cc6d22194ecaa5b7ee3e3409ea679615
+
+COCOAPODS: 1.0.1

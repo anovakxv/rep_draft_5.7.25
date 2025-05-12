@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="6254" systemVersion="14B25" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="6247"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <collectionViewCell opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" id="gTV-IL-0wX" customClass="DoubleImageCell">
+            <rect key="frame" x="0.0" y="0.0" width="300" height="75"/>
+            <autoresizingMask key="autoresizingMask"/>
+            <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center">
+                <rect key="frame" x="0.0" y="0.0" width="300" height="75"/>
+                <subviews>
+                    <imageView clipsSubviews="YES" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="gMN-o5-fxh">
+                        <rect key="frame" x="0.0" y="0.0" width="148" height="75"/>
+                        <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="calibratedWhite"/>
+                    </imageView>
+                    <imageView clipsSubviews="YES" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="yhF-GA-28T">
+                        <rect key="frame" x="152" y="0.0" width="148" height="75"/>
+                        <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="calibratedWhite"/>
+                    </imageView>
+                    <button hidden="YES" opaque="NO" tag="1" contentMode="scaleToFill" contentHorizontalAlignment="right" contentVerticalAlignment="bottom" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="2Vz-y0-6zs">
+                        <rect key="frame" x="0.0" y="0.0" width="148" height="75"/>
+                        <inset key="contentEdgeInsets" minX="0.0" minY="0.0" maxX="5" maxY="5"/>
+                        <state key="normal" image="BtnSelection"/>
+                        <state key="selected" image="BtnSelected"/>
+                    </button>
+                    <button hidden="YES" opaque="NO" tag="2" contentMode="scaleToFill" contentHorizontalAlignment="right" contentVerticalAlignment="bottom" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="oTr-K6-Td4">
+                        <rect key="frame" x="152" y="0.0" width="148" height="75"/>
+                        <inset key="contentEdgeInsets" minX="0.0" minY="0.0" maxX="5" maxY="5"/>
+                        <state key="normal" image="BtnSelection"/>
+                        <state key="selected" image="BtnSelected"/>
+                    </button>
+                </subviews>
+                <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="calibratedWhite"/>
+            </view>
+            <constraints>
+                <constraint firstItem="gMN-o5-fxh" firstAttribute="top" secondItem="gTV-IL-0wX" secondAttribute="top" id="0ci-aN-lXG"/>
+                <constraint firstAttribute="bottom" secondItem="oTr-K6-Td4" secondAttribute="bottom" id="1yO-mO-DZ8"/>
+                <constraint firstItem="2Vz-y0-6zs" firstAttribute="leading" secondItem="gTV-IL-0wX" secondAttribute="leading" id="4G2-cB-Ci1"/>
+                <constraint firstItem="gMN-o5-fxh" firstAttribute="leading" secondItem="gTV-IL-0wX" secondAttribute="leading" id="6iG-tO-9Xd"/>
+                <constraint firstItem="yhF-GA-28T" firstAttribute="width" secondItem="gMN-o5-fxh" secondAttribute="width" id="Hag-bt-ofM"/>
+                <constraint firstItem="oTr-K6-Td4" firstAttribute="width" secondItem="2Vz-y0-6zs" secondAttribute="width" id="I27-dO-Wxg"/>
+                <constraint firstAttribute="bottom" secondItem="gMN-o5-fxh" secondAttribute="bottom" id="Kca-pw-iQ2"/>
+                <constraint firstAttribute="bottom" secondItem="2Vz-y0-6zs" secondAttribute="bottom" id="OHD-mw-zUp"/>
+                <constraint firstItem="yhF-GA-28T" firstAttribute="leading" secondItem="gMN-o5-fxh" secondAttribute="trailing" constant="4" id="T72-bB-lPb"/>
+                <constraint firstItem="yhF-GA-28T" firstAttribute="leading" secondItem="gMN-o5-fxh" secondAttribute="trailing" constant="4" id="XPn-Kp-UYq"/>
+                <constraint firstItem="oTr-K6-Td4" firstAttribute="top" secondItem="gTV-IL-0wX" secondAttribute="top" id="ZGP-e4-2ZN"/>
+                <constraint firstItem="yhF-GA-28T" firstAttribute="top" secondItem="gTV-IL-0wX" secondAttribute="top" id="bjw-bY-LIZ"/>
+                <constraint firstItem="oTr-K6-Td4" firstAttribute="leading" secondItem="2Vz-y0-6zs" secondAttribute="trailing" constant="4" id="boY-3t-v4t"/>
+                <constraint firstAttribute="trailing" secondItem="yhF-GA-28T" secondAttribute="trailing" id="mFl-rQ-tIQ"/>
+                <constraint firstItem="oTr-K6-Td4" firstAttribute="leading" secondItem="2Vz-y0-6zs" secondAttribute="trailing" constant="4" id="ocD-vO-k5P"/>
+                <constraint firstItem="2Vz-y0-6zs" firstAttribute="top" secondItem="gTV-IL-0wX" secondAttribute="top" id="vSz-qx-Zha"/>
+                <constraint firstAttribute="trailing" secondItem="oTr-K6-Td4" secondAttribute="trailing" id="wtV-fQ-Lh3"/>
+                <constraint firstAttribute="bottom" secondItem="yhF-GA-28T" secondAttribute="bottom" id="y4W-dT-ovL"/>
+            </constraints>
+            <size key="customSize" width="192" height="54"/>
+            <connections>
+                <outlet property="firstImageView" destination="gMN-o5-fxh" id="C5P-hT-n0W"/>
+                <outlet property="firstSelectionBtn" destination="2Vz-y0-6zs" id="Vg2-Ew-d71"/>
+                <outlet property="secondImageView" destination="yhF-GA-28T" id="6Cq-4M-xvg"/>
+                <outlet property="secondSelectionBtn" destination="oTr-K6-Td4" id="bql-qS-KHZ"/>
+            </connections>
+            <point key="canvasLocation" x="394" y="335.5"/>
+        </collectionViewCell>
+    </objects>
+    <resources>
+        <image name="BtnSelected" width="24" height="24"/>
+        <image name="BtnSelection" width="24" height="24"/>
+    </resources>
+</document>

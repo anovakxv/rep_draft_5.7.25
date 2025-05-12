@@ -1,0 +1,64 @@
+//
+//  Gravity-Prefix.pch
+//  Gravity
+//
+//  Created by Vlad Getman on 08.10.14.
+//  Copyright (c) 2014 HalcyonInnovation. All rights reserved.
+//
+
+#import <Availability.h>
+
+#ifndef __IPHONE_3_0
+#warning "This project uses features only available in iOS SDK 3.0 and later."
+#endif
+
+#ifdef __OBJC__
+#import <UIKit/UIKit.h>
+#import <Foundation/Foundation.h>
+#import <CoreData/CoreData.h>
+#import "LUKeychainAccess.h"
+#import "UIImageView+WebCache.h"
+#import "UIKitExtensions.h"
+#import <RestKit/RestKit.h>
+#import <UIImageView+UIActivityIndicatorForSDWebImage.h>
+#import "Support.h"
+#import "DataManager.h"
+#import "DataModel.h"
+#import "UIUtils.h"
+#import "VGViewController.h"
+#import "NSDate+TimeAgo.h"
+#import "ORNavigationController.h"
+#import <UIAlertView+Blocks.h>
+#import <Stripe.h>
+#endif
+
+#define kServerUrl      @"http://52.4.36.11/func/api/"
+
+#define APP             ((AppDelegate*)[[UIApplication sharedApplication] delegate])
+#define SUPPORT         [Support sharedDelegate]
+#define DataMNG         [DataManager sharedDataManager]
+#define DATA            [DataModel sharedDataModel]
+#define Settings        [NSUserDefaults standardUserDefaults]
+#define iOSVersion      [[[UIDevice currentDevice] systemVersion] floatValue]
+#define Keychain        [LUKeychainAccess standardKeychainAccess]
+
+#define iOS7            ([[[UIDevice currentDevice] systemVersion] compare:@"7" options:NSNumericSearch] == NSOrderedDescending)
+#define iOS8            ([[[UIDevice currentDevice] systemVersion] compare:@"8" options:NSNumericSearch] == NSOrderedDescending)
+
+#define UIColorFromRGB(rgbValue) [UIColor colorWithRed:((float)((rgbValue & 0xFF0000) >> 16))/255.0 green:((float)((rgbValue & 0xFF00) >> 8))/255.0 blue:((float)(rgbValue & 0xFF))/255.0 alpha:1.0]
+
+#define iPhone5         ([UIScreen mainScreen].bounds.size.height == 568)
+
+#define LOG_TO_CONSOLE 1    //0 - turn off console log
+
+#if DEBUG
+#define LOG_TO_CONSOLE 1
+#else
+#define LOG_TO_CONSOLE 0
+#endif
+
+#if LOG_TO_CONSOLE
+#define NSLog(...) NSLog(__VA_ARGS__)
+#else
+#define NSLog(...) 	// Nothing
+#endif

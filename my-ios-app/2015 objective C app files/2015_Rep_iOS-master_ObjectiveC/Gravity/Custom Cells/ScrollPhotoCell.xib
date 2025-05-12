@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="6254" systemVersion="14B25" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="6247"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="ScrollPhotoCell"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell clipsSubviews="YES" contentMode="scaleToFill" selectionStyle="none" indentationWidth="10" id="KGk-i7-Jjw" customClass="ScrollPhotoCell">
+            <rect key="frame" x="0.0" y="0.0" width="320" height="205"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="KGk-i7-Jjw" id="H2p-sc-9uM">
+                <rect key="frame" x="0.0" y="0.0" width="320" height="43"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <collectionView clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" pagingEnabled="YES" showsHorizontalScrollIndicator="NO" showsVerticalScrollIndicator="NO" dataMode="none" translatesAutoresizingMaskIntoConstraints="NO" id="dY6-c8-sfX">
+                        <rect key="frame" x="0.0" y="0.0" width="320" height="203"/>
+                        <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="calibratedWhite"/>
+                        <collectionViewFlowLayout key="collectionViewLayout" scrollDirection="horizontal" minimumLineSpacing="0.0" minimumInteritemSpacing="0.0" id="K2s-CZ-Ycp">
+                            <size key="itemSize" width="300" height="121"/>
+                            <size key="headerReferenceSize" width="0.0" height="0.0"/>
+                            <size key="footerReferenceSize" width="0.0" height="0.0"/>
+                            <inset key="sectionInset" minX="0.0" minY="0.0" maxX="0.0" maxY="0.0"/>
+                        </collectionViewFlowLayout>
+                        <connections>
+                            <outlet property="dataSource" destination="KGk-i7-Jjw" id="P30-Ne-Quo"/>
+                            <outlet property="delegate" destination="KGk-i7-Jjw" id="Pz2-D6-xWr"/>
+                        </connections>
+                    </collectionView>
+                    <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="line_grey.png" translatesAutoresizingMaskIntoConstraints="NO" id="QSB-X2-gqp">
+                        <rect key="frame" x="10" y="203" width="300" height="1"/>
+                        <constraints>
+                            <constraint firstAttribute="height" constant="1" id="Xwp-76-pWG"/>
+                        </constraints>
+                    </imageView>
+                </subviews>
+                <constraints>
+                    <constraint firstAttribute="bottom" secondItem="QSB-X2-gqp" secondAttribute="bottom" id="2Xr-p6-iBf"/>
+                    <constraint firstItem="QSB-X2-gqp" firstAttribute="top" secondItem="dY6-c8-sfX" secondAttribute="bottom" id="BDY-pF-Qah"/>
+                    <constraint firstItem="dY6-c8-sfX" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" id="DMd-Dm-UNL"/>
+                    <constraint firstAttribute="trailing" secondItem="QSB-X2-gqp" secondAttribute="trailing" constant="10" id="KNc-Yc-y04"/>
+                    <constraint firstItem="dY6-c8-sfX" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" id="MOv-6s-Z4W"/>
+                    <constraint firstAttribute="trailing" secondItem="dY6-c8-sfX" secondAttribute="trailing" id="cMy-y1-RKB"/>
+                    <constraint firstItem="QSB-X2-gqp" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" constant="10" id="zx1-jn-he3"/>
+                </constraints>
+            </tableViewCellContentView>
+            <connections>
+                <outlet property="collectionView" destination="dY6-c8-sfX" id="4pc-Q4-lhu"/>
+            </connections>
+            <point key="canvasLocation" x="219" y="264.5"/>
+        </tableViewCell>
+    </objects>
+    <resources>
+        <image name="line_grey.png" width="320" height="1"/>
+    </resources>
+</document>

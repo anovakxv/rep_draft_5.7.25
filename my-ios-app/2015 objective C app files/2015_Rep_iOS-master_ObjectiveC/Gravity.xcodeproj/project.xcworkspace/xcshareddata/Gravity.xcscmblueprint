@@ -1,0 +1,30 @@
+{
+  "DVTSourceControlWorkspaceBlueprintPrimaryRemoteRepositoryKey" : "BA09D49DEA49BD43243877E57171CE6EDE5FFC27",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyRepositoryLocationsKey" : {
+
+  },
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyStatesKey" : {
+    "cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230" : 0,
+    "BA09D49DEA49BD43243877E57171CE6EDE5FFC27" : 0
+  },
+  "DVTSourceControlWorkspaceBlueprintIdentifierKey" : "FCE85760-85DE-4325-ADF1-57DA52AE09DD",
+  "DVTSourceControlWorkspaceBlueprintWorkingCopyPathsKey" : {
+    "cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230" : "Gravity",
+    "BA09D49DEA49BD43243877E57171CE6EDE5FFC27" : "Rep_iOS\/"
+  },
+  "DVTSourceControlWorkspaceBlueprintNameKey" : "Gravity",
+  "DVTSourceControlWorkspaceBlueprintVersion" : 204,
+  "DVTSourceControlWorkspaceBlueprintRelativePathToProjectKey" : "Gravity.xcodeproj",
+  "DVTSourceControlWorkspaceBlueprintRemoteRepositoriesKey" : [
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "https:\/\/github.com\/HalcyonLA\/Rep_iOS.git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Git",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "BA09D49DEA49BD43243877E57171CE6EDE5FFC27"
+    },
+    {
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryURLKey" : "svn:\/\/93.127.31.196:3990\/svn\/mobile",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositorySystemKey" : "com.apple.dt.Xcode.sourcecontrol.Subversion",
+      "DVTSourceControlWorkspaceBlueprintRemoteRepositoryIdentifierKey" : "cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230"
+    }
+  ]
+}

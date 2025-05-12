@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>FCE85760-85DE-4325-ADF1-57DA52AE09DD</string>
+	<key>IDESourceControlProjectName</key>
+	<string>Gravity</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230</key>
+		<string>svn://93.127.31.196:3990/svn/mobile/Gravity/iphone</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>Gravity.xcodeproj</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230</key>
+		<string>../..</string>
+	</dict>
+	<key>IDESourceControlProjectRepositoryRootDictionary</key>
+	<dict>
+		<key>cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230</key>
+		<string>svn://93.127.31.196:3990/svn/mobile</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>svn://93.127.31.196:3990/svn/mobile/Gravity/iphone/Gravity.xcodeproj</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>111</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.subversion</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>cd6d6082-16f6-460f-8d0b-3cfe05f80b2f++2230</string>
+			<key>IDESourceControlWCCName</key>
+			<string>Gravity</string>
+		</dict>
+	</array>
+</dict>
+</plist>

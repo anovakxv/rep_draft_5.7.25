@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="10117" systemVersion="15G31" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <development version="5100" identifier="xcode"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="10085"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner" customClass="PortalsViewController">
+            <connections>
+                <outlet property="menuView" destination="pAp-P0-25A" id="h1g-iM-kPM"/>
+                <outlet property="searchField" destination="VuF-pV-ipv" id="aBo-r4-iPA"/>
+                <outlet property="segmentedControl" destination="y0b-qk-qau" id="uIJ-rr-2gP"/>
+                <outlet property="tableView" destination="kWB-VT-iDu" id="38r-aN-lGo"/>
+                <outlet property="view" destination="cgc-eq-tZD" id="g5d-62-BsX"/>
+            </connections>
+        </placeholder>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <view contentMode="scaleToFill" id="cgc-eq-tZD">
+            <rect key="frame" x="0.0" y="0.0" width="320" height="568"/>
+            <autoresizingMask key="autoresizingMask"/>
+            <subviews>
+                <tableView clipsSubviews="YES" contentMode="scaleToFill" alwaysBounceVertical="YES" style="plain" separatorStyle="none" rowHeight="44" sectionHeaderHeight="22" sectionFooterHeight="22" id="kWB-VT-iDu">
+                    <rect key="frame" x="0.0" y="64" width="320" height="504"/>
+                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                    <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                    <connections>
+                        <outlet property="dataSource" destination="-1" id="uPj-dd-wXU"/>
+                        <outlet property="delegate" destination="-1" id="6DD-xC-0aj"/>
+                    </connections>
+                </tableView>
+                <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="Yl6-NJ-wnx">
+                    <rect key="frame" x="270" y="518" width="35" height="35"/>
+                    <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMinY="YES"/>
+                    <state key="normal" image="BtnSwitch">
+                        <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
+                    </state>
+                    <connections>
+                        <action selector="switchView" destination="-1" eventType="touchUpInside" id="Fz4-Bh-bCC"/>
+                    </connections>
+                </button>
+                <view hidden="YES" clipsSubviews="YES" contentMode="scaleToFill" id="pAp-P0-25A">
+                    <rect key="frame" x="0.0" y="13" width="320" height="49"/>
+                    <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMaxY="YES"/>
+                    <subviews>
+                        <view contentMode="scaleToFill" id="Pou-4w-YUS">
+                            <rect key="frame" x="0.0" y="48" width="320" height="1"/>
+                            <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMinY="YES"/>
+                            <color key="backgroundColor" red="0.61960784313725492" green="0.82745098039215681" blue="0.40784313725490196" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        </view>
+                        <button hidden="YES" opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="E1V-dJ-d8f">
+                            <rect key="frame" x="11" y="0.0" width="48" height="49"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" heightSizable="YES"/>
+                            <color key="tintColor" red="0.61960784313725492" green="0.82745098039215681" blue="0.40784313725490196" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <state key="normal" image="BtnAddChat">
+                                <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
+                            </state>
+                            <connections>
+                                <action selector="newChat" destination="-1" eventType="touchUpInside" id="CKP-wM-6rI"/>
+                            </connections>
+                        </button>
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" id="uJ8-cm-WWW">
+                            <rect key="frame" x="11" y="0.0" width="49" height="49"/>
+                            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" heightSizable="YES"/>
+                            <color key="tintColor" red="0.61960784313725492" green="0.82745098039215681" blue="0.40784313725490196" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <state key="normal" image="BtnAddTeam">
+                                <color key="titleShadowColor" white="0.5" alpha="1" colorSpace="calibratedWhite"/>
+                            </state>
+                            <connections>
+                                <action selector="newTeam" destination="-1" eventType="touchUpInside" id="ckj-9q-y8I"/>
+                            </connections>
+                        </button>
+                        <textField opaque="NO" clipsSubviews="YES" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" placeholder="Search" minimumFontSize="17" id="VuF-pV-ipv">
+                            <rect key="frame" x="108" y="8" width="200" height="34"/>
+                            <autoresizingMask key="autoresizingMask" widthSizable="YES" flexibleMaxY="YES"/>
+                            <color key="textColor" red="0.61960784310000006" green="0.82745098039999998" blue="0.41176470590000003" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="14"/>
+                            <textInputTraits key="textInputTraits"/>
+                            <connections>
+                                <action selector="textFieldDidChange:" destination="-1" eventType="editingChanged" id="V2l-9p-XAL"/>
+                                <outlet property="delegate" destination="-1" id="Nfy-fo-ahs"/>
+                            </connections>
+                        </textField>
+                    </subviews>
+                    <color key="backgroundColor" white="1" alpha="1" colorSpace="calibratedWhite"/>
+                </view>
+            </subviews>
+            <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="calibratedWhite"/>
+            <simulatedStatusBarMetrics key="simulatedStatusBarMetrics"/>
+            <simulatedScreenMetrics key="simulatedDestinationMetrics" type="retina4"/>
+            <point key="canvasLocation" x="709" y="381"/>
+        </view>
+        <segmentedControl opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="top" segmentControlStyle="plain" selectedSegmentIndex="2" id="y0b-qk-qau">
+            <rect key="frame" x="0.0" y="0.0" width="204" height="29"/>
+            <autoresizingMask key="autoresizingMask" flexibleMinX="YES" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <segments>
+                <segment title="OPEN"/>
+                <segment title="NTWK"/>
+                <segment title="ALL"/>
+            </segments>
+            <color key="tintColor" white="0.0" alpha="1" colorSpace="calibratedWhite"/>
+            <connections>
+                <action selector="typeChanged:" destination="-1" eventType="valueChanged" id="4jf-GG-9gG"/>
+            </connections>
+            <point key="canvasLocation" x="559.5" y="373"/>
+        </segmentedControl>
+    </objects>
+    <resources>
+        <image name="BtnAddChat" width="28" height="27"/>
+        <image name="BtnAddTeam" width="39" height="22"/>
+        <image name="BtnSwitch" width="35" height="33"/>
+    </resources>
+</document>

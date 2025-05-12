@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="7706" systemVersion="14D136" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES">
+    <dependencies>
+        <deployment identifier="iOS"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="7703"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" customClass="UIResponder"/>
+        <tableViewCell contentMode="scaleToFill" selectionStyle="none" indentationWidth="10" id="KGk-i7-Jjw" customClass="EditCell">
+            <rect key="frame" x="0.0" y="0.0" width="320" height="50"/>
+            <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
+            <tableViewCellContentView key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" tableViewCell="KGk-i7-Jjw" id="H2p-sc-9uM">
+                <rect key="frame" x="0.0" y="0.0" width="320" height="43"/>
+                <autoresizingMask key="autoresizingMask"/>
+                <subviews>
+                    <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="Label:" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="Lrs-GR-DZ1">
+                        <rect key="frame" x="18" y="0.0" width="45" height="49"/>
+                        <constraints>
+                            <constraint firstAttribute="width" relation="greaterThanOrEqual" constant="45" id="j4H-La-XTF"/>
+                            <constraint firstAttribute="height" constant="49" id="nZ1-JT-7UJ"/>
+                        </constraints>
+                        <fontDescription key="fontDescription" name="HelveticaNeue-Light" family="Helvetica Neue" pointSize="17"/>
+                        <color key="textColor" red="0.59215686274509804" green="0.59215686274509804" blue="0.59215686274509804" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <nil key="highlightedColor"/>
+                    </label>
+                    <textField opaque="NO" clipsSubviews="YES" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" textAlignment="right" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="j3S-BX-KMG">
+                        <rect key="frame" x="63" y="2" width="239" height="45"/>
+                        <fontDescription key="fontDescription" name="HelveticaNeue-Light" family="Helvetica Neue" pointSize="17"/>
+                        <textInputTraits key="textInputTraits"/>
+                    </textField>
+                    <textField hidden="YES" opaque="NO" clipsSubviews="YES" contentMode="scaleToFill" contentHorizontalAlignment="left" contentVerticalAlignment="center" textAlignment="right" minimumFontSize="17" translatesAutoresizingMaskIntoConstraints="NO" id="7L9-gy-Sg6" customClass="SHSPhoneTextField">
+                        <rect key="frame" x="63" y="2" width="239" height="45"/>
+                        <fontDescription key="fontDescription" name="HelveticaNeue-Light" family="Helvetica Neue" pointSize="17"/>
+                        <textInputTraits key="textInputTraits"/>
+                    </textField>
+                    <textView hidden="YES" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="scaleToFill" scrollEnabled="NO" showsHorizontalScrollIndicator="NO" showsVerticalScrollIndicator="NO" textAlignment="right" translatesAutoresizingMaskIntoConstraints="NO" id="hTA-hr-PFs" customClass="SZTextView">
+                        <rect key="frame" x="63" y="2" width="239" height="45"/>
+                        <color key="backgroundColor" white="0.0" alpha="0.0" colorSpace="calibratedWhite"/>
+                        <fontDescription key="fontDescription" name="HelveticaNeue-Light" family="Helvetica Neue" pointSize="17"/>
+                        <textInputTraits key="textInputTraits" autocapitalizationType="sentences"/>
+                    </textView>
+                </subviews>
+                <constraints>
+                    <constraint firstItem="7L9-gy-Sg6" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" constant="2" id="2C5-3Z-wUA"/>
+                    <constraint firstAttribute="bottom" secondItem="hTA-hr-PFs" secondAttribute="bottom" constant="2" id="5N6-Av-kwB"/>
+                    <constraint firstAttribute="trailing" secondItem="j3S-BX-KMG" secondAttribute="trailing" constant="18" id="Iwg-Zl-Gdt"/>
+                    <constraint firstItem="Lrs-GR-DZ1" firstAttribute="leading" secondItem="H2p-sc-9uM" secondAttribute="leading" constant="18" id="JVt-oo-wq4"/>
+                    <constraint firstItem="7L9-gy-Sg6" firstAttribute="leading" secondItem="Lrs-GR-DZ1" secondAttribute="trailing" id="O2m-KO-fsU"/>
+                    <constraint firstItem="hTA-hr-PFs" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" constant="2" id="PGh-YB-kDT"/>
+                    <constraint firstItem="j3S-BX-KMG" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" constant="2" id="XAd-Sr-6jw"/>
+                    <constraint firstAttribute="bottom" secondItem="j3S-BX-KMG" secondAttribute="bottom" constant="2" id="YFf-zV-V4U"/>
+                    <constraint firstAttribute="trailing" secondItem="7L9-gy-Sg6" secondAttribute="trailing" constant="18" id="ZRe-jp-zpy"/>
+                    <constraint firstAttribute="trailing" secondItem="hTA-hr-PFs" secondAttribute="trailing" constant="18" id="aai-VO-szq"/>
+                    <constraint firstItem="hTA-hr-PFs" firstAttribute="leading" secondItem="Lrs-GR-DZ1" secondAttribute="trailing" id="hVJ-CG-hAf"/>
+                    <constraint firstAttribute="bottom" secondItem="7L9-gy-Sg6" secondAttribute="bottom" constant="2" id="qyj-ah-h2e"/>
+                    <constraint firstItem="Lrs-GR-DZ1" firstAttribute="top" secondItem="H2p-sc-9uM" secondAttribute="top" id="rYM-cT-0W0"/>
+                    <constraint firstItem="j3S-BX-KMG" firstAttribute="leading" secondItem="Lrs-GR-DZ1" secondAttribute="trailing" id="xnB-vY-IdF"/>
+                </constraints>
+            </tableViewCellContentView>
+            <connections>
+                <outlet property="infoLabel" destination="Lrs-GR-DZ1" id="43C-KB-Pc8"/>
+                <outlet property="phoneField" destination="7L9-gy-Sg6" id="2Wv-ay-8xo"/>
+                <outlet property="textField" destination="j3S-BX-KMG" id="PbN-a3-wZG"/>
+                <outlet property="textView" destination="hTA-hr-PFs" id="Pg9-54-guA"/>
+            </connections>
+            <point key="canvasLocation" x="565" y="361"/>
+        </tableViewCell>
+    </objects>
+</document>

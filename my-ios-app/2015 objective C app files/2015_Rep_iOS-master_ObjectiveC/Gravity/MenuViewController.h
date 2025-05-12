@@ -1,0 +1,17 @@
+//
+//  MenuViewController.h
+//  Gravity
+//
+//  Created by Vlad Getman on 14.10.14.
+//  Copyright (c) 2014 HalcyonInnovation. All rights reserved.
+//
+
+#import <UIKit/UIKit.h>
+#import "ImageButton.h"
+
+@interface MenuViewController : UIViewController
+
+@property (nonatomic, strong) IBOutlet ImageButton *photoView;
+@property (nonatomic, strong) IBOutlet UILabel *nameLabel;
+
+@end

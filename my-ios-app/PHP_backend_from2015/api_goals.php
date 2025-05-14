@@ -316,8 +316,8 @@ function log_goal_progress($users_id, $aObj, $type = ""){
 	$aSourcesNotes = $aObj['aSourcesNotes'];
 	/*
 	- Recruiting    (counts # of reps on goal. No manual Goal Form needed)
-			- Marketing     (counts # of “Share” actions by User on Portal page.  No manual Goal Form needed)
-					- Sales    (sums # of “buy” actions by User on Offerings of Portal page.  Metric is Sales Dollars = sum total offering purchases as metric)
+			- Marketing     (counts # of ï¿½Shareï¿½ actions by User on Portal page.  No manual Goal Form needed)
+					- Sales    (sums # of ï¿½buyï¿½ actions by User on Offerings of Portal page.  Metric is Sales Dollars = sum total offering purchases as metric)
 	
 							1, 2, 5*/
 	

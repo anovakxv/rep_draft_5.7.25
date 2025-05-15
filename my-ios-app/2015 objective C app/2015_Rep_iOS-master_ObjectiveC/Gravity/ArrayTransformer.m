@@ -3,7 +3,7 @@
 //  iCollegeTree
 //
 //  Created by Vlad Getman on 20.06.14.
-//  Copyright (c) 2014 HalcyonLA. All rights reserved.
+//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 //
 
 #import "ArrayTransformer.h"

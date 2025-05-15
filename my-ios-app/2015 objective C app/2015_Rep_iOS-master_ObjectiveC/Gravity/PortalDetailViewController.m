@@ -3,7 +3,7 @@
 //  Goals
 //
 //  Created by Ahad on 9/6/14.
-//  Copyright (c) 2014 ahad. All rights reserved.
+//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 //
 
 #import "PortalDetailViewController.h"

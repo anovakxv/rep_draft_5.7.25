@@ -165,11 +165,115 @@ struct ChatItem: View {
 }
 
 
+struct PortalList: View {
+    var portals: [PortalModel]
+    
+    var body: some View {
+        List {
+            ForEach(portals) { portal in
+                VStack {
+                    NavigationLink {
+                        PortalPage(viewModel: PortalViewModel(portal: portal))
+                    } label: {
+                        PortalItem(portal: portal)
+                    }
+                    Divider()
+                }
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets())
+            }
+        }
+        .listStyle(.plain)
+    }
+}
+
+struct PortalItem: View {
+    var portal: PortalModel
+    
+    var body: some View {
+        HStack(alignment: .top) {
+            // Portal image - 16:9 aspect ratio with height 64, no corner radius
+            if let firstImage = portal.imageItems.first {
+                ImageView(item: firstImage)
+                    .frame(width: 64 * 16/9, height: 64) // 113.78 x 64 (16:9 ratio)
+                    .clipped()
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 64 * 16/9, height: 64) // 113.78 x 64 (16:9 ratio)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text(portal.name)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    Spacer()
+                    Text(portal.category)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                if !portal.subtitle.isEmpty {
+                    Text(portal.subtitle)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+                
+                HStack {
+                    Text(portal.city)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("\(portal.leads.count) leads")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
+            }
+        }
+        .frame(height: 64)
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+    }
+}
+
+struct PortalModel: Identifiable {
+    let id = UUID()
+    let name: String
+    let subtitle: String
+    let about: String
+    let category: String
+    let city: String
+    let imageItems: [ImageItem]
+    let leads: [Lead]
+    let goals: [GoalModel]
+}
+
+struct GoalModel: Identifiable {
+    let id = UUID()
+    let name: String
+    let description: String
+    let progress: Float // 0.0 to 1.0
+}
+
+struct Lead: Identifiable {
+    let id = UUID()
+    let name: String
+    let image: ImageItem
+}
+
 //#Preview {
 //    MainScreen()
 //    ImageTabView(imageNames: portals.map {$0.imageName})
 //    ChatItem(chatItem: .init(imageName: "leadPic", name: "Martin G.", lastMessage: "Hello Matt! Are you still there? ", lastMessageDate: Date().addingTimeInterval(-15000)))
 //}
+
+
+
+
+
+
 
 extension MainScreen {
     enum Constants {

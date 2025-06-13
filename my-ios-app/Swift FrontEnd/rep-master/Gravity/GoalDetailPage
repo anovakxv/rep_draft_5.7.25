@@ -1,0 +1,297 @@
+//
+//  GoalDetailPage.swift
+//  Rep 
+//
+//  Created by Adam Novak on 06.13.2025
+//
+
+ 
+import SwiftUI
+
+struct GoalsDetailView: View {
+    @StateObject private var viewModel = GoalsDetailViewModel()
+    @State private var selectedSegment = 0
+
+    var body: some View {
+        NavigationStack {
+            VStack {
+                // Progress Bar and Metrics Section
+                VStack(alignment: .leading, spacing: 8) {
+                    ProgressView(value: viewModel.goal.progress)
+                        .progressViewStyle(.linear)
+                        .accentColor(.repGreen)
+                    HStack {
+                        Text("Metric: \(viewModel.goal.metricName)")
+                        Spacer()
+                        Text("Goal Type: \(viewModel.goal.typeName)")
+                    }
+                    .font(.caption)
+                    HStack {
+                        Text("Progress Markers: \(viewModel.goal.reportingName)")
+                        Spacer()
+                        Text("Quota: \(viewModel.goal.quotaString)")
+                        Spacer()
+                        Text("Progress: \(viewModel.goal.valueString)")
+                    }
+                    .font(.caption2)
+                }
+                .padding()
+
+                // Segmented Control
+                struct CustomSegmentedPicker: View {
+                    let segments: [String]
+                     @Binding var selectedIndex: Int
+
+                var body: some View {
+                    HStack(spacing: 0) {
+                        ForEach(segments.indices, id: \.self) { index in
+                            Button(action: {
+                                selectedIndex = index
+                            }) {
+                                Text(segments[index])
+                                    .fontWeight(.medium)
+                                    .foregroundColor(selectedIndex == index ? .white : .black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .background(selectedIndex == index ? Color.black : Color.white)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 0)
+                                            .stroke(Color.black, lineWidth: 1)
+                                    )
+                            }
+                        }
+                    }
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 0))
+                }
+            }
+                            }
+                            .pickerStyle(.segmented)
+                            .padding(.horizontal)
+
+                // Table/List Section
+                List {
+                    if selectedSegment == 0 {
+                        ForEach(viewModel.feed) { feedItem in
+                            FeedCell(feed: feedItem)
+                        }
+                    } else if selectedSegment == 1 {
+                        ReportCell(report: viewModel.report)
+                    } else if selectedSegment == 2 {
+                        ForEach(viewModel.team) { user in
+                            TeamCell(user: user)
+                                .onTapGesture {
+                                    viewModel.showProfile(for: user)
+                                }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+            }
+            .navigationTitle(viewModel.goal.title)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { viewModel.goBack() }) {
+                        Image(systemName: "chevron.left")
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        ForEach(viewModel.actions, id: \.self) { action in
+                            Button(action) {
+                                viewModel.handleAction(action)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+            .onAppear {
+                viewModel.load(goalId: viewModel.goal.id)
+            }
+        }
+    }
+}
+
+// MARK: - ViewModel
+
+class GoalsDetailViewModel: ObservableObject {
+    @Published var goal: Goal = .placeholder
+    @Published var team: [User] = []
+    @Published var feed: [Feed] = []
+    @Published var report: Report = .placeholder
+    @Published var actions: [String] = []
+
+    func load(goalId: Int) {
+        // Load goal, team, feed, report, and actions from your API
+    }
+
+    func goBack() {
+        // Handle navigation back
+    }
+
+    func handleAction(_ action: String) {
+        // Handle Invite, Update, Edit, etc.
+    }
+
+    func showProfile(for user: User) {
+        // Navigate to user profile
+    }
+}
+
+// MARK: - Placeholder Cells
+
+struct FeedCell: View {
+    let feed: Feed
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(feed.userImageName) // Local asset for now, e.g. "profile_placeholder"
+                .resizable()
+                .scaledToFill()
+                .frame(width: 80, height: 80)
+                .clipShape(Circle())
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(feed.userName)
+                    .font(.headline)
+                Text(feed.line1) // Date of posting
+                    .font(.caption)
+                Text(feed.line2)  // Metric QTY
+                    .font(.subheadline)
+                Text(feed.line3)  // User input Notes (optional)
+                    .font(.subheadline)
+                Text(feed.line4)  // User attachments (optional)
+                    .font(.subheadline)
+            }
+            .padding(.top, 4)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// Example Feed model for context
+struct Feed: Identifiable {
+    let id: Int
+    let userImageName: String
+    let userName: String
+    let line1: String
+    let line2: String
+    let line3: String
+    let line4: String
+}
+
+struct TeamCell: View {
+    let user: User
+    var body: some View {
+        HStack {
+            Image(user.imageName) // Use a local asset, e.g. "profile_placeholder"
+                .resizable()
+                .scaledToFill()
+                .frame(width: 40, height: 40)
+                .clipShape(Circle())
+            Text(user.name)
+        }
+    }
+}
+
+struct ReportCell: View {
+    let report: Report
+    var body: some View {
+        Text("Report goes here")
+
+    // Example data
+let chartData = [
+    BarChartData(value: 60, valueLabel: "60%", bottomLabel: "Mon"),
+    BarChartData(value: 80, valueLabel: "80%", bottomLabel: "Tue"),
+    BarChartData(value: 40, valueLabel: "40%", bottomLabel: "Wed"),
+    BarChartData(value: 100, valueLabel: "100%", bottomLabel: "Thu"),
+    BarChartData(value: 70, valueLabel: "70%", bottomLabel: "Fri")
+    ]
+
+BarChartView(data: chartData)
+
+    }
+}
+
+// MARK: - Placeholder Models
+
+struct Goal {
+    var id: Int
+    var title: String
+    var progress: Double
+    var metricName: String
+    var typeName: String
+    var reportingName: String
+    var quotaString: String
+    var valueString: String
+
+    static let placeholder = Goal(id: 1, title: "Goal Title", progress: 0.5, metricName: "Sales", typeName: "Recruiting", reportingName: "Weekly", quotaString: "100", valueString: "50")
+}
+
+struct User: Identifiable {
+    var id: Int
+    var name: String
+    var imageName: String // Temporary local image name
+}
+
+struct Feed: Identifiable {
+    var id: Int
+    var title: String
+    var notes: String
+}
+
+struct Report {
+    static let placeholder = Report()
+}
+
+// Bar Chart boiler plate starting point 6.13.25
+
+extension Color {
+    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
+}
+
+struct BarChartView: View {
+    let data: [BarChartData]
+
+    var body: some View {
+        GeometryReader { geometry in
+            HStack(alignment: .bottom, spacing: 8) {
+                ForEach(data) { item in
+                    VStack {
+                        Text(item.valueLabel)
+                            .font(.caption2)
+                            .foregroundColor(.black)
+                        Rectangle()
+                            .fill(Color.repGreen)
+                            .frame(
+                                width: 20,
+                                height: CGFloat(item.value) / CGFloat(maxValue) * (geometry.size.height - 24)
+                            )
+                        Text(item.bottomLabel)
+                            .font(.caption2)
+                            .foregroundColor(.black)
+                            .frame(width: 32)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .frame(height: 180)
+        .padding()
+        .background(Color.white)
+    }
+
+    private var maxValue: Double {
+        data.map { $0.value }.max() ?? 1
+    }
+}
+
+struct BarChartData: Identifiable {
+    let id = UUID()
+    let value: Double
+    let valueLabel: String
+    let bottomLabel: String
+}

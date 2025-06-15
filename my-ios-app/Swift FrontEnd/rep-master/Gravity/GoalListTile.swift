@@ -7,15 +7,19 @@
 
 import SwiftUI
 
+struct BarChartView: View {
+    let data: [BarChartData]
+
 struct GoalListItem: View {
-    var goal: GoalModel
-     
+    let goal: GoalModel
+    let chartData: [BarChartData] // Pass in the data for this goal
+
     var body: some View {
-        HStack {
-            Image(systemName: "cellularbars")
-                .resizable()
-                .frame(width: 100)
-                .foregroundColor(.green)
+        HStack(spacing: 12) {
+            // Small bar chart on the left, mirrors GoalDetailPage chart
+            BarChartView(data: chartData)
+                .frame(width: 50, height: 80)
+                .padding(.vertical, 7)
             HStack {
                 VStack(alignment: .leading) {
                     Text(goal.title)
@@ -29,7 +33,7 @@ struct GoalListItem: View {
             }
             Spacer()
         }
-        .frame(height: 90)
+        .frame(height: 64)
         .padding()
     }
 }

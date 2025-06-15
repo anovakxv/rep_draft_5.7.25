@@ -78,7 +78,7 @@ struct ProfileView: View {
                 List {
                     if selectedTab == 0 {
                         ForEach(viewModel.portals) { portal in
-                            PortalCell(portal: portal)
+                            PortalItem(portal: portal)
                                 .onTapGesture {
                                     viewModel.showPortalDetail(portal)
                                 }
@@ -89,12 +89,17 @@ struct ProfileView: View {
                             }
                             .frame(maxWidth: .infinity, alignment: .center)
                         }
-                    } else if selectedTab == 1 {
+                    else if selectedTab == 1 {
                         ForEach(viewModel.goals) { goal in
-                            GoalsCell(goal: goal)
+                            GoalListItem(goal: goal)
                                 .onTapGesture {
                                     viewModel.showGoalDetail(goal)
                                 }
+                        }
+                        if viewModel.goals.isEmpty {
+                            Text("No goals yet.")
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal)
                         }
                     } else if selectedTab == 2 {
                         VStack(alignment: .leading, spacing: 16) {
@@ -129,7 +134,7 @@ struct ProfileView: View {
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding()
-                                .background(Color.black)
+                                .background(Color.repGreen)
                                 .foregroundColor(.white)
                                 .cornerRadius(8)
                                 .padding(.horizontal)

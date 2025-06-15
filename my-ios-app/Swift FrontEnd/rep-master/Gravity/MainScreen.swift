@@ -192,16 +192,13 @@ struct PortalItem: View {
     
     var body: some View {
         HStack(alignment: .top) {
-            // Portal image - 16:9 aspect ratio with height 64, no corner radius
-            if let firstImage = portal.imageItems.first {
-                ImageView(item: firstImage)
-                    .frame(width: 64 * 16/9, height: 64) // 113.78 x 64 (16:9 ratio)
-                    .clipped()
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 64 * 16/9, height: 64) // 113.78 x 64 (16:9 ratio)
-            }
+            // Main portal image, 16:9 aspect ratio
+            Image(portal.imageName) // Replace with AsyncImage if loading from URL
+                .resizable()
+                .aspectRatio(16/9, contentMode: .fill)
+                .frame(width: 80, height: 45) // 16:9 ratio (e.g., 80x45pt)
+                .clipped()
+        }
             
             VStack(alignment: .leading, spacing: 4) {
                 HStack {

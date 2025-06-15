@@ -18,7 +18,7 @@ struct GoalListItem: View {
         HStack(spacing: 12) {
             // Small bar chart on the left, mirrors GoalDetailPage chart
             BarChartView(data: chartData)
-                .frame(width: 50, height: 80)
+                .frame(width: 100, height: 50)
                 .padding(.vertical, 7)
             HStack {
                 VStack(alignment: .leading) {

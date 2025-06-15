@@ -1,5 +1,5 @@
 //
-//  ProfileInfoView.swift
+//  EditProfile.swift
 //  Rep 
 //
 //  Created by Dmytro Holovko on 10.12.2023.

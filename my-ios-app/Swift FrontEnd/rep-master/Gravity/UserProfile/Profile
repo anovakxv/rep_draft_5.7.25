@@ -78,9 +78,8 @@ struct ProfileView: View {
                 List {
                     if selectedTab == 0 {
                         ForEach(viewModel.portals) { portal in
-                            PortalItem(portal: portal)
-                                .onTapGesture {
-                                    viewModel.showPortalDetail(portal)
+                            NavigationLink(destination: PortalPage(portal: portal)) {
+                                PortalItem(portal: portal)
                                 }
                         }
                         if viewModel.showAddPartner {
@@ -91,9 +90,8 @@ struct ProfileView: View {
                         }
                     else if selectedTab == 1 {
                         ForEach(viewModel.goals) { goal in
-                            GoalListItem(goal: goal)
-                                .onTapGesture {
-                                    viewModel.showGoalDetail(goal)
+                             NavigationLink(destination: GoalDetailPage(goal: goal)) {
+                                GoalListItem(goal: goal)
                                 }
                         }
                         if viewModel.goals.isEmpty {

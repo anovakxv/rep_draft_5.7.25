@@ -2,8 +2,9 @@
 //  PortalPage.swift
 //  Rep 
 //
-//  Created by Dmytro Holovko on 28.10.2023.
-//
+//  Created by Dmytro Holovko on 10.28.2023.
+//  Updated by Adam Novak on 06.15.2025
+//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
 import _PhotosUI_SwiftUI
@@ -291,9 +292,10 @@ struct PortalPage: View {
     var results: some View {
         ForEach(goals) { goal in
             VStack {
+               NavigationLink(destination: GoalDetailPage(goal: goal)) {
                 GoalListItem(goal: goal)
-                Divider()
-            }
+    }
+    Divider()
         }
     }
 }

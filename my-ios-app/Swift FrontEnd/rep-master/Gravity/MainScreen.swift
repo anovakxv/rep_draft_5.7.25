@@ -3,7 +3,8 @@
 //  Rep 
 //
 //  Created by Dmytro Holovko on 02.12.2023.
-//
+//  Updated by Adam Novak on 06.15.2025
+//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
 

@@ -1,0 +1,14 @@
+
+from app import db
+
+class PortalGraphicSection(db.Model):
+    __tablename__ = 'portals_graphic_sections'
+
+    id = db.Column(db.Integer, primary_key=True)
+    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=True)
+
+    portal = db.relationship('Portal', backref='graphic_sections')
+
+    def __repr__(self):
+        return f"<PortalGraphicSection id={self.id} portal_id={self.portals_id} title={self.title}>"

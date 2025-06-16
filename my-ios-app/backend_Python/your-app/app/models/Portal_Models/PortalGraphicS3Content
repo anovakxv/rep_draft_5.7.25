@@ -1,0 +1,14 @@
+
+from app import db
+
+class PortalGraphicSectionS3Content(db.Model):
+    __tablename__ = 'portals_graphic_sections_s3_content'
+
+    id = db.Column(db.Integer, primary_key=True)
+    portals_graphic_sections_id = db.Column(db.Integer, db.ForeignKey('portals_graphic_sections.id'), nullable=False)
+    s3_gr_hash = db.Column(db.String(255), nullable=False)
+
+    graphic_section = db.relationship('PortalGraphicSection', backref='s3_contents')
+
+    def __repr__(self):
+        return f"<PortalGraphicSectionS3Content id={self.id} section_id={self.portals_graphic_sections_id} s3_gr_hash={self.s3_gr_hash}>"

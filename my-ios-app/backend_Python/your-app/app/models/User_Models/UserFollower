@@ -1,0 +1,14 @@
+
+from app import db
+
+class UserFollower(db.Model):
+    __tablename__ = 'users_followers'
+
+    id = db.Column(db.Integer, primary_key=True)
+    users_id1 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # follower
+    users_id2 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)  # followed
+    timestamp = db.Column(db.DateTime)
+
+    follower = db.relationship('User', foreign_keys=[users_id1], backref='following')
+    followed = db.relationship('User', foreign_keys=[users_id2], backref='followers')
+    

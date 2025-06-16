@@ -1,0 +1,13 @@
+
+from app import db
+
+class UserNetwork(db.Model):
+    __tablename__ = 'users_network'
+
+    id = db.Column(db.Integer, primary_key=True)
+    users_id1 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    users_id2 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    timestamp = db.Column(db.DateTime)
+
+    user1 = db.relationship('User', foreign_keys=[users_id1], backref='networks_initiated')
+    user2 = db.relationship('User', foreign_keys=[users_id2], backref='networks_received')

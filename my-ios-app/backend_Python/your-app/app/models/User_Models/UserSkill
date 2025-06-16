@@ -1,0 +1,12 @@
+
+from app import db
+
+class UserSkill(db.Model):
+    __tablename__ = 'users_skills'
+
+    id = db.Column(db.Integer, primary_key=True)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    skills_id = db.Column(db.Integer, db.ForeignKey('skills.id'), nullable=False)
+
+    user = db.relationship('User', backref='user_skills')
+    skill = db.relationship('Skill', backref='user_skills')

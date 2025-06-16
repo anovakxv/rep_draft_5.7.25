@@ -1,0 +1,56 @@
+
+from flask import Blueprint, request, jsonify
+from app import db
+from app.models.s3_content import S3Content
+from app.models.portals_graphic_sections import PortalsGraphicSections
+from app.utils.portal_permissions import check_portal_editor_permission
+
+portal_bp = Blueprint('portal', __name__)
+
+@portal_bp.route('/api/portal/graphic/delete', methods=['POST'])
+def api_delete_portal_graphic():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    group_hashes = data.get('aGroupHash')
+    return_result = data.get('__return_result', '')
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not isinstance(group_hashes, list) or not group_hashes:
+        return jsonify({'error': 'aGroupHash is empty or wrong'}), 400
+
+    # Find S3Content records by group hash
+    s3_files = S3Content.query.filter(
+        S3Content.gr_hash.in_(group_hashes),
+        S3Content.tbl_index == 6
+    ).all()
+
+    if len(s3_files) != len(group_hashes):
+        return jsonify({'error': f'Not all hashes are actual portals_graphic_sections files ({len(s3_files)} != {len(group_hashes)})'}), 400
+
+    # Check permissions for each related portal
+    portal_ids = db.session.query(PortalsGraphicSections.portals_id).filter(
+        PortalsGraphicSections.id.in_([f.tbl_id for f in s3_files])
+    ).distinct().all()
+    for pid_tuple in portal_ids:
+        pid = pid_tuple[0]
+        if not check_portal_editor_permission(user_id, pid):
+            return jsonify({'error': 'Permission denied'}), 403
+
+    # Delete from portals_graphic_sections_s3_content
+    db.session.execute(
+        "DELETE FROM portals_graphic_sections_s3_content WHERE s3_gr_hash = ANY(:hashes)",
+        {'hashes': group_hashes}
+    )
+
+    # Delete S3Content records and files
+    for s3_file in s3_files:
+        db.session.delete(s3_file)
+        # If you have a method to delete the actual file from S3, call it here
+
+    db.session.commit()
+
+    if return_result == '1':
+        return jsonify({'result': group_hashes})
+    return jsonify({'result': group_hashes})
+    

@@ -1,0 +1,55 @@
+
+from flask import Blueprint, request, jsonify, session, make_response
+from app import db
+from app.models.user import User
+from app.utils.user_utils import manage_user_row, mark_all_activities_as_read
+from werkzeug.security import check_password_hash
+import hashlib
+import os
+
+# This assumes you have a User model with a password field (MD5 hash, as in your PHP).
+# PASS_SALT should be set in your environment variables.
+# manage_user_row and mark_all_activities_as_read should be implemented as Python utilities.
+# Adjust session/cookie logic as needed for your app.
+# For security, consider upgrading to a stronger password hash (e.g., bcrypt) in the future.
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/login', methods=['POST'])
+def api_login_user():
+    data = request.get_json()
+    email = data.get('email', '')
+    username = data.get('username', '')
+    password = data.get('password', '')
+
+    if (email or username) and password:
+        login_field = email if email else username
+        user = None
+
+        # Try to find user by email or username
+        if email:
+            user = User.query.filter_by(email=email).first()
+        else:
+            user = User.query.filter_by(username=username).first()
+
+        if user and user.password and user.password == hashlib.md5(os.environ['PASS_SALT'].encode() + password.encode()).hexdigest():
+            # Set session
+            session['user_id'] = user.id
+
+            # Set cookies (simulate PHP logic)
+            resp = make_response()
+            resp.set_cookie('uid', str(user.id), max_age=3600*24*7, path='/')
+            upd_hash = hashlib.md5((user.password + str(user.id) + os.environ['PASS_SALT']).encode()).hexdigest()
+            resp.set_cookie('upd', upd_hash, max_age=3600*24*7, path='/')
+
+            # Prepare user row for response
+            user_row = manage_user_row(user.as_dict(), user.id, level='0')
+            mark_all_activities_as_read(user.id)
+
+            resp.set_data(jsonify({'result': user_row}).get_data())
+            resp.mimetype = 'application/json'
+            return resp
+        else:
+            return jsonify({'error': 'Invalid email/username or password'}), 401
+
+    return jsonify({'error': 'empty Email or Password'}), 400

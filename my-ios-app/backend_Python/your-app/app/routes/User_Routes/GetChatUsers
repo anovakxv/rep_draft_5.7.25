@@ -1,0 +1,30 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.chats_users import ChatsUsers
+from app.models.user import User
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/get_chat_users', methods=['GET'])
+def api_get_chat_users():
+    user_id = session.get('user_id')
+    chats_id = request.args.get('chats_id')
+    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 50))
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not chats_id:
+        return jsonify({'error': 'chats_id is empty!'}), 400
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    users = db.session.query(User).join(
+        ChatsUsers, ChatsUsers.users_id == User.id
+    ).filter(ChatsUsers.chats_id == chats_id).offset(offset).limit(limit).all()
+
+    result
+    

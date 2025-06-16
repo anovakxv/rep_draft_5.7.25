@@ -1,0 +1,88 @@
+
+from flask import Blueprint, request, jsonify
+from app import db
+from app.models.portal import Portal
+from app.models.portals_users import PortalsUsers
+from app.models.portals_texts import PortalsTexts
+from app.utils.portal_permissions import check_portal_editor_permission
+
+portal_bp = Blueprint('portal', __name__)
+
+#You’ll need to implement or call the actual logic for deleting graphics and sections, and adding/updating sections, as shown by the pass statements.
+# Adjust model and field names as needed to match your SQLAlchemy models.
+# This route expects a JSON body with the relevant fields.
+
+@portal_bp.route('/api/portal/edit', methods=['POST'])
+def api_edit_portal():
+    data = request.get_json()
+    user_id = data.get('user_id')
+    portal_id = data.get('portals_id')
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not portal_id:
+        return jsonify({'error': 'portals_id required!'}), 400
+
+    if not check_portal_editor_permission(user_id, portal_id):
+        return jsonify({'error': 'Permission denied'}), 403
+
+    # Update main portal fields
+    portal = Portal.query.filter_by(id=portal_id).first()
+    if not portal:
+        return jsonify({'error': 'Portal not found'}), 404
+
+    update_fields = ['name', 'subtitle', 'categories_id', 'cities_id', 'about', 'lead_id']
+    for field in update_fields:
+        if data.get(field) is not None:
+            setattr(portal, field, data[field])
+
+    # Handle deleting graphic group hashes
+    if isinstance(data.get('aDeleteGraphicGroupHashes'), list) and data['aDeleteGraphicGroupHashes']:
+        # Call your delete_portal_graphic utility or route here
+        pass  # Implement as needed
+
+    # Handle deleting graphic section IDs
+    if isinstance(data.get('aDeletePGSIDs'), list) and data['aDeletePGSIDs']:
+        # Call your delete_portal_graphic_sections utility or route here
+        pass  # Implement as needed
+
+    # Handle sections update/add
+    if isinstance(data.get('aSections'), list) and data['aSections']:
+        # Call your add_portal_graphic_sections utility or route here
+        pass  # Implement as needed
+
+    # Handle texts
+    if 'aTexts' in data:
+        # Remove old texts
+        PortalsTexts.query.filter_by(portals_id=portal_id).delete()
+        # Add new texts
+        texts = data['aTexts']
+        for text_obj in texts:
+            title = text_obj.get('title', '').strip()
+            text = text_obj.get('text', '').strip()
+            if title or text:
+                new_text = PortalsTexts(portals_id=portal_id, title=title, text=text)
+                db.session.add(new_text)
+
+    # Handle leads/users
+    if isinstance(data.get('aLeadsIDs'), list) and data['aLeadsIDs']:
+        leads_ids = list(set([str(i).strip() for i in data['aLeadsIDs'] if str(i).strip()]))
+        if leads_ids:
+            # Remove old leads for this portal
+            PortalsUsers.query.filter(
+                PortalsUsers.portals_id == portal_id,
+                PortalsUsers.users_id.in_(leads_ids)
+            ).delete(synchronize_session=False)
+            # Add new leads
+            for lead_id in leads_ids:
+                db.session.add(PortalsUsers(users_id=lead_id, portals_id=portal_id, leader=True))
+
+    # Update users count
+    users_count = PortalsUsers.query.filter_by(portals_id=portal_id).count()
+    portal._c_users_count = users_count
+
+    db.session.commit()
+
+    # Optionally, return updated portal details
+    return jsonify({'result': 'Portal updated', 'portal_id': portal_id})
+

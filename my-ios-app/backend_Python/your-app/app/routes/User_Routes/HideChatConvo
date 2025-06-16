@@ -1,0 +1,38 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.chats import Chats
+from app.models.chats_hidden_conversations import ChatsHiddenConversations
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/hide_chat_conversation', methods=['POST'])
+def api_hide_chat_conversation():
+    data = request.get_json()
+    user_id = session.get('user_id')
+    chats_id = data.get('chats_id')
+    todo = data.get('todo')
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not chats_id:
+        return jsonify({'error': 'chats_id is empty!'}), 400
+    if not todo or todo not in ['hide', 'show']:
+        return jsonify({'error': "todo is empty or wrong! Supported: hide, show"}), 400
+
+    chat = Chats.query.filter_by(id=chats_id).first()
+    if not chat:
+        return jsonify({'error': "chat not found"}), 404
+
+    exists = ChatsHiddenConversations.query.filter_by(users_id=user_id, chats_id=chats_id).first()
+
+    if todo == 'hide':
+        if exists:
+            return jsonify({'error': f"You are already hiding '{chats_id}'"}), 400
+        hidden = ChatsHiddenConversations(users_id=user_id, chats_id=chats_id)
+        db.session.add(hidden)
+        db.session.commit()
+    elif todo == 'show':
+        if not exists:
+            return jsonify({'error': f"You are not hiding '{chats_id}'"}),
+            

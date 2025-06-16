@@ -1,0 +1,17 @@
+
+from app import db
+
+class S3Content(db.Model):
+    __tablename__ = 's3_content'
+
+    id = db.Column(db.Integer, primary_key=True)
+    gr_hash = db.Column(db.String(255), nullable=False, index=True)  # group hash
+    tbl_id = db.Column(db.Integer, nullable=False)  # ID of the related table row
+    tbl_index = db.Column(db.Integer, nullable=False)  # Table type/index (6 for portals_graphic_sections)
+    key = db.Column(db.String(255))  # e.g. 'portal_file_max_640x640'
+    url = db.Column(db.String(1024))
+    # Add other fields as needed (e.g., file size, created_at, etc.)
+
+    def __repr__(self):
+        return f"<S3Content id={self.id} gr_hash={self.gr_hash}>"
+        

@@ -1,0 +1,31 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.chats import Chats
+from app.models.chats_users import ChatsUsers
+from app.models.user import User
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/get_users_in_chat', methods=['GET'])
+def api_get_users_in_chat():
+    user_id = session.get('user_id')
+    chats_id = request.args.get('chats_id')
+
+    if not user_id:
+        return jsonify({'error': 'login required!'}), 401
+    if not chats_id:
+        return jsonify({'error': 'chats_id is required!'}), 400
+
+    # Check if user is a member of the chat
+    is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
+    if not is_member:
+        return jsonify({'error': 'permission denied'}), 403
+
+    users = db.session.query(User).join(
+        ChatsUsers, ChatsUsers.users_id == User.id
+    ).filter(ChatsUsers.chats_id == chats_id).all()
+
+    result = [u.as_dict() for u in users]
+    return
+    

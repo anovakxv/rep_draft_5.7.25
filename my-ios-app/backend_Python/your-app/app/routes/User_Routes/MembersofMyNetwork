@@ -1,0 +1,42 @@
+
+from flask import Blueprint, request, jsonify
+from app import db
+from app.models.user import User
+from app.models.users_network import UsersNetwork
+from app.models.goals_team import GoalTeam
+from app.models.chats_users import ChatsUsers
+from app.utils.user_utils import manage_user_row
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/members_of_my_network', methods=['GET'])
+def api_members_of_my_network():
+    users_id = request.args.get('users_id')
+    invited_goal_id = request.args.get('invited_goal_id')
+    not_in_chats_id = request.args.get('not_in_chats_id')
+    keyword = request.args.get('keyword', '')
+
+    if not users_id:
+        return jsonify({'error': 'users_id is empty!'}), 400
+
+    query = db.session.query(User).join(
+        UsersNetwork, UsersNetwork.users_id2 == User.id
+    ).filter(UsersNetwork.users_id1 == users_id)
+
+    if invited_goal_id:
+        subq = db.session.query(GoalTeam.users_id2).filter(GoalTeam.goals_id == invited_goal_id)
+        query = query.filter(~User.id.in_(subq))
+
+    if not_in_chats_id:
+        subq = db.session.query(ChatsUsers.users_id).filter(ChatsUsers.chats_id == not_in_chats_id)
+        query = query.filter(~User.id.in_(subq))
+
+    if keyword:
+        query = query.filter(
+            (User.fname + ' ' + User.lname).ilike(f"%{keyword.lower()}%")
+        )
+
+    users = query.all()
+    result = [manage_user_row(u.as_dict(), users_id) for u in users]
+    return jsonify({'result': result})
+    

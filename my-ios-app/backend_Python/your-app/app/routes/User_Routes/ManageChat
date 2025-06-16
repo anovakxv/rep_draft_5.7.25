@@ -1,0 +1,85 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.chats import Chats
+from app.models.chats_users import ChatsUsers
+from app.models.user import User
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/manage_chat', methods=['POST'])
+def api_manage_chat():
+    data = request.get_json()
+    user_id = session.get('user_id')
+    chats_id = data.get('chats_id')
+    title = data.get('title')
+    aAddIDs = data.get('aAddIDs', [])
+    aDelIDs = data.get('aDelIDs', [])
+
+    if not user_id:
+        return jsonify({'error': 'login required!'}), 401
+
+    if aDelIDs and not chats_id:
+        return jsonify({'error': 'for aDelIDs chats_id required!'}), 400
+
+    # Validate chat membership if editing existing chat
+    if chats_id:
+        chat = Chats.query.filter_by(id=chats_id).first()
+        if not chat:
+            return jsonify({'error': 'chat not found'}), 404
+        is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
+        if not is_member:
+            return jsonify({'error': '503'}), 403
+
+    # Validate users to add/delete
+    aAddIDsToDb = []
+    if aAddIDs:
+        aAddIDsToDb = [uid for uid in aAddIDs if User.query.filter_by(id=uid).first()]
+    aDelIDsToDb = []
+    if aDelIDs:
+        aDelIDsToDb = [uid for uid in aDelIDs if User.query.filter_by(id=uid).first()]
+
+    # Create new chat if chats_id is not provided
+    if not chats_id:
+        chat = Chats(users_id=user_id, title=title)
+        db.session.add(chat)
+        db.session.commit()
+        chats_id = chat.id
+        db.session.add(ChatsUsers(users_id=user_id, chats_id=chats_id))
+        db.session.commit()
+    else:
+        chat = Chats.query.filter_by(id=chats_id).first()
+        if title is not None:
+            chat.title = title
+            db.session.commit()
+
+    # Get current chat users
+    current_users = {cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=chats_id).all()}
+
+    # Add users to chat
+    aAddIDsToDbLog = {}
+    for uid in aAddIDsToDb:
+        if uid in current_users:
+            aAddIDsToDbLog[uid] = 'already in the chat'
+        else:
+            db.session.add(ChatsUsers(users_id=uid, chats_id=chats_id))
+            aAddIDsToDbLog[uid] = 'ok'
+    db.session.commit()
+
+    # Remove users from chat
+    aDelIDsToDbLog = {}
+    for uid in aDelIDsToDb:
+        if uid not in current_users:
+            aDelIDsToDbLog[uid] = 'not in the chat'
+        else:
+            ChatsUsers.query.filter_by(users_id=uid, chats_id=chats_id).delete()
+            aDelIDsToDbLog[uid] = 'ok'
+    db.session.commit()
+
+    result = {
+        'chats_id': chats_id,
+        'aAddIDsToDbLog': aAddIDsToDbLog,
+        'aDelIDsToDbLog': aDelIDsToDbLog
+    }
+    return jsonify({'result': result})
+    

@@ -1,0 +1,60 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.user import User
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/get_users', methods=['GET'])
+def api_get_users():
+    args = request.args
+    offset = int(args.get('offset', 0))
+    limit = int(args.get('limit', 50))
+    users_types_id = args.get('users_types_id')
+    keyword = args.get('keyword', '')
+    lat = args.get('lat')
+    lng = args.get('lng')
+    restrict_by_distance = args.get('restrict_by_distance', '0')
+    distance = float(args.get('distance', 10))
+    user_id = session.get('user_id')
+
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    query = User.query
+
+    if users_types_id:
+        query = query.filter(User.users_types_id == users_types_id)
+
+    if keyword:
+        query = query.filter(
+            (User.fname + ' ' + User.lname).ilike(f"%{keyword.lower()}%")
+        )
+
+    r_cond = None
+    if lat and lng:
+        try:
+            lat = float(lat)
+            lng = float(lng)
+            if restrict_by_distance == '1':
+                if distance < 1:
+                    return jsonify({'error': 'distance < 1'}), 400
+                # Haversine formula for miles
+                query = query.filter(
+                    db.text(
+                        f"((ACOS( SIN(lat * PI() /180 ) * SIN({lat} * PI()/180 ) + COS(lat * PI()/180 ) * COS({lat} * PI()/180 ) * COS( ((lng+0.000001) - ({lng}) ) * PI()/180 ) ) *180 / PI() ) * 60 * 1.1515) <= {distance}"
+                    )
+                )
+            query = query.filter(User.lat != 0, User.lng != 0)
+        except Exception:
+            pass
+
+    if user_id:
+        query = query.filter(User.id != user_id)
+
+    users = query.order_by(User.id.desc()).offset(offset).limit(limit).all()
+    result = [u.as_dict() for u in users]
+    return
+    

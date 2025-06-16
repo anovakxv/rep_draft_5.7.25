@@ -1,0 +1,79 @@
+
+from flask import Blueprint, request, jsonify, session, make_response
+from app import db
+from app.models.user import User
+from app.models.skill import Skill
+from app.models.users_skills import UsersSkills
+from app.utils.user_utils import check_user_data, check_new_email, check_new_username, manage_user_row
+import hashlib
+import os
+
+# Handles basic registration and auto-login.
+# Assumes you have User, Skill, and UsersSkills SQLAlchemy models.
+# Assumes check_user_data, check_new_email, check_new_username, and manage_user_row are implemented as Python utilities.
+# Add S3/profile picture logic as needed.
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/register', methods=['POST'])
+def api_register_user():
+    data = request.get_json()
+    # Validate required fields
+    try:
+        check_user_data(data)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+    # Check for unique email and username
+    try:
+        check_new_email(data['email'])
+        if data.get('username'):
+            check_new_username(data['username'])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+    # Prepare user fields
+    password_hash = hashlib.md5((os.environ['PASS_SALT'] + data['password']).encode()).hexdigest()
+    user = User(
+        email=data['email'],
+        about=data.get('about', ''),
+        broadcast=data.get('broadcast', ''),
+        phone=data.get('phone', ''),
+        cities_id=data.get('cities_id'),
+        users_types_id=data.get('users_types_id'),
+        password=password_hash,
+        fname=data.get('fname', ''),
+        lname=data.get('lname', ''),
+        username=data.get('username', ''),
+        confirmed=True,
+        facebook_id=data.get('facebook_id', ''),
+        device_token=data.get('device_token', ''),
+        twitter_id=data.get('twitter_id', ''),
+        manual_city=data.get('manual_city', ''),
+        other_skill=data.get('other_skill', '')
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    # Add skills if provided
+    skill_ids = data.get('aSkills', [])
+    if skill_ids:
+        valid_skills = Skill.query.filter(Skill.id.in_(skill_ids)).all()
+        for skill in valid_skills:
+            db.session.add(UsersSkills(users_id=user.id, skills_id=skill.id))
+        db.session.commit()
+
+    # (Optional) Handle S3 profile picture upload here if needed
+
+    # Auto-login after registration
+    session['user_id'] = user.id
+    resp = make_response()
+    resp.set_cookie('uid', str(user.id), max_age=3600*24*7, path='/')
+    upd_hash = hashlib.md5((user.password + str(user.id) + os.environ['PASS_SALT']).encode()).hexdigest()
+    resp.set_cookie('upd', upd_hash, max_age=3600*24*7, path='/')
+
+    user_row = manage_user_row(user.as_dict(), user.id, level='0')
+    resp.set_data(jsonify({'result': user_row}).get_data())
+    resp.mimetype = 'application/json'
+    return resp
+

@@ -1,0 +1,33 @@
+
+from flask import Blueprint, request, jsonify
+from app import db
+from app.models.skill import Skill
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/get_skills', methods=['GET'])
+def api_get_skills():
+    args = request.args
+    offset = int(args.get('offset', 0))
+    limit = int(args.get('limit', 50))
+    parent_id = args.get('parent_id')
+    skills_id = args.get('skills_id')
+    keyword = args.get('keyword', '')
+
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be < 4096'}), 400
+
+    query = Skill.query.filter_by(visible=1)
+
+    if parent_id:
+        query = query.filter(Skill.parent == parent_id)
+    if skills_id:
+        query = query.filter(Skill.id == skills_id)
+    if keyword:
+        query = query.filter(Skill.title.ilike(f"%{keyword}%"))
+
+    skills = query.offset(offset).limit(limit).all()
+    result = [s.as_dict() for s in skills]
+    

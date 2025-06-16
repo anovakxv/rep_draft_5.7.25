@@ -1,0 +1,47 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.chats import Chats
+from app.models.chats_users import ChatsUsers
+from app.models.user import User
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/create_chat', methods=['POST'])
+def api_create_chat():
+    data = request.get_json()
+    user_id = session.get('user_id')
+    title = data.get('title')
+    member_ids = data.get('member_ids', [])
+
+    if not user_id:
+        return jsonify({'error': 'login required!'}), 401
+    if not title:
+        return jsonify({'error': 'title is required!'}), 400
+
+    # Create the chat
+    chat = Chats(users_id=user_id, title=title)
+    db.session.add(chat)
+    db.session.commit()
+
+    # Add the creator to the chat
+    db.session.add(ChatsUsers(users_id=user_id, chats_id=chat.id))
+
+    # Add other members (if any), skip duplicates and non-existent users
+    added_members = []
+    for uid in set(member_ids):
+        if uid == user_id:
+            continue
+        if User.query.filter_by(id=uid).first():
+            db.session.add(ChatsUsers(users_id=uid, chats_id=chat.id))
+            added_members.append(uid)
+    db.session.commit()
+
+    result = {
+        'chats_id': chat.id,
+        'title': chat.title,
+        'created_by': user_id,
+        'members': [user_id] + added_members
+    }
+    return
+    

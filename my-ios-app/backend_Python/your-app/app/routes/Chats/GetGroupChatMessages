@@ -1,0 +1,37 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.chats import Chats
+from app.models.chats_users import ChatsUsers
+from app.models.message import Message
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/get_group_chat_messages', methods=['GET'])
+def api_get_group_chat_messages():
+    user_id = session.get('user_id')
+    chats_id = request.args.get('chats_id')
+    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 50))
+
+    if not user_id:
+        return jsonify({'error': 'login required!'}), 401
+    if not chats_id:
+        return jsonify({'error': 'chats_id is required!'}), 400
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    # Check if user is a member of the chat
+    is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
+    if not is_member:
+        return jsonify({'error': 'permission denied'}), 403
+
+    messages = Message.query.filter_by(chats_id=chats_id) \
+        .order_by(Message.timestamp.asc()) \
+        .offset(offset).limit(limit).all()
+
+    result = [m.as_dict() for m in messages]
+    return jsonify({'result': result})
+    

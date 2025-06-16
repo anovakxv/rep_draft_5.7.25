@@ -1,0 +1,63 @@
+
+from flask import Blueprint, request, jsonify
+from app.models.portal import Portal
+from app.models.portals_users_share import PortalsUsersShare
+
+portal_bp = Blueprint('portal', __name__)
+
+@portal_bp.route('/api/portal/shared', methods=['GET'])
+def api_get_shared_portals():
+    user_id = request.args.get('users_id')
+    offset = int(request.args.get('offset', 0))
+    limit = int(request.args.get('limit', 50))
+    show_hidden = request.args.get('show_hidden', '1')
+    portals_id = request.args.get('portals_id')
+    cities_id = request.args.get('cities_id')
+
+    if not user_id:
+        return jsonify({'error': 'users_id is empty!'}), 400
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    # Build query
+    query = Portal.query.join(
+        PortalsUsersShare, PortalsUsersShare.portals_id == Portal.id
+    ).filter(
+        PortalsUsersShare.users_id == user_id
+    )
+
+    if show_hidden != "1" and not portals_id:
+        # Exclude hidden portals for this user
+        from app.models.users_hidden_portals import UsersHiddenPortals
+        query = query.filter(
+            ~Portal.id.in_(
+                db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=user_id)
+            )
+        )
+
+    if cities_id:
+        query = query.filter(Portal.cities_id == cities_id)
+    if portals_id:
+        query = query.filter(Portal.id == portals_id)
+
+    portals = query.order_by(PortalsUsersShare.id.desc()).offset(offset).limit(limit).all()
+
+    result = []
+    for portal in portals:
+        result.append({
+            'id': portal.id,
+            'name': portal.name,
+            'subtitle': portal.subtitle,
+            'about': portal.about,
+            'categories_id': portal.categories_id,
+            'cities_id': portal.cities_id,
+            'lead_id': portal.lead_id,
+            'users_id': portal.users_id,
+            '_c_users_count': getattr(portal, '_c_users_count', None),
+            # Add more fields as needed
+        })
+
+    return
+    

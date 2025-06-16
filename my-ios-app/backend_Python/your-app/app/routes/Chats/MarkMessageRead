@@ -1,0 +1,32 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.message import Message
+from app.models.messages_read import MessagesRead
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/mark_messages_as_read', methods=['POST'])
+def api_mark_messages_as_read():
+    data = request.get_json()
+    user_id = session.get('user_id')
+    message_ids = data.get('message_ids', [])
+
+    if not user_id:
+        return jsonify({'error': 'login required!'}), 401
+    if not message_ids or not isinstance(message_ids, list):
+        return jsonify({'error': 'message_ids (list) required!'}), 400
+
+    marked = []
+    for mid in message_ids:
+        # Only mark as read if the user is the recipient
+        msg = Message.query.filter_by(id=mid).first()
+        if msg and msg.users_id2 == user_id:
+            already_read = MessagesRead.query.filter_by(users_id=user_id, messages_id=mid).first()
+            if not already_read:
+                db.session.add(MessagesRead(users_id=user_id, messages_id=mid))
+                marked.append(mid)
+    db.session.commit()
+
+    return jsonify({'result': {'marked_as_read':
+    

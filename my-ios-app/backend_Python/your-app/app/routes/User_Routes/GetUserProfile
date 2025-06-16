@@ -1,0 +1,28 @@
+
+from flask import Blueprint, request, jsonify
+from app.models.user import User
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/profile', methods=['GET'])
+def api_user_profile():
+    user_id = request.args.get('users_id')
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'users_id must be an integer'}), 400
+
+    user = User.query.filter_by(id=user_id).first()
+    if not user:
+        return jsonify({'error': "User doesn't exist"}), 404
+
+    user_data = {
+        'id': user.id,
+        'email': user.email,
+        'fname': user.fname,
+        'lname': user.lname,
+        'about': user.about,
+        'username': user.username,
+        # Add other fields as needed
+    }
+    return jsonify({'result': user_data})

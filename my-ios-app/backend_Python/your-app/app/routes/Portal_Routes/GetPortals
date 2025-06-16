@@ -1,0 +1,31 @@
+
+from flask import Blueprint, request, jsonify
+from app.models.portal import Portal
+
+portal_bp = Blueprint('portal', __name__)
+
+@portal_bp.route('/api/portals', methods=['GET'])
+def api_get_portals():
+    # Optional filters
+    user_id = request.args.get('users_id')
+    limit = request.args.get('limit', default=50, type=int)
+    offset = request.args.get('offset', default=0, type=int)
+
+    query = Portal.query
+
+    if user_id:
+        query = query.filter_by(users_id=user_id)
+
+    portals = query.offset(offset).limit(limit).all()
+
+    result = []
+    for portal in portals:
+        result.append({
+            'id': portal.id,
+            'name': portal.name,
+            'description': portal.description,
+            'users_id': portal.users_id,
+            # Add other fields as needed
+        })
+
+    return jsonify({'result': result})

@@ -1,0 +1,40 @@
+
+from flask import Blueprint, request, jsonify
+from app.models.portal import Portal
+from app import db
+
+portal_bp = Blueprint('portal', __name__)
+
+@portal_bp.route('/api/portal', methods=['POST'])
+def api_create_portal():
+    data = request.get_json()
+    required_fields = ['name', 'description']
+    if not data or not all(field in data for field in required_fields):
+        return jsonify({'error': 'Missing required fields'}), 400
+
+    # Example: get current user ID from session/auth (replace with your auth logic)
+    # user_id = current_user.id
+    user_id = data.get('users_id')  # For demo; in production, get from auth/session
+
+    if not user_id:
+        return jsonify({'error': 'users_id required'}), 400
+
+    # Check for duplicate portal name for this user (optional)
+    if Portal.query.filter_by(name=data['name'], users_id=user_id).first():
+        return jsonify({'error': 'Portal name already exists for this user'}), 400
+
+    try:
+        portal = Portal(
+            name=data['name'],
+            description=data['description'],
+            users_id=user_id
+            # Add other fields as needed
+        )
+        db.session.add(portal)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+    return jsonify({'result': 'Portal created', 'portal_id': portal.id}), 201
+    

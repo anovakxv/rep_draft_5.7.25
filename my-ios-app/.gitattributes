@@ -1,0 +1,4 @@
+
+*.php linguist-detectable=false
+*.py linguist-detectable=true
+*.swift linguist-detectable=true

@@ -1,0 +1,119 @@
+
+from flask import Blueprint, request, jsonify, session
+from app.models.Goals_Models.GoalTeam import GoalTeam
+from app.models.Goals_Models.Goal import Goal
+from app.models.Goals_Models.User import User
+from app.models.Goals_Models.Portal import Portal
+
+goals_bp = Blueprint('goals', __name__)
+
+@goals_bp.route('/api/goals/team_invites', methods=['GET'])
+def api_get_goals_team_invites():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'login required!'}), 401
+
+    offset = request.args.get('offset', default=0, type=int)
+    limit = request.args.get('limit', default=50, type=int)
+    folder = request.args.get('folder', default='current')
+    read1 = request.args.get('read1')
+    read2 = request.args.get('read2')
+    goals_id = request.args.get('goals_id')
+    confirmed = request.args.get('confirmed')
+    seconds_from_gmt = request.args.get('seconds_from_gmt')
+
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    # Build query conditions
+    query = GoalTeam.query
+
+    if folder == "current":
+        query = query.filter(
+            ((GoalTeam.users_id2 == user_id) & (GoalTeam.confirmed == 0)) |
+            ((GoalTeam.users_id1 == user_id) & (GoalTeam.confirmed != 0) & (GoalTeam.read1 == False))
+        )
+    elif folder == "inbox":
+        query = query.filter(GoalTeam.users_id2 == user_id)
+    elif folder == "sent":
+        query = query.filter(GoalTeam.users_id1 == user_id)
+    else:
+        return jsonify({'error': 'wrong folder! Supported: inbox, sent, current'}), 400
+
+    if read1 is not None:
+        query = query.filter(GoalTeam.read1 == bool(int(read1)))
+    if read2 is not None:
+        query = query.filter(GoalTeam.read2 == bool(int(read2)))
+    if goals_id:
+        query = query.filter(GoalTeam.goals_id == int(goals_id))
+    if confirmed:
+        confirmed_list = [int(c) for c in str(confirmed).split(',') if c.strip() != '']
+        query = query.filter(GoalTeam.confirmed.in_(confirmed_list))
+
+    invites = query.offset(offset).limit(limit).all()
+
+    # Collect related user, goal, and portal IDs
+    user_ids = set()
+    goal_ids = set()
+    portal_ids = set()
+    aInvites = []
+    for invite in invites:
+        user_ids.add(invite.users_id1)
+        user_ids.add(invite.users_id2)
+        goal_ids.add(invite.goals_id)
+        aInvites.append({
+            'id': invite.id,
+            'users_id1': invite.users_id1,
+            'users_id2': invite.users_id2,
+            'goals_id': invite.goals_id,
+            'confirmed': invite.confirmed,
+            'read1': invite.read1,
+            'read2': invite.read2,
+            'timestamp': invite.timestamp.isoformat() if invite.timestamp else None,
+            'inbox': 1 if invite.users_id2 == user_id else 0
+        })
+
+    # Fetch goals and portals
+    goals = Goal.query.filter(Goal.id.in_(goal_ids)).all() if goal_ids else []
+    for g in goals:
+        portal_ids.add(g.portals_id)
+    aGoals = [{
+        'id': g.id,
+        'description': g.description,
+        'portals_id': g.portals_id,
+        'lead_id': g.lead_id,
+        'users_id': g.users_id,
+        'quota': g.quota,
+        'filled_quota': g.filled_quota,
+        'goal_types_id': g.goal_types_id,
+        'goal_metrics_id': g.goal_metrics_id,
+        'rep_commission': g.rep_commission,
+        'reporting_increments_id': g.reporting_increments_id
+    } for g in goals]
+
+    portals = Portal.query.filter(Portal.id.in_(portal_ids)).all() if portal_ids else []
+    aPortals = [{
+        'id': p.id,
+        'name': p.name,
+        'subtitle': p.subtitle,
+        'about': p.about
+    } for p in portals]
+
+    users = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
+    aUsers = [{
+        'id': u.id,
+        'username': u.username,
+        'fname': u.fname,
+        'lname': u.lname,
+        'email': u.email
+    } for u in users]
+
+    return jsonify({
+        'aInvites': aInvites,
+        'aGoals': aGoals,
+        'aUsers': aUsers,
+        'aPortals': aPortals
+    })
+    

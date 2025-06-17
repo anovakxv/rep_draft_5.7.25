@@ -1,0 +1,70 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.Goals_Models.Goal import Goal
+from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
+from app.models.Goals_Models.GoalTeam import GoalTeam
+
+goals_bp = Blueprint('goals', __name__)
+
+def goal_as_dict(goal, user_id=None, seconds_from_gmt=None):
+    # You can expand this as needed
+    data = {
+        'id': goal.id,
+        'description': goal.description,
+        'quota': goal.quota,
+        'filled_quota': goal.filled_quota,
+        'quota_is_reached_note': goal.quota_is_reached_note,
+        'goal_types_id': goal.goal_types_id,
+        'goal_metrics_id': goal.goal_metrics_id,
+        'rep_commission': goal.rep_commission,
+        'reporting_increments_id': goal.reporting_increments_id,
+        'portals_id': goal.portals_id,
+        'users_id': goal.users_id,
+        'lead_id': goal.lead_id,
+        # Add more fields as needed
+    }
+    # Example: Add permissions, team info, etc.
+    data['manage_permission'] = (
+        user_id is not None and (goal.users_id == user_id or goal.lead_id == user_id)
+    )
+    data['count_of_members'] = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).count()
+    data['team_member'] = 0
+    if user_id:
+        data['team_member'] = GoalTeam.query.filter_by(goals_id=goal.id, users_id2=user_id, confirmed=1).count()
+    data['progress'] = round(goal.filled_quota / goal.quota, 2) if goal.quota else 0
+    # Latest progress log (limit 4)
+    latest_progress = (
+        GoalProgressLog.query.filter_by(goals_id=goal.id)
+        .order_by(GoalProgressLog.timestamp.desc())
+        .limit(4)
+        .all()
+    )
+    data['aLatestProgress'] = [dict(
+        id=log.id,
+        users_id=log.users_id,
+        added_value=log.added_value,
+        note=log.note,
+        value=log.value,
+        timestamp=log.timestamp.isoformat() if log.timestamp else None
+    ) for log in latest_progress]
+    # TODO: Add S3 files if needed
+    data['aFiles'] = []  # Placeholder
+    return data
+
+@goals_bp.route('/api/goals/details', methods=['GET'])
+def api_goal_details():
+    goal_id = request.args.get('goals_id', type=int)
+    seconds_from_gmt = request.args.get('seconds_from_gmt', type=int)
+    user_id = session.get('user_id')
+
+    if not goal_id:
+        return jsonify({'error': 'goals_id required!'}), 400
+
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': "the goal doesn't exist"}), 404
+
+    goal_data = goal_as_dict(goal, user_id, seconds_from_gmt)
+    return jsonify({'result': goal_data})
+    

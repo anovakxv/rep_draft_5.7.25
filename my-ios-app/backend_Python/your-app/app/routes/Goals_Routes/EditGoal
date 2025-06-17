@@ -1,0 +1,82 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.Goals_Models.Goal import Goal
+from app.models.Goals_Models.GoalMetric import GoalMetric
+from app.models.Goals_Models.GoalType import GoalType
+from app.models.Goals_Models.ReportingIncrement import ReportingIncrement
+from app.models.Goals_Models.User import User
+
+goals_bp = Blueprint('goals', __name__)
+
+@goals_bp.route('/api/goals/edit', methods=['POST'])
+def api_edit_goal():
+    data = request.json
+    user_id = session.get('user_id')
+    goal_id = data.get('goals_id')
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not goal_id:
+        return jsonify({'error': 'goals_id required!'}), 400
+
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': "Goal not found"}), 404
+
+    # Permission: Only the lead or portal owner can edit
+    if goal.lead_id:
+        if goal.lead_id != user_id:
+            return jsonify({'error': "Only the Lead of the Goal can edit."}), 403
+    else:
+        # Optionally, check if user is portal owner/editor
+        if goal.users_id != user_id:
+            return jsonify({'error': "Only the owner can edit this goal."}), 403
+
+    # Validate and update fields
+    editable_fields = [
+        'goal_types_id', 'goal_metrics_id', 'rep_commission', 'lead_id',
+        'description', 'reporting_increments_id', 'quota'
+    ]
+    for field in editable_fields:
+        if field in data and data[field] is not None:
+            # Validate foreign keys if needed
+            if field == 'goal_types_id':
+                if not GoalType.query.get(data[field]):
+                    return jsonify({'error': 'Invalid goal_types_id'}), 400
+            if field == 'goal_metrics_id':
+                if not GoalMetric.query.get(data[field]):
+                    return jsonify({'error': 'Invalid goal_metrics_id'}), 400
+            if field == 'reporting_increments_id':
+                if not ReportingIncrement.query.get(data[field]):
+                    return jsonify({'error': 'Invalid reporting_increments_id'}), 400
+            if field == 'lead_id' and data[field]:
+                if not User.query.get(data[field]):
+                    return jsonify({'error': 'Invalid lead_id'}), 400
+            if field == 'quota':
+                if int(data[field]) < 1:
+                    return jsonify({'error': 'quota < 1'}), 400
+            setattr(goal, field, data[field])
+
+    db.session.commit()
+
+    # Optionally: handle file uploads, aSources, aSourcesNotes, etc.
+
+    # Return updated goal (as dict)
+    updated_goal = {
+        'id': goal.id,
+        'description': goal.description,
+        'quota': goal.quota,
+        'filled_quota': goal.filled_quota,
+        'quota_is_reached_note': goal.quota_is_reached_note,
+        'goal_types_id': goal.goal_types_id,
+        'goal_metrics_id': goal.goal_metrics_id,
+        'rep_commission': goal.rep_commission,
+        'reporting_increments_id': goal.reporting_increments_id,
+        'portals_id': goal.portals_id,
+        'users_id': goal.users_id,
+        'lead_id': goal.lead_id,
+    }
+
+    return jsonify({'result': updated_goal})
+    

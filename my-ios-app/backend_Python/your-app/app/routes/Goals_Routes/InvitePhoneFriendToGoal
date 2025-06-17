@@ -1,0 +1,68 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.Goals_Models.Goal import Goal
+from app.models.Goals_Models.User import User
+from app.models.Goals_Models.GoalPreInvite import GoalPreInvite  # You need to define this model
+
+goals_bp = Blueprint('goals', __name__)
+
+@goals_bp.route('/api/goals/invite_phone_friends', methods=['POST'])
+def api_invite_phone_friends_to_goal():
+    data = request.json
+    user_id = session.get('user_id')
+    goal_id = data.get('goals_id')
+    aPhones = data.get('aPhones', [])
+    todo = data.get('todo', 'add')
+    do_not_send_sms = data.get('do_not_send_sms', False)
+
+    if not user_id:
+        return jsonify({'error': 'login required!'}), 401
+    if not goal_id:
+        return jsonify({'error': 'goals_id is empty!'}), 400
+    if not aPhones or not isinstance(aPhones, list):
+        return jsonify({'error': 'aPhones is empty or wrong!'}), 400
+    if todo not in ['add', 'delete']:
+        return jsonify({'error': 'todo is empty or wrong! Supported: add, delete'}), 400
+
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': 'goal: 404'}), 404
+
+    log = {}
+
+    for phone in aPhones:
+        phone = phone.strip()
+        if not phone:
+            continue
+        user = User.query.filter_by(phone=phone).first()
+        if user:
+            log[phone] = f'already registered: {user.id}'
+            # Optionally: add to team directly here
+        else:
+            if todo == 'add':
+                # Check for existing pre-invite
+                existing = GoalPreInvite.query.filter_by(
+                    users_id=user_id, goals_id=goal_id, type='phone', identifier=phone
+                ).first()
+                if not existing:
+                    preinvite = GoalPreInvite(
+                        users_id=user_id,
+                        goals_id=goal_id,
+                        type='phone',
+                        identifier=phone
+                    )
+                    db.session.add(preinvite)
+                    log[phone] = 'invited'
+                    # Optionally: send SMS here (skip if do_not_send_sms)
+                else:
+                    log[phone] = 'already invited'
+            elif todo == 'delete':
+                deleted = GoalPreInvite.query.filter_by(
+                    users_id=user_id, goals_id=goal_id, type='phone', identifier=phone
+                ).delete()
+                log[phone] = 'deleted' if deleted else 'not found'
+
+    db.session.commit()
+    return jsonify({'result': log})
+    

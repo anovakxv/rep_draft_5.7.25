@@ -1,0 +1,78 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.Goals_Models.Goal import Goal
+from app.models.Goals_Models.GoalTeam import GoalTeam
+from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
+from app.models.Goals_Models.GoalMetric import GoalMetric
+
+goals_bp = Blueprint('goals', __name__)
+
+@goals_bp.route('/api/goals/create', methods=['POST'])
+def api_create_goal():
+    data = request.json
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+
+    # Required fields
+    required_fields = ['description', 'portals_id', 'goal_types_id', 'reporting_increments_id']
+    for field in required_fields:
+        if not data.get(field):
+            return jsonify({'error': f'{field} required!'}), 400
+
+    # Validate quota
+    quota = int(data.get('quota', 100))
+    if quota < 1:
+        return jsonify({'error': 'quota < 1'}), 400
+
+    # Validate lead_id if provided
+    lead_id = data.get('lead_id')
+    if lead_id:
+        from app.models.Goals_Models.User import User
+        if not User.query.get(lead_id):
+            return jsonify({'error': 'Wrong lead_id'}), 400
+
+    # Validate goal_metrics_id or auto-select if missing
+    goal_metrics_id = data.get('goal_metrics_id')
+    if not goal_metrics_id:
+        metric = GoalMetric.query.filter_by(goal_types_id=data['goal_types_id']).first()
+        if not metric:
+            return jsonify({'error': 'No metric found for this goal type'}), 400
+        goal_metrics_id = metric.id
+
+    # Create the goal
+    goal = Goal(
+        users_id=user_id,
+        description=data['description'],
+        portals_id=data['portals_id'],
+        quota=quota,
+        goal_types_id=data['goal_types_id'],
+        goal_metrics_id=goal_metrics_id,
+        rep_commission=data.get('rep_commission'),
+        reporting_increments_id=data['reporting_increments_id'],
+        lead_id=lead_id
+    )
+    db.session.add(goal)
+    db.session.commit()
+
+    # Add creator as team member (confirmed)
+    team = GoalTeam(users_id1=user_id, users_id2=user_id, goals_id=goal.id, confirmed=1)
+    db.session.add(team)
+    db.session.commit()
+
+    # Log initial progress (optional, as in PHP)
+    progress_log = GoalProgressLog(
+        users_id=user_id,
+        goals_id=goal.id,
+        added_value=1,
+        note="Goal created",
+        value=1
+    )
+    db.session.add(progress_log)
+    db.session.commit()
+
+    # Optionally: handle aSources, aSourcesNotes, file uploads, etc.
+
+    return jsonify({'result': {'goals_id': goal.id}})
+    

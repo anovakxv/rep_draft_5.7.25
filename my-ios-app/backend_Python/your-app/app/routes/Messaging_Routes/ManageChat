@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.chats import Chats
@@ -29,15 +28,11 @@ def api_manage_chat():
             return jsonify({'error': 'chat not found'}), 404
         is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
         if not is_member:
-            return jsonify({'error': '503'}), 403
+            return jsonify({'error': 'You are not a member of this chat.'}), 403
 
     # Validate users to add/delete
-    aAddIDsToDb = []
-    if aAddIDs:
-        aAddIDsToDb = [uid for uid in aAddIDs if User.query.filter_by(id=uid).first()]
-    aDelIDsToDb = []
-    if aDelIDs:
-        aDelIDsToDb = [uid for uid in aDelIDs if User.query.filter_by(id=uid).first()]
+    aAddIDsToDb = [uid for uid in aAddIDs if User.query.filter_by(id=uid).first()]
+    aDelIDsToDb = [uid for uid in aDelIDs if User.query.filter_by(id=uid).first()]
 
     # Create new chat if chats_id is not provided
     if not chats_id:
@@ -82,4 +77,3 @@ def api_manage_chat():
         'aDelIDsToDbLog': aDelIDsToDbLog
     }
     return jsonify({'result': result})
-    

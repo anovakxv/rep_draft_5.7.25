@@ -1,31 +1,33 @@
-
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from app.models.portal import Portal
 from app.models.goals import Goal
 from app.models.portals_users import PortalsUsers
 from app.models.portals_texts import PortalsTexts
 from app.models.user import User
-from app.routes.portal_routes.get_portal_graphic_sections import api_get_portal_graphic_sections
-
-# This assumes your models (Goal, PortalsUsers, PortalsTexts, User) have an as_dict() method for serialization.
-# Adjust field names and serialization as needed.
-# This route expects portals_id and user_id as query parameters.
+from app.models.portals_graphic_sections import PortalsGraphicSections
+from app.models.s3_content import S3Content
+from sqlalchemy.orm import joinedload
 
 portal_bp = Blueprint('portal', __name__)
 
 @portal_bp.route('/api/portal/details', methods=['GET'])
 def api_portal_details():
-    portal_id = request.args.get('portals_id')
-    user_id = request.args.get('user_id')
+    portal_id = request.args.get('portals_id', type=int)
+    user_id = session.get('user_id') or request.args.get('user_id', type=int)
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
     if not portal_id:
         return jsonify({'error': 'portals_id required!'}), 400
 
-    portal = Portal.query.filter_by(id=portal_id).first()
+    portal = Portal.query.options(
+        joinedload(Portal.creator),
+        joinedload(Portal.lead),
+        joinedload(Portal.category),
+        joinedload(Portal.city)
+    ).filter_by(id=portal_id).first()
     if not portal:
-        return jsonify({'error': 'the portal doesn\'t exist'}), 404
+        return jsonify({'error': "The portal doesn't exist"}), 404
 
     # Main portal info
     portal_data = {
@@ -37,7 +39,7 @@ def api_portal_details():
         'cities_id': portal.cities_id,
         'lead_id': portal.lead_id,
         'users_id': portal.users_id,
-        '_c_users_count': portal._c_users_count,
+        '_c_users_count': getattr(portal, '_c_users_count', None),
     }
 
     # Goals
@@ -52,29 +54,25 @@ def api_portal_details():
     texts = PortalsTexts.query.filter_by(portals_id=portal.id).order_by(PortalsTexts.id.asc()).all()
     portal_data['aTexts'] = [t.as_dict() for t in texts] if texts else []
 
-    # Sections (graphic sections)
-    # You can call the function directly or refactor it as a utility
-    # Here, we call the logic inline for clarity
-    from app.models.portals_graphic_sections import PortalsGraphicSections
-    from app.models.s3_content import S3Content
-
+    # Sections (graphic sections) with S3 files
     sections = PortalsGraphicSections.query.filter_by(portals_id=portal.id).all()
-    aSections = []
-    for section in sections:
-        files = S3Content.query.filter_by(tbl_index=6, tbl_id=section.id).all()
-        files_data = [
-            {
+    section_ids = [section.id for section in sections]
+    files_by_section = {}
+    if section_ids:
+        files = S3Content.query.filter(S3Content.tbl_index == 6, S3Content.tbl_id.in_(section_ids)).all()
+        for f in files:
+            files_by_section.setdefault(f.tbl_id, []).append({
                 'id': f.id,
                 'gr_hash': f.gr_hash,
                 'key': f.key,
                 'url': f.url
-            }
-            for f in files
-        ]
+            })
+    aSections = []
+    for section in sections:
         aSections.append({
             'id': section.id,
             'title': section.title,
-            'aFiles': files_data
+            'aFiles': files_by_section.get(section.id, [])
         })
     portal_data['aSections'] = aSections
 
@@ -84,4 +82,3 @@ def api_portal_details():
     portal_data['aUsers'] = [u.as_dict() for u in users] if users else []
 
     return jsonify({'result': portal_data})
-

@@ -1,0 +1,64 @@
+
+@goals_bp.route('/api/goals/list', methods=['GET'])
+def api_get_goals():
+    args = request.args
+    offset = int(args.get('offset', 0))
+    limit = int(args.get('limit', 50))
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+
+    query = Goal.query
+
+    # Filtering logic
+    users_id = args.get('users_id')
+    creator_id = args.get('creator_id')
+    invited_user_id = args.get('invited_user_id')
+    portals_id = args.get('portals_id')
+    manage_permission = args.get('manage_permission')
+    goal_types_id = args.get('goal_types_id')
+    goal_metrics_id = args.get('goal_metrics_id')
+
+    user_id = session.get('user_id')
+
+    if manage_permission is not None:
+        if not user_id:
+            return jsonify({'error': 'Login error!'}), 401
+        if manage_permission == "1":
+            query = query.filter((Goal.users_id == user_id) | (Goal.lead_id == user_id))
+        else:
+            query = query.filter((Goal.users_id != user_id) & (Goal.lead_id != user_id))
+        if invited_user_id:
+            subquery = db.session.query(GoalTeam.goals_id).filter(GoalTeam.users_id2 == invited_user_id)
+            query = query.filter(~Goal.id.in_(subquery))
+
+    if creator_id:
+        query = query.filter(Goal.users_id == creator_id)
+    if users_id:
+        subquery = db.session.query(GoalTeam.goals_id).filter(
+            GoalTeam.users_id2 == users_id, GoalTeam.confirmed == 1
+        )
+        query = query.filter(
+            (Goal.users_id == users_id) |
+            (Goal.lead_id == users_id) |
+            (Goal.id.in_(subquery))
+        )
+    if portals_id:
+        query = query.filter(Goal.portals_id == portals_id)
+    if goal_types_id:
+        query = query.filter(Goal.goal_types_id == goal_types_id)
+    if goal_metrics_id:
+        query = query.filter(Goal.goal_metrics_id == goal_metrics_id)
+
+    goals = query.order_by(Goal.id.desc()).offset(offset).limit(limit).all()
+    result = [goal_as_dict(g, user_id) for g in goals]
+
+    # Optionally, fetch related portals
+    portal_ids = list(set([g['portals_id'] for g in result]))
+    from app.models.Goals_Models.Portal import Portal
+    portals = Portal.query.filter(Portal.id.in_(portal_ids)).all()
+    portals_result = [dict(id=p.id, name=p.name) for p in portals]
+
+    return jsonify({'aPortals': portals_result, 'aGoals': result})
+    

@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.portals_graphic_sections import PortalsGraphicSections
@@ -27,7 +26,6 @@ def api_add_portal_graphic_sections():
         return jsonify({'error': 'Permission denied'}), 403
 
     aLog = []
-    aInsertSQL = []
 
     for idx, section in enumerate(sections):
         section_id = section.get('id')
@@ -56,11 +54,12 @@ def api_add_portal_graphic_sections():
             aLog.append({'error': 'comma separated string is wrong', 'index': idx})
             continue
 
-        # Here you would link S3 files to this section.
-        # For demo, we assume gr_hashes are provided in file_indexes.
+        # Remove existing S3 content links for this section (optional, if updating)
+        if section_id:
+            PortalsGraphicSectionsS3Content.query.filter_by(portals_graphic_sections_id=pgs.id).delete(synchronize_session=False)
+
         files_log = []
         for gr_hash in file_indexes:
-            # Optionally, validate gr_hash exists in s3_content
             s3_file = S3Content.query.filter_by(gr_hash=gr_hash, tbl_index=6).first()
             if s3_file:
                 link = PortalsGraphicSectionsS3Content(
@@ -79,6 +78,4 @@ def api_add_portal_graphic_sections():
 
     db.session.commit()
 
-    if return_result == "1":
-        return jsonify({'result': aLog})
     return jsonify({'result': aLog})

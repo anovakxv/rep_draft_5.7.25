@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.user import User
@@ -9,7 +8,7 @@ user_bp = Blueprint('user', __name__)
 
 @user_bp.route('/api/user/get_my_networks', methods=['GET'])
 def api_get_my_networks():
-    users_id = request.args.get('users_id')
+    users_id = request.args.get('users_id', type=int)
     if not users_id:
         return jsonify({'error': 'users_id is empty!'}), 400
 
@@ -19,5 +18,4 @@ def api_get_my_networks():
     ).filter(UsersNetwork.users_id2 == users_id).all()
 
     result = [manage_user_row(u.as_dict(), users_id) for u in network_users]
-    return
-    
+    return jsonify({'result': result})

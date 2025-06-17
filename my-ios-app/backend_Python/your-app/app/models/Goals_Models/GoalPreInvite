@@ -1,5 +1,5 @@
-
 from app import db
+from datetime import datetime
 
 class GoalPreInvite(db.Model):
     __tablename__ = 'goals_pre_invites'
@@ -9,11 +9,10 @@ class GoalPreInvite(db.Model):
     goals_id = db.Column(db.Integer, db.ForeignKey('goals.id'), nullable=False)
     type = db.Column(db.String(20), nullable=False)  # 'email', 'phone', 'fb'
     identifier = db.Column(db.String(255), nullable=False)
-    timestamp = db.Column(db.DateTime)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='goal_pre_invites')
     goal = db.relationship('Goal', backref='pre_invites')
 
     def __repr__(self):
         return f"<GoalPreInvite id={self.id} goal_id={self.goals_id} type={self.type} identifier={self.identifier}>"
-    

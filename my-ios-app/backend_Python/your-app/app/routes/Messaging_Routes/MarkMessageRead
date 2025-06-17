@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.message import Message
@@ -28,5 +27,4 @@ def api_mark_messages_as_read():
                 marked.append(mid)
     db.session.commit()
 
-    return jsonify({'result': {'marked_as_read':
-    
+    return jsonify({'result': {'marked_as_read': marked}})

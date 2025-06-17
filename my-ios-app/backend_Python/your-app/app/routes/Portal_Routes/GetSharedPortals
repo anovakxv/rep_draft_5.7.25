@@ -1,5 +1,5 @@
-
 from flask import Blueprint, request, jsonify
+from app import db
 from app.models.portal import Portal
 from app.models.portals_users_share import PortalsUsersShare
 
@@ -29,7 +29,6 @@ def api_get_shared_portals():
     )
 
     if show_hidden != "1" and not portals_id:
-        # Exclude hidden portals for this user
         from app.models.users_hidden_portals import UsersHiddenPortals
         query = query.filter(
             ~Portal.id.in_(
@@ -59,5 +58,4 @@ def api_get_shared_portals():
             # Add more fields as needed
         })
 
-    return
-    
+    return jsonify({'result': result})

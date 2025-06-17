@@ -1,0 +1,72 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.Goals_Models.Goal import Goal
+from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
+from app.models.Goals_Models.GoalTeam import GoalTeam
+
+goals_bp = Blueprint('goals', __name__)
+
+@goals_bp.route('/api/goals/update_filled_quota', methods=['POST'])
+def api_update_goal_filled_quota():
+    data = request.json
+    user_id = session.get('user_id')
+    goal_id = data.get('goals_id')
+    added_value = data.get('added_value')
+    note = data.get('note', '')
+    # aSources and aSourcesNotes can be handled here if you implement file uploads
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not goal_id:
+        return jsonify({'error': 'goals_id required!'}), 400
+    if added_value is None:
+        return jsonify({'error': 'added_value required!'}), 400
+
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+
+    # Permission: Only owner or confirmed team member can update
+    is_owner = goal.users_id == user_id
+    is_team_member = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id, confirmed=1).count() > 0
+    if not (is_owner or is_team_member):
+        return jsonify({'error': 'Permission denied'}), 403
+
+    # Prevent update for internal goal types (1, 2, 5)
+    if str(goal.goal_types_id) in ['1', '2', '5']:
+        return jsonify({'error': 'INTERNAL GOALS (No Update Goal Form Needed)'}), 400
+
+    # Add progress log
+    progress_log = GoalProgressLog(
+        users_id=user_id,
+        goals_id=goal_id,
+        added_value=added_value,
+        note=note,
+        value=(goal.filled_quota or 0) + int(added_value)
+    )
+    db.session.add(progress_log)
+
+    # Update goal's filled_quota
+    goal.filled_quota = (goal.filled_quota or 0) + int(added_value)
+    db.session.commit()
+
+    # Optionally: handle file uploads (aSources, aSourcesNotes)
+
+    # Return updated goal details
+    updated_goal = {
+        'id': goal.id,
+        'description': goal.description,
+        'quota': goal.quota,
+        'filled_quota': goal.filled_quota,
+        'goal_types_id': goal.goal_types_id,
+        'goal_metrics_id': goal.goal_metrics_id,
+        'rep_commission': goal.rep_commission,
+        'reporting_increments_id': goal.reporting_increments_id,
+        'portals_id': goal.portals_id,
+        'users_id': goal.users_id,
+        'lead_id': goal.lead_id,
+    }
+
+    return jsonify({'result': updated_goal})
+    

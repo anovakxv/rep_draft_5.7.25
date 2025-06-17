@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.user import User
@@ -11,9 +10,9 @@ user_bp = Blueprint('user', __name__)
 
 @user_bp.route('/api/user/members_of_my_network', methods=['GET'])
 def api_members_of_my_network():
-    users_id = request.args.get('users_id')
-    invited_goal_id = request.args.get('invited_goal_id')
-    not_in_chats_id = request.args.get('not_in_chats_id')
+    users_id = request.args.get('users_id', type=int)
+    invited_goal_id = request.args.get('invited_goal_id', type=int)
+    not_in_chats_id = request.args.get('not_in_chats_id', type=int)
     keyword = request.args.get('keyword', '')
 
     if not users_id:
@@ -32,11 +31,11 @@ def api_members_of_my_network():
         query = query.filter(~User.id.in_(subq))
 
     if keyword:
+        keyword = keyword.strip().lower()
         query = query.filter(
-            (User.fname + ' ' + User.lname).ilike(f"%{keyword.lower()}%")
+            (User.fname + ' ' + User.lname).ilike(f"%{keyword}%")
         )
 
     users = query.all()
     result = [manage_user_row(u.as_dict(), users_id) for u in users]
     return jsonify({'result': result})
-    

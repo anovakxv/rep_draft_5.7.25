@@ -1,0 +1,21 @@
+
+from app import db
+
+class PortalCategory(db.Model):
+    __tablename__ = 'portal_categories'
+
+    id = db.Column(db.Integer, primary_key=True)
+    portal_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint('portal_id', 'category_id', name='uq_portal_category_pair'),
+        db.Index('ix_portal_category_pair', 'portal_id', 'category_id'),
+    )
+
+    portal = db.relationship('Portal', backref='portal_categories')
+    category = db.relationship('Category', backref='portal_categories')
+
+    def __repr__(self):
+        return f"<PortalCategory portal_id={self.portal_id} category_id={self.category_id}>"
+        

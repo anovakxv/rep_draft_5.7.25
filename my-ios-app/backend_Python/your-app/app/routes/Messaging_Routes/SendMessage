@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.user import User
@@ -32,8 +31,6 @@ def api_send_message():
 
     # Check if blocked
     if does_user_block(to_user_id, user_id):
-        if return_result == "1":
-            return jsonify({'error': 'blocked!'})
         return jsonify({'error': 'blocked!'}), 403
 
     # Create message
@@ -58,5 +55,6 @@ def api_send_message():
     db.session.commit()
 
     if return_result == "1":
-        return
-        
+        return jsonify({'result': 'ok', 'message_id': msg.id})
+
+    return jsonify({'result': 'ok', 'message_id': msg.id})

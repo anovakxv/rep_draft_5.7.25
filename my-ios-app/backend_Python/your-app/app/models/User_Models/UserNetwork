@@ -1,5 +1,5 @@
-
 from app import db
+from datetime import datetime
 
 class UserNetwork(db.Model):
     __tablename__ = 'users_network'
@@ -7,7 +7,18 @@ class UserNetwork(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     users_id1 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     users_id2 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    timestamp = db.Column(db.DateTime)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Optional: status field for connection state
+    # status = db.Column(db.String(20), default='pending')  # e.g., 'pending', 'accepted', 'blocked'
+
+    __table_args__ = (
+        db.UniqueConstraint('users_id1', 'users_id2', name='uq_users_network_pair'),
+        db.Index('ix_users_network_pair', 'users_id1', 'users_id2'),
+    )
 
     user1 = db.relationship('User', foreign_keys=[users_id1], backref='networks_initiated')
     user2 = db.relationship('User', foreign_keys=[users_id2], backref='networks_received')
+
+    def __repr__(self):
+        return f"<UserNetwork id={self.id} users_id1={self.users_id1} users_id2={self.users_id2}>"

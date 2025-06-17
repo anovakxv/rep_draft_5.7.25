@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.message import Message
@@ -29,6 +28,7 @@ def api_get_messages():
     order = args.get('order', 'ASC').upper()
     limit = int(args.get('limit', 50))
     offset = int(args.get('offset', 0))
+    mark_as_read = args.get('mark_as_read', '0') == '1'  # <-- Added
 
     if order not in ['ASC', 'DESC']:
         return jsonify({'error': 'order is wrong! ASC or DESC required'}), 400
@@ -42,10 +42,8 @@ def api_get_messages():
         r.messages_id for r in MessagesRead.query.filter_by(users_id=user_id).limit(1024).all()
     )
 
-    # Build base query
     query = Message.query
 
-    # Filtering by newer_than_id
     if newer_than_id:
         query = query.filter(Message.id > int(newer_than_id))
 
@@ -55,27 +53,22 @@ def api_get_messages():
     if keyword_text and not keyword_flname:
         query = query.filter(Message.text.ilike(f"%{keyword_text}%"))
 
-    # Filtering by portal
     if args.get('portals_id'):
         query = query.filter(Message.portals_id == args.get('portals_id'))
 
-    # Filtering by chat or user
+    # Inbox/grouped view
     if not users_id and not chats_id:
-        # Inbox/grouped view
-        # Exclude hidden conversations if needed
         if show_hidden != "1":
             hidden_ids = db.session.query(UsersHiddenConversations.users_id2).filter_by(users_id1=user_id)
             query = query.filter(~Message.users_id1.in_(hidden_ids), ~Message.users_id2.in_(hidden_ids))
             hidden_chats = db.session.query(ChatsHiddenConversations.chats_id).filter_by(users_id=user_id)
             query = query.filter(~Message.chats_id.in_(hidden_chats))
-        # Only messages where user is a participant
         query = query.filter(
             (Message.users_id1 == user_id) | (Message.users_id2 == user_id) |
             (Message.chats_id.in_(
                 db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id)
             ))
         )
-        # Optionally filter by name
         if keyword_flname:
             user_ids = [
                 u.id for u in User.query.filter(
@@ -85,25 +78,21 @@ def api_get_messages():
             query = query.filter(
                 (Message.users_id1.in_(user_ids)) | (Message.users_id2.in_(user_ids))
             )
-        # Grouping and aggregation would be handled in Python after fetching
         messages = query.order_by(Message.timestamp.desc()).offset(offset).limit(limit).all()
     elif chats_id:
         query = query.filter(Message.chats_id == chats_id)
         messages = query.order_by(Message.timestamp.asc() if order == 'ASC' else Message.timestamp.desc()).offset(offset).limit(limit).all()
     else:
-        # Direct conversation
         query = query.filter(
             ((Message.users_id1 == user_id) & (Message.users_id2 == users_id)) |
             ((Message.users_id2 == user_id) & (Message.users_id1 == users_id))
         )
         messages = query.order_by(Message.timestamp.asc() if order == 'ASC' else Message.timestamp.desc()).offset(offset).limit(limit).all()
 
-    # Collect user IDs, portal IDs, chat IDs for enrichment
     user_ids = set()
     portal_ids = set()
     chat_ids = set()
     aData = []
-    new_messages_count = 0
 
     for msg in messages:
         msg_dict = msg.as_dict()
@@ -122,18 +111,28 @@ def api_get_messages():
             msg_dict['read'] = '0'
         aData.append(msg_dict)
 
-    # Mark messages as read if needed
-    if aData and users_id:
-        msg_ids = [m['id'] for m in aData]
-        Message.query.filter(Message.id.in_(msg_ids), Message.users_id2 == user_id).update({'read': 1})
+    # Mark messages as read if needed (for direct messages)
+    if mark_as_read and aData and users_id:
+        unread_ids = [
+            m['id'] for m in aData
+            if m['read'] == '0' and any([
+                (str(m.get('users_id2')) == str(user_id)),  # recipient is current user
+                (m.get('chats_id') is None)  # direct message
+            ])
+        ]
+        for mid in unread_ids:
+            if not MessagesRead.query.filter_by(users_id=user_id, messages_id=mid).first():
+                db.session.add(MessagesRead(users_id=user_id, messages_id=mid))
         db.session.commit()
+
+    # Mark messages as read if needed (for chats)
     if aData and chats_id:
         unread_ids = [m['id'] for m in aData if m['read'] == '0']
         for mid in unread_ids:
-            db.session.add(MessagesRead(users_id=user_id, chats_id=chats_id, messages_id=mid))
+            if not MessagesRead.query.filter_by(users_id=user_id, chats_id=chats_id, messages_id=mid).first():
+                db.session.add(MessagesRead(users_id=user_id, chats_id=chats_id, messages_id=mid))
         db.session.commit()
 
-    # Enrich with users, portals, chats
     users = User.query.filter(User.id.in_(user_ids)).all()
     portals = Portal.query.filter(Portal.id.in_(portal_ids)).all() if portal_ids else []
     chats = Chats.query.filter(Chats.id.in_(chat_ids)).all() if chat_ids else []
@@ -148,4 +147,5 @@ def api_get_messages():
         'aPortals': aPortals,
         'aChats': aChats
     }
-    
+    return jsonify({'result': result})
+

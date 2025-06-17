@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.chats_users import ChatsUsers
@@ -26,5 +25,5 @@ def api_get_chat_users():
         ChatsUsers, ChatsUsers.users_id == User.id
     ).filter(ChatsUsers.chats_id == chats_id).offset(offset).limit(limit).all()
 
-    result
-    
+    result = [u.as_dict() for u in users]
+    return jsonify({'result': result})

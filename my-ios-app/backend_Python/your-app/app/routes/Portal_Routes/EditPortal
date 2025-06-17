@@ -1,21 +1,17 @@
-
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.portal import Portal
 from app.models.portals_users import PortalsUsers
 from app.models.portals_texts import PortalsTexts
 from app.utils.portal_permissions import check_portal_editor_permission
+from datetime import datetime
 
 portal_bp = Blueprint('portal', __name__)
-
-#You’ll need to implement or call the actual logic for deleting graphics and sections, and adding/updating sections, as shown by the pass statements.
-# Adjust model and field names as needed to match your SQLAlchemy models.
-# This route expects a JSON body with the relevant fields.
 
 @portal_bp.route('/api/portal/edit', methods=['POST'])
 def api_edit_portal():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = session.get('user_id') or data.get('user_id')
     portal_id = data.get('portals_id')
 
     if not user_id:
@@ -26,36 +22,38 @@ def api_edit_portal():
     if not check_portal_editor_permission(user_id, portal_id):
         return jsonify({'error': 'Permission denied'}), 403
 
-    # Update main portal fields
     portal = Portal.query.filter_by(id=portal_id).first()
     if not portal:
         return jsonify({'error': 'Portal not found'}), 404
 
-    update_fields = ['name', 'subtitle', 'categories_id', 'cities_id', 'about', 'lead_id']
+    # Update main portal fields
+    update_fields = ['name', 'subtitle', 'categories_id', 'cities_id', 'about', 'lead_id', 'visible']
     for field in update_fields:
         if data.get(field) is not None:
             setattr(portal, field, data[field])
+    portal.updated_at = datetime.utcnow()
 
-    # Handle deleting graphic group hashes
+    # Handle deleting graphic group hashes (implement your own logic)
     if isinstance(data.get('aDeleteGraphicGroupHashes'), list) and data['aDeleteGraphicGroupHashes']:
-        # Call your delete_portal_graphic utility or route here
-        pass  # Implement as needed
+        # Example: delete S3Content or related files by group hash
+        # from app.models.s3_content import S3Content
+        # S3Content.query.filter(S3Content.gr_hash.in_(data['aDeleteGraphicGroupHashes'])).delete(synchronize_session=False)
+        pass
 
-    # Handle deleting graphic section IDs
+    # Handle deleting graphic section IDs (implement your own logic)
     if isinstance(data.get('aDeletePGSIDs'), list) and data['aDeletePGSIDs']:
-        # Call your delete_portal_graphic_sections utility or route here
-        pass  # Implement as needed
+        # from app.models.portals_graphic_sections import PortalsGraphicSections
+        # PortalsGraphicSections.query.filter(PortalsGraphicSections.id.in_(data['aDeletePGSIDs'])).delete(synchronize_session=False)
+        pass
 
-    # Handle sections update/add
+    # Handle sections update/add (implement your own logic)
     if isinstance(data.get('aSections'), list) and data['aSections']:
-        # Call your add_portal_graphic_sections utility or route here
-        pass  # Implement as needed
+        # Implement add/update logic for graphic sections here
+        pass
 
     # Handle texts
     if 'aTexts' in data:
-        # Remove old texts
-        PortalsTexts.query.filter_by(portals_id=portal_id).delete()
-        # Add new texts
+        PortalsTexts.query.filter_by(portals_id=portal_id).delete(synchronize_session=False)
         texts = data['aTexts']
         for text_obj in texts:
             title = text_obj.get('title', '').strip()
@@ -66,7 +64,7 @@ def api_edit_portal():
 
     # Handle leads/users
     if isinstance(data.get('aLeadsIDs'), list) and data['aLeadsIDs']:
-        leads_ids = list(set([str(i).strip() for i in data['aLeadsIDs'] if str(i).strip()]))
+        leads_ids = list(set([int(i) for i in data['aLeadsIDs'] if str(i).strip().isdigit()]))
         if leads_ids:
             # Remove old leads for this portal
             PortalsUsers.query.filter(
@@ -83,6 +81,4 @@ def api_edit_portal():
 
     db.session.commit()
 
-    # Optionally, return updated portal details
     return jsonify({'result': 'Portal updated', 'portal_id': portal_id})
-

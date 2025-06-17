@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.user import User
@@ -29,11 +28,11 @@ def api_get_users():
         query = query.filter(User.users_types_id == users_types_id)
 
     if keyword:
+        keyword = keyword.strip().lower()
         query = query.filter(
-            (User.fname + ' ' + User.lname).ilike(f"%{keyword.lower()}%")
+            (User.fname + ' ' + User.lname).ilike(f"%{keyword}%")
         )
 
-    r_cond = None
     if lat and lng:
         try:
             lat = float(lat)
@@ -41,7 +40,7 @@ def api_get_users():
             if restrict_by_distance == '1':
                 if distance < 1:
                     return jsonify({'error': 'distance < 1'}), 400
-                # Haversine formula for miles
+                # Haversine formula for miles (raw SQL for filtering)
                 query = query.filter(
                     db.text(
                         f"((ACOS( SIN(lat * PI() /180 ) * SIN({lat} * PI()/180 ) + COS(lat * PI()/180 ) * COS({lat} * PI()/180 ) * COS( ((lng+0.000001) - ({lng}) ) * PI()/180 ) ) *180 / PI() ) * 60 * 1.1515) <= {distance}"
@@ -49,12 +48,11 @@ def api_get_users():
                 )
             query = query.filter(User.lat != 0, User.lng != 0)
         except Exception:
-            pass
+            return jsonify({'error': 'Invalid latitude or longitude'}), 400
 
     if user_id:
         query = query.filter(User.id != user_id)
 
     users = query.order_by(User.id.desc()).offset(offset).limit(limit).all()
     result = [u.as_dict() for u in users]
-    return
-    
+    return jsonify({'result': result})

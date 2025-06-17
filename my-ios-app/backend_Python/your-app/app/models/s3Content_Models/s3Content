@@ -1,0 +1,20 @@
+from app import db
+from datetime import datetime
+
+class S3Content(db.Model):
+    __tablename__ = 's3_content'
+
+    id = db.Column(db.Integer, primary_key=True)
+    gr_hash = db.Column(db.String(255), nullable=False, index=True)  # group hash
+    tbl_id = db.Column(db.Integer, nullable=False)  # ID of the related table row
+    tbl_index = db.Column(db.Integer, nullable=False)  # Table type/index (6 for portals_graphic_sections)
+    key = db.Column(db.String(255), nullable=True)  # e.g. 'portal_file_max_640x640'
+    url = db.Column(db.String(1024), nullable=True)
+    file_type = db.Column(db.String(50), nullable=True)  # Optional: MIME type
+    file_size = db.Column(db.Integer, nullable=True)  # Optional: file size in bytes
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+    description = db.Column(db.String(255), nullable=True)  # Optional: caption or alt text
+
+    def __repr__(self):
+        return f"<S3Content id={self.id} gr_hash={self.gr_hash} key={self.key}>"
+    

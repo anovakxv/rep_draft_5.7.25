@@ -1,34 +1,38 @@
-
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from app.models.portal import Portal
 from app import db
+from datetime import datetime
 
 portal_bp = Blueprint('portal', __name__)
 
 @portal_bp.route('/api/portal', methods=['POST'])
 def api_create_portal():
     data = request.get_json()
-    required_fields = ['name', 'description']
+    required_fields = ['name', 'about']  # Use 'about' to match your model, not 'description'
     if not data or not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
 
-    # Example: get current user ID from session/auth (replace with your auth logic)
-    # user_id = current_user.id
-    user_id = data.get('users_id')  # For demo; in production, get from auth/session
-
+    # Get current user ID from session/auth (recommended)
+    user_id = session.get('user_id') or data.get('users_id')
     if not user_id:
         return jsonify({'error': 'users_id required'}), 400
 
-    # Check for duplicate portal name for this user (optional)
+    # Optional: Check for duplicate portal name for this user
     if Portal.query.filter_by(name=data['name'], users_id=user_id).first():
         return jsonify({'error': 'Portal name already exists for this user'}), 400
 
     try:
         portal = Portal(
             name=data['name'],
-            description=data['description'],
-            users_id=user_id
-            # Add other fields as needed
+            about=data.get('about'),
+            subtitle=data.get('subtitle'),
+            users_id=user_id,
+            lead_id=data.get('lead_id'),
+            categories_id=data.get('categories_id'),
+            cities_id=data.get('cities_id'),
+            visible=data.get('visible', True),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
         db.session.add(portal)
         db.session.commit()
@@ -37,4 +41,3 @@ def api_create_portal():
         return jsonify({'error': str(e)}), 500
 
     return jsonify({'result': 'Portal created', 'portal_id': portal.id}), 201
-    

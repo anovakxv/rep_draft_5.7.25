@@ -1,5 +1,4 @@
-
-from flask import Blueprint, request, jsonify, session, make_response
+from flask import Blueprint, request, jsonify, session, make_response, url_for, current_app
 from app import db
 from app.models.user import User
 from app.models.skill import Skill
@@ -7,17 +6,28 @@ from app.models.users_skills import UsersSkills
 from app.utils.user_utils import check_user_data, check_new_email, check_new_username, manage_user_row
 import hashlib
 import os
+import uuid
+from werkzeug.utils import secure_filename
 
-# Handles basic registration and auto-login.
-# Assumes you have User, Skill, and UsersSkills SQLAlchemy models.
-# Assumes check_user_data, check_new_email, check_new_username, and manage_user_row are implemented as Python utilities.
-# Add S3/profile picture logic as needed.
+# must also implement your actual email sending logic.
 
 user_bp = Blueprint('user', __name__)
 
+def send_verification_email(user, token):
+    # Implement your email sending logic here
+    # Example: send an email with a link to /api/user/verify_email?token=...
+    verify_url = url_for('user.api_verify_email', token=token, _external=True)
+    # Use your email sending utility here
+    print(f"Send verification email to {user.email}: {verify_url}")
+
+def allowed_file(filename):
+    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
 @user_bp.route('/api/user/register', methods=['POST'])
 def api_register_user():
-    data = request.get_json()
+    data = request.form.to_dict()
+    files = request.files
     # Validate required fields
     try:
         check_user_data(data)
@@ -32,8 +42,12 @@ def api_register_user():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-    # Prepare user fields
+    # Hash password (consider using a stronger hash in production)
     password_hash = hashlib.md5((os.environ['PASS_SALT'] + data['password']).encode()).hexdigest()
+
+    # Email verification token
+    email_token = str(uuid.uuid4())
+
     user = User(
         email=data['email'],
         about=data.get('about', ''),
@@ -45,12 +59,13 @@ def api_register_user():
         fname=data.get('fname', ''),
         lname=data.get('lname', ''),
         username=data.get('username', ''),
-        confirmed=True,
+        confirmed=False,  # Not confirmed until email verification
         facebook_id=data.get('facebook_id', ''),
         device_token=data.get('device_token', ''),
         twitter_id=data.get('twitter_id', ''),
         manual_city=data.get('manual_city', ''),
-        other_skill=data.get('other_skill', '')
+        other_skill=data.get('other_skill', ''),
+        email_verification_token=email_token  # You need to add this field to your User model
     )
     db.session.add(user)
     db.session.commit()
@@ -58,22 +73,50 @@ def api_register_user():
     # Add skills if provided
     skill_ids = data.get('aSkills', [])
     if skill_ids:
+        if isinstance(skill_ids, str):
+            # Handle comma-separated string from form
+            skill_ids = [int(sid) for sid in skill_ids.split(',') if sid.strip().isdigit()]
         valid_skills = Skill.query.filter(Skill.id.in_(skill_ids)).all()
         for skill in valid_skills:
             db.session.add(UsersSkills(users_id=user.id, skills_id=skill.id))
         db.session.commit()
 
-    # (Optional) Handle S3 profile picture upload here if needed
+    # Handle profile picture upload
+    profile_pic_url = None
+    if 'profile_picture' in files:
+        file = files['profile_picture']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
+            upload_folder = current_app.config.get('PROFILE_PIC_UPLOAD_FOLDER', 'uploads/profile_pics')
+            os.makedirs(upload_folder, exist_ok=True)
+            file_path = os.path.join(upload_folder, filename)
+            file.save(file_path)
+            # If using S3, upload here and set profile_pic_url to the S3 URL
+            profile_pic_url = url_for('static', filename=f"profile_pics/{filename}", _external=True)
+            user.profile_picture_url = profile_pic_url  # You need to add this field to your User model
+            db.session.commit()
 
-    # Auto-login after registration
-    session['user_id'] = user.id
-    resp = make_response()
-    resp.set_cookie('uid', str(user.id), max_age=3600*24*7, path='/')
-    upd_hash = hashlib.md5((user.password + str(user.id) + os.environ['PASS_SALT']).encode()).hexdigest()
-    resp.set_cookie('upd', upd_hash, max_age=3600*24*7, path='/')
+    # Send verification email
+    send_verification_email(user, email_token)
+
+    # Do not auto-login until email is verified
+    # session['user_id'] = user.id
 
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
-    resp.set_data(jsonify({'result': user_row}).get_data())
-    resp.mimetype = 'application/json'
-    return resp
+    user_row['profile_picture_url'] = profile_pic_url
+    return jsonify({'result': 'Registration successful. Please verify your email.', 'user': user_row})
+
+@user_bp.route('/api/user/verify_email', methods=['GET'])
+def api_verify_email():
+    token = request.args.get('token')
+    if not token:
+        return jsonify({'error': 'Verification token required'}), 400
+    user = User.query.filter_by(email_verification_token=token).first()
+    if not user:
+        return jsonify({'error': 'Invalid or expired token'}), 400
+    user.confirmed = True
+    user.email_verification_token = None
+    db.session.commit()
+    session['user_id'] = user.id  # Auto-login after verification
+    return jsonify({'result': 'Email verified successfully', 'user_id': user.id})
 

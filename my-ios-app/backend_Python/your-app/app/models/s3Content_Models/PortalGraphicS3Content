@@ -1,0 +1,18 @@
+from app import db
+from datetime import datetime
+
+class PortalGraphicSectionS3Content(db.Model):
+    __tablename__ = 'portals_graphic_sections_s3_content'
+
+    id = db.Column(db.Integer, primary_key=True)
+    portals_graphic_sections_id = db.Column(db.Integer, db.ForeignKey('portals_graphic_sections.id'), nullable=False, index=True)
+    s3_gr_hash = db.Column(db.String(255), nullable=False)
+    file_type = db.Column(db.String(50), nullable=True)  # Optional: e.g., 'image/png', 'video/mp4'
+    description = db.Column(db.String(255), nullable=True)  # Optional: for captions or alt text
+    uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    graphic_section = db.relationship('PortalGraphicSection', backref='s3_contents')
+
+    def __repr__(self):
+        return f"<PortalGraphicSectionS3Content id={self.id} section_id={self.portals_graphic_sections_id} s3_gr_hash={self.s3_gr_hash}>"
+    

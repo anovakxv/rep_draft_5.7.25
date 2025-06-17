@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.skill import Skill
@@ -19,15 +18,15 @@ def api_get_skills():
     if limit > 4096:
         return jsonify({'error': 'limit should be < 4096'}), 400
 
-    query = Skill.query.filter_by(visible=1)
+    query = Skill.query.filter_by(visible=True)
 
     if parent_id:
         query = query.filter(Skill.parent == parent_id)
     if skills_id:
         query = query.filter(Skill.id == skills_id)
     if keyword:
-        query = query.filter(Skill.title.ilike(f"%{keyword}%"))
+        query = query.filter(Skill.title.ilike(f"%{keyword.strip()}%"))
 
     skills = query.offset(offset).limit(limit).all()
     result = [s.as_dict() for s in skills]
-    
+    return jsonify({'result': result})

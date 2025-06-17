@@ -1,0 +1,48 @@
+
+from flask import Blueprint, request, jsonify
+from app.models.Goals_Models.GoalTeam import GoalTeam
+from app.models.Goals_Models.User import User
+
+goals_bp = Blueprint('goals', __name__)
+
+@goals_bp.route('/api/goals/team', methods=['GET'])
+def api_get_goal_team():
+    goal_id = request.args.get('goals_id', type=int)
+    confirmed = request.args.get('confirmed', type=int)
+    offset = request.args.get('offset', default=0, type=int)
+    limit = request.args.get('limit', default=50, type=int)
+
+    if not goal_id:
+        return jsonify({'error': 'goals_id is empty!'}), 400
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    query = GoalTeam.query.filter_by(goals_id=goal_id)
+    if confirmed is not None:
+        query = query.filter_by(confirmed=confirmed)
+    team_members = query.offset(offset).limit(limit).all()
+
+    result = []
+    for member in team_members:
+        user = User.query.get(member.users_id2)
+        result.append({
+            'id': member.id,
+            'users_id1': member.users_id1,
+            'users_id2': member.users_id2,
+            'confirmed': member.confirmed,
+            'read1': member.read1,
+            'read2': member.read2,
+            'timestamp': member.timestamp.isoformat() if member.timestamp else None,
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'fname': user.fname,
+                'lname': user.lname,
+                'email': user.email
+            } if user else None
+        })
+
+    return jsonify({'result': result})
+    

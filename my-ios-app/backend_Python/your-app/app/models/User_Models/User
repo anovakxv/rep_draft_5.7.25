@@ -1,31 +1,35 @@
-
 from app import db
+from datetime import datetime
+from flask_login import UserMixin
 
-class User(db.Model):
+class User(UserMixin, db.Model):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(255), unique=True, nullable=False)
-    about = db.Column(db.Text)
-    broadcast = db.Column(db.Text)
-    phone = db.Column(db.String(50))
-    cities_id = db.Column(db.Integer, db.ForeignKey('cities.id'))
-    users_types_id = db.Column(db.Integer, db.ForeignKey('user_types.id'))
+    about = db.Column(db.Text, nullable=True)
+    broadcast = db.Column(db.Text, nullable=True)
+    phone = db.Column(db.String(50), nullable=True, index=True)
+    cities_id = db.Column(db.Integer, db.ForeignKey('cities.id'), nullable=True)
+    users_types_id = db.Column(db.Integer, db.ForeignKey('user_types.id'), nullable=True)
     password = db.Column(db.String(255), nullable=False)
-    fname = db.Column(db.String(100))
-    lname = db.Column(db.String(100))
+    fname = db.Column(db.String(100), nullable=True)
+    lname = db.Column(db.String(100), nullable=True)
     username = db.Column(db.String(100), unique=True, nullable=False)
     confirmed = db.Column(db.Boolean, default=True)
-    device_token = db.Column(db.String(255))
-    twitter_id = db.Column(db.String(100))
-    manual_city = db.Column(db.String(100))
-    other_skill = db.Column(db.String(255))
-    lat = db.Column(db.Float)
-    lng = db.Column(db.Float)
-    last_login = db.Column(db.DateTime)
+    device_token = db.Column(db.String(255), nullable=True)
+    twitter_id = db.Column(db.String(100), nullable=True)
+    manual_city = db.Column(db.String(100), nullable=True)
+    other_skill = db.Column(db.String(255), nullable=True)
+    lat = db.Column(db.Float, nullable=True)
+    lng = db.Column(db.Float, nullable=True)
+    last_login = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    email_verification_token = db.Column(db.String(128), nullable=True)
+    profile_picture_url = db.Column(db.String(512), nullable=True)
 
-
-    # Relationships (optional, for easier ORM queries)
+    # Relationships
     city = db.relationship('City', backref='users')
     user_type = db.relationship('UserType', backref='users')
 

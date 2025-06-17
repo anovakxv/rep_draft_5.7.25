@@ -1,0 +1,32 @@
+
+// MARK: - Bar Chart Data Model
+
+struct BarChartData: Identifiable {
+    let id = UUID()
+    let value: Double
+    let label: String
+    let color: Color
+}
+
+// MARK: - Goal Model
+
+struct GoalModel: Identifiable {
+    let id = UUID()
+    let title: String
+    let subtitle: String
+    let progress: Int
+    let chartData: [BarChartData]
+}
+
+// MARK: - Example Usage
+
+let sampleGoal = GoalModel(
+    title: "Grow Membership",
+    subtitle: "Increase by 20% this year",
+    progress: 60,
+    chartData: [
+        BarChartData(value: 10, label: "Jan", color: .green),
+        BarChartData(value: 20, label: "Feb", color: .green),
+        BarChartData(value: 30, label: "Mar", color: .green)
+    ]
+)

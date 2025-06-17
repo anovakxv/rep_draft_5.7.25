@@ -1,0 +1,80 @@
+import Foundation
+
+struct UserProfile: Identifiable, Codable, Equatable {
+    let id: String
+    var fullName: String
+    var photoURL: String?
+    var repType: String
+    var city: String
+    var about: String
+    var broadcast: String
+    var skills: [String]
+    var cards: [ProfileCard]
+
+    // Computed property for display
+    var repTypeAndCity: String {
+        "Rep Type: \(repType)   City: \(city)"
+    }
+
+    // Sample for previews
+    static let sample = UserProfile(
+        id: "user1",
+        fullName: "Jose Barrera",
+        photoURL: "https://cdn.builder.io/api/v1/image/assets/TEMP/87fbadb180eb8aacf43e8f44ba102e18fea11e27",
+        repType: "Lead",
+        city: "LA",
+        about: "Passionate about building teams and products...",
+        broadcast: "Looking for partners in LA!",
+        skills: [
+            "Human Resources - Scale",
+            "Operations - Manufacturing",
+            "Sales Social Connector"
+        ],
+        cards: [
+            ProfileCard(
+                title: "Economic Advancement",
+                description: "Increasing my income by 50% in 2 years.",
+                imageUrl: "https://cdn.builder.io/api/v1/image/assets/TEMP/2460fce7187bd62a3df0309aa8e16ea1c3c5db54"
+            ),
+            ProfileCard(
+                title: "Boys & Girls Club",
+                description: "4 volunteer hours per month",
+                imageUrl: "https://cdn.builder.io/api/v1/image/assets/TEMP/d4a6a0d0ddb849dfe1884db98a4ec691983e1a16",
+                isCustomBackground: true,
+                backgroundColor: nil,
+                customContent: nil
+            ),
+            ProfileCard(
+                title: "Education",
+                description: "16 hours of coding school per month",
+                imageUrl: "https://cdn.builder.io/api/v1/image/assets/TEMP/f265c57b67c280fd401dba8430b0d38587d04450"
+            )
+        ]
+    )
+}
+
+// You may want to update ProfileCard to conform to Codable/Equatable as well:
+struct ProfileCard: Identifiable, Codable, Equatable {
+    let id: String = UUID().uuidString
+    let title: String
+    let description: String
+    let imageUrl: String
+    let isCustomBackground: Bool
+    let backgroundColor: String? // Store as hex string if needed
+    // customContent is not Codable; omit or handle separately
+
+    init(
+        title: String,
+        description: String,
+        imageUrl: String,
+        isCustomBackground: Bool = false,
+        backgroundColor: String? = nil,
+        customContent: Any? = nil // Not Codable, for UI only
+    ) {
+        self.title = title
+        self.description = description
+        self.imageUrl = imageUrl
+        self.isCustomBackground = isCustomBackground
+        self.backgroundColor = backgroundColor
+    }
+    

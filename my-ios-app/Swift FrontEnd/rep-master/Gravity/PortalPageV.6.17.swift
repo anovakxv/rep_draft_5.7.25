@@ -190,7 +190,7 @@ struct PortalOfferingSection: View {
 }
 
 struct PortalResultsSection: View {
-    let goals: [Goal]
+    let goals: [GoalModel]
     var body: some View {
         ForEach(goals) { goal in
             VStack {
@@ -330,13 +330,44 @@ struct Goal: Identifiable {
     let title: String
 }
 
-struct GoalListItem: View {
-    let goal: Goal
-    var body: some View {
-        Text(goal.title)
-    }
+struct GoalModel: Identifiable {
+    let id: Int
+    let title: String
+    let subtitle: String
+    let progress: Int
+    let chartData: [BarChartData]
 }
 
+struct BarChartData: Identifiable {
+    let id = UUID()
+    let value: Double
+    let label: String
+    let color: Color
+}
+
+struct GoalListItem: View {
+    let goal: GoalModel
+
+    var body: some View {
+        HStack(spacing: 16) {
+            BarChartView(data: goal.chartData)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(goal.title)
+                    .font(.headline)
+                Text(goal.subtitle)
+                    .font(.subheadline)
+                Text("\(goal.progress)% [Recruiting]")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .frame(height: 64)
+        .padding(.vertical, 4)
+        .padding(.horizontal)
+        .background(Color.white)
+    }
+}
 struct GoalDetailPage: View {
     let goal: Goal
     var body: some View {

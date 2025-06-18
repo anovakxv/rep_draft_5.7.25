@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.Goals_Models.Goal import Goal
@@ -8,31 +7,34 @@ from app.models.Goals_Models.GoalTeam import GoalTeam
 goals_bp = Blueprint('goals', __name__)
 
 def goal_as_dict(goal, user_id=None, seconds_from_gmt=None):
-    # You can expand this as needed
     data = {
         'id': goal.id,
-        'description': goal.description,
-        'quota': goal.quota,
-        'filled_quota': goal.filled_quota,
-        'quota_is_reached_note': goal.quota_is_reached_note,
-        'goal_types_id': goal.goal_types_id,
-        'goal_metrics_id': goal.goal_metrics_id,
-        'rep_commission': goal.rep_commission,
-        'reporting_increments_id': goal.reporting_increments_id,
-        'portals_id': goal.portals_id,
-        'users_id': goal.users_id,
-        'lead_id': goal.lead_id,
-        # Add more fields as needed
+        'title': getattr(goal, 'title', ''),  # Add this field to your model if not present
+        'subtitle': getattr(goal, 'subtitle', ''),  # Add this field to your model if not present
+        'description': getattr(goal, 'description', ''),
+        'quota': getattr(goal, 'quota', 0),
+        'filled_quota': getattr(goal, 'filled_quota', 0),
+        'quota_is_reached_note': getattr(goal, 'quota_is_reached_note', ''),
+        'goal_types_id': getattr(goal, 'goal_types_id', None),
+        'goal_metrics_id': getattr(goal, 'goal_metrics_id', None),
+        'rep_commission': getattr(goal, 'rep_commission', None),
+        'reporting_increments_id': getattr(goal, 'reporting_increments_id', None),
+        'portals_id': getattr(goal, 'portals_id', None),
+        'users_id': getattr(goal, 'users_id', None),
+        'lead_id': getattr(goal, 'lead_id', None),
+        'progress': round(goal.filled_quota / goal.quota, 2) if getattr(goal, 'quota', 0) else 0,
+        'progress_percent': round(100 * goal.filled_quota / goal.quota) if getattr(goal, 'quota', 0) else 0,
+        'chartData': goal.chart_data() if hasattr(goal, "chart_data") else [],
+        'aFiles': goal.a_files() if hasattr(goal, "a_files") else [],  # Implement this if you want to return files
     }
-    # Example: Add permissions, team info, etc.
+    # Permissions, team info, etc.
     data['manage_permission'] = (
-        user_id is not None and (goal.users_id == user_id or goal.lead_id == user_id)
+        user_id is not None and (getattr(goal, 'users_id', None) == user_id or getattr(goal, 'lead_id', None) == user_id)
     )
     data['count_of_members'] = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).count()
     data['team_member'] = 0
     if user_id:
         data['team_member'] = GoalTeam.query.filter_by(goals_id=goal.id, users_id2=user_id, confirmed=1).count()
-    data['progress'] = round(goal.filled_quota / goal.quota, 2) if goal.quota else 0
     # Latest progress log (limit 4)
     latest_progress = (
         GoalProgressLog.query.filter_by(goals_id=goal.id)
@@ -48,8 +50,6 @@ def goal_as_dict(goal, user_id=None, seconds_from_gmt=None):
         value=log.value,
         timestamp=log.timestamp.isoformat() if log.timestamp else None
     ) for log in latest_progress]
-    # TODO: Add S3 files if needed
-    data['aFiles'] = []  # Placeholder
     return data
 
 @goals_bp.route('/api/goals/details', methods=['GET'])
@@ -67,4 +67,3 @@ def api_goal_details():
 
     goal_data = goal_as_dict(goal, user_id, seconds_from_gmt)
     return jsonify({'result': goal_data})
-    

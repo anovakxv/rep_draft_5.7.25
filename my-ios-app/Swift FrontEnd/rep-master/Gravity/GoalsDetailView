@@ -1,12 +1,14 @@
 //
 //  GoalDetailPage.swift
-//  Rep 
+//  Rep
 //
 //  Created by Adam Novak on 06.13.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+//
 
- 
 import SwiftUI
+
+// MARK: - Main View
 
 struct GoalsDetailView: View {
     @StateObject private var viewModel = GoalsDetailViewModel()
@@ -37,37 +39,12 @@ struct GoalsDetailView: View {
                 }
                 .padding()
 
-                // Segmented Control
-                struct CustomSegmentedPicker: View {
-                    let segments: [String]
-                     @Binding var selectedIndex: Int
-
-                var body: some View {
-                    HStack(spacing: 0) {
-                        ForEach(segments.indices, id: \.self) { index in
-                            Button(action: {
-                                selectedIndex = index
-                            }) {
-                                Text(segments[index])
-                                    .fontWeight(.medium)
-                                    .foregroundColor(selectedIndex == index ? .white : .black)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
-                                    .background(selectedIndex == index ? Color.black : Color.white)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 0)
-                                            .stroke(Color.black, lineWidth: 1)
-                                    )
-                            }
-                        }
-                    }
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 0))
-                }
-            }
-                            }
-                            .pickerStyle(.segmented)
-                            .padding(.horizontal)
+                // Segmented Picker
+                CustomSegmentedPicker(
+                    segments: ["Feed", "Report", "Team"],
+                    selectedIndex: $selectedSegment
+                )
+                .padding(.horizontal)
 
                 // Table/List Section
                 List {
@@ -114,6 +91,36 @@ struct GoalsDetailView: View {
     }
 }
 
+// MARK: - Custom Segmented Picker
+
+struct CustomSegmentedPicker: View {
+    let segments: [String]
+    @Binding var selectedIndex: Int
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(segments.indices, id: \.self) { index in
+                Button(action: {
+                    selectedIndex = index
+                }) {
+                    Text(segments[index])
+                        .fontWeight(.medium)
+                        .foregroundColor(selectedIndex == index ? .white : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(selectedIndex == index ? Color.black : Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 0)
+                                .stroke(Color.black, lineWidth: 1)
+                        )
+                }
+            }
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 0))
+    }
+}
+
 // MARK: - ViewModel
 
 class GoalsDetailViewModel: ObservableObject {
@@ -124,7 +131,41 @@ class GoalsDetailViewModel: ObservableObject {
     @Published var actions: [String] = []
 
     func load(goalId: Int) {
-        // Load goal, team, feed, report, and actions from your API
+        guard let url = URL(string: "http://localhost:5000/api/goals/details?goals_id=\(goalId)") else { return }
+        let task = URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data = data else { return }
+            do {
+                let response = try JSONDecoder().decode(GoalDetailAPIResponse.self, from: data)
+                DispatchQueue.main.async {
+                    let apiGoal = response.result
+                    self.goal = Goal(
+                        id: apiGoal.id,
+                        title: apiGoal.title,
+                        progress: apiGoal.progress ?? 0,
+                        metricName: apiGoal.metricName ?? "",
+                        typeName: apiGoal.typeName ?? "",
+                        reportingName: apiGoal.reportingName ?? "",
+                        quotaString: apiGoal.quotaString ?? "",
+                        valueString: apiGoal.valueString ?? ""
+                    )
+                    self.feed = apiGoal.aLatestProgress?.map { log in
+                        Feed(
+                            id: log.id,
+                            userImageName: "profile_placeholder", // Replace with real image if available
+                            userName: "User \(log.users_id ?? 0)", // Replace with real user name if available
+                            line1: log.timestamp ?? "",
+                            line2: "Value: \(log.value ?? 0)",
+                            line3: log.note ?? "",
+                            line4: ""
+                        )
+                    } ?? []
+                    // Map team and report similarly if your API provides them
+                }
+            } catch {
+                print("Goal detail decode error:", error)
+            }
+        }
+        task.resume()
     }
 
     func goBack() {
@@ -140,6 +181,34 @@ class GoalsDetailViewModel: ObservableObject {
     }
 }
 
+// MARK: - API Models
+
+struct GoalDetailAPIResponse: Codable {
+    let result: APIGoalDetail
+}
+
+struct APIGoalDetail: Codable {
+    let id: Int
+    let title: String
+    let progress: Double?
+    let metricName: String?
+    let typeName: String?
+    let reportingName: String?
+    let quotaString: String?
+    let valueString: String?
+    let aLatestProgress: [APIGoalProgressLog]?
+    // Add other fields as needed
+}
+
+struct APIGoalProgressLog: Codable {
+    let id: Int
+    let users_id: Int?
+    let added_value: Double?
+    let note: String?
+    let value: Double?
+    let timestamp: String?
+}
+
 // MARK: - Placeholder Cells
 
 struct FeedCell: View {
@@ -147,7 +216,7 @@ struct FeedCell: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            Image(feed.userImageName) // Local asset for now, e.g. "profile_placeholder"
+            Image(feed.userImageName)
                 .resizable()
                 .scaledToFill()
                 .frame(width: 80, height: 80)
@@ -156,13 +225,13 @@ struct FeedCell: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(feed.userName)
                     .font(.headline)
-                Text(feed.line1) // Date of posting
+                Text(feed.line1)
                     .font(.caption)
-                Text(feed.line2)  // Metric QTY
+                Text(feed.line2)
                     .font(.subheadline)
-                Text(feed.line3)  // User input Notes (optional)
+                Text(feed.line3)
                     .font(.subheadline)
-                Text(feed.line4)  // User attachments (optional)
+                Text(feed.line4)
                     .font(.subheadline)
             }
             .padding(.top, 4)
@@ -171,22 +240,11 @@ struct FeedCell: View {
     }
 }
 
-// Example Feed model for context
-struct Feed: Identifiable {
-    let id: Int
-    let userImageName: String
-    let userName: String
-    let line1: String
-    let line2: String
-    let line3: String
-    let line4: String
-}
-
 struct TeamCell: View {
     let user: User
     var body: some View {
         HStack {
-            Image(user.imageName) // Use a local asset, e.g. "profile_placeholder"
+            Image(user.imageName)
                 .resizable()
                 .scaledToFill()
                 .frame(width: 40, height: 40)
@@ -201,17 +259,16 @@ struct ReportCell: View {
     var body: some View {
         Text("Report goes here")
 
-    // Example data
-let chartData = [
-    BarChartData(value: 60, valueLabel: "60%", bottomLabel: "Mon"),
-    BarChartData(value: 80, valueLabel: "80%", bottomLabel: "Tue"),
-    BarChartData(value: 40, valueLabel: "40%", bottomLabel: "Wed"),
-    BarChartData(value: 100, valueLabel: "100%", bottomLabel: "Thu"),
-    BarChartData(value: 70, valueLabel: "70%", bottomLabel: "Fri")
-    ]
+        // Example data
+        let chartData = [
+            BarChartData(value: 60, valueLabel: "60%", bottomLabel: "Mon"),
+            BarChartData(value: 80, valueLabel: "80%", bottomLabel: "Tue"),
+            BarChartData(value: 40, valueLabel: "40%", bottomLabel: "Wed"),
+            BarChartData(value: 100, valueLabel: "100%", bottomLabel: "Thu"),
+            BarChartData(value: 70, valueLabel: "70%", bottomLabel: "Fri")
+        ]
 
-BarChartView(data: chartData)
-
+        BarChartView(data: chartData)
     }
 }
 
@@ -233,20 +290,24 @@ struct Goal {
 struct User: Identifiable {
     var id: Int
     var name: String
-    var imageName: String // Temporary local image name
+    var imageName: String
 }
 
 struct Feed: Identifiable {
-    var id: Int
-    var title: String
-    var notes: String
+    let id: Int
+    let userImageName: String
+    let userName: String
+    let line1: String
+    let line2: String
+    let line3: String
+    let line4: String
 }
 
 struct Report {
     static let placeholder = Report()
 }
 
-// Bar Chart boiler plate starting point 6.13.25
+// MARK: - Bar Chart
 
 extension Color {
     static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)

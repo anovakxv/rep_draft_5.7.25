@@ -6,341 +6,305 @@
 //  Updated by Adam Novak on 06.15.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
+
 import SwiftUI
 import _PhotosUI_SwiftUI
+import SwiftUI
 
+// MARK: - Portal ViewModel
 
-@MainActor class PortalViewModel: ObservableObject {
-    @Published var portal: PortalModel
+@MainActor
+class PortalViewModel: ObservableObject {
+    @Published var portalDetail: PortalDetail?
     @Published var section = 0
-    @Published var isImageTabViewPresented = false
-    @Published var isConfirmationDialogPresented = false
     @Published var isEditPresented = false
-    
-    
-    let originalPortalCopy: PortalModel
-    
-    init(portal: PortalModel) {
-        self.portal = portal
-        self.originalPortalCopy = portal
-    }
-}
 
-
-struct EditPortalView: View {
-    @ObservedObject private var viewModel: PortalViewModel
-    
-    init(viewModel: PortalViewModel) {
-        self.viewModel = viewModel
-    }
-    
-    var body: some View {
-        NavigationStack {
-            List {
-                Section("General Info") {
-                    VStack {
-                        HStack {
-                            Text("Title:")
-                                .font(.caption)
-                                .bold()
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        
-                        TextField("Description", text: $viewModel.portal.title)
-
-                    }
-                    VStack {
-                        HStack {
-                            Text("Description:")
-                                .font(.caption)
-                                .bold()
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        
-                        TextField("Description", text: $viewModel.portal.subtitle)
-
-                    }
-                    VStack {
-                        HStack {
-                            Text("City:")
-                                .font(.caption)
-                                .bold()
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        
-                        TextField("Description", text: $viewModel.portal.city)
-
-                    }
+    func fetchPortalDetail(portalId: Int, userId: Int) {
+        let urlString = "http://localhost:5000/api/portal/details?portals_id=\(portalId)&user_id=\(userId)"
+        guard let url = URL(string: urlString) else { return }
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data = data else { return }
+            do {
+                let response = try JSONDecoder().decode(PortalDetailResponse.self, from: data)
+                DispatchQueue.main.async {
+                    self.portalDetail = response.result
                 }
-                
-                Section("Aditional Info") {
-                    VStack {
-                        HStack {
-                            Text("About:")
-                                .font(.caption)
-                                .bold()
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        
-                        TextEditor(text: $viewModel.portal.description)
-                            .frame(height: 100)
-                            .padding(-5)
-                    }
-                    
-                    
-                    VStack {
-                        HStack {
-                            Text("Mission:")
-                                .font(.caption)
-                                .bold()
-                                .foregroundColor(.secondary)
-                            Spacer()
-                        }
-                        
-                        TextEditor(text: $viewModel.portal.description)
-                            
-                            .frame(height: 100)
-                            .padding(-5)
-                    }
-
-                }
-                
-                Section("Portal Assets") {
-                    NavigationLink(
-                        destination: { GridView(items: $viewModel.portal.imageItems) },
-                        label: { Text("Edit Graphics") }
-                    )
-                    NavigationLink(
-                        destination: { EmptyView() },
-                        label: { Text("Portal Leads") }
-                    )
-                }
-                
+            } catch {
+                print("Decode error:", error)
             }
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("Cancel") {
-                            
-                        }
-                    }
-                }
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("Done") {
-                            
-                        }
-                    }
-                }
-                .navigationTitle("Edit Portal Info")
-        }.accentColor(.green)
+        }.resume()
     }
-        
-    
 }
 
-#Preview {
-    EditPortalView(
-        viewModel: .init(portal: portals.first!)
-    )
-}
+// MARK: - Portal Page
 
 struct PortalPage: View {
+    @StateObject private var viewModel = PortalViewModel()
+    let portalId: Int
+    let userId: Int
 
-    @ObservedObject private var viewModel: PortalViewModel
-    
-    init(viewModel: PortalViewModel) {
-        self.viewModel = viewModel
-    }
-    
     var body: some View {
-        VStack {
-            ImageTabView(imageItems: viewModel.portal.imageItems)
-                .frame(height: 236)
-            VStack {
-                picker
-                pickedViews
+        Group {
+            if let portal = viewModel.portalDetail {
+                VStack(spacing: 0) {
+                    GeometryReader { geometry in
+                        ImageTabView(sections: portal.aSections)
+                            .frame(width: geometry.size.width, height: geometry.size.width * 9 / 16)
+                            .clipped()
+                    }
+                    .frame(height: UIScreen.main.bounds.width * 9 / 16)
+
+                    CustomSegmentedPicker(
+                        segments: ["Story", "Offering", "Results"],
+                        selectedIndex: $viewModel.section
+                    )
+                    .padding(.horizontal)
+
+                    Group {
+                        if viewModel.section == 0 {
+                            PortalStorySection(portal: portal)
+                        } else if viewModel.section == 1 {
+                            PortalOfferingSection(portal: portal)
+                        } else if viewModel.section == 2 {
+                            PortalResultsSection(goals: portal.aGoals)
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    Spacer()
+                }
+                .background(Color.white.edgesIgnoringSafeArea(.all))
+                .navigationTitle(portal.name)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Menu {
+                            Button("Join Team") { /* ... */ }
+                            Button("Share Portal") { /* ... */ }
+                            Button("Support") { /* ... */ }
+                            Button("Edit Portal") { viewModel.isEditPresented = true }
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
+                        }
+                    }
+                }
+                .sheet(isPresented: $viewModel.isEditPresented) {
+                    EditPortalView(portal: portal)
+                }
+            } else {
+                ProgressView()
+                    .onAppear {
+                        viewModel.fetchPortalDetail(portalId: portalId, userId: userId)
+                    }
             }
-        }
-        .navigationTitle(viewModel.portal.title)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .bottomBar) {
-                ToolBar(action: { viewModel.isConfirmationDialogPresented = true})
-            }
-        }.onRotate { orientation in
-            viewModel.isImageTabViewPresented = orientation == .landscapeLeft || orientation == .landscapeRight
-            
-        }
-        .sheet(isPresented: $viewModel.isEditPresented) {
-            EditPortalView(viewModel: viewModel)
-        }
-        .sheet(isPresented: $viewModel.isImageTabViewPresented) {
-            ImageTabView(imageItems: viewModel.portal.imageItems)
-        }
-        .confirmationDialog(
-            "Choose Action",
-            isPresented: $viewModel.isConfirmationDialogPresented
-        ) {
-            Button(
-                action: {
-                    
-                }, label: {
-                    Text("Join Team")
-                }
-            )
-//            .disabled(true)
-            Button(
-                action: {
-                    
-                }, label: {
-                    Text("Share Portal")
-                }
-            )
-//            .disabled(true)
-            Button(
-                action: {
-                    
-                }, label: {
-                    Text("Support")
-                }
-            )
-//            .disabled(true)
-            Button(
-                action: {
-                    viewModel.isEditPresented = true
-                }, label: {
-                    Text("Edit Portal")
-                }
-            )
         }
     }
-    
-    @ViewBuilder
-    var picker: some View {
-        VStack {
-            Picker("", selection: $viewModel.section) {
-                Text(Texts.story).tag(0)
-                Text(Texts.offering).tag(1)
-                Text(Texts.results).tag(2)
+}
+
+// MARK: - Image Tab View
+
+struct ImageTabView: View {
+    let sections: [PortalSection]
+
+    var body: some View {
+        TabView {
+            ForEach(sections.flatMap { $0.aFiles }) { file in
+                if let urlString = file.url, let url = URL(string: urlString) {
+                    AsyncImage(url: url) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .clipped()
+                        } else if phase.error != nil {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .overlay(Text("Image Error").foregroundColor(.secondary))
+                        } else {
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .overlay(Text("Loading...").foregroundColor(.secondary))
+                        }
+                    }
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .overlay(Text("No Image").foregroundColor(.secondary))
+                }
             }
-            .pickerStyle(.segmented)
+        }
+        .tabViewStyle(PageTabViewStyle())
+    }
+}
+
+// MARK: - Segmented Picker
+
+struct CustomSegmentedPicker: View {
+    let segments: [String]
+    @Binding var selectedIndex: Int
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(segments.indices, id: \.self) { index in
+                Button(action: {
+                    selectedIndex = index
+                }) {
+                    Text(segments[index])
+                        .fontWeight(.medium)
+                        .foregroundColor(selectedIndex == index ? .white : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(selectedIndex == index ? Color.black : Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 0)
+                                .stroke(Color.black, lineWidth: 1)
+                        )
+                }
+            }
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 0))
+    }
+}
+
+// MARK: - Content Sections
+
+struct PortalStorySection: View {
+    let portal: PortalDetail
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Leads")
+                .font(.headline)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack {
+                    ForEach(portal.aUsers) { user in
+                        VStack {
+                            Circle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 28, height: 28)
+                            Text("\(user.fname?.prefix(1) ?? "")\(user.lname?.prefix(1) ?? "")")
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+            }
             Divider()
-        }
-        .padding(.horizontal)
-    }
-    
-    @ViewBuilder
-    var pickedViews: some View {
-        ScrollView {
-            VStack {
-                switch viewModel.section {
-                case 0: story
-                case 1: offering
-                case 2: results
-                default: EmptyView()
-                }
-            }
-            .padding(.horizontal)
-        }
-    }
-    
-    @ViewBuilder
-    var story: some View {
-        HStack {
-            Text(Texts.leads)
+            Text("Description")
                 .font(.headline)
-            ForEach(viewModel.portal.leads) { lead in
-                VStack {
-                    Image(lead.imageName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: Constants.leadImageSize, height: Constants.leadImageSize)
-                        .cornerRadius(Constants.leadImageSize / 2)
-                    Text(lead.shortName)
-                        .font(.caption2)
-                        .fontWeight(.semibold)
-                }
-            }
-            Spacer()
-        }
-        Divider()
-        VStack(alignment: .leading) {
-            Text(Texts.description)
-                .font(.headline)
-            Text(viewModel.portal.description)
-                .font(.body)
-        }
-        
-    }
-    
-    @ViewBuilder
-    var offering: some View {
-        VStack(alignment: .leading) {
-            Text(Texts.weOffer)
-                .font(.headline)
-            Text(viewModel.portal.description)
+            Text(portal.about ?? "")
                 .font(.body)
         }
     }
-    
-    @ViewBuilder
-    var results: some View {
+}
+
+struct PortalOfferingSection: View {
+    let portal: PortalDetail
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("We Offer")
+                .font(.headline)
+            Text(portal.about ?? "")
+                .font(.body)
+        }
+    }
+}
+
+struct PortalResultsSection: View {
+    let goals: [Goal]
+    var body: some View {
         ForEach(goals) { goal in
             VStack {
-               NavigationLink(destination: GoalDetailPage(goal: goal)) {
-                GoalListItem(goal: goal)
-    }
-    Divider()
+                NavigationLink(destination: GoalDetailPage(goal: goal)) {
+                    GoalListItem
+                }
+                Divider()
+            }
         }
     }
 }
 
-private extension PortalPage {
-    enum Texts {
-        static let results = "Results"
-        static let offering = "Offering"
-        static let weOffer = "We Offer"
-        static let story = "Story"
-        static let leads = "Leads"
-        static let description = "Description"
-    }
-    
-    enum Constants {
-        static let leadImageSize: CGFloat = 28.0
-        static let headerImageHeight: CGFloat = 250.0
+// MARK: - Edit Portal View (Stub)
+
+struct EditPortalView: View {
+    let portal: PortalDetail
+    var body: some View {
+        Text("Edit Portal View Placeholder for \(portal.name)")
     }
 }
 
-#Preview {
-    NavigationStack {
-        PortalPage(
-            viewModel: .init(portal: portals.first!)
-        )
+// MARK: - Models
+
+struct PortalDetailResponse: Codable {
+    let result: PortalDetail
+}
+
+struct PortalDetail: Identifiable, Codable {
+    let id: Int
+    let name: String
+    let subtitle: String?
+    let about: String?
+    let categories_id: Int?
+    let cities_id: Int?
+    let lead_id: Int?
+    let users_id: Int?
+    let _c_users_count: Int?
+    let aGoals: [Goal]
+    let aPortalUsers: [PortalUser]
+    let aTexts: [PortalText]
+    let aSections: [PortalSection]
+    let aUsers: [User]
+}
+
+struct Goal: Identifiable, Codable {
+    let id: Int
+    let title: String
+}
+
+struct PortalUser: Identifiable, Codable {
+    let id: Int
+}
+
+struct PortalText: Identifiable, Codable {
+    let id: Int
+    let text: String
+}
+
+struct PortalSection: Identifiable, Codable {
+    let id: Int
+    let title: String
+    let aFiles: [PortalFile]
+}
+
+struct PortalFile: Identifiable, Codable {
+    let id: Int
+    let url: String?
+}
+
+struct User: Identifiable, Codable {
+    let id: Int
+    let fname: String?
+    let lname: String?
+}
+
+// MARK: - Goal List Item & Detail
+
+struct GoalListItem: View {
+    let goal: Goal
+    var body: some View {
+        HStack {
+            Text(goal.title)
+                .font(.headline)
+            Spacer()
+        }
+        .padding()
+        .background(Color.white)
     }
 }
 
-// Our custom view modifier to track rotation and
-// call our action
-struct DeviceRotationViewModifier: ViewModifier {
-    let action: (UIDeviceOrientation) -> Void
-
-    func body(content: Content) -> some View {
-        content
-            .onAppear()
-            .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-                action(UIDevice.current.orientation)
-            }
+struct GoalDetailPage: View {
+    let goal: Goal
+    var body: some View {
+        Text("Goal: \(goal.title)")
     }
-}
-
-// A View wrapper to make the modifier easier to use
-extension View {
-    func onRotate(perform action: @escaping (UIDeviceOrientation) -> Void) -> some View {
-        self.modifier(DeviceRotationViewModifier(action: action))
-    }
-}

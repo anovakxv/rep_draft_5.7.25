@@ -36,3 +36,18 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f"<User id={self.id} username={self.username}>"
     
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "fname": self.fname or "",
+            "lname": self.lname or "",
+            "about": self.about or "",
+            "broadcast": self.broadcast or "",
+            "profile_picture_url": self.profile_picture_url or "",
+            "user_type": self.user_type.name if self.user_type else "",
+            "city": self.city.name if self.city else "",
+            "skills": ["1", "2", "3"],  # Placeholder skills list
+            # Add more fields as needed
+        }
+
+    

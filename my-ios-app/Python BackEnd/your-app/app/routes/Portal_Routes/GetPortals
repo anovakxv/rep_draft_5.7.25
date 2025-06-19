@@ -1,0 +1,104 @@
+from flask import Blueprint, request, jsonify
+from app import db
+from app.models.portal import Portal
+from app.models.users_hidden_portals import UsersHiddenPortals
+from app.models.goals import Goal
+from app.models.goals_team import GoalTeam
+from app.models.portals_graphic_sections import PortalsGraphicSections
+from app.models.s3_content import S3Content
+from sqlalchemy import or_
+
+portal_bp = Blueprint('portal', __name__)
+
+@portal_bp.route('/api/portals', methods=['GET'])
+def api_get_portals():
+    args = request.args
+    offset = int(args.get('offset', 0))
+    limit = int(args.get('limit', 50))
+    users_id = args.get('users_id')
+    home = args.get('home')
+    my_network = args.get('my_network')
+    show_hidden = args.get('show_hidden', '1')
+    keyword = args.get('keyword', '')
+    cities_id = args.get('cities_id')
+    portals_id = args.get('portals_id')
+    user_id = args.get('user_id')  # For hidden portals filtering
+
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    query = Portal.query
+
+    # Home logic: user created or in goal
+    if home == "1":
+        if not users_id and not user_id:
+            return jsonify({'error': 'Login or users_id required!'}), 400
+        uid = users_id or user_id
+        subquery = db.session.query(Goal.portals_id).join(
+            GoalTeam, Goal.id == GoalTeam.goals_id
+        ).filter(GoalTeam.users_id2 == uid)
+        query = query.filter(or_(Portal.users_id == uid, Portal.id.in_(subquery)))
+    elif users_id:
+        query = query.filter(Portal.users_id == users_id)
+
+    # Exclude hidden portals
+    if show_hidden != "1" and not portals_id and user_id:
+        query = query.filter(~Portal.id.in_(
+            db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=user_id)
+        ))
+
+    # Keyword search
+    if keyword:
+        query = query.filter(Portal.name.ilike(f"%{keyword.lower()}%"))
+
+    if cities_id:
+        query = query.filter(Portal.cities_id == cities_id)
+    if portals_id:
+        query = query.filter(Portal.id == portals_id)
+
+    # Network logic
+    if my_network:
+        if not user_id:
+            return jsonify({'error': 'Login required when my_network is not null!'}), 400
+        from app.models.users_network import UserNetwork
+        network_user_ids = db.session.query(UserNetwork.users_id2).filter_by(users_id1=user_id)
+        from app.models.portals_users_share import PortalsUsersShare
+        shared_portal_ids = db.session.query(PortalsUsersShare.portals_id).filter(
+            PortalsUsersShare.users_id.in_(network_user_ids)
+        )
+        if my_network == "1":
+            query = query.filter(or_(
+                Portal.users_id.in_(network_user_ids),
+                Portal.id.in_(shared_portal_ids)
+            ))
+        else:
+            query = query.filter(~Portal.users_id.in_(network_user_ids), ~Portal.id.in_(shared_portal_ids))
+
+    portals = query.order_by(Portal._c_users_count.desc()).offset(offset).limit(limit).all()
+
+    result = []
+    for portal in portals:
+        # --- Main Image Logic ---
+        section = PortalsGraphicSections.query.filter_by(portals_id=portal.id).first()
+        main_image_url = None
+        if section:
+            file = S3Content.query.filter_by(tbl_index=6, tbl_id=section.id).first()
+            if file:
+                main_image_url = file.url
+
+        result.append({
+            'id': portal.id,
+            'name': portal.name,
+            'subtitle': portal.subtitle,
+            'about': portal.about,
+            'categories_id': portal.categories_id,
+            'cities_id': portal.cities_id,
+            'lead_id': portal.lead_id,
+            'users_id': portal.users_id,
+            '_c_users_count': getattr(portal, '_c_users_count', None),
+            'mainImageUrl': main_image_url,  # <-- Added field for S3 main image
+            # Add more fields as needed
+        })
+        

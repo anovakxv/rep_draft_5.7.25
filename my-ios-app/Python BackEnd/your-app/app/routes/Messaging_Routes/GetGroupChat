@@ -1,0 +1,64 @@
+
+from flask import Blueprint, request, jsonify, session
+from app import db
+from app.models.chats import Chats
+from app.models.chats_users import ChatsUsers
+from app.models.user import User
+from app.models.message import Message
+
+group_chat_bp = Blueprint('group_chat', __name__)
+
+@group_chat_bp.route('/api/group_chat', methods=['GET'])
+def api_group_chat():
+    user_id = session.get('user_id')
+    chats_id = request.args.get('chats_id')
+    limit = int(request.args.get('limit', 50))
+    offset = int(request.args.get('offset', 0))
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not chats_id:
+        return jsonify({'error': 'chats_id is empty!'}), 400
+    if offset < 0:
+        return jsonify({'error': 'offset is wrong!'}), 400
+    if limit > 4096:
+        return jsonify({'error': 'limit should be <= 4096'}), 400
+
+    # Get chat info
+    chat = Chats.query.filter_by(id=chats_id).first()
+    if not chat:
+        return jsonify({'error': 'Chat not found!'}), 404
+
+    # Get users in the chat
+    users = db.session.query(User).join(
+        ChatsUsers, ChatsUsers.users_id == User.id
+    ).filter(ChatsUsers.chats_id == chats_id).all()
+    users_dict = {u.id: u for u in users}
+    users_result = [u.as_dict() for u in users]
+
+    # Get messages in the chat (latest first)
+    messages = Message.query.filter_by(chats_id=chats_id)\
+        .order_by(Message.created_at.desc())\
+        .offset(offset).limit(limit).all()
+
+    messages_result = []
+    for msg in reversed(messages):  # reverse to get chronological order
+        sender = users_dict.get(msg.users_id1)
+        sender_name = getattr(sender, 'full_name', '') or f"{getattr(sender, 'fname', '')} {getattr(sender, 'lname', '')}"
+        sender_photo_url = getattr(sender, 'profile_picture_url', None)
+        messages_result.append({
+            'id': msg.id,
+            'sender_id': msg.users_id1,
+            'sender_name': sender_name.strip(),
+            'sender_photo_url': sender_photo_url,
+            'chat_id': msg.chats_id,
+            'text': msg.text,
+            'timestamp': msg.created_at.isoformat() + 'Z'
+        })
+
+    return jsonify({
+        'result': {
+            'chat': chat.as_dict() if hasattr(chat, 'as_dict') else {},
+            'users': users_result,
+            'messages': messages_result
+            

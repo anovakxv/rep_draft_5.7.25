@@ -1,0 +1,52 @@
+from flask import Blueprint, request, jsonify
+from app import db
+from app.models.user import User
+from app.utils.user_utils import manage_user_row, mark_all_activities_as_read
+import hashlib
+import os
+import jwt
+import datetime
+
+user_bp = Blueprint('user', __name__)
+
+@user_bp.route('/api/user/login', methods=['POST'])
+def api_login_user():
+    data = request.get_json()
+    email = data.get('email', '').strip()
+    username = data.get('username', '').strip()
+    password = data.get('password', '')
+
+    if not (email or username) or not password:
+        return jsonify({'error': 'empty Email or Password'}), 400
+
+    user = None
+    if email:
+        user = User.query.filter_by(email=email).first()
+    elif username:
+        user = User.query.filter_by(username=username).first()
+
+    if not user or not user.password:
+        return jsonify({'error': 'Invalid email/username or password'}), 401
+
+    # MD5 password check (consider upgrading to bcrypt in production)
+    expected_hash = hashlib.md5((os.environ['PASS_SALT'] + password).encode()).hexdigest()
+    if user.password != expected_hash:
+        return jsonify({'error': 'Invalid email/username or password'}), 401
+
+    # Check if user is confirmed (email verified)
+    if hasattr(user, 'confirmed') and not user.confirmed:
+        return jsonify({'error': 'Please verify your email before logging in.'}), 403
+
+    # Generate JWT token for mobile clients
+    jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
+    token = jwt.encode({
+        'user_id': user.id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+    }, jwt_secret, algorithm='HS256')
+
+    # Prepare user row for response
+    user_row = manage_user_row(user.as_dict(), user.id, level='0')
+    mark_all_activities_as_read(user.id)
+
+    return jsonify({'result': user_row,
+                    

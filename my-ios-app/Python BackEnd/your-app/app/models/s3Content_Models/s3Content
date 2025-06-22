@@ -5,16 +5,61 @@ class S3Content(db.Model):
     __tablename__ = 's3_content'
 
     id = db.Column(db.Integer, primary_key=True)
-    gr_hash = db.Column(db.String(255), nullable=False, index=True)  # group hash
-    tbl_id = db.Column(db.Integer, nullable=False)  # ID of the related table row
-    tbl_index = db.Column(db.Integer, nullable=False)  # Table type/index (6 for portals_graphic_sections)
-    key = db.Column(db.String(255), nullable=True)  # e.g. 'portal_file_max_640x640'
+    gr_hash = db.Column(db.String(255), nullable=False, unique=True, index=True)
+    tbl_id = db.Column(db.Integer, nullable=False)
+    tbl_index = db.Column(db.Integer, nullable=False)
+    key = db.Column(db.String(255), nullable=True)
     url = db.Column(db.String(1024), nullable=True)
-    file_type = db.Column(db.String(50), nullable=True)  # Optional: MIME type
-    file_size = db.Column(db.Integer, nullable=True)  # Optional: file size in bytes
+    file_type = db.Column(db.String(50), nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
-    description = db.Column(db.String(255), nullable=True)  # Optional: caption or alt text
+    description = db.Column(db.String(255), nullable=True)
+
+    graphic_section_links = db.relationship('PortalGraphicSectionS3Content', back_populates='s3_content')
 
     def __repr__(self):
         return f"<S3Content id={self.id} gr_hash={self.gr_hash} key={self.key}>"
+
+class PortalGraphicSectionS3Content(db.Model):
+    __tablename__ = 'portals_graphic_sections_s3_content'
+
+    id = db.Column(db.Integer, primary_key=True)
+    portals_graphic_sections_id = db.Column(db.Integer, db.ForeignKey('portals_graphic_sections.id'), nullable=False, index=True)
+    s3_gr_hash = db.Column(db.String(255), db.ForeignKey('s3_content.gr_hash'), nullable=False, index=True)
+
+    graphic_section = db.relationship('PortalGraphicSection', back_populates='s3_contents')
+    s3_content = db.relationship('S3Content', back_populates='graphic_section_links')
+
+    __table_args__ = (
+        db.UniqueConstraint('portals_graphic_sections_id', 's3_gr_hash', name='uq_section_file'),
+    )
+
+    def __repr__(self):
+        return f"<PortalGraphicSectionS3Content id={self.id} section_id={self.portals_graphic_sections_id} s3_gr_hash={self.s3_gr_hash}>"
+
+class PortalGraphicSection(db.Model):
+    __tablename__ = 'portals_graphic_sections'
+
+    id = db.Column(db.Integer, primary_key=True)
+    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    position = db.Column(db.Integer, nullable=True)
+    content = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    portal = db.relationship('Portal', backref='graphic_sections')
+    s3_contents = db.relationship('PortalGraphicSectionS3Content', back_populates='graphic_section', cascade="all, delete-orphan")
+
+    s3_files = db.relationship(
+        'S3Content',
+        secondary='portals_graphic_sections_s3_content',
+        primaryjoin='PortalGraphicSection.id==PortalGraphicSectionS3Content.portals_graphic_sections_id',
+        secondaryjoin='S3Content.gr_hash==PortalGraphicSectionS3Content.s3_gr_hash',
+        viewonly=True,
+        lazy='dynamic'
+    )
+
+    def __repr__(self):
+        return f"<PortalGraphicSection id={self.id} portal_id={self.portals_id} title={self.title}>"
     

@@ -2,18 +2,27 @@
 //  GoalListItem.swift
 //  Rep 
 //
-//  Created by Dmytro Holovko on 29.10.2023.
+//  Created by Dmytro Holovko on 10.29.2023.
 //  Edited by Adam Novak on 06.17.2025
+//  Updated for API sync on 06.20.2025
 //  (c) 2025 Networked Capital Inc. All rights reserved.
+
 import SwiftUI
 
 // MARK: - Bar Chart Data Model
 
-struct BarChartData: Identifiable {
+struct BarChartData: Identifiable, Codable {
     let id = UUID()
     let value: Double
-    let label: String
-    let color: Color
+    let valueLabel: String
+    let bottomLabel: String
+
+    // For preview/demo
+    init(value: Double, valueLabel: String, bottomLabel: String) {
+        self.value = value
+        self.valueLabel = valueLabel
+        self.bottomLabel = bottomLabel
+    }
 }
 
 // MARK: - Bar Chart View
@@ -30,14 +39,14 @@ struct BarChartView: View {
             HStack(alignment: .bottom, spacing: 6) {
                 ForEach(data) { bar in
                     Rectangle()
-                        .fill(bar.color)
+                        .fill(Color.repGreen)
                         .frame(width: 14, height: CGFloat(bar.value / maxValue) * 40)
                         .cornerRadius(3)
                 }
             }
             HStack(spacing: 6) {
                 ForEach(data) { bar in
-                    Text(bar.label)
+                    Text(bar.bottomLabel)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                         .frame(width: 14)
@@ -48,14 +57,25 @@ struct BarChartView: View {
     }
 }
 
-// MARK: - Goal Model
+// MARK: - Goal Model (Synced with API)
 
-struct GoalModel: Identifiable {
-    let id = UUID()
+struct GoalModel: Identifiable, Codable {
+    let id: Int
     let title: String
     let subtitle: String
-    let progress: Int
+    let progressPercent: Double
+    let typeName: String
     let chartData: [BarChartData]
+
+    // For preview/demo
+    init(id: Int = 1, title: String, subtitle: String, progressPercent: Double, typeName: String, chartData: [BarChartData]) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.progressPercent = progressPercent
+        self.typeName = typeName
+        self.chartData = chartData
+    }
 }
 
 // MARK: - Goal List Item
@@ -69,9 +89,11 @@ struct GoalListItem: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.title)
                     .font(.headline)
-                Text(goal.subtitle)
-                    .font(.subheadline)
-                Text("\(goal.progress)% [Recruiting]")
+                if !goal.subtitle.isEmpty {
+                    Text(goal.subtitle)
+                        .font(.subheadline)
+                }
+                Text("\(Int(goal.progressPercent))% [\(goal.typeName)]")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -90,12 +112,13 @@ struct GoalListItem_Previews: PreviewProvider {
     static let sampleGoal = GoalModel(
         title: "Grow Membership",
         subtitle: "Increase by 20% this year",
-        progress: 60,
+        progressPercent: 60,
+        typeName: "Recruiting",
         chartData: [
-            BarChartData(value: 10, label: "Jan", color: .green),
-            BarChartData(value: 30, label: "Feb", color: .green),
-            BarChartData(value: 20, label: "Mar", color: .green),
-            BarChartData(value: 40, label: "Apr", color: .green)
+            BarChartData(value: 10, valueLabel: "10", bottomLabel: "Jan"),
+            BarChartData(value: 30, valueLabel: "30", bottomLabel: "Feb"),
+            BarChartData(value: 20, valueLabel: "20", bottomLabel: "Mar"),
+            BarChartData(value: 40, valueLabel: "40", bottomLabel: "Apr")
         ]
     )
 
@@ -103,4 +126,11 @@ struct GoalListItem_Previews: PreviewProvider {
         GoalListItem(goal: sampleGoal)
             .previewLayout(.sizeThatFits)
             .background(Color(UIColor.systemGroupedBackground))
-            
+    }
+}
+
+// MARK: - Color Extension
+
+extension Color {
+    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
+}

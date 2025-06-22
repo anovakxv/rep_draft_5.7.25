@@ -1,4 +1,3 @@
-
 from flask import Blueprint, request, jsonify
 from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
 from app.models.Goals_Models.Goal import Goal
@@ -67,5 +66,9 @@ def api_get_goals_progress_feed():
         for u in users_dict.values() if u
     ]
 
-    return jsonify({'aData': result, 'aUsers': users_info})
-    
+    # Add goal summary using as_dict()
+    return jsonify({
+        'goal': goal.as_dict(),
+        'aData': result,
+        'aUsers': users_info
+    })

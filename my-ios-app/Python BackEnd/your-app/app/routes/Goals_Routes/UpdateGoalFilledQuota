@@ -1,23 +1,37 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.Goals_Models.Goal import Goal
 from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
 from app.models.Goals_Models.GoalTeam import GoalTeam
+from app.models.Goals_Models.GoalProgressFile import GoalProgressFile  # You need to have this model
+
+import os
+from werkzeug.utils import secure_filename
 
 goals_bp = Blueprint('goals', __name__)
 
+UPLOAD_FOLDER = 'uploads/goal_progress_files'  # Adjust as needed
+
 @goals_bp.route('/api/goals/update_filled_quota', methods=['POST'])
 def api_update_goal_filled_quota():
-    data = request.json
     user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+
+    # Handle both JSON and multipart/form-data
+    if request.content_type and request.content_type.startswith('multipart/form-data'):
+        data = request.form
+        files = request.files.getlist('files')
+        sources_notes = request.form.getlist('sources_notes')
+    else:
+        data = request.json or {}
+        files = []
+        sources_notes = data.get('sources_notes', [])
+
     goal_id = data.get('goals_id')
     added_value = data.get('added_value')
     note = data.get('note', '')
-    # aSources and aSourcesNotes can be handled here if you implement file uploads
 
-    if not user_id:
-        return jsonify({'error': 'Login error!'}), 401
     if not goal_id:
         return jsonify({'error': 'goals_id required!'}), 400
     if added_value is None:
@@ -46,19 +60,41 @@ def api_update_goal_filled_quota():
         value=(goal.filled_quota or 0) + int(added_value)
     )
     db.session.add(progress_log)
+    db.session.flush()  # Get progress_log.id before commit
+
+    # Handle file uploads
+    uploaded_files = []
+    if files:
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        for idx, file in enumerate(files):
+            if file and file.filename:
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(UPLOAD_FOLDER, filename)
+                file.save(file_path)
+                note_for_file = sources_notes[idx] if idx < len(sources_notes) else ""
+                progress_file = GoalProgressFile(
+                    progress_log_id=progress_log.id,
+                    file_path=file_path,
+                    note=note_for_file
+                )
+                db.session.add(progress_file)
+                uploaded_files.append({
+                    "file_path": file_path,
+                    "note": note_for_file
+                })
 
     # Update goal's filled_quota
     goal.filled_quota = (goal.filled_quota or 0) + int(added_value)
     db.session.commit()
 
-    # Optionally: handle file uploads (aSources, aSourcesNotes)
-
-    # Return updated goal details
+    # Return updated goal details with progress and progress_percent
     updated_goal = {
         'id': goal.id,
         'description': goal.description,
         'quota': goal.quota,
         'filled_quota': goal.filled_quota,
+        'progress': round(goal.filled_quota / goal.quota, 2) if goal.quota else 0,
+        'progress_percent': round(100 * goal.filled_quota / goal.quota) if goal.quota else 0,
         'goal_types_id': goal.goal_types_id,
         'goal_metrics_id': goal.goal_metrics_id,
         'rep_commission': goal.rep_commission,
@@ -66,7 +102,7 @@ def api_update_goal_filled_quota():
         'portals_id': goal.portals_id,
         'users_id': goal.users_id,
         'lead_id': goal.lead_id,
+        'uploaded_files': uploaded_files
     }
 
     return jsonify({'result': updated_goal})
-    

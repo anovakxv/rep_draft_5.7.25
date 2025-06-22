@@ -3,12 +3,11 @@
 //  Rep 
 //
 //  Created by Dmytro Holovko on 10.28.2023.
-//  Updated by Adam Novak on 06.15.2025
+//  Updated by Adam Novak on 06.20.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
 import _PhotosUI_SwiftUI
-import SwiftUI
 
 // MARK: - Portal ViewModel
 
@@ -55,7 +54,7 @@ struct PortalPage: View {
                                 .font(.system(size: 20))
                         }
                         Spacer()
-                        Text(viewModel.portalDetail?.name ?? "")
+                        Text(portal.name)
                             .font(.system(size: 20, weight: .bold))
                         Spacer()
                         Color.clear.frame(width: 24, height: 24)
@@ -75,7 +74,6 @@ struct PortalPage: View {
                             .clipped()
                     }
                     .frame(height: UIScreen.main.bounds.width * 9 / 16)
-                    }
                     CustomSegmentedPicker(
                         segments: ["Story", "Offering", "Results"],
                         selectedIndex: $viewModel.section
@@ -240,7 +238,7 @@ struct PortalResultsSection: View {
         ForEach(goals) { goal in
             VStack {
                 NavigationLink(destination: GoalDetailPage(goal: goal)) {
-                    GoalListItem
+                    GoalListItem(goal: goal)
                 }
                 Divider()
             }
@@ -283,6 +281,17 @@ struct PortalDetail: Identifiable, Codable {
 struct Goal: Identifiable, Codable {
     let id: Int
     let title: String
+    let subtitle: String?
+    let progressPercent: Double?
+    let typeName: String?
+    let chartData: [BarChartData]?
+}
+
+struct BarChartData: Identifiable, Codable {
+    let id = UUID()
+    let value: Double
+    let valueLabel: String
+    let bottomLabel: String
 }
 
 struct PortalUser: Identifiable, Codable {
@@ -316,9 +325,23 @@ struct User: Identifiable, Codable {
 struct GoalListItem: View {
     let goal: Goal
     var body: some View {
-        HStack {
-            Text(goal.title)
-                .font(.headline)
+        HStack(spacing: 16) {
+            if let chartData = goal.chartData, !chartData.isEmpty {
+                BarChartView(data: chartData)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(goal.title)
+                    .font(.headline)
+                if let subtitle = goal.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.subheadline)
+                }
+                if let percent = goal.progressPercent, let type = goal.typeName {
+                    Text("\(Int(percent))% [\(type)]")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
             Spacer()
         }
         .padding()
@@ -326,8 +349,43 @@ struct GoalListItem: View {
     }
 }
 
+struct BarChartView: View {
+    let data: [BarChartData]
+
+    var maxValue: Double {
+        data.map { $0.value }.max() ?? 1
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(data) { bar in
+                    Rectangle()
+                        .fill(Color.repGreen)
+                        .frame(width: 14, height: CGFloat(bar.value / maxValue) * 40)
+                        .cornerRadius(3)
+                }
+            }
+            HStack(spacing: 6) {
+                ForEach(data) { bar in
+                    Text(bar.bottomLabel)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(width: 14)
+                }
+            }
+        }
+        .frame(width: 70, height: 56)
+    }
+}
+
+extension Color {
+    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
+}
+
 struct GoalDetailPage: View {
     let goal: Goal
     var body: some View {
         Text("Goal: \(goal.title)")
     }
+}

@@ -1,5 +1,5 @@
 //
-//  GoalDetailPage.swift
+//  GoalsDetailView.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.13.2025
@@ -36,6 +36,16 @@ struct GoalsDetailView: View {
                         Text("Progress: \(viewModel.goal.valueString)")
                     }
                     .font(.caption2)
+                    if !viewModel.goal.subtitle.isEmpty {
+                        Text(viewModel.goal.subtitle)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    if !viewModel.goal.description.isEmpty {
+                        Text(viewModel.goal.description)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .padding()
 
@@ -53,7 +63,7 @@ struct GoalsDetailView: View {
                             FeedCell(feed: feedItem)
                         }
                     } else if selectedSegment == 1 {
-                        ReportCell(report: viewModel.report)
+                        ReportCell(chartData: viewModel.goal.chartData)
                     } else if selectedSegment == 2 {
                         ForEach(viewModel.team) { user in
                             TeamCell(user: user)
@@ -127,12 +137,11 @@ class GoalsDetailViewModel: ObservableObject {
     @Published var goal: Goal = .placeholder
     @Published var team: [User] = []
     @Published var feed: [Feed] = []
-    @Published var report: Report = .placeholder
     @Published var actions: [String] = []
 
     func load(goalId: Int) {
         guard let url = URL(string: "http://localhost:5000/api/goals/details?goals_id=\(goalId)") else { return }
-        let task = URLSession.shared.dataTask(with: url) { data, _, error in
+        URLSession.shared.dataTask(with: url) { data, _, error in
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode(GoalDetailAPIResponse.self, from: data)
@@ -141,31 +150,38 @@ class GoalsDetailViewModel: ObservableObject {
                     self.goal = Goal(
                         id: apiGoal.id,
                         title: apiGoal.title,
+                        subtitle: apiGoal.subtitle ?? "",
+                        description: apiGoal.description ?? "",
                         progress: apiGoal.progress ?? 0,
+                        progressPercent: apiGoal.progress_percent ?? 0,
+                        quota: apiGoal.quota ?? 0,
+                        filledQuota: apiGoal.filled_quota ?? 0,
                         metricName: apiGoal.metricName ?? "",
                         typeName: apiGoal.typeName ?? "",
                         reportingName: apiGoal.reportingName ?? "",
                         quotaString: apiGoal.quotaString ?? "",
-                        valueString: apiGoal.valueString ?? ""
+                        valueString: apiGoal.valueString ?? "",
+                        chartData: apiGoal.chartData ?? []
                     )
                     self.feed = apiGoal.aLatestProgress?.map { log in
                         Feed(
                             id: log.id,
-                            userImageName: "profile_placeholder", // Replace with real image if available
-                            userName: "User \(log.users_id ?? 0)", // Replace with real user name if available
+                            userImageName: "profile_placeholder",
+                            userName: "User \(log.users_id ?? 0)",
                             line1: log.timestamp ?? "",
                             line2: "Value: \(log.value ?? 0)",
                             line3: log.note ?? "",
                             line4: ""
                         )
                     } ?? []
-                    // Map team and report similarly if your API provides them
+                    self.team = apiGoal.team?.map { apiUser in
+                        User(id: apiUser.id, name: apiUser.name ?? "User", imageName: apiUser.imageName ?? "profile_placeholder")
+                    } ?? []
                 }
             } catch {
                 print("Goal detail decode error:", error)
             }
-        }
-        task.resume()
+        }.resume()
     }
 
     func goBack() {
@@ -190,17 +206,23 @@ struct GoalDetailAPIResponse: Codable {
 struct APIGoalDetail: Codable {
     let id: Int
     let title: String
+    let subtitle: String?
+    let description: String?
     let progress: Double?
+    let progress_percent: Double?
+    let quota: Double?
+    let filled_quota: Double?
     let metricName: String?
     let typeName: String?
     let reportingName: String?
     let quotaString: String?
     let valueString: String?
+    let chartData: [BarChartData]?
     let aLatestProgress: [APIGoalProgressLog]?
-    // Add other fields as needed
+    let team: [APIUser]?
 }
 
-struct APIGoalProgressLog: Codable {
+struct APIGoalProgressLog: Codable, Identifiable {
     let id: Int
     let users_id: Int?
     let added_value: Double?
@@ -209,7 +231,62 @@ struct APIGoalProgressLog: Codable {
     let timestamp: String?
 }
 
-// MARK: - Placeholder Cells
+struct APIUser: Codable, Identifiable {
+    let id: Int
+    let name: String?
+    let imageName: String?
+}
+
+// MARK: - Models
+
+struct Goal: Identifiable {
+    var id: Int
+    var title: String
+    var subtitle: String
+    var description: String
+    var progress: Double
+    var progressPercent: Double
+    var quota: Double
+    var filledQuota: Double
+    var metricName: String
+    var typeName: String
+    var reportingName: String
+    var quotaString: String
+    var valueString: String
+    var chartData: [BarChartData]
+
+    static let placeholder = Goal(
+        id: 1, title: "Goal Title", subtitle: "", description: "",
+        progress: 0.5, progressPercent: 50, quota: 100, filledQuota: 50,
+        metricName: "Sales", typeName: "Recruiting", reportingName: "Weekly",
+        quotaString: "100", valueString: "50", chartData: []
+    )
+}
+
+struct User: Identifiable {
+    var id: Int
+    var name: String
+    var imageName: String
+}
+
+struct Feed: Identifiable {
+    let id: Int
+    let userImageName: String
+    let userName: String
+    let line1: String
+    let line2: String
+    let line3: String
+    let line4: String
+}
+
+struct BarChartData: Identifiable, Codable {
+    let id = UUID()
+    let value: Double
+    let valueLabel: String
+    let bottomLabel: String
+}
+
+// MARK: - Cells
 
 struct FeedCell: View {
     let feed: Feed
@@ -255,56 +332,14 @@ struct TeamCell: View {
 }
 
 struct ReportCell: View {
-    let report: Report
+    let chartData: [BarChartData]
     var body: some View {
-        Text("Report goes here")
-
-        // Example data
-        let chartData = [
-            BarChartData(value: 60, valueLabel: "60%", bottomLabel: "Mon"),
-            BarChartData(value: 80, valueLabel: "80%", bottomLabel: "Tue"),
-            BarChartData(value: 40, valueLabel: "40%", bottomLabel: "Wed"),
-            BarChartData(value: 100, valueLabel: "100%", bottomLabel: "Thu"),
-            BarChartData(value: 70, valueLabel: "70%", bottomLabel: "Fri")
-        ]
-
-        BarChartView(data: chartData)
+        if chartData.isEmpty {
+            Text("No chart data available.")
+        } else {
+            BarChartView(data: chartData)
+        }
     }
-}
-
-// MARK: - Placeholder Models
-
-struct Goal {
-    var id: Int
-    var title: String
-    var progress: Double
-    var metricName: String
-    var typeName: String
-    var reportingName: String
-    var quotaString: String
-    var valueString: String
-
-    static let placeholder = Goal(id: 1, title: "Goal Title", progress: 0.5, metricName: "Sales", typeName: "Recruiting", reportingName: "Weekly", quotaString: "100", valueString: "50")
-}
-
-struct User: Identifiable {
-    var id: Int
-    var name: String
-    var imageName: String
-}
-
-struct Feed: Identifiable {
-    let id: Int
-    let userImageName: String
-    let userName: String
-    let line1: String
-    let line2: String
-    let line3: String
-    let line4: String
-}
-
-struct Report {
-    static let placeholder = Report()
 }
 
 // MARK: - Bar Chart
@@ -348,11 +383,4 @@ struct BarChartView: View {
     private var maxValue: Double {
         data.map { $0.value }.max() ?? 1
     }
-}
-
-struct BarChartData: Identifiable {
-    let id = UUID()
-    let value: Double
-    let valueLabel: String
-    let bottomLabel: String
 }

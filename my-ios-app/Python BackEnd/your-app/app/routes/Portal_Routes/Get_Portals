@@ -4,14 +4,17 @@ from app.models.portal import Portal
 from app.models.users_hidden_portals import UsersHiddenPortals
 from app.models.goals import Goal
 from app.models.goals_team import GoalTeam
-from app.models.portals_graphic_sections import PortalsGraphicSections
-from app.models.s3_content import S3Content
+from app.models.portals_users_share import PortalsUsersShare
 from sqlalchemy import or_
+from sqlalchemy.orm import subqueryload, joinedload
 
-portal_bp = Blueprint('portal', __name__)
+portal_bp = Blueprint('portal_list', __name__)
 
 @portal_bp.route('/api/portals', methods=['GET'])
 def api_get_portals():
+    """
+    Returns a list of portals for the user, each including mainImageUrl for use in portal cards.
+    """
     args = request.args
     offset = int(args.get('offset', 0))
     limit = int(args.get('limit', 50))
@@ -22,17 +25,30 @@ def api_get_portals():
     keyword = args.get('keyword', '')
     cities_id = args.get('cities_id')
     portals_id = args.get('portals_id')
-    user_id = args.get('user_id')  # For hidden portals filtering
+    user_id = args.get('user_id')
+    shared = args.get('shared', '0')
 
     if offset < 0:
         return jsonify({'error': 'offset is wrong!'}), 400
     if limit > 4096:
         return jsonify({'error': 'limit should be <= 4096'}), 400
 
-    query = Portal.query
+    # Eager load graphic_sections and their S3 files for main image logic
+    query = Portal.query.options(
+        subqueryload(Portal.graphic_sections).joinedload('s3_files')
+    )
 
+    # Shared logic
+    if shared == "1":
+        if not users_id:
+            return jsonify({'error': 'users_id is empty!'}), 400
+        query = query.join(
+            PortalsUsersShare, PortalsUsersShare.portals_id == Portal.id
+        ).filter(
+            PortalsUsersShare.users_id == users_id
+        )
     # Home logic: user created or in goal
-    if home == "1":
+    elif home == "1":
         if not users_id and not user_id:
             return jsonify({'error': 'Login or users_id required!'}), 400
         uid = users_id or user_id
@@ -44,9 +60,10 @@ def api_get_portals():
         query = query.filter(Portal.users_id == users_id)
 
     # Exclude hidden portals
-    if show_hidden != "1" and not portals_id and user_id:
+    if show_hidden != "1" and not portals_id and (user_id or users_id):
+        uid = user_id or users_id
         query = query.filter(~Portal.id.in_(
-            db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=user_id)
+            db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=uid)
         ))
 
     # Keyword search
@@ -64,7 +81,6 @@ def api_get_portals():
             return jsonify({'error': 'Login required when my_network is not null!'}), 400
         from app.models.users_network import UserNetwork
         network_user_ids = db.session.query(UserNetwork.users_id2).filter_by(users_id1=user_id)
-        from app.models.portals_users_share import PortalsUsersShare
         shared_portal_ids = db.session.query(PortalsUsersShare.portals_id).filter(
             PortalsUsersShare.users_id.in_(network_user_ids)
         )
@@ -76,29 +92,16 @@ def api_get_portals():
         else:
             query = query.filter(~Portal.users_id.in_(network_user_ids), ~Portal.id.in_(shared_portal_ids))
 
-    portals = query.order_by(Portal._c_users_count.desc()).offset(offset).limit(limit).all()
+    # Order and paginate
+    if shared == "1":
+        query = query.order_by(PortalsUsersShare.id.desc())
+    else:
+        query = query.order_by(Portal._c_users_count.desc())
 
-    result = []
-    for portal in portals:
-        # --- Main Image Logic ---
-        section = PortalsGraphicSections.query.filter_by(portals_id=portal.id).first()
-        main_image_url = None
-        if section:
-            file = S3Content.query.filter_by(tbl_index=6, tbl_id=section.id).first()
-            if file:
-                main_image_url = file.url
+    portals = query.offset(offset).limit(limit).all()
 
-        result.append({
-            'id': portal.id,
-            'name': portal.name,
-            'subtitle': portal.subtitle,
-            'about': portal.about,
-            'categories_id': portal.categories_id,
-            'cities_id': portal.cities_id,
-            'lead_id': portal.lead_id,
-            'users_id': portal.users_id,
-            '_c_users_count': getattr(portal, '_c_users_count', None),
-            'mainImageUrl': main_image_url,  # <-- Added field for S3 main image
-            # Add more fields as needed
-        })
-        
+    # Standardized response: always use as_card_dict (includes mainImageUrl)
+    result = [portal.as_card_dict() for portal in portals]
+
+    # NOTE: Each portal dict includes 'mainImageUrl' for use in frontend portal cards.
+    return jsonify({'result': result})

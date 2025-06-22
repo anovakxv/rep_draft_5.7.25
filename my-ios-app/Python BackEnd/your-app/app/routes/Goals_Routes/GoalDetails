@@ -9,8 +9,8 @@ goals_bp = Blueprint('goals', __name__)
 def goal_as_dict(goal, user_id=None, seconds_from_gmt=None):
     data = {
         'id': goal.id,
-        'title': getattr(goal, 'title', ''),  # Add this field to your model if not present
-        'subtitle': getattr(goal, 'subtitle', ''),  # Add this field to your model if not present
+        'title': getattr(goal, 'title', ''),
+        'subtitle': getattr(goal, 'subtitle', ''),
         'description': getattr(goal, 'description', ''),
         'quota': getattr(goal, 'quota', 0),
         'filled_quota': getattr(goal, 'filled_quota', 0),
@@ -25,7 +25,7 @@ def goal_as_dict(goal, user_id=None, seconds_from_gmt=None):
         'progress': round(goal.filled_quota / goal.quota, 2) if getattr(goal, 'quota', 0) else 0,
         'progress_percent': round(100 * goal.filled_quota / goal.quota) if getattr(goal, 'quota', 0) else 0,
         'chartData': goal.chart_data() if hasattr(goal, "chart_data") else [],
-        'aFiles': goal.a_files() if hasattr(goal, "a_files") else [],  # Implement this if you want to return files
+        'aFiles': goal.a_files() if hasattr(goal, "a_files") else [],
     }
     # Permissions, team info, etc.
     data['manage_permission'] = (

@@ -8,6 +8,46 @@
 
 import SwiftUI
 
+// MARK: - Bar Chart Data Model
+
+struct BarChartData: Identifiable, Codable {
+    let id = UUID()
+    let value: Double
+    let valueLabel: String
+    let bottomLabel: String
+
+    init(value: Double, valueLabel: String, bottomLabel: String) {
+        self.value = value
+        self.valueLabel = valueLabel
+        self.bottomLabel = bottomLabel
+    }
+}
+
+// MARK: - Goal Model (Synced with API)
+
+struct Goal: Identifiable, Codable {
+    let id: Int
+    let title: String
+    let subtitle: String
+    let progressPercent: Double
+    let typeName: String
+    let chartData: [BarChartData]
+
+    static let placeholder = Goal(
+        id: 1,
+        title: "Grow Membership",
+        subtitle: "Increase by 20% this year",
+        progressPercent: 60,
+        typeName: "Recruiting",
+        chartData: [
+            BarChartData(value: 10, valueLabel: "10", bottomLabel: "Jan"),
+            BarChartData(value: 30, valueLabel: "30", bottomLabel: "Feb"),
+            BarChartData(value: 20, valueLabel: "20", bottomLabel: "Mar"),
+            BarChartData(value: 40, valueLabel: "40", bottomLabel: "Apr")
+        ]
+    )
+}
+
 // MARK: - User Model
 
 struct User: Codable {
@@ -46,7 +86,15 @@ struct UserProfileAPIResponse: Codable {
     let result: User
 }
 
-// MARK: - Portal & Goal Models
+struct GoalsAPIResponse: Codable {
+    let aGoals: [Goal]
+}
+
+struct PortalsAPIResponse: Codable {
+    let result: [Portal]
+}
+
+// MARK: - Portal Model
 
 struct Portal: Identifiable, Codable {
     let id: Int
@@ -58,19 +106,11 @@ struct Portal: Identifiable, Codable {
     let lead_id: Int?
     let users_id: Int?
     let _c_users_count: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case id, name, subtitle, about, categories_id, cities_id, lead_id, users_id, _c_users_count
-    }
-}
-struct PortalsAPIResponse: Codable {
-    let result: [Portal]
+    let mainImageUrl: String?
 }
 
-struct Goal: Identifiable, Codable {
-    let id: Int
-    let title: String
-}
+// MARK: - WriteBlock Model
+
 struct WriteBlock: Identifiable, Codable {
     let id: Int
     var title: String?
@@ -79,6 +119,7 @@ struct WriteBlock: Identifiable, Codable {
     var created_at: String?
     var updated_at: String?
 }
+
 // MARK: - ProfileCard Model
 
 struct ProfileCard: Identifiable {
@@ -156,7 +197,7 @@ class ProfileViewModel: ObservableObject {
         fetchUser()
         fetchPortals()
         fetchGoals()
-        fetchWrites()
+        fetchWrites(for: user.id ?? 1)
     }
 
     func fetchUser() {
@@ -173,23 +214,20 @@ class ProfileViewModel: ObservableObject {
             }
         }.resume()
     }
+
     func fetchPortals() {
-    guard let url = URL(string: "http://localhost:5000/api/portals?users_id=1") else { return }
-    URLSession.shared.dataTask(with: url) { data, _, error in
-        guard let data = data else { return }
-        do {
-            let apiResponse = try JSONDecoder().decode(PortalsAPIResponse.self, from: data)
-            DispatchQueue.main.async {
-                self.portals = apiResponse.result
+        guard let url = URL(string: "http://localhost:5000/api/portals?users_id=1") else { return }
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            guard let data = data else { return }
+            do {
+                let apiResponse = try JSONDecoder().decode(PortalsAPIResponse.self, from: data)
+                DispatchQueue.main.async {
+                    self.portals = apiResponse.result
+                }
+            } catch {
+                print("Portals decode error:", error)
             }
-        } catch {
-            print("Portals decode error:", error)
-        }
-    }.resume()
-    }
-    
-    struct GoalsAPIResponse: Codable {
-    let aGoals: [Goal]
+        }.resume()
     }
 
     func fetchGoals() {
@@ -206,7 +244,7 @@ class ProfileViewModel: ObservableObject {
             }
         }.resume()
     }
-    // Fetch all writes for the user
+
     func fetchWrites(for userId: Int) {
         guard let url = URL(string: "http://localhost:5000/api/user/writes?users_id=\(userId)") else { return }
         URLSession.shared.dataTask(with: url) { data, _, error in
@@ -222,7 +260,6 @@ class ProfileViewModel: ObservableObject {
         }.resume()
     }
 
-    // Add a new write block
     func addWrite() {
         guard let url = URL(string: "http://localhost:5000/api/user/write") else { return }
         var request = URLRequest(url: url)
@@ -245,7 +282,6 @@ class ProfileViewModel: ObservableObject {
         }.resume()
     }
 
-    // Edit a write block
     func editWrite(_ write: WriteBlock) {
         guard let url = URL(string: "http://localhost:5000/api/user/write/\(write.id)") else { return }
         var request = URLRequest(url: url)
@@ -267,7 +303,6 @@ class ProfileViewModel: ObservableObject {
         }.resume()
     }
 
-    // Delete a write block
     func deleteWrite(_ write: WriteBlock) {
         guard let url = URL(string: "http://localhost:5000/api/user/write/\(write.id)") else { return }
         var request = URLRequest(url: url)
@@ -280,7 +315,7 @@ class ProfileViewModel: ObservableObject {
             }
         }.resume()
     }
-}
+
     func goBack() {
         // Handle navigation back
     }
@@ -291,11 +326,6 @@ class ProfileViewModel: ObservableObject {
 
     func addPartner() {
         // Handle add partner action
-    }
-
-    func saveWrite() {
-        previousWrite = writeText
-        // Optionally, clear writeText or show a confirmation
     }
 }
 
@@ -371,7 +401,8 @@ struct ProfileView: View {
                         .listStyle(PlainListStyle())
                     } else if selectedTab == 2 {
                         WriteContentView(
-                            WriteContentView(viewModel: viewModel, isCurrentUser: viewModel.isCurrentUser)
+                            viewModel: viewModel,
+                            isCurrentUser: viewModel.isCurrentUser
                         )
                     }
                 }
@@ -608,8 +639,60 @@ struct BGCLogoView: View {
 struct GoalListItem: View {
     let goal: Goal
     var body: some View {
-        Text(goal.title)
+        HStack(spacing: 16) {
+            BarChartView(data: goal.chartData)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(goal.title)
+                    .font(.headline)
+                if !goal.subtitle.isEmpty {
+                    Text(goal.subtitle)
+                        .font(.subheadline)
+                }
+                Text("\(Int(goal.progressPercent))% [\(goal.typeName)]")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+        }
+        .frame(height: 64)
+        .padding(.vertical, 4)
+        .padding(.horizontal)
+        .background(Color.white)
     }
+}
+
+struct BarChartView: View {
+    let data: [BarChartData]
+
+    var maxValue: Double {
+        data.map { $0.value }.max() ?? 1
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(data) { bar in
+                    Rectangle()
+                        .fill(Color.repGreen)
+                        .frame(width: 14, height: CGFloat(bar.value / maxValue) * 40)
+                        .cornerRadius(3)
+                }
+            }
+            HStack(spacing: 6) {
+                ForEach(data) { bar in
+                    Text(bar.bottomLabel)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(width: 14)
+                }
+            }
+        }
+        .frame(width: 70, height: 56)
+    }
+}
+
+extension Color {
+    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
 }
 
 struct WriteContentView: View {

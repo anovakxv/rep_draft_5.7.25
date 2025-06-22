@@ -1,26 +1,30 @@
-
-//
-//  PortalItem.swift
-//  Rep
-//
-//  Created by Adam Novak on 6.19.2025
-//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
-//
-
 import SwiftUI
 
 struct PortalItem: View {
-    let portal: PortalModel
+    let portal: Portal
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            // Portal image (replace with AsyncImage if using remote URLs)
-            Image(portal.imageName)
-                .resizable()
-                .aspectRatio(16/9, contentMode: .fill)
+            if let urlString = portal.mainImageUrl, let url = URL(string: urlString) {
+                AsyncImage(url: url) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .aspectRatio(16/9, contentMode: .fill)
+                    } else if phase.error != nil {
+                        Color.gray
+                    } else {
+                        Color.gray.opacity(0.3)
+                    }
+                }
                 .frame(width: 80, height: 45)
                 .clipped()
                 .cornerRadius(6)
+            } else {
+                Color.gray.opacity(0.2)
+                    .frame(width: 80, height: 45)
+                    .cornerRadius(6)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
@@ -29,26 +33,33 @@ struct PortalItem: View {
                         .fontWeight(.medium)
                         .foregroundColor(.primary)
                     Spacer()
-                    Text(portal.category)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    // Add category if available
+                    if let category = portal.categories_id {
+                        Text("Category \(category)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
 
-                if !portal.subtitle.isEmpty {
-                    Text(portal.subtitle)
+                if let subtitle = portal.subtitle, !subtitle.isEmpty {
+                    Text(subtitle)
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
 
                 HStack {
-                    Text(portal.city)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    if let city = portal.cities_id {
+                        Text("City \(city)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     Spacer()
-                    Text("\(portal.leads.count) leads")
-                        .font(.caption)
-                        .foregroundColor(.green)
+                    if let count = portal._c_users_count {
+                        Text("\(count) leads")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    }
                 }
             }
             Spacer()
@@ -59,24 +70,5 @@ struct PortalItem: View {
         .cornerRadius(10)
         .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 2)
         .frame(height: 64)
-    }
-}
-
-// MARK: - Preview
-
-struct PortalItem_Previews: PreviewProvider {
-    static var previews: some View {
-        PortalItem(portal: PortalModel(
-            name: "Networked Capital",
-            subtitle: "Building Super-Intelligence together",
-            about: "A platform for collaborative investing...",
-            category: "Education",
-            city: "New York",
-            imageItems: [],
-            leads: [Lead(id: UUID(), name: "Lead 1", image: ImageItem(name: "leadPic"))],
-            goals: []
-        ))
-        .previewLayout(.sizeThatFits)
-        .background(Color(UIColor.systemGroupedBackground))
     }
 }

@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.message import Message
+from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
+from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.user import User
 from app.models.portal import Portal
 from app.models.chats import Chats
@@ -39,105 +40,76 @@ def api_get_messages():
         r.messages_id for r in MessagesRead.query.filter_by(users_id=user_id).limit(1024).all()
     )
 
-    query = Message.query
-
-    if newer_than_id:
-        query = query.filter(Message.id > int(newer_than_id))
-
-    # Inbox/grouped view
-    if not users_id and not chats_id:
-        if show_hidden != "1":
-            hidden_ids = db.session.query(UsersHiddenConversations.users_id2).filter_by(users_id1=user_id)
-            query = query.filter(~Message.users_id1.in_(hidden_ids), ~Message.users_id2.in_(hidden_ids))
-            hidden_chats = db.session.query(ChatsHiddenConversations.chats_id).filter_by(users_id=user_id)
-            query = query.filter(~Message.chats_id.in_(hidden_chats))
-        query = query.filter(
-            (Message.users_id1 == user_id) | (Message.users_id2 == user_id) |
-            (Message.chats_id.in_(
-                db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id)
-            ))
+    messages = []
+    # Direct messages
+    if users_id and not chats_id:
+        query = DirectMessage.query.filter(
+            ((DirectMessage.sender_id == user_id) & (DirectMessage.recipient_id == users_id)) |
+            ((DirectMessage.recipient_id == user_id) & (DirectMessage.sender_id == users_id))
         )
-        messages = query.order_by(Message.created_at.asc() if order == 'ASC' else Message.created_at.desc()).offset(offset).limit(limit).all()
+        if newer_than_id:
+            query = query.filter(DirectMessage.id > int(newer_than_id))
+        query = query.order_by(DirectMessage.created_at.asc() if order == 'ASC' else DirectMessage.created_at.desc())
+        messages = query.offset(offset).limit(limit).all()
+    # Group messages
     elif chats_id:
-        query = query.filter(Message.chats_id == chats_id)
-        messages = query.order_by(Message.created_at.asc() if order == 'ASC' else Message.created_at.desc()).offset(offset).limit(limit).all()
+        query = GroupMessage.query.filter(GroupMessage.chat_id == chats_id)
+        if newer_than_id:
+            query = query.filter(GroupMessage.id > int(newer_than_id))
+        query = query.order_by(GroupMessage.created_at.asc() if order == 'ASC' else GroupMessage.created_at.desc())
+        messages = query.offset(offset).limit(limit).all()
+    # Inbox/grouped view
     else:
-        query = query.filter(
-            ((Message.users_id1 == user_id) & (Message.users_id2 == users_id)) |
-            ((Message.users_id2 == user_id) & (Message.users_id1 == users_id))
+        direct_query = DirectMessage.query.filter(
+            (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)
         )
-        messages = query.order_by(Message.created_at.asc() if order == 'ASC' else Message.created_at.desc()).offset(offset).limit(limit).all()
+        group_query = GroupMessage.query.filter(
+            GroupMessage.chat_id.in_(
+                db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id)
+            )
+        )
+        if newer_than_id:
+            direct_query = direct_query.filter(DirectMessage.id > int(newer_than_id))
+            group_query = group_query.filter(GroupMessage.id > int(newer_than_id))
+        direct_query = direct_query.order_by(DirectMessage.created_at.asc() if order == 'ASC' else DirectMessage.created_at.desc())
+        group_query = group_query.order_by(GroupMessage.created_at.asc() if order == 'ASC' else GroupMessage.created_at.desc())
+        direct_messages = direct_query.offset(offset).limit(limit).all()
+        group_messages = group_query.offset(offset).limit(limit).all()
+        messages = direct_messages + group_messages
+        messages.sort(key=lambda m: m.created_at, reverse=(order == 'DESC'))
 
-    user_ids = set()
+    # Build message list using as_dict()
+    aData = []
     portal_ids = set()
     chat_ids = set()
-    aData = []
-
-    # Preload users for sender info
     for msg in messages:
-        user_ids.add(msg.users_id1)
-        if msg.users_id2:
-            user_ids.add(msg.users_id2)
-        if msg.portals_id:
-            portal_ids.add(msg.portals_id)
-        if msg.chats_id:
-            chat_ids.add(msg.chats_id)
-
-    users = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()}
-
-    for msg in messages:
-        sender = users.get(msg.users_id1)
-        sender_name = getattr(sender, 'full_name', '') or f"{getattr(sender, 'fname', '')} {getattr(sender, 'lname', '')}"
-        sender_photo_url = getattr(sender, 'profile_picture_url', None)
-
-        msg_dict = {
-            'id': msg.id,
-            'sender_id': msg.users_id1,
-            'sender_name': sender_name.strip(),
-            'sender_photo_url': sender_photo_url,
-            'recipient_id': msg.users_id2,
-            'chat_id': msg.chats_id,
-            'portal_id': msg.portals_id,
-            'text': msg.text,
-            'timestamp': msg.created_at.isoformat() + 'Z',
-            'read': '1' if msg.id in already_read_ids else '0'
-        }
+        msg_dict = msg.as_dict()
+        msg_dict['read'] = '1' if msg.id in already_read_ids else '0'
+        # Collect related portal/chat ids for context
+        if hasattr(msg, 'portal_id') and msg.portal_id:
+            portal_ids.add(msg.portal_id)
+        if hasattr(msg, 'chat_id') and msg.chat_id:
+            chat_ids.add(msg.chat_id)
         aData.append(msg_dict)
 
-    # Mark messages as read if needed (for direct messages)
-    if mark_as_read and aData and users_id:
-        unread_ids = [
-            m['id'] for m in aData
-            if m['read'] == '0' and any([
-                (str(m.get('recipient_id')) == str(user_id)),
-                (m.get('chat_id') is None)
-            ])
-        ]
+    # Mark messages as read if needed
+    if mark_as_read and aData:
+        unread_ids = [m['id'] for m in aData if m['read'] == '0']
         for mid in unread_ids:
             if not MessagesRead.query.filter_by(users_id=user_id, messages_id=mid).first():
                 db.session.add(MessagesRead(users_id=user_id, messages_id=mid))
-        db.session.commit()
-
-    # Mark messages as read if needed (for chats)
-    if aData and chats_id:
-        unread_ids = [m['id'] for m in aData if m['read'] == '0']
-        for mid in unread_ids:
-            if not MessagesRead.query.filter_by(users_id=user_id, chats_id=chats_id, messages_id=mid).first():
-                db.session.add(MessagesRead(users_id=user_id, chats_id=chats_id, messages_id=mid))
         db.session.commit()
 
     # Optionally, preload portals and chats for context
     portals = Portal.query.filter(Portal.id.in_(portal_ids)).all() if portal_ids else []
     chats = Chats.query.filter(Chats.id.in_(chat_ids)).all() if chat_ids else []
 
-    aUsers = [u.as_dict() for u in users.values()]
     aPortals = [p.as_dict() for p in portals]
     aChats = [c.as_dict() for c in chats]
 
     result = {
         'messages': aData,
-        'users': aUsers,
         'portals': aPortals,
         'chats': aChats
     }
-    return jsonify({'result': result})
+    

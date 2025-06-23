@@ -22,14 +22,60 @@ struct PortalModel: Identifiable, Decodable {
     let users_id: Int?
     let _c_users_count: Int?
     let mainImageUrl: String?
-    // Add other fields as needed
 }
+
+// MARK: - Unified User Model
+
+struct User: Identifiable, Codable {
+    let id: Int
+    let fullName: String
+    let fname: String?
+    let lname: String?
+    let username: String
+    let about: String?
+    let broadcast: String?
+    let profilePictureURL: URL?
+    let userType: String?
+    let city: String?
+    let skills: [String]?
+    let lastLogin: String?
+    let createdAt: String?
+    let updatedAt: String?
+    // Messaging fields
+    let lastMessage: String?
+    let lastMessageDate: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case fullName = "full_name"
+        case fname
+        case lname
+        case username
+        case about
+        case broadcast
+        case profilePictureURL = "profile_picture_url"
+        case userType = "user_type"
+        case city
+        case skills
+        case lastLogin = "last_login"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case lastMessage = "last_message"
+        case lastMessageDate = "last_message_date"
+    }
+}
+
+// MARK: - API Responses
 
 struct PortalsAPIResponse: Decodable {
     let result: [PortalModel]
 }
 
-// MARK: - ViewModel
+struct UsersAPIResponse: Decodable {
+    let results: [User]
+}
+
+// MARK: - ViewModels
 
 class PortalsViewModel: ObservableObject {
     @Published var portals: [PortalModel] = []
@@ -76,6 +122,44 @@ class PortalsViewModel: ObservableObject {
     }
 }
 
+class PeopleViewModel: ObservableObject {
+    @Published var users: [User] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    func fetchUsers() {
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "http://localhost:5000/api/users/list") else {
+            errorMessage = "Invalid URL"
+            isLoading = false
+            return
+        }
+        URLSession.shared.dataTask(with: url) { data, _, error in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if let error = error {
+                    self.errorMessage = error.localizedDescription
+                    self.users = []
+                    return
+                }
+                guard let data = data else {
+                    self.errorMessage = "No data"
+                    self.users = []
+                    return
+                }
+                do {
+                    let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
+                    self.users = response.results
+                } catch {
+                    self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                    self.users = []
+                }
+            }
+        }.resume()
+    }
+}
+
 // MARK: - MainScreen
 
 extension MainScreen {
@@ -90,19 +174,30 @@ extension MainScreen {
 
 struct MainScreen: View {
     @StateObject private var portalsVM = PortalsViewModel()
+    @StateObject private var peopleVM = PeopleViewModel()
     @AppStorage("userId") var userId: Int = 0
     @State private var page: Page = .people
     @State private var section = 0
-
-    // Placeholder chat data
-    var chatItems1 = chatItems
 
     var body: some View {
         NavigationStack {
             VStack {
                 switch page {
                 case .people:
-                    ChatList(chatItems: chatItems1.sorted(by: {$0.lastMessageDate > $1.lastMessageDate}))
+                    if peopleVM.isLoading {
+                        ProgressView("Loading people...")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if let error = peopleVM.errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if peopleVM.users.isEmpty {
+                        Text("No chats found.")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ChatList(users: peopleVM.users.sorted(by: { ($0.lastMessageDate ?? "") > ($1.lastMessageDate ?? "") }))
+                    }
                 case .portals:
                     if portalsVM.isLoading {
                         ProgressView("Loading portals...")
@@ -139,9 +234,11 @@ struct MainScreen: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink(destination: ProfileInfoView(viewModel: .init(profileInfo: pp))) {
-                        GridItemView(size: Constants.imageSize, item: pp.image)
-                            .clipShape(.circle)
+                    NavigationLink(destination: ProfileView()) {
+                        Image(systemName: "person.crop.circle")
+                            .resizable()
+                            .frame(width: Constants.imageSize, height: Constants.imageSize)
+                            .clipShape(Circle())
                     }
                 }
             }
@@ -168,6 +265,8 @@ struct MainScreen: View {
                         page = page == .people ? .portals : .people
                         if page == .portals {
                             portalsVM.fetchPortals(userId: userId, section: section)
+                        } else {
+                            peopleVM.fetchUsers()
                         }
                     },
                     label: {
@@ -185,6 +284,8 @@ struct MainScreen: View {
         .onAppear {
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: section)
+            } else {
+                peopleVM.fetchUsers()
             }
         }
     }
@@ -264,61 +365,52 @@ struct PortalItem: View {
     }
 }
 
-// MARK: - Chat List & Item (Placeholders)
-
-struct ChatItemModel: Identifiable {
-    let id = UUID()
-    let userId: Int 
-    let imageName: String
-    let name: String
-    let lastMessage: String
-    let lastMessageDate: Date
-
-    var lastMessageDateFormatted: String {
-        lastMessageDate.timeAgoDisplay()
-    }
-}
-
-extension Date {
-    func timeAgoDisplay() -> String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: self, relativeTo: Date())
-    }
-}
+// MARK: - Chat List (Unified User Model)
 
 struct ChatList: View {
-    var chatItems: [ChatItemModel]
+    var users: [User]
 
     var body: some View {
-        if chatItems.isEmpty {
+        if users.isEmpty {
             Text("No chats found.")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List {
-                ForEach(chatItems) { chatItem in
+                ForEach(users) { user in
                     HStack(alignment: .top, spacing: 0) {
                         // Profile Pic NavigationLink
-                        NavigationLink(destination: ProfileInfoView(userId: chatItem.userId)) {
-                            Image(chatItem.imageName)
-                                .resizable()
-                                .scaledToFill()
+                        NavigationLink(destination: ProfileView()) {
+                            if let url = user.profilePictureURL {
+                                AsyncImage(url: url) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    Color.gray
+                                }
                                 .frame(width: 64, height: 64)
-                                .cornerRadius(32)
+                                .clipShape(Circle())
+                            } else {
+                                Image(systemName: "person.crop.circle")
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
+                            }
                         }
                         .buttonStyle(PlainButtonStyle())
                         // Chat Text NavigationLink
-                        NavigationLink(destination: Chat(userId: chatItem.userId)) {
+                        NavigationLink(destination: Chat(userId: user.id)) {
                             VStack(alignment: .leading) {
                                 HStack {
-                                    Text(chatItem.name)
+                                    Text(user.fullName)
                                         .font(.subheadline)
                                     Spacer()
-                                    Text(chatItem.lastMessageDateFormatted)
-                                        .font(.caption)
+                                    if let dateString = user.lastMessageDate, let date = ISO8601DateFormatter().date(from: dateString) {
+                                        Text(date.timeAgoDisplay())
+                                            .font(.caption)
+                                    }
                                 }
-                                Text(chatItem.lastMessage)
+                                Text(user.lastMessage ?? "")
                                     .font(.caption)
                             }
                             .padding(.leading, 8)
@@ -335,31 +427,25 @@ struct ChatList: View {
     }
 }
 
-struct ChatItem: View {
-    var chatItem : ChatItemModel
+extension Date {
+    func timeAgoDisplay() -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter.localizedString(for: self, relativeTo: Date())
+    }
+}
 
+// MARK: - Placeholder for PortalPage and Chat
+
+struct PortalPage: View {
+    let portalId: Int
+    let userId: Int
     var body: some View {
-        HStack(alignment: .top) {
-            Image(chatItem.imageName)
-                .resizable()
-                .scaledToFill()
-                .frame(
-                    width: 64,
-                    height: 64
-                )
-                .cornerRadius(100 / 2)
-            VStack(alignment: .leading) {
-                HStack {
-                    Text(chatItem.name)
-                        .font(.subheadline)
-                    Spacer()
-                    Text(chatItem.lastMessageDateFormatted)
-                        .font(.caption)
-                }
-                Text(chatItem.lastMessage)
-                    .font(.caption)
-            }
-        }
-        .frame(height: 64)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        Text("Portal ID: \(portalId), User ID: \(userId)")
+    }
+}
+
+struct Chat: View {
+    let userId: Int
+    var body: some
+    

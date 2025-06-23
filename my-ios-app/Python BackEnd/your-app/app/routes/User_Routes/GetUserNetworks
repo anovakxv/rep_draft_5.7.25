@@ -2,20 +2,61 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.user import User
 from app.models.users_network import UsersNetwork
+from app.models.goals_team import GoalTeam
+from app.models.chats_users import ChatsUsers
+from app.models.skill import Skill
+from app.models.users_skills import UsersSkills
 from app.utils.user_utils import manage_user_row
 
 user_bp = Blueprint('user', __name__)
 
-@user_bp.route('/api/user/get_my_networks', methods=['GET'])
-def api_get_my_networks():
+def get_user_response(user, session_user_id=None):
+    user_row = user.as_dict()
+    level = '0' if session_user_id and str(session_user_id) == str(user.id) else '1'
+    user_row = manage_user_row(user_row, user.id, level=level)
+    # Add skills
+    user_skills = Skill.query.join(UsersSkills, Skill.id == UsersSkills.skills_id).filter(UsersSkills.users_id == user.id).all()
+    user_row['skills'] = [skill.as_dict() for skill in user_skills]
+    # Add relationships if session user
+    if session_user_id:
+        from app.models.users_followers import UsersFollowers
+        user_row['relationships'] = {
+            "i_follow": UsersFollowers.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
+            "i_am_followed_by": UsersFollowers.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+            "in_my_network": UsersNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
+            "i_am_in_their_network": UsersNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+        }
+    return user_row
+
+@user_bp.route('/api/user/members_of_my_network', methods=['GET'])
+def api_members_of_my_network():
     users_id = request.args.get('users_id', type=int)
+    invited_goal_id = request.args.get('invited_goal_id', type=int)
+    not_in_chats_id = request.args.get('not_in_chats_id', type=int)
+    keyword = request.args.get('keyword', '')
+
     if not users_id:
         return jsonify({'error': 'users_id is empty!'}), 400
 
-    # Get users who have added this user to their network
-    network_users = db.session.query(User).join(
-        UsersNetwork, UsersNetwork.users_id1 == User.id
-    ).filter(UsersNetwork.users_id2 == users_id).all()
+    query = db.session.query(User).join(
+        UsersNetwork, UsersNetwork.users_id2 == User.id
+    ).filter(UsersNetwork.users_id1 == users_id)
 
-    result = [manage_user_row(u.as_dict(), users_id) for u in network_users]
+    if invited_goal_id:
+        subq = db.session.query(GoalTeam.users_id2).filter(GoalTeam.goals_id == invited_goal_id)
+        query = query.filter(~User.id.in_(subq))
+
+    if not_in_chats_id:
+        subq = db.session.query(ChatsUsers.users_id).filter(ChatsUsers.chats_id == not_in_chats_id)
+        query = query.filter(~User.id.in_(subq))
+
+    if keyword:
+        keyword = keyword.strip().lower()
+        query = query.filter(
+            (User.fname + ' ' + User.lname).ilike(f"%{keyword}%")
+        )
+
+    users = query.all()
+    # Use improved user response with skills and relationships
+    result = [get_user_response(u, users_id) for u in users]
     return jsonify({'result': result})

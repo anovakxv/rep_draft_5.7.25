@@ -28,4 +28,5 @@ class GroupMessage(db.Model):
             "sender_id": self.sender_id,
             "text": self.text,
             "created_at": self.created_at.isoformat() + 'Z',
+            "sender": self.sender.as_dict() if self.sender else None,  # Unified user dict
         }

@@ -8,9 +8,8 @@ class UserNetwork(db.Model):
     users_id1 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     users_id2 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Optional: status field for connection state
-    # status = db.Column(db.String(20), default='pending')  # e.g., 'pending', 'accepted', 'blocked'
+    status = db.Column(db.String(20), default='pending')  # e.g., 'pending', 'accepted', 'blocked'
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     __table_args__ = (
         db.UniqueConstraint('users_id1', 'users_id2', name='uq_users_network_pair'),
@@ -22,3 +21,13 @@ class UserNetwork(db.Model):
 
     def __repr__(self):
         return f"<UserNetwork id={self.id} users_id1={self.users_id1} users_id2={self.users_id2}>"
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "users_id1": self.users_id1,
+            "users_id2": self.users_id2,
+            "status": self.status,
+            "timestamp": self.timestamp.isoformat() + 'Z' if self.timestamp else None,
+            "updated_at": self.updated_at.isoformat() + 'Z' if self.updated_at else None,
+            

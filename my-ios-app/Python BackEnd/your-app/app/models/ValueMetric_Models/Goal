@@ -3,22 +3,25 @@ from collections import defaultdict
 from datetime import datetime
 
 class Goal(db.Model):
+    """
+    Main Goal model representing a measurable objective for a user or team.
+    """
     __tablename__ = 'goals'
 
     id = db.Column(db.Integer, primary_key=True)
-    title = db.Column(db.String(255), nullable=False)
-    subtitle = db.Column(db.String(255))
-    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False)
-    lead_id = db.Column(db.Integer, db.ForeignKey('users.id'))
-    description = db.Column(db.Text, nullable=False)
-    quota = db.Column(db.Integer, default=100)
-    filled_quota = db.Column(db.Integer, default=0)
-    quota_is_reached_note = db.Column(db.Boolean, default=False)
-    goal_types_id = db.Column(db.Integer, db.ForeignKey('goal_types.id'), nullable=False)
-    goal_metrics_id = db.Column(db.Integer, db.ForeignKey('goal_metrics.id'), nullable=False)
-    rep_commission = db.Column(db.Float)
-    reporting_increments_id = db.Column(db.Integer, db.ForeignKey('reporting_increments.id'), nullable=False)
+    title = db.Column(db.String(255), nullable=False)  # Goal title
+    subtitle = db.Column(db.String(255))  # Optional subtitle
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  # Creator/owner
+    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False, index=True)  # Portal/group
+    lead_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Team lead (optional)
+    description = db.Column(db.Text, nullable=False)  # Goal description
+    quota = db.Column(db.Integer, default=100)  # Target value
+    filled_quota = db.Column(db.Integer, default=0)  # Current progress
+    quota_is_reached_note = db.Column(db.Boolean, default=False)  # Flag if quota reached
+    goal_types_id = db.Column(db.Integer, db.ForeignKey('goal_types.id'), nullable=False, index=True)  # Type FK
+    goal_metrics_id = db.Column(db.Integer, db.ForeignKey('goal_metrics.id'), nullable=False, index=True)  # Metric FK
+    rep_commission = db.Column(db.Float)  # Optional commission
+    reporting_increments_id = db.Column(db.Integer, db.ForeignKey('reporting_increments.id'), nullable=False, index=True)  # Reporting period FK
 
     # Relationships
     creator = db.relationship('User', foreign_keys=[users_id])
@@ -36,7 +39,19 @@ class Goal(db.Model):
 
     @property
     def progress(self):
+        """Returns progress as a float between 0 and 1."""
         return round(self.filled_quota / self.quota, 2) if self.quota else 0
+
+    def is_quota_reached(self):
+        """Returns True if the goal's quota has been reached or exceeded."""
+        return self.filled_quota >= self.quota if self.quota else False
+
+    def can_user_edit(self, user_id):
+        """
+        Returns True if the given user_id is allowed to edit this goal.
+        Owner or lead can edit.
+        """
+        return user_id == self.users_id or user_id == self.lead_id
 
     def chart_data(self, increment='month', num_periods=4):
         """
@@ -44,7 +59,7 @@ class Goal(db.Model):
         increment: 'month', 'week', or 'day'
         num_periods: how many periods to include (e.g., last 4 months)
         """
-        logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
+        logs = self.progress_logs.order_by(self.progress_logs.prop.mapper.class_.timestamp.asc()).all()
         data = defaultdict(int)
         for log in logs:
             if log.timestamp:
@@ -64,16 +79,69 @@ class Goal(db.Model):
             for label, value in items
         ]
 
-    def as_dict(self):
+    def as_dict(self, include_team=False, include_progress_logs=False):
+        """
+        Returns a dict representation of the Goal, suitable for both list and detail views.
+        Set include_team/progress_logs True to include team or feed data for detail pages.
+        """
+        # Format chart data for Swift
+        chart_data = [
+            {
+                "value": d["value"],
+                "valueLabel": str(d["value"]),
+                "bottomLabel": d["label"]
+            }
+            for d in self.chart_data()
+        ]
+
+        # Format quota and value strings for display
+        quota_string = str(self.quota)
+        value_string = str(self.filled_quota)
+
+        # Team info (for detail view)
+        team = None
+        if include_team:
+            team = [
+                {
+                    "id": tm.member.id,
+                    "name": f"{tm.member.fname or ''} {tm.member.lname or ''}".strip(),
+                    "imageName": "profile_placeholder"  # Replace with actual image logic if available
+                }
+                for tm in self.team_members if tm.confirmed == 1 and tm.member
+            ]
+
+        # Latest progress logs (for feed in detail view)
+        a_latest_progress = None
+        if include_progress_logs:
+            logs = self.progress_logs.order_by(self.progress_logs.prop.mapper.class_.timestamp.desc()).limit(4).all()
+            a_latest_progress = [
+                {
+                    "id": log.id,
+                    "users_id": log.users_id,
+                    "added_value": log.added_value,
+                    "note": log.note,
+                    "value": log.value,
+                    "timestamp": log.timestamp.isoformat() if log.timestamp else None
+                }
+                for log in logs
+            ]
+
         return {
             "id": self.id,
             "title": self.title,
-            "subtitle": self.subtitle,
-            "description": self.description,
-            "progress": int((self.filled_quota / self.quota) * 100) if self.quota else 0,
+            "subtitle": self.subtitle or "",
+            "description": self.description or "",
+            "progress": round(self.filled_quota / self.quota, 2) if self.quota else 0,
+            "progressPercent": round(100 * self.filled_quota / self.quota) if self.quota else 0,
             "quota": self.quota,
-            "filled_quota": self.filled_quota,
-            "goal_type": self.goal_type.title if self.goal_type else "",
-            "goal_metric": self.goal_metric.title if self.goal_metric else "",
-            "reporting_increment": self.reporting_increment.title if self.reporting_increment
+            "filledQuota": self.filled_quota,
+            "metricName": self.goal_metric.title if self.goal_metric else "",
+            "typeName": self.goal_type.title if self.goal_type else "",
+            "reportingName": self.reporting_increment.title if self.reporting_increment else "",
+            "quotaString": quota_string,
+            "valueString": value_string,
+            "chartData": chart_data,
+            "aLatestProgress": a_latest_progress,
+            "team": team,
+            # Add more fields as
             

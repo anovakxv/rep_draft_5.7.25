@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.user import User
-from app.models.message import Message
+from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
 from datetime import datetime
@@ -15,7 +15,6 @@ def api_send_message():
     to_user_id = data.get('users_id')
     message_text = data.get('message')
     portals_id = data.get('portals_id', None)
-    return_result = data.get('__return_result', '')
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
@@ -34,18 +33,17 @@ def api_send_message():
     if does_user_block(to_user_id, user_id):
         return jsonify({'error': 'blocked!'}), 403
 
-    # Create message
-    msg = Message(
-        users_id1=user_id,
-        users_id2=to_user_id,
-        portals_id=portals_id,
+    # Create message using DirectMessage model
+    msg = DirectMessage(
+        sender_id=user_id,
+        recipient_id=to_user_id,
         text=message_text,
         created_at=datetime.utcnow()
     )
     db.session.add(msg)
     db.session.commit()
 
-    # Register activity (implement as needed)
+    # Register activity
     register_new_activity(user_id, to_user_id, "new_direct_message", 1, msg.id, "messages")
 
     # Optionally, remove hidden conversations
@@ -56,21 +54,6 @@ def api_send_message():
     )
     db.session.commit()
 
-    # Fetch sender info
-    sender = User.query.get(user_id)
-    sender_name = getattr(sender, 'full_name', '') or getattr(sender, 'fname', '') + ' ' + getattr(sender, 'lname', '')
-    sender_photo_url = getattr(sender, 'profile_picture_url', None)
-
-    # Build full message object for response
-    message_obj = {
-        'id': msg.id,
-        'sender_id': msg.users_id1,
-        'sender_name': sender_name.strip(),
-        'sender_photo_url': sender_photo_url,
-        'recipient_id': msg.users_id2,
-        'text': msg.text,
-        'timestamp': msg.created_at.isoformat() + 'Z'
-    }
-
-    return jsonify({'result': 'ok', 'message':
-                    
+    # Use as_dict() for unified response, includes sender and recipient user objects
+    message_obj
+    

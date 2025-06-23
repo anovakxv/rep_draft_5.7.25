@@ -48,35 +48,77 @@ struct Goal: Identifiable, Codable {
     )
 }
 
-// MARK: - User Model
+// MARK: - Unified User Model
 
-struct User: Codable {
-    let id: Int?
+struct User: Identifiable, Codable {
+    let id: Int
     let fullName: String
-    let photoURL: URL?
-    let repTypeAndCity: String
-    let about: String
-    let broadcast: String
-    let skills: [String]
+    let fname: String?
+    let lname: String?
+    let username: String
+    let about: String?
+    let broadcast: String?
+    let profilePictureURL: URL?
+    let userType: String?
+    let city: String?
+    let skills: [String]?
+    let lastLogin: String?
+    let createdAt: String?
+    let updatedAt: String?
+    // Messaging fields
+    let lastMessage: String?
+    let lastMessageDate: String?
+
+    // For UI compatibility
+    var repTypeAndCity: String {
+        let type = userType ?? ""
+        let cityStr = city ?? ""
+        if !type.isEmpty && !cityStr.isEmpty {
+            return "Rep Type: \(type)   City: \(cityStr)"
+        } else if !type.isEmpty {
+            return "Rep Type: \(type)"
+        } else if !cityStr.isEmpty {
+            return "City: \(cityStr)"
+        }
+        return ""
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
         case fullName = "full_name"
-        case photoURL = "photo_url"
-        case repTypeAndCity = "rep_type_and_city"
+        case fname
+        case lname
+        case username
         case about
         case broadcast
+        case profilePictureURL = "profile_picture_url"
+        case userType = "user_type"
+        case city
         case skills
+        case lastLogin = "last_login"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+        case lastMessage = "last_message"
+        case lastMessageDate = "last_message_date"
     }
 
     static let placeholder = User(
-        id: nil,
+        id: 0,
         fullName: "John Doe",
-        photoURL: nil,
-        repTypeAndCity: "Rep Type: Lead   City: New York",
+        fname: "John",
+        lname: "Doe",
+        username: "johndoe",
         about: "Passionate about building teams and products...",
         broadcast: "Looking for partners in NYC!",
-        skills: ["Leadership", "Marketing", "Fundraising"]
+        profilePictureURL: nil,
+        userType: "Lead",
+        city: "New York",
+        skills: ["Leadership", "Marketing", "Fundraising"],
+        lastLogin: nil,
+        createdAt: nil,
+        updatedAt: nil,
+        lastMessage: nil,
+        lastMessageDate: nil
     )
 }
 
@@ -197,7 +239,7 @@ class ProfileViewModel: ObservableObject {
         fetchUser()
         fetchPortals()
         fetchGoals()
-        fetchWrites(for: user.id ?? 1)
+        fetchWrites(for: user.id)
     }
 
     func fetchUser() {
@@ -276,7 +318,7 @@ class ProfileViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.writeText = ""
                     self.writeTitle = ""
-                    self.fetchWrites(for: self.user.id ?? 0)
+                    self.fetchWrites(for: self.user.id)
                 }
             }
         }.resume()
@@ -297,7 +339,7 @@ class ProfileViewModel: ObservableObject {
             if let _ = data {
                 DispatchQueue.main.async {
                     self.editingWrite = nil
-                    self.fetchWrites(for: self.user.id ?? 0)
+                    self.fetchWrites(for: self.user.id)
                 }
             }
         }.resume()
@@ -310,7 +352,7 @@ class ProfileViewModel: ObservableObject {
         URLSession.shared.dataTask(with: request) { data, _, error in
             if let _ = data {
                 DispatchQueue.main.async {
-                    self.fetchWrites(for: self.user.id ?? 0)
+                    self.fetchWrites(for: self.user.id)
                 }
             }
         }.resume()
@@ -342,18 +384,18 @@ struct ProfileView: View {
                 StatusBarView()
                 NavigationHeaderView(name: viewModel.user.fullName,  onBack: { dismiss() })
                 ProfileInfoView(
-                    photoURL: viewModel.user.photoURL,
+                    photoURL: viewModel.user.profilePictureURL,
                     repTypeAndCity: viewModel.user.repTypeAndCity,
-                    skills: viewModel.user.skills
+                    skills: viewModel.user.skills ?? []
                 )
                 VStack(alignment: .leading, spacing: 8) {
-                    if !viewModel.user.about.isEmpty {
-                        Text(viewModel.user.about)
+                    if let about = viewModel.user.about, !about.isEmpty {
+                        Text(about)
                             .font(.body)
                             .foregroundColor(.secondary)
                     }
-                    if !viewModel.user.broadcast.isEmpty {
-                        Text(viewModel.user.broadcast)
+                    if let broadcast = viewModel.user.broadcast, !broadcast.isEmpty {
+                        Text(broadcast)
                             .font(.body)
                             .foregroundColor(.secondary)
                     }
@@ -773,7 +815,7 @@ struct WriteContentView: View {
         }
         .padding(.vertical)
         .onAppear {
-            viewModel.fetchWrites(for: viewModel.user.id ?? 0)
+            viewModel.fetchWrites(for: viewModel.user.id)
         }
     }
 }

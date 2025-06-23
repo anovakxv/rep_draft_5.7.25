@@ -10,17 +10,7 @@ goals_bp = Blueprint('goals', __name__)
 @goals_bp.route('/api/goals/<int:goal_id>/progress', methods=['GET'])
 def get_goal_progress(goal_id):
     logs = GoalProgressLog.query.filter_by(goals_id=goal_id).order_by(GoalProgressLog.timestamp.desc()).all()
-    result = [
-        {
-            "id": log.id,
-            "users_id": log.users_id,
-            "added_value": log.added_value,
-            "note": log.note,
-            "value": log.value,
-            "timestamp": log.timestamp.isoformat() if log.timestamp else None
-        }
-        for log in logs
-    ]
+    result = [log.as_dict() for log in logs]
     return jsonify({"progressLogs": result})
 
 # --- POST: Add a progress log (update filled_quota) ---
@@ -33,8 +23,14 @@ def add_goal_progress(goal_id):
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
+    try:
+        added_value = int(added_value)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'added_value must be an integer!'}), 400
     if added_value is None:
         return jsonify({'error': 'added_value required!'}), 400
+    if added_value == 0:
+        return jsonify({'error': 'added_value must not be zero!'}), 400
 
     goal = Goal.query.get(goal_id)
     if not goal:
@@ -56,22 +52,15 @@ def add_goal_progress(goal_id):
         goals_id=goal_id,
         added_value=added_value,
         note=note,
-        value=(goal.filled_quota or 0) + int(added_value)
+        value=(goal.filled_quota or 0) + added_value
     )
     db.session.add(progress_log)
 
     # Update goal's filled_quota
-    goal.filled_quota = (goal.filled_quota or 0) + int(added_value)
+    goal.filled_quota = (goal.filled_quota or 0) + added_value
     db.session.commit()
 
-    updated_goal = {
-        'id': goal.id,
-        'filled_quota': goal.filled_quota,
-        'progress': round(goal.filled_quota / goal.quota, 2) if goal.quota else 0,
-        'progress_percent': round(100 * goal.filled_quota / goal.quota) if goal.quota else 0,
-    }
-
-    return jsonify({'result': updated_goal})
+    return jsonify({'result': goal.as_dict(card_mode=True)})
 
 # --- PATCH: Edit a progress log ---
 @goals_bp.route('/api/goals/<int:goal_id>/progress/<int:log_id>', methods=['PATCH'])
@@ -84,19 +73,24 @@ def edit_goal_progress(goal_id, log_id):
     if log.users_id != user_id:
         return jsonify({'error': 'Permission denied'}), 403
 
-    # Allow editing note and added_value
+    diff = 0
     if 'note' in data:
         log.note = data['note']
     if 'added_value' in data:
-        diff = int(data['added_value']) - log.added_value
-        log.added_value = int(data['added_value'])
+        try:
+            new_value = int(data['added_value'])
+        except (TypeError, ValueError):
+            return jsonify({'error': 'added_value must be an integer!'}), 400
+        diff = new_value - log.added_value
+        log.added_value = new_value
         log.value += diff
         # Update goal's filled_quota accordingly
         goal = Goal.query.get(goal_id)
         if goal:
-            goal.filled_quota = (goal.filled_quota or 0) + diff
+            goal.filled_quota = max(0, (goal.filled_quota or 0) + diff)
     db.session.commit()
-    return jsonify({'result': 'updated'})
+    goal = Goal.query.get(goal_id)
+    return jsonify({'result': goal.as_dict(card_mode=True)})
 
 # --- DELETE: Remove a progress log ---
 @goals_bp.route('/api/goals/<int:goal_id>/progress/<int:log_id>', methods=['DELETE'])
@@ -111,5 +105,8 @@ def delete_goal_progress(goal_id, log_id):
     # Adjust goal's filled_quota
     goal = Goal.query.get(goal_id)
     if goal:
-        goal.filled_quota = (goal.filled_quota or 0) - log.added_value
-        
+        goal.filled_quota = max(0, (goal.filled_quota or 0) - log.added_value)
+    db.session.delete(log)
+    db.session.commit()
+    goal = Goal.query.get(goal_id)
+    return jsonify({'result': goal.as_dict(card_mode=True)})

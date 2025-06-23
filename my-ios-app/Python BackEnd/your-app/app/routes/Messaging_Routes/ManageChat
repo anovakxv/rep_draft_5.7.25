@@ -22,6 +22,7 @@ def api_manage_chat():
         return jsonify({'error': 'for aDelIDs chats_id required!'}), 400
 
     # Validate chat membership if editing existing chat
+    chat = None
     if chats_id:
         chat = Chats.query.filter_by(id=chats_id).first()
         if not chat:
@@ -30,7 +31,7 @@ def api_manage_chat():
         if not is_member:
             return jsonify({'error': 'You are not a member of this chat.'}), 403
 
-    # Validate users to add/delete
+    # Validate users to add/delete (only add valid users)
     aAddIDsToDb = [uid for uid in aAddIDs if User.query.filter_by(id=uid).first()]
     aDelIDsToDb = [uid for uid in aDelIDs if User.query.filter_by(id=uid).first()]
 
@@ -43,7 +44,6 @@ def api_manage_chat():
         db.session.add(ChatsUsers(users_id=user_id, chats_id=chats_id))
         db.session.commit()
     else:
-        chat = Chats.query.filter_by(id=chats_id).first()
         if title is not None:
             chat.title = title
             db.session.commit()
@@ -71,9 +71,17 @@ def api_manage_chat():
             aDelIDsToDbLog[uid] = 'ok'
     db.session.commit()
 
+    # Optionally, return updated chat and user list for frontend
+    updated_chat = Chats.query.filter_by(id=chats_id).first()
+    chat_dict = updated_chat.as_dict() if updated_chat and hasattr(updated_chat, 'as_dict') else {}
+    chat_users = ChatsUsers.query.filter_by(chats_id=chats_id).all()
+    user_ids = [cu.users_id for cu in chat_users]
+    users = User.query.filter(User.id.in_(user_ids)).all()
+    users_result = [u.as_dict() for u in users]
+
     result = {
         'chats_id': chats_id,
         'aAddIDsToDbLog': aAddIDsToDbLog,
-        'aDelIDsToDbLog': aDelIDsToDbLog
-    }
-    return jsonify({'result': result})
+        'aDelIDsToDbLog': aDelIDsToDbLog,
+        'chat': chat_dict,
+        

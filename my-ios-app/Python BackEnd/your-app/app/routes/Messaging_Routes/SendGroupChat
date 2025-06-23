@@ -1,10 +1,8 @@
-
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.user import User
-from app.models.message import Message
+from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
+from app.models.chats import Chats
 from app.models.portal import Portal
-from app.models.chat import Chat  # Assuming you have a Chat model
 from datetime import datetime
 
 user_bp = Blueprint('user', __name__)
@@ -13,14 +11,13 @@ user_bp = Blueprint('user', __name__)
 def api_send_chat_message():
     data = request.get_json()
     user_id = session.get('user_id')
-    chats_id = data.get('chats_id')
+    chat_id = data.get('chats_id')
     message_text = data.get('message')
     portals_id = data.get('portals_id', None)
-    return_result = data.get('__return_result', '')
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
-    if not chats_id:
+    if not chat_id:
         return jsonify({'error': 'chats_id is empty!'}), 400
     if not message_text:
         return jsonify({'error': 'message required!'}), 400
@@ -31,16 +28,15 @@ def api_send_chat_message():
         if not portal:
             return jsonify({'error': "the portal doesn't exist!"}), 404
 
-    # Optional: Check if chat exists
-    chat = Chat.query.filter_by(id=chats_id).first()
+    # Check if chat exists
+    chat = Chats.query.filter_by(id=chat_id).first()
     if not chat:
         return jsonify({'error': "the chat doesn't exist!"}), 404
 
-    # Create message
-    msg = Message(
-        users_id1=user_id,
-        chats_id=chats_id,
-        portals_id=portals_id,
+    # Create group message
+    msg = GroupMessage(
+        chat_id=chat_id,
+        sender_id=user_id,
         text=message_text,
         created_at=datetime.utcnow()
     )
@@ -50,25 +46,11 @@ def api_send_chat_message():
     # Optionally, remove hidden chat conversations
     db.session.execute(
         "DELETE FROM chats_hidden_conversations WHERE chats_id=:cid",
-        {'cid': chats_id}
+        {'cid': chat_id}
     )
     db.session.commit()
 
-    # Fetch sender info
-    sender = User.query.get(user_id)
-    sender_name = getattr(sender, 'full_name', '') or f"{getattr(sender, 'fname', '')} {getattr(sender, 'lname', '')}"
-    sender_photo_url = getattr(sender, 'profile_picture_url', None)
+    # Use as_dict() for unified response, includes sender user object
+    message_obj = msg.as_dict()
 
-    # Build full message object for response
-    message_obj = {
-        'id': msg.id,
-        'sender_id': msg.users_id1,
-        'sender_name': sender_name.strip(),
-        'sender_photo_url': sender_photo_url,
-        'chat_id': msg.chats_id,
-        'text': msg.text,
-        'timestamp': msg.created_at.isoformat() + 'Z'
-    }
-
-    return jsonify({'result': 'sent', 'message':
-                    
+    return jsonify({'result': 'sent', 'message': message_obj})

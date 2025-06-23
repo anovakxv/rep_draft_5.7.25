@@ -28,4 +28,6 @@ class DirectMessage(db.Model):
             "recipient_id": self.recipient_id,
             "text": self.text,
             "created_at": self.created_at.isoformat() + 'Z',
+            "sender": self.sender.as_dict() if self.sender else None,  # Unified user dict
+            "recipient": self.recipient.as_dict() if self.recipient else None,  # Unified user dict
         }

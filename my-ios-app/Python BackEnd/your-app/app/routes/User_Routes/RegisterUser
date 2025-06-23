@@ -3,7 +3,7 @@ from app import db
 from app.models.user import User
 from app.models.skill import Skill
 from app.models.users_skills import UsersSkills
-from app.utils.user_utils import check_user_data, check_new_email, check_new_username, manage_user_row
+from app.utils.user_utils import check_user_data, check_new_email, manage_user_row
 import hashlib
 import os
 import uuid
@@ -12,11 +12,6 @@ import datetime
 from werkzeug.utils import secure_filename
 
 user_bp = Blueprint('user', __name__)
-
-def send_verification_email(user, token):
-    verify_url = url_for('user.api_verify_email', token=token, _external=True)
-    # Implement your email sending logic here
-    print(f"Send verification email to {user.email}: {verify_url}")
 
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
@@ -33,13 +28,14 @@ def api_register_user():
 
     try:
         check_new_email(data['email'])
-        if data.get('username'):
-            check_new_username(data['username'])
+        # Always set username to email for simplicity
+        data['username'] = data['email']
+        # No need to check_new_username since email is unique
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+    # Hash password (MD5 for now, but recommend werkzeug.security.generate_password_hash for production)
     password_hash = hashlib.md5((os.environ['PASS_SALT'] + data['password']).encode()).hexdigest()
-    email_token = str(uuid.uuid4())
 
     user = User(
         email=data['email'],
@@ -51,14 +47,14 @@ def api_register_user():
         password=password_hash,
         fname=data.get('fname', ''),
         lname=data.get('lname', ''),
-        username=data.get('username', ''),
-        confirmed=False,
+        username=data['email'],  # Username is always email
+        confirmed=True,  # Allow immediate login
         facebook_id=data.get('facebook_id', ''),
         device_token=data.get('device_token', ''),
         twitter_id=data.get('twitter_id', ''),
         manual_city=data.get('manual_city', ''),
         other_skill=data.get('other_skill', ''),
-        email_verification_token=email_token
+        email_verification_token=None  # No token needed
     )
     db.session.add(user)
     db.session.commit()
@@ -87,15 +83,21 @@ def api_register_user():
             user.profile_picture_url = profile_pic_url
             db.session.commit()
 
-    # Send verification email
-    send_verification_email(user, email_token)
-
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
     user_row['profile_picture_url'] = profile_pic_url
 
-    # Do not auto-login until email is verified
+    # Issue JWT token for immediate login (for iOS app)
+    jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
+    token = jwt.encode({
+        'user_id': user.id,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+    }, jwt_secret, algorithm='HS256')
 
-    return jsonify({'result': 'Registration successful. Please verify your email.', 'user': user_row})
+    return jsonify({
+        'result': 'Registration successful. You are now logged in.',
+        'user': user_row,
+        'token': token if isinstance(token, str) else token.decode('utf-8')
+    })
 
 @user_bp.route('/api/user/verify_email', methods=['GET'])
 def api_verify_email():
@@ -117,5 +119,9 @@ def api_verify_email():
     }, jwt_secret, algorithm='HS256')
 
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
-    return jsonify({'result': 'Email verified successfully', 'user_id': user.id,
-                    
+    return jsonify({
+        'result': 'Email verified successfully',
+        'user_id': user.id,
+        'token': token if isinstance(token, str) else token.decode('utf-8'),
+        'user': user_row
+        

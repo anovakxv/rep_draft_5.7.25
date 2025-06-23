@@ -376,6 +376,7 @@ class ProfileViewModel: ObservableObject {
 struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @State private var selectedTab = 0 // 0: Rep, 1: Goals, 2: Write
+    @State private var showAddPurpose = false
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -413,6 +414,27 @@ struct ProfileView: View {
                             VStack(spacing: 0) {
                                 ProfileCardsSection(cards: viewModel.profileCards)
                                     .padding(.bottom, 16)
+                                // --- Add Purpose Button ---
+                                if viewModel.isCurrentUser {
+                                    Button(action: {
+                                        showAddPurpose = true
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "plus.circle.fill")
+                                                .foregroundColor(.green)
+                                            Text("Add Purpose")
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.green)
+                                        }
+                                        .frame(maxWidth: .infinity)
+                                        .padding()
+                                        .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
+                                        .cornerRadius(8)
+                                        .padding(.horizontal)
+                                    }
+                                    .padding(.bottom, 12)
+                                }
+                                // --- End Add Purpose Button ---
                                 ForEach(viewModel.portals) { portal in
                                     NavigationLink(destination: PortalPage(portal: portal)) {
                                         PortalItem(portal: portal)
@@ -472,6 +494,29 @@ struct ProfileView: View {
                     }
                 }
             }
+            // --- Add Purpose Sheet Navigation ---
+            .sheet(isPresented: $showAddPurpose) {
+                EditPortalView(
+                    portal: PortalDetail(
+                        id: 0,
+                        name: "",
+                        subtitle: "",
+                        about: "",
+                        categories_id: nil,
+                        cities_id: nil,
+                        lead_id: nil,
+                        users_id: viewModel.user.id,
+                        _c_users_count: nil,
+                        aGoals: [],
+                        aPortalUsers: [],
+                        aTexts: [],
+                        aSections: [],
+                        aUsers: []
+                    ),
+                    userId: viewModel.user.id
+                )
+            }
+            // --- End Add Purpose Sheet Navigation ---
         }
     }
 }
@@ -867,4 +912,4 @@ struct GoalDetailPage: View {
     var body: some View {
         Text("Goal: \(goal.title)")
     }
-}
+}       

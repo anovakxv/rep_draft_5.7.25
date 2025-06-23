@@ -1,233 +1,332 @@
 //
 //  EditProfile.swift
-//  Rep 
+//  Rep
 //
-//  Created by Dmytro Holovko on 10.12.2023.
+//  Created by Adam Novak on 06.23.2025
+//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 //
 
 import SwiftUI
 import Combine
 
-struct ProfileInfoModel {
-    var firstName: String
-    var lastName: String
-    var skils: Set<RepSkillsModel>
-    var type: RepTypeModel
-    var image: ImageItem
-    
-    init(
-        firstName: String,
-        lastName: String,
-        skils: Set<RepSkillsModel>,
-        type: RepTypeModel,
-        image: ImageItem
-    ) {
-        self.firstName = firstName
-        self.lastName = lastName
-        self.skils = skils
-        self.type = type
-        self.image = image
-    }
-}
-
-extension ProfileInfoModel {
-    var displayedName: String {
-        if lastName.isEmpty {
-            firstName
-        } else {
-            firstName + " " + lastName
-        }
-    }
-    
-    var displayedSkils: String {
-        Array(skils.map { $0.rawValue }).joined(separator: " • ")
-    }
-}
-
-class ProfileInfoViewModel: ObservableObject {
-    @Published var profileInfo: ProfileInfoModel
-    @Published var isEditing: Bool = false
-    @Published var isAddingPhoto: Bool = false
-    
-    @Published var items = [ImageItem]()
-    
-    private var cancellables = Set<AnyCancellable>()
-    private var originalProfileInfo: ProfileInfoModel
-    
-    init(profileInfo: ProfileInfoModel) {
-        self.profileInfo = profileInfo
-        self.originalProfileInfo = profileInfo
-        
-        $items.sink { [weak self] items in
-            guard let self,
-                  let lastItem = items.last
-            else { return }
-            self.profileInfo.image = lastItem
-        }
-        .store(in: &cancellables)
-    }
-    
-    func done() {
-        isEditing = false
-    }
-    
-    func cancel() {
-        profileInfo = originalProfileInfo
-        isEditing = false
-    }
-    
-    func logOut() {
-        
-    }
-    
-    func edit() {
-        isEditing = true
-    }
-    
-    func setNewPhoto() {
-        isAddingPhoto = true
-    }
-}
-
-struct ProfileInfoView: View {
+struct EditProfileView: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
-    
-    init(viewModel: ProfileInfoViewModel) {
-        self.viewModel = viewModel
-    }
-    
-    
-    var body: some View {
-        List {
-            VStack(alignment: .center, spacing: 12.0) {
-                GridItemView(
-                    size: 120.0,
-                    item: viewModel.profileInfo.image
-                )
-                .clipShape(.circle)
-                
-                if viewModel.isEditing {
-                    Button("Set New Photo", action: viewModel.setNewPhoto)
-                        .buttonStyle(.borderless)
-                } else {
-                    VStack(alignment: .center, spacing: 8.0) {
-                        Text(viewModel.profileInfo.displayedName)
-                            .font(.title)
-                            .fontWeight(.semibold)
-                        VStack(alignment: .center, spacing: 24.0) {
-                            Text(viewModel.profileInfo.type.description)
-                            Text(viewModel.profileInfo.displayedSkils)
-                                .font(.footnote)
-                        }
-                    }
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
+    @Environment(\.dismiss) private var dismiss
+    @State private var navigateToMainScreen = false
 
-                }
-            }
-            .listRowBackground(viewModel.isEditing ? Color.clear : Color(UIColor.secondarySystemBackground))
-            .frame(maxWidth: .infinity)
-            
-            if viewModel.isEditing {
-                
-                Section {
-                    TextField("First Name", text: $viewModel.profileInfo.firstName)
-                    TextField("Last Name", text: $viewModel.profileInfo.lastName)
-                } footer: {
-                    Text("Enter your name and add an optional profile photo.")
-                }
-                
-                Section {
-                    MultiPicker(
-                        RepTypeModel.title,
-                        selection: $viewModel.profileInfo.type
-                    ) {
-                        ForEach(RepTypeModel.allCases) { role in
-                            Text(role.rawValue)
-                                .mpTag(role)
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                StatusBarView()
+                EditProfileHeaderView(
+                    onCancel: { viewModel.cancel(); dismiss() },
+                    onSave: {
+                        viewModel.done {
+                            navigateToMainScreen = true
                         }
                     }
-                    .mpPickerStyle(.navigationLink)
-                    
-                    MultiPicker(
-                        RepSkillsModel.title,
-                        selection: $viewModel.profileInfo.skils
-                    ) {
-                        ForEach(RepSkillsModel.allCases) { skill in
-                            Text(skill.rawValue)
-                                .mpTag(skill)
-                                .disabled(true)
+                )
+                EditProfileInfoSection(viewModel: viewModel)
+                VStack(alignment: .leading, spacing: 12) {
+                    TextField("About (optional)", text: $viewModel.profileInfo.about)
+                        .padding()
+                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                        .cornerRadius(6)
+                    TextField("Broadcast (optional)", text: $viewModel.profileInfo.broadcast)
+                        .padding()
+                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                        .cornerRadius(6)
+                    TextField("Other Skill (optional)", text: $viewModel.profileInfo.otherSkill)
+                        .padding()
+                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                        .cornerRadius(6)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+                Divider()
+                ScrollView {
+                    VStack(spacing: 24) {
+                        // Rep Type & City
+                        HStack(spacing: 16) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Rep Type")
+                                    .font(.custom("Inter", size: 16).weight(.bold))
+                                    .foregroundColor(.black)
+                                MultiPicker(
+                                    RepTypeModel.title,
+                                    selection: $viewModel.profileInfo.type
+                                ) {
+                                    ForEach(RepTypeModel.allCases) { role in
+                                        Text(role.rawValue)
+                                            .mpTag(role)
+                                    }
+                                }
+                                .mpPickerStyle(.navigationLink)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("City")
+                                    .font(.custom("Inter", size: 16).weight(.bold))
+                                    .foregroundColor(.black)
+                                // Placeholder for city picker
+                                Text("Select City")
+                                    .font(.body)
+                                    .foregroundColor(.gray)
+                                    .frame(height: 34)
+                                    .frame(maxWidth: .infinity)
+                                    .background(Color(red: 0.85, green: 0.85, blue: 0.85))
+                                    .cornerRadius(6)
+                            }
+                        }
+                        .padding(.horizontal, 24)
+                        // Edit Skills
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Edit Skills")
+                                .font(.custom("Inter", size: 16).weight(.bold))
+                                .foregroundColor(.black)
+                            MultiPicker(
+                                RepSkillsModel.title,
+                                selection: $viewModel.profileInfo.skils
+                            ) {
+                                ForEach(RepSkillsModel.allCases) { skill in
+                                    Text(skill.rawValue)
+                                        .mpTag(skill)
+                                        .disabled(false)
+                                }
+                            }
+                            .mpPickerStyle(.navigationLink)
+                            .choiceRepresentationStyle(.rich)
+                            .maxValues(3)
+                        }
+                        .padding(.horizontal, 24)
+                        // Name Fields
+                        HStack(spacing: 12) {
+                            TextField("First Name", text: $viewModel.profileInfo.firstName)
+                                .padding()
+                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                .cornerRadius(6)
+                            TextField("Last Name", text: $viewModel.profileInfo.lastName)
+                                .padding()
+                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                .cornerRadius(6)
+                        }
+                        .padding(.horizontal, 24)
+                    }
+                    .padding(.top, 16)
+                    Spacer()
+                    // Insert new writing section (example, can be replaced)
+                    VStack(spacing: 8) {
+                        Text("+ Insert new writing section\n\nInsert body text, or copy paste in.")
+                            .font(.custom("Inter", size: 16).weight(.bold))
+                            .foregroundColor(Color(red: 0.48, green: 0.75, blue: 0.29))
+                            .multilineTextAlignment(.center)
+                            .padding(.vertical, 16)
+                        Button(action: {
+                            // Add writing section action
+                        }) {
+                            Text("+")
+                                .font(.custom("Inter", size: 16).weight(.bold))
+                                .foregroundColor(.black)
+                                .frame(width: 291, height: 41)
+                                .background(Color(red: 0.48, green: 0.75, blue: 0.29))
+                                .cornerRadius(6)
+                                .shadow(color: Color(red: 0.48, green: 0.75, blue: 0.29, opacity: 0.10), radius: 3, x: 1, y: 4)
                         }
                     }
-                    .mpPickerStyle(.navigationLink)
-                    .choiceRepresentationStyle(.rich)
-                    .maxValues(3)
-                } footer: {
-                    Text("Choose rep type and rep skills.")
+                    .padding(.bottom, 32)
                 }
-                
-            } else {
-                EmptyView()
-            }
-                Section {
-                    Button("Log Out", role: .destructive, action: viewModel.logOut)
-                    .frame(maxWidth: .infinity)
+                .background(Color.white)
+                .sheet(isPresented: $viewModel.isAddingPhoto) {
+                    PhotoPicker(items: $viewModel.items)
                 }
-        }
-        .navigationTitle(viewModel.isEditing ? "Edit Profile" : "Profile Info")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                if viewModel.isEditing {
-                    Button("Cancel", action: viewModel.cancel)
+                NavigationLink(
+                    destination: MainScreen(),
+                    isActive: $navigateToMainScreen
+                ) {
+                    EmptyView()
                 }
             }
-        }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                if viewModel.isEditing {
-                    Button("Done", action: viewModel.done)
-                        .fontWeight(.semibold)
-                } else {
-                    Button("Edit", action: viewModel.edit)
-                }
-            }
-        }
-        .sheet(isPresented: $viewModel.isAddingPhoto) {
-            PhotoPicker(items: $viewModel.items)
+            .background(Color.white.edgesIgnoringSafeArea(.all))
+            .navigationBarHidden(true)
         }
     }
 }
 
-#Preview {
-    NavigationStack {
-        ProfileInfoView(
-            viewModel: .init(
-                profileInfo: .init(
-                    firstName: "Alex",
-                    lastName: "Cooper",
-                    skils: [
-                        .cantentGraphics,
-                        .eventsPlanning,
-                        .hrProductivity
-                    ],
-                    type: .lead,
-                    image: eventsImageItem
-                )
-            )
+// MARK: - Status Bar (matches ProfileView)
+struct StatusBarView: View {
+    var body: some View {
+        HStack {
+            Text("9:41")
+                .font(.system(size: 14))
+                .foregroundColor(.black)
+            Spacer()
+        }
+        .frame(height: 48)
+        .padding(.horizontal, 19)
+        .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+    }
+}
+
+// MARK: - Top Navigation Header (matches ProfileView)
+struct EditProfileHeaderView: View {
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    var body: some View {
+        HStack {
+            Button(action: onCancel) {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    .font(.system(size: 20))
+            }
+            Spacer()
+            Text("Edit Profile")
+                .font(.system(size: 20, weight: .bold))
+            Spacer()
+            Button(action: onSave) {
+                Text("Save")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(red: 0.75, green: 0.74, blue: 0.29))
+            }
+        }
+        .frame(height: 60)
+        .padding(.horizontal, 15)
+        .background(Color.white)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+            alignment: .bottom
         )
     }
 }
 
+// MARK: - Profile Info Section (matches ProfileView)
+struct EditProfileInfoSection: View {
+    @ObservedObject var viewModel: ProfileInfoViewModel
 
-let pp = ProfileInfoModel(
-            firstName: "Alex",
-            lastName: "Cooper",
-            skils: [
-                .cantentGraphics,
-                .eventsPlanning,
-                .hrProductivity
-            ],
-            type: .lead,
-            image: eventsImageItem
-)
+    var body: some View {
+        HStack(alignment: .top, spacing: 11) {
+            GridItemView(size: 108, item: viewModel.profileInfo.image)
+                .clipShape(Circle())
+                .frame(width: 108, height: 108)
+                .overlay(
+                    Button(action: viewModel.setNewPhoto) {
+                        Text("+Edit\nPhoto")
+                            .font(.custom("Inter", size: 16))
+                            .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.47))
+                            .multilineTextAlignment(.center)
+                    }
+                    .offset(x: -10, y: 40)
+                , alignment: .bottomLeading)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(viewModel.profileInfo.type.description)
+                    .font(.system(size: 17, weight: .bold))
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(Array(viewModel.profileInfo.skils), id: \.self) { skill in
+                        Text(skill.rawValue)
+                            .font(.system(size: 17))
+                    }
+                }
+            }
+            .padding(.top, 5)
+            Spacer()
+        }
+        .padding(15)
+    }
+}
+
+// MARK: - ViewModel API Integration Example
+
+class ProfileInfoViewModel: ObservableObject {
+    @Published var profileInfo: ProfileInfo
+    @Published var isAddingPhoto: Bool = false
+    @Published var items: [UIImage] = []
+    var mode: EditMode
+
+    init(profileInfo: ProfileInfo, mode: EditMode) {
+        self.profileInfo = profileInfo
+        self.mode = mode
+    }
+
+    func cancel() {
+        // Handle cancel logic if needed
+    }
+
+    func setNewPhoto() {
+        isAddingPhoto = true
+    }
+
+    func done(completion: @escaping () -> Void) {
+        // Prepare multipart/form-data body
+        let boundary = UUID().uuidString
+        guard let url = URL(string: "http://localhost:5000/api/user/edit") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        func appendFormField(_ name: String, _ value: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+
+        // Add all fields (only add if not empty)
+        if !profileInfo.firstName.isEmpty { appendFormField("fname", profileInfo.firstName) }
+        if !profileInfo.lastName.isEmpty { appendFormField("lname", profileInfo.lastName) }
+        if !profileInfo.about.isEmpty { appendFormField("about", profileInfo.about) }
+        if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
+        if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
+        // Add type and city if you have their IDs
+        if let typeId = profileInfo.type.id { appendFormField("users_types_id", "\(typeId)") }
+        if let cityId = profileInfo.cityId { appendFormField("cities_id", "\(cityId)") }
+        // Add skills as comma-separated IDs
+        if !profileInfo.skils.isEmpty {
+            let skillIds = profileInfo.skils.map { "\($0.id)" }.joined(separator: ",")
+            appendFormField("aSkills", skillIds)
+        }
+
+        // Add profile picture if changed
+        if let image = profileInfo.image, let imageData = image.jpegData(compressionQuality: 0.8) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"profile_picture\"; filename=\"profile.jpg\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+            body.append(imageData)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                // Handle response, update UI, show error/success, etc.
+                completion()
+            }
+        }.resume()
+    }
+}
+
+// MARK: - Preview
+
+#Preview {
+    EditProfileView(
+        viewModel: .init(
+            profileInfo: .init(
+                firstName: "Alex",
+                lastName: "Cooper",
+                skils: [
+                    .cantentGraphics,
+                    .eventsPlanning,
+                    .hrProductivity
+                ],
+                type: .lead,
+                image: eventsImageItem,
+                about: "About me...",
+                broadcast: "Broadcast message...",
+                otherSkill: "Public Speaking"
+            ),
+            mode: .edit
+        )
+    )
+}

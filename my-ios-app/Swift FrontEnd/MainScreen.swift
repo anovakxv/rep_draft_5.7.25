@@ -72,7 +72,33 @@ struct PortalsAPIResponse: Decodable {
 }
 
 struct UsersAPIResponse: Decodable {
-    let results: [User]
+    let result: [User]
+}
+
+struct ActiveChatAPIResponse: Decodable {
+    let result: [ActiveChat]
+}
+
+struct ActiveChat: Identifiable, Decodable {
+    let id: String // "direct-<userId>" or "group-<chatId>"
+    let type: String // "direct" or "group"
+    let user: User?
+    let chat: ChatModel?
+    let last_message: MessageModel?
+    let last_message_time: String?
+}
+
+struct ChatModel: Decodable {
+    let id: Int
+    let name: String?
+    // Add other fields as needed
+}
+
+struct MessageModel: Decodable {
+    let id: Int
+    let text: String?
+    let created_at: String?
+    // Add other fields as needed
 }
 
 // MARK: - ViewModels
@@ -85,13 +111,15 @@ class PortalsViewModel: ObservableObject {
     func fetchPortals(userId: Int, section: Int) {
         isLoading = true
         errorMessage = nil
-        var urlString = "http://localhost:5000/api/portals?users_id=\(userId)"
-        // Section: 0 = OPEN, 1 = NTWK, 2 = ALL
-        if section == 1 {
-            urlString += "&my_network=1"
-        } else if section == 2 {
-            urlString += "&show_hidden=1"
+        // Use filter_network_portals API for all tabs
+        let tab: String
+        switch section {
+        case 0: tab = "open"
+        case 1: tab = "ntwk"
+        case 2: tab = "all"
+        default: tab = "open"
         }
+        let urlString = "http://localhost:5000/api/filter_network_portals?user_id=\(userId)&tab=\(tab)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
@@ -124,39 +152,76 @@ class PortalsViewModel: ObservableObject {
 
 class PeopleViewModel: ObservableObject {
     @Published var users: [User] = []
+    @Published var activeChats: [ActiveChat] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
 
-    func fetchUsers() {
+    func fetchPeople(userId: Int, section: Int) {
         isLoading = true
         errorMessage = nil
-        guard let url = URL(string: "http://localhost:5000/api/users/list") else {
-            errorMessage = "Invalid URL"
-            isLoading = false
-            return
-        }
-        URLSession.shared.dataTask(with: url) { data, _, error in
-            DispatchQueue.main.async {
-                self.isLoading = false
-                if let error = error {
-                    self.errorMessage = error.localizedDescription
-                    self.users = []
-                    return
-                }
-                guard let data = data else {
-                    self.errorMessage = "No data"
-                    self.users = []
-                    return
-                }
-                do {
-                    let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
-                    self.users = response.results
-                } catch {
-                    self.errorMessage = "Failed to decode: \(error.localizedDescription)"
-                    self.users = []
-                }
+
+        if section == 0 {
+            // OPEN tab: fetch active chat list
+            let urlString = "http://localhost:5000/api/active_chat_list?user_id=\(userId)"
+            guard let url = URL(string: urlString) else {
+                errorMessage = "Invalid URL"
+                isLoading = false
+                return
             }
-        }.resume()
+            URLSession.shared.dataTask(with: url) { data, _, error in
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    if let error = error {
+                        self.errorMessage = error.localizedDescription
+                        self.activeChats = []
+                        return
+                    }
+                    guard let data = data else {
+                        self.errorMessage = "No data"
+                        self.activeChats = []
+                        return
+                    }
+                    do {
+                        let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
+                        self.activeChats = response.result
+                    } catch {
+                        self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                        self.activeChats = []
+                    }
+                }
+            }.resume()
+        } else {
+            // NTWK or ALL tab: fetch filtered people
+            let tab = section == 1 ? "ntwk" : "all"
+            let urlString = "http://localhost:5000/api/filter_people?user_id=\(userId)&tab=\(tab)"
+            guard let url = URL(string: urlString) else {
+                errorMessage = "Invalid URL"
+                isLoading = false
+                return
+            }
+            URLSession.shared.dataTask(with: url) { data, _, error in
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    if let error = error {
+                        self.errorMessage = error.localizedDescription
+                        self.users = []
+                        return
+                    }
+                    guard let data = data else {
+                        self.errorMessage = "No data"
+                        self.users = []
+                        return
+                    }
+                    do {
+                        let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
+                        self.users = response.result
+                    } catch {
+                        self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                        self.users = []
+                    }
+                }
+            }.resume()
+        }
     }
 }
 
@@ -191,12 +256,24 @@ struct MainScreen: View {
                         Text(error)
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if peopleVM.users.isEmpty {
-                        Text("No chats found.")
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if section == 0 {
+                        // OPEN tab: show active chats
+                        if peopleVM.activeChats.isEmpty {
+                            Text("No chats found.")
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            ActiveChatList(chats: peopleVM.activeChats)
+                        }
                     } else {
-                        ChatList(users: peopleVM.users.sorted(by: { ($0.lastMessageDate ?? "") > ($1.lastMessageDate ?? "") }))
+                        // NTWK or ALL tab: show users
+                        if peopleVM.users.isEmpty {
+                            Text("No people found.")
+                                .foregroundColor(.secondary)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        } else {
+                            ChatList(users: peopleVM.users.sorted(by: { ($0.lastMessageDate ?? "") > ($1.lastMessageDate ?? "") }))
+                        }
                     }
                 case .portals:
                     if portalsVM.isLoading {
@@ -228,6 +305,8 @@ struct MainScreen: View {
                     .onChange(of: section) { newSection in
                         if page == .portals {
                             portalsVM.fetchPortals(userId: userId, section: newSection)
+                        } else {
+                            peopleVM.fetchPeople(userId: userId, section: newSection)
                         }
                     }
                 }
@@ -266,7 +345,7 @@ struct MainScreen: View {
                         if page == .portals {
                             portalsVM.fetchPortals(userId: userId, section: section)
                         } else {
-                            peopleVM.fetchUsers()
+                            peopleVM.fetchPeople(userId: userId, section: section)
                         }
                     },
                     label: {
@@ -285,7 +364,7 @@ struct MainScreen: View {
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: section)
             } else {
-                peopleVM.fetchUsers()
+                peopleVM.fetchPeople(userId: userId, section: section)
             }
         }
     }
@@ -365,6 +444,93 @@ struct PortalItem: View {
     }
 }
 
+// MARK: - Active Chat List
+
+struct ActiveChatList: View {
+    var chats: [ActiveChat]
+
+    var body: some View {
+        if chats.isEmpty {
+            Text("No chats found.")
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            List {
+                ForEach(chats) { chat in
+                    if chat.type == "direct", let user = chat.user {
+                        HStack(alignment: .top, spacing: 0) {
+                            NavigationLink(destination: ProfileView()) {
+                                if let url = user.profilePictureURL {
+                                    AsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Color.gray
+                                    }
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
+                                } else {
+                                    Image(systemName: "person.crop.circle")
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 64, height: 64)
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text(user.fullName)
+                                        .font(.subheadline)
+                                    Spacer()
+                                    if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
+                                        Text(date.timeAgoDisplay())
+                                            .font(.caption)
+                                    }
+                                }
+                                Text(chat.last_message?.text ?? "")
+                                    .font(.caption)
+                            }
+                            .padding(.leading, 8)
+                        }
+                        .frame(height: 64)
+                        .padding(.vertical, 8)
+                        Divider()
+                    } else if chat.type == "group", let group = chat.chat {
+                        HStack(alignment: .top, spacing: 0) {
+                            NavigationLink(destination: Chat(userId: group.id)) {
+                                Image(systemName: "person.3.fill")
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            VStack(alignment: .leading) {
+                                HStack {
+                                    Text(group.name ?? "Group Chat")
+                                        .font(.subheadline)
+                                    Spacer()
+                                    if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
+                                        Text(date.timeAgoDisplay())
+                                            .font(.caption)
+                                    }
+                                }
+                                Text(chat.last_message?.text ?? "")
+                                    .font(.caption)
+                            }
+                            .padding(.leading, 8)
+                        }
+                        .frame(height: 64)
+                        .padding(.vertical, 8)
+                        Divider()
+                    }
+                }
+            }
+            .listStyle(.plain)
+        }
+    }
+}
+
 // MARK: - Chat List (Unified User Model)
 
 struct ChatList: View {
@@ -372,14 +538,13 @@ struct ChatList: View {
 
     var body: some View {
         if users.isEmpty {
-            Text("No chats found.")
+            Text("No people found.")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             List {
                 ForEach(users) { user in
                     HStack(alignment: .top, spacing: 0) {
-                        // Profile Pic NavigationLink
                         NavigationLink(destination: ProfileView()) {
                             if let url = user.profilePictureURL {
                                 AsyncImage(url: url) { image in
@@ -398,7 +563,6 @@ struct ChatList: View {
                             }
                         }
                         .buttonStyle(PlainButtonStyle())
-                        // Chat Text NavigationLink
                         NavigationLink(destination: Chat(userId: user.id)) {
                             VStack(alignment: .leading) {
                                 HStack {
@@ -447,5 +611,7 @@ struct PortalPage: View {
 
 struct Chat: View {
     let userId: Int
-    var body: some
-    
+    var body: some View {
+        Text("Chat with user \(userId)")
+    }
+}

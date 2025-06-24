@@ -9,4 +9,3 @@ python-dotenv
 eventlet
 boto3
 gunicorn
-eventlet

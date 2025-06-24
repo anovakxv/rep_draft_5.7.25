@@ -7,4 +7,6 @@ Flask-SocketIO
 psycopg2-binary
 python-dotenv
 eventlet
-
+boto3
+gunicorn
+eventlet

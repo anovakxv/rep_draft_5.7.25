@@ -4,6 +4,7 @@ Flask
 Flask-SQLAlchemy
 Flask-Migrate
 Flask-SocketIO
+Flask-Login
 psycopg2-binary
 python-dotenv
 eventlet

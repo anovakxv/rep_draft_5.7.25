@@ -1,6 +1,7 @@
 from app import db
 from datetime import datetime
 from flask_login import UserMixin
+from app.models.People_Models.UserType import UserType
 
 class User(UserMixin, db.Model):
     __tablename__ = 'users'

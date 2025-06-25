@@ -11,7 +11,7 @@ class User(UserMixin, db.Model):
     about = db.Column(db.Text, nullable=True)
     broadcast = db.Column(db.Text, nullable=True)
     phone = db.Column(db.String(50), nullable=True, index=True)
-    cities_id = db.Column(db.Integer, db.ForeignKey('cities.id'), nullable=True)
+    cities_id = db.Column(db.Integer, nullable=True)
     users_types_id = db.Column(db.Integer, db.ForeignKey('user_types.id'), nullable=True)
     password = db.Column(db.String(255), nullable=False)
     fname = db.Column(db.String(100), nullable=True)

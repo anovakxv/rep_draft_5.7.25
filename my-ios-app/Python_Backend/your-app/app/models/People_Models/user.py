@@ -30,7 +30,7 @@ class User(UserMixin, db.Model):
     profile_picture_url = db.Column(db.String(512), nullable=True)
 
     # Relationships
-    city = db.relationship('City', backref='users')
+    # City = db.relationship('City', backref='users') 
     user_type = db.relationship('UserType', backref='users')
 
     def __repr__(self):
@@ -54,7 +54,7 @@ class User(UserMixin, db.Model):
             "broadcast": self.broadcast or "",
             "profile_picture_url": self.profile_picture_url or "",
             "user_type": self.user_type.name if self.user_type else "",
-            "city": self.city.name if self.city else "",
+            "city": "",  # or self.manual_city or "",
             "skills": self.get_skills(),
             "last_login": self.last_login.isoformat() if self.last_login else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,

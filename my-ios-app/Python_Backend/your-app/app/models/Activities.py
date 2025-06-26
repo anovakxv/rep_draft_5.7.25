@@ -26,4 +26,4 @@ class Activity(db.Model):
             'data_type2': self.data_type2,
             'data_id2': self.data_id2,
             'timestamp': self.timestamp.isoformat() if self.timestamp else None
-            
+        }

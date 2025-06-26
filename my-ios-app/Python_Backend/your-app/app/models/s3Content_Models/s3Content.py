@@ -36,30 +36,4 @@ class PortalGraphicSectionS3Content(db.Model):
 
     def __repr__(self):
         return f"<PortalGraphicSectionS3Content id={self.id} section_id={self.portals_graphic_sections_id} s3_gr_hash={self.s3_gr_hash}>"
-
-class PortalGraphicSection(db.Model):
-    __tablename__ = 'portals_graphic_sections'
-
-    id = db.Column(db.Integer, primary_key=True)
-    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False, index=True)
-    title = db.Column(db.String(255), nullable=False)
-    position = db.Column(db.Integer, nullable=True)
-    content = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    portal = db.relationship('Portal', backref='graphic_sections')
-    s3_contents = db.relationship('PortalGraphicSectionS3Content', back_populates='graphic_section', cascade="all, delete-orphan")
-
-    s3_files = db.relationship(
-        'S3Content',
-        secondary='portals_graphic_sections_s3_content',
-        primaryjoin='PortalGraphicSection.id==PortalGraphicSectionS3Content.portals_graphic_sections_id',
-        secondaryjoin='S3Content.gr_hash==PortalGraphicSectionS3Content.s3_gr_hash',
-        viewonly=True,
-        lazy='dynamic'
-    )
-
-    def __repr__(self):
-        return f"<PortalGraphicSection id={self.id} portal_id={self.portals_id} title={self.title}>"
     

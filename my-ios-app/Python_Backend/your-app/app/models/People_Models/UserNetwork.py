@@ -30,4 +30,4 @@ class UserNetwork(db.Model):
             "status": self.status,
             "timestamp": self.timestamp.isoformat() + 'Z' if self.timestamp else None,
             "updated_at": self.updated_at.isoformat() + 'Z' if self.updated_at else None,
-            
+        }

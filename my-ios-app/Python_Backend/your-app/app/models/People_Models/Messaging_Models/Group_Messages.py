@@ -1,8 +1,3 @@
-//  Group_Messages_Model.py
-//  Rep 
-//
-//  Created by Adam Novak on 06.19.2025
-//  (c) 2025 Networked Capital Inc. All rights reserved.
 
 from app import db
 from datetime import datetime

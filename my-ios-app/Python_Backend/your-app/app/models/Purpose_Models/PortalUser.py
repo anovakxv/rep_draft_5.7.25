@@ -30,4 +30,4 @@ class PortalUser(db.Model):
         }
 
     def __repr__(self):
-        return f"<PortalUser id={self.id} portal_id={self.portal_id} user_id={self.user_id} role=
+        return f"<PortalUser id={self.id} portal_id={self.portal_id} user_id={self.user_id} role={self.role}>"

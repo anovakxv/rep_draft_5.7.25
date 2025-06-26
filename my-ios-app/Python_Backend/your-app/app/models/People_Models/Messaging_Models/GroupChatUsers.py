@@ -1,8 +1,3 @@
-//  GroupChatUsers_Model.py
-//  Rep 
-//
-//  Created by Adam Novak on 06.19.2025
-//  (c) 2025 Networked Capital Inc. All rights reserved.
 
 from app import db
 from datetime import datetime
@@ -25,4 +20,5 @@ class ChatsUsers(db.Model):
             "id": self.id,
             "chats_id": self.chats_id,
             "users_id": self.users_id,
-            "joined_at": self.joined_at.isoformat() +
+            "joined_at": self.joined_at.isoformat() + 'Z'
+            }

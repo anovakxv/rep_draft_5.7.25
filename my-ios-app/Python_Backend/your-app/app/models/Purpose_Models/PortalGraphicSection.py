@@ -1,20 +1,6 @@
 from app import db
 from datetime import datetime
 
-class PortalsGraphicSectionsS3Content(db.Model):
-    __tablename__ = 'portals_graphic_sections_s3_content'
-    id = db.Column(db.Integer, primary_key=True)
-    portals_graphic_sections_id = db.Column(db.Integer, db.ForeignKey('portals_graphic_sections.id'), nullable=False, index=True)
-    s3_gr_hash = db.Column(db.String(255), db.ForeignKey('s3_content.gr_hash'), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    graphic_section = db.relationship('PortalGraphicSection', back_populates='s3_contents')
-    s3_content = db.relationship('S3Content', back_populates='graphic_section_links')
-
-    __table_args__ = (
-        db.UniqueConstraint('portals_graphic_sections_id', 's3_gr_hash', name='uq_section_file'),
-    )
 
 class PortalGraphicSection(db.Model):
     __tablename__ = 'portals_graphic_sections'
@@ -52,4 +38,4 @@ class PortalGraphicSection(db.Model):
         }
 
     def __repr__(self):
-        return f"<PortalGraphicSection id={self.id} portal_id=
+        return f"<PortalGraphicSection id={self.id} portal_id={self.portals_id}>" 

@@ -144,4 +144,4 @@ class Goal(db.Model):
             "aLatestProgress": a_latest_progress,
             "team": team,
             # Add more fields as
-            
+        }

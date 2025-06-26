@@ -115,5 +115,4 @@ def api_forgot_password():
 
     if show_new_password:
         return jsonify({'new_password': new_password})
-    return jsonify({'result':
-                    
+    return jsonify({'result': 'ok'})

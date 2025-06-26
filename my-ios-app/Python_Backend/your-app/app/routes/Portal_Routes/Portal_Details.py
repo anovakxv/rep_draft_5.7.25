@@ -17,7 +17,8 @@ portal_bp = Blueprint('portal', __name__)
 # GET: Portal details
 @portal_bp.route('/api/portal/details', methods=['GET'])
 def api_portal_details():
-    portal_id = request.args.get('portal_id', type=int)
+    # Accept both 'portal_id' and 'portals_id'
+    portal_id = request.args.get('portal_id', type=int) or request.args.get('portals_id', type=int)
     user_id = session.get('user_id') or request.args.get('user_id', type=int)
 
     if not user_id:

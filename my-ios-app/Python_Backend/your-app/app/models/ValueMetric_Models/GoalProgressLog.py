@@ -13,9 +13,9 @@ class GoalProgressLog(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='goal_progress_logs')
-    goal = db.relationship('Goal', backref='progress_logs')
+    # goal = db.relationship('Goal', backref='progress_logs')
     # File attachments relationship (if you have a GoalProgressFile model)
-    progress_files = db.relationship('GoalProgressFile', backref='progress_log', lazy='dynamic')
+    # progress_files = db.relationship('GoalProgressFile', backref='progress_log', lazy='dynamic')
 
     def __repr__(self):
         return f"<GoalProgressLog id={self.id} goal_id={self.goals_id} user_id={self.users_id}>"

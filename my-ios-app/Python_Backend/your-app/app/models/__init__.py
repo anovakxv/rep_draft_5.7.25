@@ -11,6 +11,8 @@ from app.models.Purpose_Models.Category import Category
 from app.models.People_Models import User
 from app.models.Purpose_Models.City import City
 from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
+from app.models.s3Content_Models import S3Content
+from app.models.ValueMetric_Models import Goal, GoalMetric, GoalPreInvite, GoalProgressLog, GoalTeam, GoalType, ReportingIncrement
 
 def create_app():
     app = Flask(__name__)

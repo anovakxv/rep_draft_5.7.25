@@ -15,7 +15,7 @@ class GoalTeam(db.Model):
 
     inviter = db.relationship('User', foreign_keys=[users_id1])
     member = db.relationship('User', foreign_keys=[users_id2])
-    goal = db.relationship('Goal', backref='team_members')
+    # goal = db.relationship('Goal', backref='team_members')
 
     def __repr__(self):
         return f"<GoalTeam goal_id={self.goals_id} user_id={self.users_id2} confirmed={self.confirmed}>"

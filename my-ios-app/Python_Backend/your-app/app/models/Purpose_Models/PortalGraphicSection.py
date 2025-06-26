@@ -1,7 +1,6 @@
 from app import db
 from datetime import datetime
 
-
 class PortalGraphicSection(db.Model):
     __tablename__ = 'portals_graphic_sections'
 
@@ -13,17 +12,17 @@ class PortalGraphicSection(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    portal = db.relationship('Portal', backref='graphic_sections')
-    s3_contents = db.relationship('PortalsGraphicSectionsS3Content', back_populates='graphic_section', cascade="all, delete-orphan")
+    s3_contents = db.relationship('PortalGraphicSectionS3Content', back_populates='graphic_section', cascade="all, delete-orphan")
 
     s3_files = db.relationship(
         'S3Content',
         secondary='portals_graphic_sections_s3_content',
-        primaryjoin='PortalGraphicSection.id==PortalsGraphicSectionsS3Content.portals_graphic_sections_id',
-        secondaryjoin='S3Content.gr_hash==PortalsGraphicSectionsS3Content.s3_gr_hash',
+        primaryjoin='PortalGraphicSection.id==PortalGraphicSectionS3Content.portals_graphic_sections_id',
+        secondaryjoin='S3Content.gr_hash==PortalGraphicSectionS3Content.s3_gr_hash',
         viewonly=True,
         lazy='dynamic'
-    )
+        )
+
 
     def as_dict(self):
         return {

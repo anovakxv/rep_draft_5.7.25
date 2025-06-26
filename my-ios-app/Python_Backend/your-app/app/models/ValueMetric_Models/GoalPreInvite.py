@@ -12,7 +12,7 @@ class GoalPreInvite(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='goal_pre_invites')
-    goal = db.relationship('Goal', backref='pre_invites')
+    # goal = db.relationship('Goal', backref='pre_invites')
 
     def __repr__(self):
         return f"<GoalPreInvite id={self.id} goal_id={self.goals_id} type={self.type} identifier={self.identifier}>"

@@ -1,12 +1,16 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.portal import Portal
-from app.models.goals import Goal
-from app.models.portals_users import PortalUser, PortalsUsers
-from app.models.portals_texts import PortalText
-from app.models.user import User
-from app.models.portals_graphic_sections import PortalGraphicSection
-from app.models.s3_content import S3Content
+from app.models.Purpose_Models.Portal import Portal
+from app.models.ValueMetric_Models.Goal import Goal
+from app.models.Purpose_Models.PortalUser import PortalUser
+from app.models.Purpose_Models.PortalTexts import PortalText
+from app.models.People_Models.user import User
+from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
+from app.models.s3Content_Models.s3Content import S3Content
 from app.utils.portal_permissions import check_portal_editor_permission
 from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy import func
@@ -67,7 +71,7 @@ def api_portal_details():
     users = User.query.filter(User.id.in_(user_ids)).all()
 
     # Compose goals
-    goals = Goal.query.filter_by(portal_id=portal.id).order_by(Goal.id.desc()).all()
+    goals = Goal.query.filter_by(portals_id=portal.id).order_by(Goal.id.desc()).all()
 
     # Compose portal texts
     texts = portal.portal_texts
@@ -236,20 +240,20 @@ def api_delete_portal_user():
     if not portals_users_id:
         return jsonify({'error': 'portals_users_id required!'}), 400
 
-    pu = PortalsUsers.query.filter_by(id=portals_users_id).first()
+    pu = PortalUser.query.filter_by(id=portals_users_id).first()
     if not pu:
         return jsonify({'error': "the portal user doesn't exist!"}), 404
 
     # Check permission
-    if not check_portal_editor_permission(user_id, pu.portals_id):
+    if not check_portal_editor_permission(user_id, pu.portal_id):
         return jsonify({'error': 'Permission denied'}), 403
 
-    portal_id = pu.portals_id
+    portal_id = pu.portal_id
     db.session.delete(pu)
     db.session.commit()
 
     # Update users count (optional, if you store this denormalized)
-    users_count = PortalsUsers.query.filter_by(portals_id=portal_id).count()
+    users_count = PortalUser.query.filter_by(portal_id=portal_id).count()
     portal = Portal.query.filter_by(id=portal_id).first()
     if portal:
         portal._c_users_count = users_count
@@ -280,10 +284,10 @@ def api_get_portal_nearest_rep():
         return jsonify({'error': 'portals_id: 404'}), 404
 
     # Find leaders (excluding current user)
-    leaders = PortalsUsers.query.filter(
-        PortalsUsers.portals_id == portal_id,
-        PortalsUsers.leader == True,
-        PortalsUsers.users_id != user_id
+    leaders = PortalUser.query.filter(
+        PortalUser.portal_id == portal_id,
+        PortalUser.role == 'lead',
+        PortalUser.user_id != user_id
     ).all()
 
     leader_users = []
@@ -296,7 +300,7 @@ def api_get_portal_nearest_rep():
         if owner:
             leader_users.append(owner)
     else:
-        leader_ids = [l.users_id for l in leaders]
+        leader_ids = [l.user_id for l in leaders]
         query = User.query.filter(User.id.in_(leader_ids), User.id != user_id)
         if keyword:
             query = query.filter(
@@ -324,7 +328,7 @@ def api_get_portal_nearest_rep():
     if not leader_users:
         current_user = User.query.filter_by(id=user_id).first()
         if current_user and current_user.cities_id:
-            leader_ids = [l.users_id for l in leaders]
+            leader_ids = [l.user_id for l in leaders]
             leader_users = User.query.filter(
                 User.cities_id == current_user.cities_id,
                 User.id.in_(leader_ids),
@@ -333,7 +337,7 @@ def api_get_portal_nearest_rep():
 
     # If still none, just pick random leader
     if not leader_users and leaders:
-        leader_ids = [l.users_id for l in leaders]
+        leader_ids = [l.user_id for l in leaders]
         leader_users = User.query.filter(
             User.id.in_(leader_ids),
             User.id != user_id

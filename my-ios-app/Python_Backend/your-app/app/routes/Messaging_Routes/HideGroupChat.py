@@ -1,3 +1,6 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, session
 from app import db
@@ -32,7 +35,11 @@ def api_hide_chat_conversation():
         hidden = ChatsHiddenConversations(users_id=user_id, chats_id=chats_id)
         db.session.add(hidden)
         db.session.commit()
+        return jsonify({'result': f"Chat '{chats_id}' hidden."})
     elif todo == 'show':
         if not exists:
-            return jsonify({'error': f"You are not hiding '{chats_id}'"}),
-            
+            return jsonify({'error': f"You are not hiding '{chats_id}'"}), 400
+        db.session.delete(exists)
+        db.session.commit()
+        return jsonify({'result': f"Chat '{chats_id}' shown."})
+    

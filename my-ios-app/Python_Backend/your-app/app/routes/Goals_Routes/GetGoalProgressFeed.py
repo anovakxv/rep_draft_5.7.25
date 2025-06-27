@@ -1,7 +1,11 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify
-from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
-from app.models.Goals_Models.Goal import Goal
-from app.models.Goals_Models.User import User
+from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+from app.models.ValueMetric_Models.Goal import Goal
+from app.models.People_Models.user import User
 
 goals_bp = Blueprint('goals', __name__)
 
@@ -50,7 +54,7 @@ def api_get_goals_progress_feed():
             'timestamp': log.timestamp.isoformat() if log.timestamp else None,
             'progress_total_percent': percent,
             'progress_sector_percent': sector_percent,
-            'aAttachments': []  # Placeholder for file attachments if you implement them
+            'aAttachments': log.as_dict().get('aAttachments', [])
         })
         previous_value = log.value
 
@@ -58,10 +62,10 @@ def api_get_goals_progress_feed():
     users_info = [
         {
             'id': u.id,
-            'username': u.username,
-            'fname': u.fname,
-            'lname': u.lname,
-            'email': u.email
+            'username': getattr(u, 'username', None),
+            'fname': getattr(u, 'fname', None),
+            'lname': getattr(u, 'lname', None),
+            'email': getattr(u, 'email', None)
         }
         for u in users_dict.values() if u
     ]

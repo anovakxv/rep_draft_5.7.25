@@ -1,7 +1,11 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.Goals_Models.GoalTeam import GoalTeam
-from app.models.Goals_Models.User import User
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.People_Models.user import User
 
 goals_bp = Blueprint('goals', __name__)
 

@@ -1,7 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.message import Message
+from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 
 user_bp = Blueprint('user', __name__)
 
@@ -22,25 +25,24 @@ def api_delete_message():
     aLog = []
 
     if messages_id:
-        # Delete a single message if the user is a participant
-        msg = Message.query.filter(
-            Message.id == messages_id,
-            ((Message.users_id1 == user_id) | (Message.users_id2 == user_id))
+        # Delete a single direct message if the user is a participant
+        msg = DirectMessage.query.filter(
+            DirectMessage.id == messages_id,
+            ((DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id))
         ).first()
         if msg:
             db.session.delete(msg)
             db.session.commit()
             aLog.append(f"{msg.id}; S3: ")
     elif users_id:
-        # Delete all messages between the two users
-        msgs = Message.query.filter(
-            ((Message.users_id1 == user_id) & (Message.users_id2 == users_id)) |
-            ((Message.users_id2 == user_id) & (Message.users_id1 == users_id))
+        # Delete all direct messages between the two users
+        msgs = DirectMessage.query.filter(
+            ((DirectMessage.sender_id == user_id) & (DirectMessage.recipient_id == users_id)) |
+            ((DirectMessage.recipient_id == user_id) & (DirectMessage.sender_id == users_id))
         ).all()
         for msg in msgs:
             db.session.delete(msg)
             aLog.append(f"{msg.id}; S3: ")
         db.session.commit()
 
-    return
-    
+    return jsonify({'result': 'messages deleted', 'log': aLog})

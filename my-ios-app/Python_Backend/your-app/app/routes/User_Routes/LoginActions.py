@@ -1,9 +1,13 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session, make_response
 from app import db
-from app.models.user import User
-from app.models.password_updaters import PasswordUpdaters
+from app.models.People_Models.user import User
+from app.models.People_Models.PasswordUpdater import PasswordUpdater
 from app.utils.user_utils import manage_user_row, mark_all_activities_as_read
-from app.utils.mail_utils import send_mail  # Make sure this utility exists
+from app.utils.mail_utils import send_mail
 import hashlib
 import os
 import jwt
@@ -38,7 +42,6 @@ def api_login_user():
     if hasattr(user, 'confirmed') and not user.confirmed:
         return jsonify({'error': 'Please verify your email before logging in.'}), 403
 
-    # Set session and cookies
     session['user_id'] = user.id
 
     jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
@@ -82,7 +85,7 @@ def api_forgot_password():
             return jsonify({'error': "that user doesn't exist!"}), 404
 
         hash_str = hashlib.md5(f"{user.id}{user.password}{PASS_SALT}".encode()).hexdigest()
-        updater = PasswordUpdaters(users_id=user.id, hash=hash_str)
+        updater = PasswordUpdater(users_id=user.id, hash=hash_str)
         db.session.add(updater)
         db.session.commit()
 
@@ -92,13 +95,12 @@ def api_forgot_password():
         return jsonify({'result': 'sent'})
 
     # Step 2: Reset password using hash
-    updater = PasswordUpdaters.query.filter_by(hash=hash_val).first()
+    updater = PasswordUpdater.query.filter_by(hash=hash_val).first()
     if not updater:
         return jsonify({'error': 'wrong hash'}), 400
 
     show_new_password = False
     if not new_password:
-        # Generate a new password if not provided
         new_password = (
             hashlib.md5((PASS_SALT + str(time.time())).encode()).hexdigest()[2:10]
             + '_' + hash_val[2:10]

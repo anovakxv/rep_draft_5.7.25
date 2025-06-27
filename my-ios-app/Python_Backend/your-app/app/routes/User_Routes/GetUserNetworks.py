@@ -1,11 +1,16 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models.user import User
-from app.models.users_network import UsersNetwork
-from app.models.goals_team import GoalTeam
-from app.models.chats_users import ChatsUsers
-from app.models.skill import Skill
-from app.models.users_skills import UsersSkills
+from app.models.People_Models.user import User
+from app.models.People_Models.UserNetwork import UserNetwork
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.Skill import Skill
+from app.models.People_Models.UserSkill import UserSkill
+from app.models.People_Models.UserFollower import UserFollower
 from app.utils.user_utils import manage_user_row
 
 user_bp = Blueprint('user', __name__)
@@ -15,16 +20,15 @@ def get_user_response(user, session_user_id=None):
     level = '0' if session_user_id and str(session_user_id) == str(user.id) else '1'
     user_row = manage_user_row(user_row, user.id, level=level)
     # Add skills
-    user_skills = Skill.query.join(UsersSkills, Skill.id == UsersSkills.skills_id).filter(UsersSkills.users_id == user.id).all()
+    user_skills = Skill.query.join(UserSkill, Skill.id == UserSkill.skills_id).filter(UserSkill.users_id == user.id).all()
     user_row['skills'] = [skill.as_dict() for skill in user_skills]
     # Add relationships if session user
     if session_user_id:
-        from app.models.users_followers import UsersFollowers
         user_row['relationships'] = {
-            "i_follow": UsersFollowers.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_followed_by": UsersFollowers.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
-            "in_my_network": UsersNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_in_their_network": UsersNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+            "i_follow": UserFollower.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
+            "i_am_followed_by": UserFollower.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+            "in_my_network": UserNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
+            "i_am_in_their_network": UserNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
         }
     return user_row
 
@@ -39,8 +43,8 @@ def api_members_of_my_network():
         return jsonify({'error': 'users_id is empty!'}), 400
 
     query = db.session.query(User).join(
-        UsersNetwork, UsersNetwork.users_id2 == User.id
-    ).filter(UsersNetwork.users_id1 == users_id)
+        UserNetwork, UserNetwork.users_id2 == User.id
+    ).filter(UserNetwork.users_id1 == users_id)
 
     if invited_goal_id:
         subq = db.session.query(GoalTeam.users_id2).filter(GoalTeam.goals_id == invited_goal_id)

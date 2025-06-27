@@ -1,6 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.write import Write
+from app.models.People_Models.Write_Models.Writings_Model import Write
 
 user_bp = Blueprint('user', __name__)
 

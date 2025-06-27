@@ -1,3 +1,6 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify
 from app.models.ValueMetric_Models.Goal import Goal

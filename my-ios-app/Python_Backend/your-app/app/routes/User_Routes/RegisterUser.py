@@ -1,8 +1,12 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, url_for, current_app
 from app import db
-from app.models.user import User
-from app.models.skill import Skill
-from app.models.users_skills import UsersSkills
+from app.models.People_Models.user import User
+from app.models.People_Models.Skill import Skill
+from app.models.People_Models.UserSkill import UserSkill
 from app.utils.user_utils import check_user_data, check_new_email, manage_user_row
 import hashlib
 import os
@@ -28,13 +32,10 @@ def api_register_user():
 
     try:
         check_new_email(data['email'])
-        # Always set username to email for simplicity
         data['username'] = data['email']
-        # No need to check_new_username since email is unique
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-    # Hash password (MD5 for now, but recommend werkzeug.security.generate_password_hash for production)
     password_hash = hashlib.md5((os.environ['PASS_SALT'] + data['password']).encode()).hexdigest()
 
     user = User(
@@ -47,14 +48,14 @@ def api_register_user():
         password=password_hash,
         fname=data.get('fname', ''),
         lname=data.get('lname', ''),
-        username=data['email'],  # Username is always email
-        confirmed=True,  # Allow immediate login
+        username=data['email'],
+        confirmed=True,
         facebook_id=data.get('facebook_id', ''),
         device_token=data.get('device_token', ''),
         twitter_id=data.get('twitter_id', ''),
         manual_city=data.get('manual_city', ''),
         other_skill=data.get('other_skill', ''),
-        email_verification_token=None  # No token needed
+        email_verification_token=None
     )
     db.session.add(user)
     db.session.commit()
@@ -66,7 +67,7 @@ def api_register_user():
             skill_ids = [int(sid) for sid in skill_ids.split(',') if sid.strip().isdigit()]
         valid_skills = Skill.query.filter(Skill.id.in_(skill_ids)).all()
         for skill in valid_skills:
-            db.session.add(UsersSkills(users_id=user.id, skills_id=skill.id))
+            db.session.add(UserSkill(users_id=user.id, skills_id=skill.id))
         db.session.commit()
 
     # Handle profile picture upload
@@ -86,7 +87,6 @@ def api_register_user():
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
     user_row['profile_picture_url'] = profile_pic_url
 
-    # Issue JWT token for immediate login (for iOS app)
     jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
     token = jwt.encode({
         'user_id': user.id,
@@ -111,7 +111,6 @@ def api_verify_email():
     user.email_verification_token = None
     db.session.commit()
 
-    # Issue JWT token for mobile clients after verification
     jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
     token = jwt.encode({
         'user_id': user.id,
@@ -124,4 +123,4 @@ def api_verify_email():
         'user_id': user.id,
         'token': token if isinstance(token, str) else token.decode('utf-8'),
         'user': user_row
-        
+    })

@@ -1,6 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.portals_texts import PortalText
+from app.models.Purpose_Models.PortalTexts import PortalText
 from app.utils.portal_permissions import check_portal_editor_permission
 
 portal_bp = Blueprint('portal_texts', __name__)
@@ -73,4 +77,3 @@ def api_delete_portal_texts():
     PortalText.query.filter(PortalText.portal_id == portal_id, PortalText.id.in_(text_ids)).delete(synchronize_session=False)
     db.session.commit()
     return jsonify({'result': 'Selected portal texts deleted'})
-    

@@ -1,42 +1,36 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
-
-from app.models.chats_users import ChatsUsers
+from flask import session, jsonify
+from app.models.People_Models.Messaging_Models.GroupChatUsers import GroupChatUsers
+from app.models.People_Models.Messaging_Models.Group_Messages import Group_Messages
+from app.models.People_Models.user import User
 
 def is_user_in_chat(user_id, chats_id):
     """
     Returns True if the user is a member of the chat, otherwise False.
     """
-    return ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count() > 0
-
-
-from app.utils.chat_utils import is_user_in_chat
-
-# ... inside your route ...
-if not is_user_in_chat(user_id, chats_id):
-    return jsonify({'error': 'permission denied'}),
-
-
-from app.models.messages_read import MessagesRead
+    return GroupChatUsers.query.filter_by(group_id=chats_id, user_id=user_id).count() > 0
 
 def has_user_read_message(user_id, message_id):
     """
     Returns True if the user has read the message, otherwise False.
     """
-    return MessagesRead.query.filter_by(users_id=user_id, messages_id=message_id).first() is not None
+    # You may need to adjust this if you have a separate model for message reads
+    return Group_Messages.query.filter_by(id=message_id, user_id=user_id, read=True).first() is not None
 
 def get_read_message_ids_for_user(user_id, message_ids):
     """
     Returns a set of message IDs that the user has read from the provided list.
     """
-    rows = MessagesRead.query.filter(
-        MessagesRead.users_id == user_id,
-        MessagesRead.messages_id.in_(message_ids)
+    # Adjust this if you have a separate model for message reads
+    rows = Group_Messages.query.filter(
+        Group_Messages.user_id == user_id,
+        Group_Messages.id.in_(message_ids),
+        Group_Messages.read == True
     ).all()
-    return set(row.messages_id for row in
-               
-from flask import session, jsonify
-from app.models.chats_users import ChatsUsers
-
+    return set(row.id for row in rows)
 
 def require_login_and_chat_membership(chats_id):
     """
@@ -47,25 +41,19 @@ def require_login_and_chat_membership(chats_id):
     if not user_id:
         return None, jsonify({'error': 'login required!'}), 401
 
-    is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
+    is_member = GroupChatUsers.query.filter_by(group_id=chats_id, user_id=user_id).count()
     if not is_member:
         return None, jsonify({'error': 'permission denied'}), 403
 
     return user_id, None
 
-# Usage example in a route:
-# user_id, error = require_login_and_chat_membership(chats_id)
-# if error:
-
-
-from app.models.chats import Chats
-from app.models.user import User
-
 def chat_exists(chats_id):
     """
     Returns True if the chat exists, otherwise False.
     """
-    return Chats.query.filter_by(id=chats_id).first() is not None
+    # If you have a GroupChat model, use it here. Otherwise, adjust as needed.
+    from app.models.People_Models.Messaging_Models.GroupChatMetaData import GroupChatMetaData
+    return GroupChatMetaData.query.filter_by(id=chats_id).first() is not None
 
 def user_exists(user_id):
     """

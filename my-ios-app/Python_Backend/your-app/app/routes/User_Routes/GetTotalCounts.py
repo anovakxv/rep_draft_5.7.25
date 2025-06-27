@@ -1,7 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, jsonify, session
 from app import db
-from app.models.goals_team import GoalTeam
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 
 user_bp = Blueprint('user', __name__)
 
@@ -17,5 +20,5 @@ def api_get_total_counts():
         GoalTeam.confirmed == 0
     ).count()
 
-    return jsonify({'result':
+    return jsonify({'result': {'invites_new': invites_new}})
     

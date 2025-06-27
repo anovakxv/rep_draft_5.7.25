@@ -1,6 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.user import User
+from app.models.People_Models.user import User
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
@@ -55,5 +59,4 @@ def api_send_message():
     db.session.commit()
 
     # Use as_dict() for unified response, includes sender and recipient user objects
-    message_obj
-    
+    message_obj = msg.as_dict()

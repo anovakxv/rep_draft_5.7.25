@@ -1,14 +1,16 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models.portal import Portal
-from app.models.user import User
-from app.models.goals import Goal
-from app.utils.portal_permissions import check_portal_editor_permission
+from app.models.Purpose_Models.Portal import Portal
+from app.models.People_Models.user import User
+from app.models.ValueMetric_Models.Goal import Goal
 
 # Replace the message sending and goal progress logic with your actual implementations.
 # This route expects a JSON body with user_id, portals_id, and aUsersIDs (list of user IDs to share with).
-    
+
 portal_bp = Blueprint('portal', __name__)
 
 @portal_bp.route('/api/portal/share/message', methods=['POST'])
@@ -28,7 +30,7 @@ def api_portal_share_via_message():
     # Check portal exists
     portal = Portal.query.filter_by(id=portal_id).first()
     if not portal:
-        return jsonify({'error': 'the portal doesn\'t exist!'}), 404
+        return jsonify({'error': "the portal doesn't exist!"}), 404
 
     # Validate users exist
     valid_users = User.query.filter(User.id.in_(users_ids)).all()
@@ -52,4 +54,3 @@ def api_portal_share_via_message():
             pass  # Replace with your actual logic
 
     return jsonify({'result': log})
-

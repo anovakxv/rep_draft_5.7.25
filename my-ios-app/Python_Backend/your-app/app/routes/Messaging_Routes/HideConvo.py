@@ -1,6 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.user import User
+from app.models.People_Models.user import User
 from app.models.users_hidden_conversations import UsersHiddenConversations
 
 user_bp = Blueprint('user', __name__)

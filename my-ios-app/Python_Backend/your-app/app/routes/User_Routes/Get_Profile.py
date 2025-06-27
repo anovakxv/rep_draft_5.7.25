@@ -1,10 +1,14 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session, current_app
 from app import db
-from app.models.user import User
-from app.models.skill import Skill
-from app.models.users_skills import UsersSkills
-from app.models.users_followers import UsersFollowers
-from app.models.users_network import UsersNetwork
+from app.models.People_Models.user import User
+from app.models.People_Models.Skill import Skill
+from app.models.People_Models.UserSkill import UserSkill
+from app.models.People_Models.UserFollower import UserFollower
+from app.models.People_Models.UserNetwork import UserNetwork
 from app.utils.user_utils import check_new_email, check_new_username, manage_user_row
 import hashlib
 import os
@@ -22,15 +26,15 @@ def get_user_response(user, session_user_id=None):
     level = '0' if session_user_id and str(session_user_id) == str(user.id) else '1'
     user_row = manage_user_row(user_row, user.id, level=level)
     # Add skills
-    user_skills = Skill.query.join(UsersSkills, Skill.id == UsersSkills.skills_id).filter(UsersSkills.users_id == user.id).all()
+    user_skills = Skill.query.join(UserSkill, Skill.id == UserSkill.skills_id).filter(UserSkill.users_id == user.id).all()
     user_row['skills'] = [skill.as_dict() for skill in user_skills]
     # Add relationships if session user
     if session_user_id:
         user_row['relationships'] = {
-            "i_follow": UsersFollowers.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_followed_by": UsersFollowers.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
-            "in_my_network": UsersNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_in_their_network": UsersNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+            "i_follow": UserFollower.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
+            "i_am_followed_by": UserFollower.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+            "in_my_network": UserNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
+            "i_am_in_their_network": UserNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
         }
     return user_row
 
@@ -115,15 +119,16 @@ def api_user_profile():
 
     # Skills update
     if data.get('aSkills') is not None:
-        UsersSkills.query.filter_by(users_id=user.id).delete()
+        UserSkill.query.filter_by(users_id=user.id).delete()
         skill_ids = data['aSkills']
         if isinstance(skill_ids, str):
             skill_ids = [int(sid) for sid in skill_ids.split(',') if sid.strip().isdigit()]
         valid_skills = Skill.query.filter(Skill.id.in_(skill_ids)).all()
         for skill in valid_skills:
-            db.session.add(UsersSkills(users_id=user.id, skills_id=skill.id))
+            db.session.add(UserSkill(users_id=user.id, skills_id=skill.id))
         db.session.commit()
 
     # Return updated user profile with skills and relationships
-    user_row = get_user_response(user,
+    user_row = get_user_response(user, user_id)
+    return jsonify({'result': user_row})
                                  

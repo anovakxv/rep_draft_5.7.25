@@ -1,6 +1,9 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
-from app.models.portal import Portal
-from app.models.portals_users import PortalsUsers
+from app.models.Purpose_Models.Portal import Portal
+from app.models.Purpose_Models.PortalUser import PortalUser
 
 def check_portal_editor_permission(user_id, portal_id):
     """
@@ -13,12 +16,13 @@ def check_portal_editor_permission(user_id, portal_id):
     if portal.users_id == user_id:
         return True
 
-    # Check if user is a leader in portals_users
-    leader = PortalsUsers.query.filter_by(
+    # Check if user is a leader in PortalUser
+    leader = PortalUser.query.filter_by(
         users_id=user_id,
         portals_id=portal_id,
         leader=True
     ).first()
     if leader:
-        return
-        
+        return True
+
+    return False

@@ -1,7 +1,11 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
-from app.models.chats import Chats
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.portal import Portal
 from datetime import datetime
 
@@ -52,5 +56,3 @@ def api_send_chat_message():
 
     # Use as_dict() for unified response, includes sender user object
     message_obj = msg.as_dict()
-
-    return jsonify({'result': 'sent', 'message': message_obj})

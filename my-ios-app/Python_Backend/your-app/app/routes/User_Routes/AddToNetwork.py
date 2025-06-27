@@ -1,8 +1,11 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.user import User
-from app.models.users_network import UsersNetwork
-from app.utils.user_utils import does_user_block
+from app.models.People_Models.user import User
+from app.models.People_Models.UserNetwork import UserNetwork
 
 user_bp = Blueprint('user', __name__)
 
@@ -28,7 +31,7 @@ def api_add_to_network_action():
     if not User.query.filter_by(id=target_user_id).first():
         return jsonify({'error': "That users_id doesn't exist!"}), 404
 
-    exists = UsersNetwork.query.filter_by(users_id1=user_id, users_id2=target_user_id).first()
+    exists = UserNetwork.query.filter_by(users_id1=user_id, users_id2=target_user_id).first()
 
     if todo == 'add':
         if exists:

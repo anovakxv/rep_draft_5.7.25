@@ -1,7 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify
-from app.models.Goals_Models.GoalTeam import GoalTeam
-from app.models.Goals_Models.User import User
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.People_Models.user import User
 
 goals_bp = Blueprint('goals', __name__)
 
@@ -34,14 +37,14 @@ def api_get_goal_users():
         if user:
             result.append({
                 'id': user.id,
-                'username': user.username,
-                'fname': user.fname,
-                'lname': user.lname,
-                'email': user.email,
-                'about': user.about,
-                'phone': user.phone,
-                'cities_id': user.cities_id,
-                'users_types_id': user.users_types_id,
+                'username': getattr(user, 'username', None),
+                'fname': getattr(user, 'fname', None),
+                'lname': getattr(user, 'lname', None),
+                'email': getattr(user, 'email', None),
+                'about': getattr(user, 'about', None),
+                'phone': getattr(user, 'phone', None),
+                'cities_id': getattr(user, 'cities_id', None),
+                'users_types_id': getattr(user, 'users_types_id', None),
                 'confirmed': member.confirmed,
                 'team_id': member.id,
                 'team_read1': member.read1,
@@ -50,4 +53,3 @@ def api_get_goal_users():
             })
 
     return jsonify({'result': result})
-    

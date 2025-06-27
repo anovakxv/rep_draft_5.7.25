@@ -1,12 +1,16 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.Goals_Models.Goal import Goal
-from app.models.Goals_Models.GoalTeam import GoalTeam
-from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
-from app.models.Goals_Models.GoalMetric import GoalMetric
-from app.models.Goals_Models.GoalType import GoalType
-from app.models.Goals_Models.ReportingIncrement import ReportingIncrement
-from app.models.Goals_Models.User import User
+from app.models.ValueMetric_Models.Goal import Goal
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+from app.models.ValueMetric_Models.GoalMetric import GoalMetric
+from app.models.ValueMetric_Models.GoalType import GoalType
+from app.models.ValueMetric_Models.ReportingIncrement import ReportingIncrement
+from app.models.People_Models.user import User
 
 goals_bp = Blueprint('goals', __name__)
 
@@ -132,4 +136,3 @@ def api_delete_goal():
     db.session.delete(goal)
     db.session.commit()
     return jsonify({'result': 'ok'})
-

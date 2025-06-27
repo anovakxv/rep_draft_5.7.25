@@ -1,11 +1,15 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
-from app.models.user import User
-from app.models.chats import Chats
-from app.models.chats_users import ChatsUsers
-from app.models.users_network import UserNetwork
+from app.models.People_Models.Messaging_Models.Chats import Chats
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.user import User
+from app.models.People_Models.UserNetwork import UserNetwork
 
 people_bp = Blueprint('people', __name__)
 

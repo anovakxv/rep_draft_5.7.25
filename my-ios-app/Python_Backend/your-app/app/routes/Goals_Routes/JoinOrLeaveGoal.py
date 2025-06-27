@@ -1,8 +1,11 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.Goals_Models.Goal import Goal
-from app.models.Goals_Models.GoalTeam import GoalTeam
+from app.models.ValueMetric_Models.Goal import Goal
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 
 goals_bp = Blueprint('goals', __name__)
 
@@ -45,4 +48,3 @@ def api_join_leave_goal():
 
     db.session.commit()
     return jsonify({'result': results})
-    

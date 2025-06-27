@@ -1,12 +1,16 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
-from app.models.user import User
+from app.models.People_Models.user import User
 from app.models.portal import Portal
-from app.models.chats import Chats
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.messages_read import MessagesRead
-from app.models.chats_users import ChatsUsers
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.users_hidden_conversations import UsersHiddenConversations
 from app.models.chats_hidden_conversations import ChatsHiddenConversations
 
@@ -112,4 +116,4 @@ def api_get_messages():
         'portals': aPortals,
         'chats': aChats
     }
-    
+    return jsonify(result)

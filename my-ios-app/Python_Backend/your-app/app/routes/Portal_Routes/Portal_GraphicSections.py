@@ -1,7 +1,11 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models.portals_graphic_sections import PortalGraphicSection, PortalGraphicSectionS3Content
-from app.models.s3_content import S3Content
+from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
+from app.models.s3Content_Models.s3Content import S3Content, PortalGraphicSectionS3Content
 from app.utils.portal_permissions import check_portal_editor_permission
 
 portal_bp = Blueprint('portal_graphic_sections', __name__)

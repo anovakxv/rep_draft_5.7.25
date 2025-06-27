@@ -1,7 +1,9 @@
-from app import db
-from app.models.user import User
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
-# mport any models or modules they depend on 
+from app import db
+from app.models.People_Models.user import User
 
 def manage_user_row(row, user_id=None, level='1'):
     """
@@ -54,13 +56,6 @@ def check_new_username(username, current_username=None):
     if q.first():
         raise Exception("Username already exists!")
     return True
-
-def does_user_block(blocker_id, blocked_id):
-    """
-    Returns True if blocker_id has blocked blocked_id.
-    """
-    from app.models.users_blocked import UsersBlocked
-    return UsersBlocked.query.filter_by(users_id1=blocker_id, users_id2=blocked_id).first() is not None
 
 def register_new_activity(user_id, target_id, activity_type, activity_value, object_id, object_type):
     """

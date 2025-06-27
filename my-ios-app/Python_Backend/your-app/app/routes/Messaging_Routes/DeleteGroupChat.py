@@ -1,8 +1,11 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.chats import Chats
-from app.models.chats_users import ChatsUsers
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 
 user_bp = Blueprint('user', __name__)
 
@@ -25,13 +28,12 @@ def api_delete_chat():
     is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
     if not is_member:
         # Check if user is the chat creator
-        if chat.users_id != user_id:
-            return jsonify({'error': '503'}), 403
+        if chat.created_by != user_id:
+            return jsonify({'error': 'Not authorized'}), 403
 
     # Delete chat and related data
-    db.session.delete(chat)
     ChatsUsers.query.filter_by(chats_id=chats_id).delete()
+    db.session.delete(chat)
     db.session.commit()
 
-    return jsonify({'result':
-    
+    return jsonify({'result': 'chat deleted'})

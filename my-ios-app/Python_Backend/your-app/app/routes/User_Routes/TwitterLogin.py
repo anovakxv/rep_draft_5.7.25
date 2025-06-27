@@ -1,7 +1,10 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, session, make_response
 from app import db
-from app.models.user import User
+from app.models.People_Models.user import User
 from app.utils.user_utils import manage_user_row
 import hashlib
 import os
@@ -45,5 +48,4 @@ def api_twitter_login():
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
     resp.set_data(jsonify({'result': user_row}).get_data())
     resp.mimetype = 'application/json'
-    return
-    
+    return resp

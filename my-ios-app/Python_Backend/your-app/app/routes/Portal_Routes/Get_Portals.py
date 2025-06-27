@@ -1,9 +1,14 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models.portal import Portal
+from app.models.Purpose_Models.Portal import Portal
 from app.models.users_hidden_portals import UsersHiddenPortals
-from app.models.goals import Goal
-from app.models.goals_team import GoalTeam
+from app.models.ValueMetric_Models.Goal import Goal
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.Purpose_Models.PortalUser import PortalUser
 from app.models.portals_users_share import PortalsUsersShare
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload, joinedload
@@ -38,8 +43,6 @@ def api_get_portals():
     query = Portal.query.options(
         subqueryload(Portal.graphic_sections).joinedload('s3_files')
     )
-
-    # ...existing logic for ProfileView...
 
     # Shared logic
     if shared == "1":
@@ -82,7 +85,7 @@ def api_get_portals():
     if my_network:
         if not user_id:
             return jsonify({'error': 'Login required when my_network is not null!'}), 400
-        from app.models.users_network import UserNetwork
+        from app.models.People_Models.UserNetwork import UserNetwork
         network_user_ids = db.session.query(UserNetwork.users_id2).filter_by(users_id1=user_id)
         shared_portal_ids = db.session.query(PortalsUsersShare.portals_id).filter(
             PortalsUsersShare.users_id.in_(network_user_ids)
@@ -133,8 +136,7 @@ def filter_network_portals():
     )
 
     if tab == "open":
-        # note: OPEN tab = portals where user is creator, a lead, or on a goal team for the portal
-        from app.models.portals_users import PortalUser
+        # OPEN tab = portals where user is creator, a lead, or on a goal team for the portal
         lead_portal_ids = db.session.query(PortalUser.portal_id).filter(
             PortalUser.user_id == user_id,
             PortalUser.role == 'lead'
@@ -153,17 +155,15 @@ def filter_network_portals():
             db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=user_id)
         ))
     elif tab == "ntwk":
-        # note: NTWK tab = all portals where a member of my network is on a GoalTeam
-        from app.models.users_network import UserNetwork
-        # Get all user IDs in my network
+        # NTWK tab = all portals where a member of my network is on a GoalTeam
+        from app.models.People_Models.UserNetwork import UserNetwork
         network_user_ids = db.session.query(UserNetwork.users_id2).filter_by(users_id1=user_id)
-        # Get all portal IDs where a network user is on a goal team
         network_goal_portal_ids = db.session.query(Goal.portals_id).join(
             GoalTeam, Goal.id == GoalTeam.goals_id
         ).filter(GoalTeam.users_id2.in_(network_user_ids))
         query = query.filter(Portal.id.in_(network_goal_portal_ids))
     elif tab == "all":
-        # note: ALL tab = all visible portals
+        # ALL tab = all visible portals
         query = query.filter(Portal.visible == True)
     else:
         return jsonify({'error': 'Invalid tab value!'}), 400

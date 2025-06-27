@@ -1,9 +1,13 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.Goals_Models.Goal import Goal
-from app.models.Goals_Models.GoalProgressLog import GoalProgressLog
-from app.models.Goals_Models.GoalTeam import GoalTeam
-from app.models.Goals_Models.GoalProgressFile import GoalProgressFile  # You need to have this model
+from app.models.ValueMetric_Models.Goal import Goal
+from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.ValueMetric_Models.GoalProgressFile import GoalProgressFile
 
 import os
 from werkzeug.utils import secure_filename

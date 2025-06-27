@@ -1,8 +1,12 @@
+# Rep
+# Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+# Created by Adam Novak: June 2025
+
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.chats import Chats
-from app.models.chats_users import ChatsUsers
-from app.models.user import User
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.user import User
 
 user_bp = Blueprint('user', __name__)
 
@@ -37,7 +41,7 @@ def api_manage_chat():
 
     # Create new chat if chats_id is not provided
     if not chats_id:
-        chat = Chats(users_id=user_id, title=title)
+        chat = Chats(name=title or "Untitled Chat", created_by=user_id)
         db.session.add(chat)
         db.session.commit()
         chats_id = chat.id
@@ -45,7 +49,7 @@ def api_manage_chat():
         db.session.commit()
     else:
         if title is not None:
-            chat.title = title
+            chat.name = title
             db.session.commit()
 
     # Get current chat users
@@ -84,4 +88,6 @@ def api_manage_chat():
         'aAddIDsToDbLog': aAddIDsToDbLog,
         'aDelIDsToDbLog': aDelIDsToDbLog,
         'chat': chat_dict,
-        
+        'users': users_result
+    }
+    return jsonify(result)

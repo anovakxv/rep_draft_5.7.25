@@ -6,10 +6,10 @@ from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.Write_Models.Writings_Model import Write
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('user_writes', __name__)
 
 # --- 1. List all writes for a user ---
-@user_bp.route('/api/user/writes', methods=['GET'])
+@user_bp.route('/writes', methods=['GET'])
 def get_user_writes():
     users_id = request.args.get('users_id', type=int)
     if not users_id:
@@ -19,7 +19,7 @@ def get_user_writes():
     return jsonify({'result': result})
 
 # --- 2. Add a new write block ---
-@user_bp.route('/api/user/write', methods=['POST'])
+@user_bp.route('/write', methods=['POST'])
 def add_user_write():
     users_id = session.get('user_id')
     data = request.get_json()
@@ -35,7 +35,7 @@ def add_user_write():
     return jsonify({'result': write.as_dict()})
 
 # --- 3. Edit a write block ---
-@user_bp.route('/api/user/write/<int:write_id>', methods=['PUT'])
+@user_bp.route('/write/<int:write_id>', methods=['PUT'])
 def edit_user_write(write_id):
     users_id = session.get('user_id')
     write = Write.query.get(write_id)
@@ -50,7 +50,7 @@ def edit_user_write(write_id):
     return jsonify({'result': write.as_dict()})
 
 # --- 4. Delete a write block ---
-@user_bp.route('/api/user/write/<int:write_id>', methods=['DELETE'])
+@user_bp.route('/write/<int:write_id>', methods=['DELETE'])
 def delete_user_write(write_id):
     users_id = session.get('user_id')
     write = Write.query.get(write_id)

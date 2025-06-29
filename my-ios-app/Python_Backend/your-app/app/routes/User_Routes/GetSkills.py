@@ -6,9 +6,9 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.People_Models.Skill import Skill 
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('get_skills', __name__)
 
-@user_bp.route('/api/user/get_skills', methods=['GET'])
+@user_bp.route('/get_skills', methods=['GET'])
 def api_get_skills():
     args = request.args
     offset = int(args.get('offset', 0))

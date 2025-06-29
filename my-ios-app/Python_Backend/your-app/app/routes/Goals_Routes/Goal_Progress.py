@@ -8,17 +8,17 @@ from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 
-goals_bp = Blueprint('goals', __name__)
+goals_bp = Blueprint('goal_progress', __name__)
 
 # --- GET: List progress logs for a goal ---
-@goals_bp.route('/api/goals/<int:goal_id>/progress', methods=['GET'])
+@goals_bp.route('/<int:goal_id>/progress', methods=['GET'])
 def get_goal_progress(goal_id):
     logs = GoalProgressLog.query.filter_by(goals_id=goal_id).order_by(GoalProgressLog.timestamp.desc()).all()
     result = [log.as_dict() for log in logs]
     return jsonify({"progressLogs": result})
 
 # --- POST: Add a progress log (update filled_quota) ---
-@goals_bp.route('/api/goals/<int:goal_id>/progress', methods=['POST'])
+@goals_bp.route('/<int:goal_id>/progress', methods=['POST'])
 def add_goal_progress(goal_id):
     data = request.json
     user_id = session.get('user_id')
@@ -67,7 +67,7 @@ def add_goal_progress(goal_id):
     return jsonify({'result': goal.as_dict(card_mode=True)})
 
 # --- PATCH: Edit a progress log ---
-@goals_bp.route('/api/goals/<int:goal_id>/progress/<int:log_id>', methods=['PATCH'])
+@goals_bp.route('/<int:goal_id>/progress/<int:log_id>', methods=['PATCH'])
 def edit_goal_progress(goal_id, log_id):
     data = request.json
     user_id = session.get('user_id')
@@ -97,7 +97,7 @@ def edit_goal_progress(goal_id, log_id):
     return jsonify({'result': goal.as_dict(card_mode=True)})
 
 # --- DELETE: Remove a progress log ---
-@goals_bp.route('/api/goals/<int:goal_id>/progress/<int:log_id>', methods=['DELETE'])
+@goals_bp.route('/<int:goal_id>/progress/<int:log_id>', methods=['DELETE'])
 def delete_goal_progress(goal_id, log_id):
     user_id = session.get('user_id')
     log = GoalProgressLog.query.filter_by(id=log_id, goals_id=goal_id).first()

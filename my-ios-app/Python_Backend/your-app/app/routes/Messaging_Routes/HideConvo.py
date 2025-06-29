@@ -5,11 +5,11 @@
 from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.user import User
-from app.models.users_hidden_conversations import UsersHiddenConversations
+# from app.models.users_hidden_conversations import UsersHiddenConversations
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('hide_convo', __name__)
 
-@user_bp.route('/api/user/hide_conversation', methods=['POST'])
+@user_bp.route('/hide_conversation', methods=['POST'])
 def api_hide_conversation():
     data = request.get_json()
     user_id = session.get('user_id')

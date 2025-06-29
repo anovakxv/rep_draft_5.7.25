@@ -7,9 +7,9 @@ from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.UserNetwork import UserNetwork
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('add_to_network', __name__)
 
-@user_bp.route('/api/user/network_action', methods=['POST'])
+@user_bp.route('/network_action', methods=['POST'])
 def api_add_to_network_action():
     data = request.get_json()
     user_id = session.get('user_id')
@@ -38,7 +38,7 @@ def api_add_to_network_action():
             return jsonify({'error': f"User '{target_user_id}' is already in your network"}), 400
         if does_user_block(target_user_id, user_id):
             return jsonify({'error': 'blocked'}), 403
-        new_network = UsersNetwork(users_id1=user_id, users_id2=target_user_id)
+        new_network = UserNetwork(users_id1=user_id, users_id2=target_user_id)
         db.session.add(new_network)
         db.session.commit()
         return jsonify({'result': 'added'})

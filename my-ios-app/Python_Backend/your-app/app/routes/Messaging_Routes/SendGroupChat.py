@@ -6,12 +6,12 @@ from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
-from app.models.portal import Portal
+from app.models.Purpose_Models.Portal import Portal
 from datetime import datetime
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('send_group_chat', __name__)
 
-@user_bp.route('/api/user/send_chat_message', methods=['POST'])
+@user_bp.route('/send_chat_message', methods=['POST'])
 def api_send_chat_message():
     data = request.get_json()
     user_id = session.get('user_id')
@@ -54,5 +54,11 @@ def api_send_chat_message():
     )
     db.session.commit()
 
-    # Use as_dict() for unified response, includes sender user object
+  # Use as_dict() for unified response, includes sender user object
     message_obj = msg.as_dict()
+    # Optionally, include sender info
+    from app.models.People_Models.user import User
+    sender = User.query.filter_by(id=user_id).first()
+    message_obj['sender'] = sender.as_dict() if sender else None
+
+    return jsonify({'result': message_obj}), 200

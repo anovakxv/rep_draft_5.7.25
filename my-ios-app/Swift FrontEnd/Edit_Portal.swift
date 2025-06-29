@@ -1,10 +1,8 @@
-//
-//  EditPortalView.swift
+////  EditPortalView.swift
 //  Rep
 //
-//  Created by Your Name on 06.23.2025
+//  Created by Adam Novak on 06.23.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
-//
 
 import SwiftUI
 import PhotosUI

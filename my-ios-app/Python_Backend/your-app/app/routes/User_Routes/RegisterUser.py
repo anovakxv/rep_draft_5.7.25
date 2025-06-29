@@ -15,13 +15,13 @@ import jwt
 import datetime
 from werkzeug.utils import secure_filename
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('register_user', __name__)
 
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
-@user_bp.route('/api/user/register', methods=['POST'])
+@user_bp.route('/register', methods=['POST'])
 def api_register_user():
     data = request.form.to_dict()
     files = request.files
@@ -99,7 +99,7 @@ def api_register_user():
         'token': token if isinstance(token, str) else token.decode('utf-8')
     })
 
-@user_bp.route('/api/user/verify_email', methods=['GET'])
+@user_bp.route('/verify_email', methods=['GET'])
 def api_verify_email():
     token = request.args.get('token')
     if not token:

@@ -6,10 +6,10 @@ from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.ValueMetric_Models.GoalPreInvite import GoalPreInvite
 
-goals_bp = Blueprint('goals', __name__)
+goals_bp = Blueprint('goal_invite', __name__)
 
 # --- POST: Add invites (email, phone) ---
-@goals_bp.route('/api/goals/<int:goal_id>/invites', methods=['POST'])
+@goals_bp.route('/<int:goal_id>/invites', methods=['POST'])
 def add_goal_invites(goal_id):
     data = request.json
     user_id = session.get('user_id')
@@ -47,7 +47,7 @@ def add_goal_invites(goal_id):
     return jsonify({"result": results})
 
 # --- DELETE: Remove invites (email, phone, fb) ---
-@goals_bp.route('/api/goals/<int:goal_id>/invites', methods=['DELETE'])
+@goals_bp.route('/<int:goal_id>/invites', methods=['DELETE'])
 def remove_goal_invites(goal_id):
     data = request.json
     user_id = session.get('user_id')

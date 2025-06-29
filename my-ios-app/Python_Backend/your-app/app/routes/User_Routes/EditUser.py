@@ -15,7 +15,7 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('edit_user', __name__)
 
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
@@ -38,7 +38,7 @@ def get_user_response(user, session_user_id=None):
         }
     return user_row
 
-@user_bp.route('/api/user/edit', methods=['POST'])
+@user_bp.route('/edit', methods=['POST'])
 def api_edit_user():
     # Accept both JSON and multipart/form-data for profile picture upload
     if request.content_type and request.content_type.startswith('multipart/form-data'):

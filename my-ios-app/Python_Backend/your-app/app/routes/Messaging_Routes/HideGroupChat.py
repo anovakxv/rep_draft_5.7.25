@@ -4,12 +4,12 @@
 
 from flask import Blueprint, request, jsonify, session
 from app import db
-from app.models.chats import Chats
-from app.models.chats_hidden_conversations import ChatsHiddenConversations
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+# from app.models.chats_hidden_conversations import ChatsHiddenConversations
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('hide_chat_convo', __name__)
 
-@user_bp.route('/api/user/hide_chat_conversation', methods=['POST'])
+@user_bp.route('/hide_chat_conversation', methods=['POST'])
 def api_hide_chat_conversation():
     data = request.get_json()
     user_id = session.get('user_id')

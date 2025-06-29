@@ -1,10 +1,8 @@
-//
 //  GoalListItem.swift
 //  Rep 
 //
 //  Created by Dmytro Holovko on 10.29.2023.
 //  Edited by Adam Novak on 06.17.2025
-//  Updated for API sync on 06.20.2025
 //  (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI

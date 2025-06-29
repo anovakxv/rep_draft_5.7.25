@@ -12,11 +12,11 @@ from app.models.ValueMetric_Models.GoalProgressFile import GoalProgressFile
 import os
 from werkzeug.utils import secure_filename
 
-goals_bp = Blueprint('goals', __name__)
+goals_bp = Blueprint('update_quota', __name__)
 
 UPLOAD_FOLDER = 'uploads/goal_progress_files'  # Adjust as needed
 
-@goals_bp.route('/api/goals/update_filled_quota', methods=['POST'])
+@goals_bp.route('/update_filled_quota', methods=['POST'])
 def api_update_goal_filled_quota():
     user_id = session.get('user_id')
     if not user_id:

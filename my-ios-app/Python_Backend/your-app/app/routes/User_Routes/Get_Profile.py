@@ -38,7 +38,7 @@ def get_user_response(user, session_user_id=None):
         }
     return user_row
 
-@user_bp.route('/api/user/profile', methods=['GET', 'POST'])
+@user_bp.route('/profile', methods=['GET', 'POST'])
 def api_user_profile():
     # GET: fetch profile, POST: edit profile (if session user)
     if request.method == 'GET':

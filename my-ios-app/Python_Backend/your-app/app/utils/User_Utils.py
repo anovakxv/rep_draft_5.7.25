@@ -65,6 +65,14 @@ def register_new_activity(user_id, target_id, activity_type, activity_value, obj
     # Example: Log or insert into an activities table
     pass
 
+def does_user_block(user_id_1, user_id_2):
+    """
+    Returns True if user_id_1 has blocked user_id_2.
+    Replace this stub with your actual block logic.
+    """
+    # Example: always return False (no blocking)
+    return False
+
 def mark_all_activities_as_read(user_id):
     """
     Stub for marking all activities as read for a user.

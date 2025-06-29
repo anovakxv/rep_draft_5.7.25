@@ -18,7 +18,7 @@ def check_permission(goal, user_id):
     return user_id == goal.users_id or user_id == goal.lead_id
 
 # --- GET: Goal Details ---
-@goals_bp.route('/api/goals/details', methods=['GET'])
+@goals_bp.route('/details', methods=['GET'])
 def api_goal_details():
     goal_id = request.args.get('goals_id', type=int)
     user_id = session.get('user_id')
@@ -30,7 +30,7 @@ def api_goal_details():
     return jsonify({'result': goal.as_dict(include_team=True, include_progress_logs=True)})
 
 # --- POST: Create Goal ---
-@goals_bp.route('/api/goals/create', methods=['POST'])
+@goals_bp.route('/create', methods=['POST'])
 def api_create_goal():
     data = request.json
     user_id = session.get('user_id')
@@ -81,7 +81,7 @@ def api_create_goal():
     return jsonify({'result': goal.as_dict()})
 
 # --- POST: Edit Goal ---
-@goals_bp.route('/api/goals/edit', methods=['POST'])
+@goals_bp.route('/edit', methods=['POST'])
 def api_edit_goal():
     data = request.json
     user_id = session.get('user_id')
@@ -116,7 +116,7 @@ def api_edit_goal():
     return jsonify({'result': goal.as_dict()})
 
 # --- POST: Delete Goal ---
-@goals_bp.route('/api/goals/delete', methods=['POST'])
+@goals_bp.route('/delete', methods=['POST'])
 def api_delete_goal():
     data = request.json
     user_id = session.get('user_id')

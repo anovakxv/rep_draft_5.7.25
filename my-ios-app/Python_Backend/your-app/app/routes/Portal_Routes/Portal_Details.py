@@ -19,7 +19,7 @@ from datetime import datetime
 portal_bp = Blueprint('portal', __name__)
 
 # GET: Portal details
-@portal_bp.route('/api/portal/details', methods=['GET'])
+@portal_bp.route('/details', methods=['GET'])
 def api_portal_details():
     # Accept both 'portal_id' and 'portals_id'
     portal_id = request.args.get('portal_id', type=int) or request.args.get('portals_id', type=int)
@@ -100,7 +100,7 @@ def api_portal_details():
     return jsonify({'result': portal_data})
 
 # POST: Create portal
-@portal_bp.route('/api/portal', methods=['POST'])
+@portal_bp.route('', methods=['POST'])
 def api_create_portal():
     data = request.get_json()
     required_fields = ['name', 'about']
@@ -139,7 +139,7 @@ def api_create_portal():
     return jsonify({'result': 'Portal created', 'portal': portal.as_card_dict()}), 201
 
 # POST: Edit portal
-@portal_bp.route('/api/portal/edit', methods=['POST'])
+@portal_bp.route('/edit', methods=['POST'])
 def api_edit_portal():
     data = request.get_json()
     user_id = session.get('user_id') or data.get('user_id')
@@ -204,7 +204,7 @@ def api_edit_portal():
     return jsonify({'result': 'Portal updated', 'portal': portal.as_card_dict()})
 
 # POST: Delete portal
-@portal_bp.route('/api/portal/delete', methods=['POST'])
+@portal_bp.route('/delete', methods=['POST'])
 def api_delete_portal():
     data = request.get_json()
     user_id = data.get('user_id')
@@ -229,7 +229,7 @@ def api_delete_portal():
     return jsonify({'result': 'ok'})
 
 # POST: Remove a user from a portal
-@portal_bp.route('/api/portal/user/delete', methods=['POST'])
+@portal_bp.route('/user/delete', methods=['POST'])
 def api_delete_portal_user():
     data = request.get_json()
     user_id = data.get('user_id')
@@ -262,7 +262,7 @@ def api_delete_portal_user():
     return jsonify({'result': 'ok', 'portal_id': portal_id, 'users_count': users_count})
 
 # GET: Find the nearest portal representative (leader)
-@portal_bp.route('/api/portal/nearest_rep', methods=['GET'])
+@portal_bp.route('/nearest_rep', methods=['GET'])
 def api_get_portal_nearest_rep():
     portal_id = request.args.get('portals_id')
     user_id = request.args.get('user_id')

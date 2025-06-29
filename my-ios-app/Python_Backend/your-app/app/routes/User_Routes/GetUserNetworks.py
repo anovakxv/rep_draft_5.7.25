@@ -13,26 +13,69 @@ from app.models.People_Models.UserSkill import UserSkill
 from app.models.People_Models.UserFollower import UserFollower
 from app.utils.user_utils import manage_user_row
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('get_user_skills', __name__)
 
-def get_user_response(user, session_user_id=None):
-    user_row = user.as_dict()
-    level = '0' if session_user_id and str(session_user_id) == str(user.id) else '1'
-    user_row = manage_user_row(user_row, user.id, level=level)
-    # Add skills
-    user_skills = Skill.query.join(UserSkill, Skill.id == UserSkill.skills_id).filter(UserSkill.users_id == user.id).all()
-    user_row['skills'] = [skill.as_dict() for skill in user_skills]
-    # Add relationships if session user
-    if session_user_id:
-        user_row['relationships'] = {
-            "i_follow": UserFollower.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_followed_by": UserFollower.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
-            "in_my_network": UserNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_in_their_network": UserNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+def batch_get_skills(user_ids):
+    # Fetch all skills for all users in one query
+    skills = (
+        db.session.query(UserSkill.users_id, Skill)
+        .join(Skill, Skill.id == UserSkill.skills_id)
+        .filter(UserSkill.users_id.in_(user_ids))
+        .all()
+    )
+    skills_map = {}
+    for uid, skill in skills:
+        skills_map.setdefault(uid, []).append(skill.as_dict())
+    return skills_map
+
+def batch_get_relationships(session_user_id, user_ids):
+    # Fetch all relationships in one go
+    i_follow = set(
+        uid for uid, in db.session.query(UserFollower.users_id2)
+        .filter(UserFollower.users_id1 == session_user_id, UserFollower.users_id2.in_(user_ids))
+    )
+    i_am_followed_by = set(
+        uid for uid, in db.session.query(UserFollower.users_id1)
+        .filter(UserFollower.users_id2 == session_user_id, UserFollower.users_id1.in_(user_ids))
+    )
+    in_my_network = set(
+        uid for uid, in db.session.query(UserNetwork.users_id2)
+        .filter(UserNetwork.users_id1 == session_user_id, UserNetwork.users_id2.in_(user_ids))
+    )
+    i_am_in_their_network = set(
+        uid for uid, in db.session.query(UserNetwork.users_id1)
+        .filter(UserNetwork.users_id2 == session_user_id, UserNetwork.users_id1.in_(user_ids))
+    )
+    rel_map = {}
+    for uid in user_ids:
+        rel_map[uid] = {
+            "i_follow": uid in i_follow,
+            "i_am_followed_by": uid in i_am_followed_by,
+            "in_my_network": uid in in_my_network,
+            "i_am_in_their_network": uid in i_am_in_their_network,
         }
-    return user_row
+    return rel_map
 
-@user_bp.route('/api/user/members_of_my_network', methods=['GET'])
+def get_user_response_batch(users, session_user_id=None, skills_map=None, rel_map=None):
+    result = []
+    for user in users:
+        user_row = user.as_dict()
+        level = '0' if session_user_id and str(session_user_id) == str(user.id) else '1'
+        user_row = manage_user_row(user_row, user.id, level=level)
+        # Add skills
+        user_row['skills'] = skills_map.get(user.id, []) if skills_map else []
+        # Add relationships if session user
+        if session_user_id and rel_map:
+            user_row['relationships'] = rel_map.get(user.id, {
+                "i_follow": False,
+                "i_am_followed_by": False,
+                "in_my_network": False,
+                "i_am_in_their_network": False,
+            })
+        result.append(user_row)
+    return result
+
+@user_bp.route('/members_of_my_network', methods=['GET'])
 def api_members_of_my_network():
     users_id = request.args.get('users_id', type=int)
     invited_goal_id = request.args.get('invited_goal_id', type=int)
@@ -61,6 +104,11 @@ def api_members_of_my_network():
         )
 
     users = query.all()
-    # Use improved user response with skills and relationships
-    result = [get_user_response(u, users_id) for u in users]
+    user_ids = [u.id for u in users]
+
+    # Batch fetch skills and relationships
+    skills_map = batch_get_skills(user_ids) if user_ids else {}
+    rel_map = batch_get_relationships(users_id, user_ids) if user_ids else {}
+
+    result = get_user_response_batch(users, users_id, skills_map, rel_map)
     return jsonify({'result': result})

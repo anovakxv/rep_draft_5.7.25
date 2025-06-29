@@ -7,17 +7,17 @@ from app import db
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.People_Models.user import User
 
-goals_bp = Blueprint('goals', __name__)
+goals_bp = Blueprint('goal_team', __name__)
 
 # --- GET: List all team members for a goal ---
-@goals_bp.route('/api/goals/<int:goal_id>/team', methods=['GET'])
+@goals_bp.route('/<int:goal_id>/team', methods=['GET'])
 def get_goal_team(goal_id):
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
     result = [tm.as_dict() for tm in team]
     return jsonify({"team": result})
 
 # --- POST: Invite or add users to the team ---
-@goals_bp.route('/api/goals/<int:goal_id>/team', methods=['POST'])
+@goals_bp.route('/<int:goal_id>/team', methods=['POST'])
 def invite_goal_team(goal_id):
     data = request.json
     user_id = session.get('user_id')
@@ -37,7 +37,7 @@ def invite_goal_team(goal_id):
     return jsonify({"result": results, "team": [tm.as_dict() for tm in team]})
 
 # --- PATCH: Accept, decline, or mark invites as read ---
-@goals_bp.route('/api/goals/<int:goal_id>/team', methods=['PATCH'])
+@goals_bp.route('/<int:goal_id>/team', methods=['PATCH'])
 def update_goal_team(goal_id):
     data = request.json
     user_id = session.get('user_id')
@@ -73,7 +73,7 @@ def update_goal_team(goal_id):
     return jsonify({"result": results, "team": [tm.as_dict() for tm in team]})
 
 # --- DELETE: Remove or leave team ---
-@goals_bp.route('/api/goals/<int:goal_id>/team/<int:user_id>', methods=['DELETE'])
+@goals_bp.route('/<int:goal_id>/team/<int:user_id>', methods=['DELETE'])
 def remove_goal_team(goal_id, user_id):
     session_user_id = session.get('user_id')
     team = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id).first()

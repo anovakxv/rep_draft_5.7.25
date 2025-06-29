@@ -6,13 +6,13 @@ from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
-from app.models.portal import Portal
+from app.models.Purpose_Models.Portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
 from datetime import datetime
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('send_message', __name__)
 
-@user_bp.route('/api/user/send_message', methods=['POST'])
+@user_bp.route('/send_message', methods=['POST'])
 def api_send_message():
     data = request.get_json()
     user_id = session.get('user_id')
@@ -58,5 +58,11 @@ def api_send_message():
     )
     db.session.commit()
 
-    # Use as_dict() for unified response, includes sender and recipient user objects
+  # Use as_dict() for unified response, includes sender and recipient user objects
     message_obj = msg.as_dict()
+    sender = User.query.filter_by(id=user_id).first()
+    recipient = User.query.filter_by(id=to_user_id).first()
+    message_obj['sender'] = sender.as_dict() if sender else None
+    message_obj['recipient'] = recipient.as_dict() if recipient else None
+
+    return jsonify({'result': message_obj}), 200

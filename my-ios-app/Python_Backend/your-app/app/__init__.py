@@ -42,7 +42,7 @@ def create_app():
 
     # --- Register User API Blueprints (each with a unique alias) ---
     from app.routes.User_Routes.AddToNetwork import user_bp as add_to_network_bp
-    from app.routes.User_Routes.BlockUser import user_bp as block_user_bp
+    # from app.routes.User_Routes.BlockUser import user_bp as block_user_bp
     from app.routes.User_Routes.EditUser import user_bp as edit_user_bp
     from app.routes.User_Routes.Get_Me import user_bp as get_me_bp
     from app.routes.User_Routes.Get_Profile import user_bp as get_profile_bp
@@ -51,17 +51,14 @@ def create_app():
     from app.routes.User_Routes.GetUserNetworks import user_bp as get_user_networks_bp
     from app.routes.User_Routes.GetUsers import user_bp as get_users_bp
     from app.routes.User_Routes.LoginActions import user_bp as login_actions_bp
-    from app.routes.User_Routes.MembersofMyNetwork import user_bp as members_of_my_network_bp
     from app.routes.User_Routes.RegisterUser import user_bp as register_user_bp
     from app.routes.User_Routes.TwitterLogin import user_bp as twitter_login_bp
     from app.routes.User_Routes.Write import user_bp as write_bp
-
-    # This one uses a different blueprint name:
     from app.routes.User_Routes.Get_People import people_bp as get_people_bp
 
     # Register each blueprint, all under /api/user except Get_People (which has its own endpoints)
     app.register_blueprint(add_to_network_bp, url_prefix='/api/user')
-    app.register_blueprint(block_user_bp, url_prefix='/api/user')
+    # app.register_blueprint(block_user_bp, url_prefix='/api/user')
     app.register_blueprint(edit_user_bp, url_prefix='/api/user')
     app.register_blueprint(get_me_bp, url_prefix='/api/user')
     app.register_blueprint(get_profile_bp, url_prefix='/api/user')
@@ -70,7 +67,6 @@ def create_app():
     app.register_blueprint(get_user_networks_bp, url_prefix='/api/user')
     app.register_blueprint(get_users_bp, url_prefix='/api/user')
     app.register_blueprint(login_actions_bp, url_prefix='/api/user')
-    app.register_blueprint(members_of_my_network_bp, url_prefix='/api/user')
     app.register_blueprint(register_user_bp, url_prefix='/api/user')
     app.register_blueprint(twitter_login_bp, url_prefix='/api/user')
     app.register_blueprint(write_bp, url_prefix='/api/user')

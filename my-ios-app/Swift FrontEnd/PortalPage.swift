@@ -1,4 +1,3 @@
-//
 //  PortalPage.swift
 //  Rep 
 //
@@ -41,6 +40,13 @@ struct PortalPage: View {
     let portalId: Int
     let userId: Int
     @Environment(\.dismiss) private var dismiss
+    @State private var showMessageSheet = false
+
+    // Helper to get the Lead Rep user object
+    private func leadRepUser(from portal: PortalDetail) -> User? {
+        guard let leadId = portal.lead_id else { return nil }
+        return portal.aUsers.first(where: { $0.id == leadId })
+    }
 
     var body: some View {
         Group {
@@ -93,6 +99,38 @@ struct PortalPage: View {
                     .padding(.top, 8)
 
                     Spacer()
+                    // --- Bottom Bar (matches ProfileView) ---
+                    HStack(spacing: 30) {
+                        Button(action: {
+                            // Your action here, e.g., join team
+                        }) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                                .frame(width: 291, height: 41)
+                                .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                                .cornerRadius(6)
+                                .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
+                        }
+                        if let lead = leadRepUser(from: portal) {
+                            Button(action: { showMessageSheet = true }) {
+                                Image(systemName: "message")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.black)
+                            }
+                            .accessibilityLabel("Message Lead Rep")
+                        }
+                    }
+                    .frame(height: 51)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                        alignment: .top
+                    )
+                    // --- End Bottom Bar ---
                 }
                 .background(Color.white.edgesIgnoringSafeArea(.all))
                 .navigationBarHidden(true)
@@ -112,6 +150,18 @@ struct PortalPage: View {
                 }
                 .sheet(isPresented: $viewModel.isEditPresented) {
                     EditPortalView(portal: portal)
+                }
+                .sheet(isPresented: $showMessageSheet) {
+                    if let lead = leadRepUser(from: portal) {
+                        // Message will go to the Lead Rep user of the portal
+                        Chat_Individual(
+                            currentUserId: userId,
+                            otherUserId: lead.id,
+                            otherUserName: "\(lead.fname ?? "") \(lead.lname ?? "")"
+                        )
+                    } else {
+                        Text("Lead Rep not found.")
+                    }
                 }
             } else {
                 ProgressView()

@@ -11,7 +11,7 @@ from app.utils.portal_permissions import check_portal_editor_permission
 portal_bp = Blueprint('portal_graphic_sections', __name__)
 
 # GET: List all graphic sections (with files) for a portal
-@portal_bp.route('/api/portal/graphic_sections', methods=['GET'])
+@portal_bp.route('/graphic_sections', methods=['GET'])
 def api_get_portal_graphic_sections():
     portal_id = request.args.get('portal_id')
     user_id = request.args.get('user_id')
@@ -43,7 +43,7 @@ def api_get_portal_graphic_sections():
     return jsonify({'result': result})
 
 # POST: Add or update graphic sections and their files
-@portal_bp.route('/api/portal/graphic_sections', methods=['POST'])
+@portal_bp.route('/graphic_sections', methods=['POST'])
 def api_add_update_portal_graphic_sections():
     data = request.get_json()
     user_id = data.get('user_id')
@@ -100,7 +100,7 @@ def api_add_update_portal_graphic_sections():
     return jsonify({'result': aLog})
 
 # DELETE: Delete graphic sections and their files
-@portal_bp.route('/api/portal/graphic_sections', methods=['DELETE'])
+@portal_bp.route('/graphic_sections', methods=['DELETE'])
 def api_delete_portal_graphic_sections():
     data = request.get_json()
     user_id = data.get('user_id')
@@ -122,7 +122,7 @@ def api_delete_portal_graphic_sections():
     return jsonify({'result': section_ids})
 
 # DELETE: Delete specific files by group hash
-@portal_bp.route('/api/portal/graphic_files', methods=['DELETE'])
+@portal_bp.route('/graphic_files', methods=['DELETE'])
 def api_delete_portal_graphic_files():
     data = request.get_json()
     user_id = data.get('user_id')

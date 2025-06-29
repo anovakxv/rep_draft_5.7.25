@@ -5,10 +5,10 @@
 from flask import Blueprint, request, jsonify
 from app.models.ValueMetric_Models.Goal import Goal
 
-goals_bp = Blueprint('goals', __name__)
+goals_bp = Blueprint('get_user_goals', __name__)
 
 # GET /api/goals/list?users_id=1
-@goals_bp.route('/api/goals/list', methods=['GET'])
+@goals_bp.route('/list', methods=['GET'])
 def get_goals_by_user():
     users_id = request.args.get('users_id', type=int)
     if not users_id:
@@ -38,7 +38,7 @@ def get_goals_by_user():
     return jsonify({"aGoals": aGoals})
 
 # GET /api/goals/portal?portals_id=1
-@goals_bp.route('/api/goals/portal', methods=['GET'])
+@goals_bp.route('/portal', methods=['GET'])
 def get_goals_by_portal():
     portals_id = request.args.get('portals_id', type=int)
     if not portals_id:

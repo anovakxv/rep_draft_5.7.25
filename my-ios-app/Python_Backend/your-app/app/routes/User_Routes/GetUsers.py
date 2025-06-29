@@ -6,9 +6,9 @@ from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.user import User
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('get_users', __name__)
 
-@user_bp.route('/api/user/get_users', methods=['GET'])
+@user_bp.route('/get_users', methods=['GET'])
 def api_get_users():
     args = request.args
     offset = int(args.get('offset', 0))

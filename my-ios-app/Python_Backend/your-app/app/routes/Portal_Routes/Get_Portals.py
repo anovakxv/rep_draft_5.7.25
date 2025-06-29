@@ -5,18 +5,18 @@
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.Purpose_Models.Portal import Portal
-from app.models.users_hidden_portals import UsersHiddenPortals
+# from app.models.users_hidden_portals import UsersHiddenPortals
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.Purpose_Models.PortalUser import PortalUser
-from app.models.portals_users_share import PortalsUsersShare
+# from app.models.portals_users_share import PortalsUsersShare
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload, joinedload
 
 portal_bp = Blueprint('portal_list', __name__)
 
 # --- Existing API for ProfileView "Rep" tab ---
-@portal_bp.route('/api/portals', methods=['GET'])
+@portal_bp.route('/portals', methods=['GET'])
 def api_get_portals():
     """
     Returns a list of portals for the user, each including mainImageUrl for use in portal cards.
@@ -109,7 +109,7 @@ def api_get_portals():
     return jsonify({'result': result})
 
 # --- New API for MainScreen filtering tabs ---
-@portal_bp.route('/api/filter_network_portals', methods=['GET'])
+@portal_bp.route('/filter_network_portals', methods=['GET'])
 def filter_network_portals():
     """
     Returns a list of portals for the MainScreen, filtered by tab: open, ntwk, all.

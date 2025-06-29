@@ -1,4 +1,3 @@
-//
 //  ProfileView.swift
 //  Rep
 //
@@ -377,7 +376,14 @@ struct ProfileView: View {
     @StateObject private var viewModel = ProfileViewModel()
     @State private var selectedTab = 0 // 0: Rep, 1: Goals, 2: Write
     @State private var showAddPurpose = false
+    @State private var showMessageSheet = false // <-- Added for chat sheet
     @Environment(\.dismiss) private var dismiss
+
+    // Replace this with your actual logged-in user ID logic
+    var loggedInUserId: Int {
+        // Example: return from your auth/session manager
+        return 1
+    }
 
     var body: some View {
         NavigationStack {
@@ -475,7 +481,7 @@ struct ProfileView: View {
                 Spacer()
                 BottomBarView(
                     onAdd: { /* Add new item action */ },
-                    onMessage: { /* Message action */ }
+                    onMessage: { showMessageSheet = true } // <-- Open chat sheet
                 )
             }
             .navigationBarHidden(true)
@@ -517,6 +523,19 @@ struct ProfileView: View {
                 )
             }
             // --- End Add Purpose Sheet Navigation ---
+            // --- Message Sheet Navigation ---
+            .sheet(isPresented: $showMessageSheet) {
+                // Message the user being viewed
+                MessageView(
+                    viewModel: MessageViewModel(
+                        currentUserId: loggedInUserId,
+                        otherUserId: viewModel.user.id,
+                        otherUserName: viewModel.user.fullName,
+                        otherUserPhotoURL: viewModel.user.profilePictureURL
+                    )
+                )
+            }
+            // --- End Message Sheet Navigation ---
         }
     }
 }

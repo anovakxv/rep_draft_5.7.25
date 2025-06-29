@@ -11,9 +11,9 @@ from app.models.ValueMetric_Models.Goal import Goal
 # Replace the message sending and goal progress logic with your actual implementations.
 # This route expects a JSON body with user_id, portals_id, and aUsersIDs (list of user IDs to share with).
 
-portal_bp = Blueprint('portal', __name__)
+portal_bp = Blueprint('portal_share', __name__)
 
-@portal_bp.route('/api/portal/share/message', methods=['POST'])
+@portal_bp.route('/share/message', methods=['POST'])
 def api_portal_share_via_message():
     data = request.get_json()
     user_id = data.get('user_id')

@@ -10,7 +10,7 @@ from app.utils.portal_permissions import check_portal_editor_permission
 portal_bp = Blueprint('portal_texts', __name__)
 
 # GET: Get all text sections for a portal
-@portal_bp.route('/api/portal/texts', methods=['GET'])
+@portal_bp.route('/texts', methods=['GET'])
 def api_get_portal_texts():
     portal_id = request.args.get('portal_id')
     user_id = session.get('user_id') or request.args.get('user_id')
@@ -24,7 +24,7 @@ def api_get_portal_texts():
     return jsonify({'result': result})
 
 # POST: Add or update text sections for a portal (replaces all)
-@portal_bp.route('/api/portal/texts', methods=['POST'])
+@portal_bp.route('/texts', methods=['POST'])
 def api_add_update_portal_texts():
     data = request.get_json()
     user_id = session.get('user_id') or data.get('user_id')
@@ -57,7 +57,7 @@ def api_add_update_portal_texts():
     return jsonify({'result': 'Portal texts updated'})
 
 # DELETE: Delete specific text sections by IDs
-@portal_bp.route('/api/portal/texts', methods=['DELETE'])
+@portal_bp.route('/texts', methods=['DELETE'])
 def api_delete_portal_texts():
     data = request.get_json()
     user_id = session.get('user_id') or data.get('user_id')

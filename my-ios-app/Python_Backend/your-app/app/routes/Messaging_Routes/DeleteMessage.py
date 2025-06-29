@@ -6,9 +6,9 @@ from flask import Blueprint, request, jsonify, session
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('delete_message', __name__)
 
-@user_bp.route('/api/user/delete_message', methods=['POST'])
+@user_bp.route('/delete_message', methods=['POST'])
 def api_delete_message():
     data = request.get_json()
     user_id = session.get('user_id')

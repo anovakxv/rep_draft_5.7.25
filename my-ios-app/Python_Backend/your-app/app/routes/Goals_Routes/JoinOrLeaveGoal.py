@@ -7,9 +7,9 @@ from app import db
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 
-goals_bp = Blueprint('goals', __name__)
+goals_bp = Blueprint('join_leave_goal', __name__)
 
-@goals_bp.route('/api/goals/join_leave', methods=['POST'])
+@goals_bp.route('/join_leave', methods=['POST'])
 def api_join_leave_goal():
     data = request.json
     user_id = session.get('user_id')

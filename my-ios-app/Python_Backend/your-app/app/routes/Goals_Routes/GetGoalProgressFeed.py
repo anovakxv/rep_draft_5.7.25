@@ -7,9 +7,9 @@ from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.People_Models.user import User
 
-goals_bp = Blueprint('goals', __name__)
+goals_bp = Blueprint('get_goal_feed', __name__)
 
-@goals_bp.route('/api/goals/progress_feed', methods=['GET'])
+@goals_bp.route('/progress_feed', methods=['GET'])
 def api_get_goals_progress_feed():
     goal_id = request.args.get('goals_id', type=int)
     offset = request.args.get('offset', default=0, type=int)

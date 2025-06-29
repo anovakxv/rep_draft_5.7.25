@@ -9,9 +9,9 @@ from app.utils.user_utils import manage_user_row
 import hashlib
 import os
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('twitter_login', __name__)
 
-@user_bp.route('/api/user/twitter_login', methods=['POST'])
+@user_bp.route('/twitter_login', methods=['POST'])
 def api_twitter_login():
     data = request.get_json()
     twitter_id = data.get('twitter_id')

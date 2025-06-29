@@ -7,23 +7,23 @@ from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.user import User
-from app.models.portal import Portal
+from app.models.Purpose_Models.Portal import Portal
 from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
-from app.models.messages_read import MessagesRead
+from app.models.People_Models.Messaging_Models.messages_read import MessagesRead
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
-from app.models.users_hidden_conversations import UsersHiddenConversations
-from app.models.chats_hidden_conversations import ChatsHiddenConversations
+# from app.models.users_hidden_conversations import UsersHiddenConversations
+# from app.models.chats_hidden_conversations import ChatsHiddenConversations
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('get_messages', __name__)
 
-@user_bp.route('/api/user/get_messages', methods=['GET'])
+@user_bp.route('/get_messages', methods=['GET'])
 def api_get_messages():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
 
     args = request.args
-    show_hidden = args.get('show_hidden', '1')
+    # show_hidden = args.get('show_hidden', '1')
     newer_than_id = args.get('newer_than_id')
     chats_id = args.get('chats_id')
     users_id = args.get('users_id')

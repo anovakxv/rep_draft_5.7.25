@@ -14,9 +14,9 @@ import jwt
 import datetime
 import time
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('login_user', __name__)
 
-@user_bp.route('/api/user/login', methods=['POST'])
+@user_bp.route('/login', methods=['POST'])
 def api_login_user():
     data = request.get_json()
     email = data.get('email', '').strip()
@@ -58,7 +58,7 @@ def api_login_user():
     resp.set_cookie('upd', str(datetime.datetime.utcnow().timestamp()), max_age=60*60*24*30, path='/')
     return resp
 
-@user_bp.route('/api/user/logout', methods=['POST'])
+@user_bp.route('/logout', methods=['POST'])
 def api_logout_user():
     session.pop('user_id', None)
     resp = make_response(jsonify({'result': 'ok'}))
@@ -66,7 +66,7 @@ def api_logout_user():
     resp.set_cookie('uid', '', expires=0, path='/')
     return resp
 
-@user_bp.route('/api/user/forgot_password', methods=['POST'])
+@user_bp.route('/forgot_password', methods=['POST'])
 def api_forgot_password():
     data = request.get_json()
     email = data.get('email', '')

@@ -8,9 +8,9 @@ from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.user import User
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('manage_chat', __name__)
 
-@user_bp.route('/api/user/manage_chat', methods=['POST'])
+@user_bp.route('/manage_chat', methods=['POST'])
 def api_manage_chat():
     data = request.get_json()
     user_id = session.get('user_id')

@@ -11,7 +11,7 @@ from app.models.People_Models.UserFollower import UserFollower
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.utils.user_utils import manage_user_row
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('get_me', __name__)
 
 def get_user_response(user, session_user_id=None):
     user_row = user.as_dict()
@@ -29,7 +29,7 @@ def get_user_response(user, session_user_id=None):
     }
     return user_row
 
-@user_bp.route('/api/user/me', methods=['GET'])
+@user_bp.route('/me', methods=['GET'])
 def api_user_me():
     session_user_id = session.get('user_id')
     if not session_user_id:

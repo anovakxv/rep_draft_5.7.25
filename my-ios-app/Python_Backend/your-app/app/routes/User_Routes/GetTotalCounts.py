@@ -6,9 +6,9 @@ from flask import Blueprint, jsonify, session
 from app import db
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 
-user_bp = Blueprint('user', __name__)
+user_bp = Blueprint('get_total_counts', __name__)
 
-@user_bp.route('/api/user/get_total_counts', methods=['GET'])
+@user_bp.route('/get_total_counts', methods=['GET'])
 def api_get_total_counts():
     user_id = session.get('user_id')
     if not user_id:

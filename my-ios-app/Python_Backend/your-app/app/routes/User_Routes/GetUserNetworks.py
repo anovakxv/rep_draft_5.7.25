@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.UserNetwork import UserNetwork
@@ -12,6 +12,7 @@ from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
 from app.models.People_Models.UserFollower import UserFollower
 from app.utils.user_utils import manage_user_row
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('get_user_skills', __name__)
 
@@ -76,14 +77,15 @@ def get_user_response_batch(users, session_user_id=None, skills_map=None, rel_ma
     return result
 
 @user_bp.route('/members_of_my_network', methods=['GET'])
+@jwt_required
 def api_members_of_my_network():
-    users_id = request.args.get('users_id', type=int)
+    session_user_id = g.current_user.id
     invited_goal_id = request.args.get('invited_goal_id', type=int)
     not_in_chats_id = request.args.get('not_in_chats_id', type=int)
     keyword = request.args.get('keyword', '')
 
-    if not users_id:
-        return jsonify({'error': 'users_id is empty!'}), 400
+    # Always use the session user as the network owner
+    users_id = session_user_id
 
     query = db.session.query(User).join(
         UserNetwork, UserNetwork.users_id2 == User.id

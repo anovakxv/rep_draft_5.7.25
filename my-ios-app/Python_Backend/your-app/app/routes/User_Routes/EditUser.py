@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.Skill import Skill
@@ -10,6 +10,7 @@ from app.models.People_Models.UserSkill import UserSkill
 from app.models.People_Models.UserFollower import UserFollower
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.utils.user_utils import check_new_email, check_new_username, manage_user_row
+from app.utils.auth import jwt_required
 import hashlib
 import os
 import uuid
@@ -39,6 +40,7 @@ def get_user_response(user, session_user_id=None):
     return user_row
 
 @user_bp.route('/edit', methods=['POST'])
+@jwt_required
 def api_edit_user():
     # Accept both JSON and multipart/form-data for profile picture upload
     if request.content_type and request.content_type.startswith('multipart/form-data'):
@@ -48,13 +50,8 @@ def api_edit_user():
         data = request.get_json()
         files = {}
 
-    user_id = session.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'login required!'}), 401
-
-    user = User.query.filter_by(id=user_id).first()
-    if not user:
-        return jsonify({'error': "The user doesn't exist anymore"}), 404
+    user = g.current_user
+    user_id = user.id
 
     # Email update
     if data.get('email') and data['email'] != user.email:
@@ -111,4 +108,5 @@ def api_edit_user():
         db.session.commit()
 
     # Return updated user profile with skills and relationships
-    return jsonify(get_user_response(user, session_user_id=user_id))
+    return jsonify(get_user_response(user, session_user_id=user_id))     
+                                

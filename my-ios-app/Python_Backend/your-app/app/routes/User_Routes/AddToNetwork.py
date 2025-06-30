@@ -2,17 +2,23 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.UserNetwork import UserNetwork
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('add_to_network', __name__)
 
+def does_user_block(blocker_id, blocked_id):
+    # Dummy implementation, replace with your actual block logic if needed
+    return False
+
 @user_bp.route('/network_action', methods=['POST'])
+@jwt_required
 def api_add_to_network_action():
     data = request.get_json()
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     target_user_id = data.get('users_id')
     todo = data.get('todo')
 

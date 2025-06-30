@@ -2,18 +2,20 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.user import User
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
+from app.utils.auth import jwt_required
 
 group_chat_bp = Blueprint('group_chat', __name__)
 
 @group_chat_bp.route('/api/group_chat', methods=['GET'])
+@jwt_required
 def api_group_chat():
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     chats_id = request.args.get('chats_id')
     limit = int(request.args.get('limit', 50))
     offset = int(request.args.get('offset', 0))

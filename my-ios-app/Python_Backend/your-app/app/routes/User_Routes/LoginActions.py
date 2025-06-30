@@ -50,6 +50,10 @@ def api_login_user():
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
     }, jwt_secret, algorithm='HS256')
 
+    # If using PyJWT >= 2.0, jwt.encode returns a bytes object, so decode to str
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
     mark_all_activities_as_read(user.id)
 

@@ -6,6 +6,7 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 from config import Config
+from flask_migrate import Migrate
 
 db = SQLAlchemy()
 socketio = SocketIO(cors_allowed_origins="*")
@@ -13,6 +14,10 @@ socketio = SocketIO(cors_allowed_origins="*")
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+
+    db.init_app(app)
+    socketio.init_app(app)
+    migrate = Migrate(app, db)
 
     # --- Import all models so Flask-Migrate can detect them ---
 
@@ -25,16 +30,13 @@ def create_app():
     from app.models.People_Models.Messaging_Models import Direct_Messages, Group_Messages, GroupChatMetaData, GroupChatUsers
 
     # Purpose_Models
-    from app.models.Purpose_Models import Portal, PortalEvent, PortalGraphicSection, PortalInvite, PortalTexts, PortalUser
+    from app.models.Purpose_Models import Portal, PortalEvent, PortalGraphicSection, PortalInvite, PortalTexts, PortalUser, PortalsUsersShare
 
     # s3Content_Models
     from app.models.s3Content_Models import s3Content
 
     # ValueMetric_Models
     from app.models.ValueMetric_Models import Goal, GoalMetric, GoalPreInvite, GoalProgressLog, GoalTeam, GoalType, ReportingIncrement
-
-    db.init_app(app)
-    socketio.init_app(app)
 
     # --- Register API Blueprints ---
     from app.routes.api import api_bp
@@ -81,11 +83,11 @@ def create_app():
     from app.routes.Portal_Routes.Portal_TextSections import portal_bp as portal_texts_bp
     from app.routes.Portal_Routes.SharePortalViaMessage import portal_bp as portal_share_bp
 
-    app.register_blueprint(portal_list_bp)
-    app.register_blueprint(portal_details_bp)
-    app.register_blueprint(portal_graphic_sections_bp)
-    app.register_blueprint(portal_texts_bp)
-    app.register_blueprint(portal_share_bp)
+    app.register_blueprint(portal_list_bp, url_prefix='/api/portal')
+    app.register_blueprint(portal_details_bp, url_prefix='/api/portal')
+    app.register_blueprint(portal_graphic_sections_bp, url_prefix='/api/portal')
+    app.register_blueprint(portal_texts_bp, url_prefix='/api/portal')
+    app.register_blueprint(portal_share_bp, url_prefix='/api/portal')
 
     # --- Register Messaging API Blueprints ---
     from app.routes.Messaging_Routes.DeleteGroupChat import user_bp as delete_group_chat_bp

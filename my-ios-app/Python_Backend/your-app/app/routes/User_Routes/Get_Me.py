@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, jsonify, g
 from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.Skill import Skill
@@ -10,6 +10,7 @@ from app.models.People_Models.UserSkill import UserSkill
 from app.models.People_Models.UserFollower import UserFollower
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.utils.user_utils import manage_user_row
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('get_me', __name__)
 
@@ -30,15 +31,8 @@ def get_user_response(user, session_user_id=None):
     return user_row
 
 @user_bp.route('/me', methods=['GET'])
+@jwt_required
 def api_user_me():
-    session_user_id = session.get('user_id')
-    if not session_user_id:
-        return jsonify({'error': 'login required!'}), 401
-
-    user = User.query.filter_by(id=session_user_id).first()
-    if not user:
-        return jsonify({'error': "The user doesn't exist anymore"}), 404
-
-    user_row = get_user_response(user, session_user_id)
+    user = g.current_user
+    user_row = get_user_response(user, user.id)
     return jsonify({'result': user_row})
-    

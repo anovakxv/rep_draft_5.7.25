@@ -2,11 +2,12 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.Purpose_Models.Portal import Portal
 from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
+from app.utils.auth import jwt_required
 
 # Replace the message sending and goal progress logic with your actual implementations.
 # This route expects a JSON body with user_id, portals_id, and aUsersIDs (list of user IDs to share with).
@@ -14,9 +15,10 @@ from app.models.ValueMetric_Models.Goal import Goal
 portal_bp = Blueprint('portal_share', __name__)
 
 @portal_bp.route('/share/message', methods=['POST'])
+@jwt_required
 def api_portal_share_via_message():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     portal_id = data.get('portals_id')
     users_ids = data.get('aUsersIDs')
 

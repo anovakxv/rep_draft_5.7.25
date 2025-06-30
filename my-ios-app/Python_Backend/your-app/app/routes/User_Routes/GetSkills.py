@@ -2,13 +2,15 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Skill import Skill 
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('get_skills', __name__)
 
 @user_bp.route('/get_skills', methods=['GET'])
+@jwt_required
 def api_get_skills():
     args = request.args
     offset = int(args.get('offset', 0))

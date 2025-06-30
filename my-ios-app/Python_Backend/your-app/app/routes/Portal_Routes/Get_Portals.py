@@ -2,21 +2,23 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.Purpose_Models.Portal import Portal
 # from app.models.users_hidden_portals import UsersHiddenPortals
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.Purpose_Models.PortalUser import PortalUser
-# from app.models.portals_users_share import PortalsUsersShare
+from app.models.Purpose_Models.PortalsUsersShare import PortalsUsersShare
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload, joinedload
+from app.utils.auth import jwt_required
 
 portal_bp = Blueprint('portal_list', __name__)
 
 # --- Existing API for ProfileView "Rep" tab ---
 @portal_bp.route('/portals', methods=['GET'])
+@jwt_required
 def api_get_portals():
     """
     Returns a list of portals for the user, each including mainImageUrl for use in portal cards.
@@ -34,6 +36,10 @@ def api_get_portals():
     portals_id = args.get('portals_id')
     user_id = args.get('user_id')
     shared = args.get('shared', '0')
+
+    # Use JWT user if not provided
+    if not user_id and hasattr(g, "current_user"):
+        user_id = g.current_user.id
 
     if offset < 0:
         return jsonify({'error': 'offset is wrong!'}), 400
@@ -110,6 +116,7 @@ def api_get_portals():
 
 # --- New API for MainScreen filtering tabs ---
 @portal_bp.route('/filter_network_portals', methods=['GET'])
+@jwt_required
 def filter_network_portals():
     """
     Returns a list of portals for the MainScreen, filtered by tab: open, ntwk, all.
@@ -123,6 +130,10 @@ def filter_network_portals():
     keyword = args.get('keyword', '')
     cities_id = args.get('cities_id')
     portals_id = args.get('portals_id')
+
+    # Use JWT user if not provided
+    if not user_id and hasattr(g, "current_user"):
+        user_id = g.current_user.id
 
     if offset < 0:
         return jsonify({'error': 'offset is wrong!'}), 400

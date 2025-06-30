@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.Purpose_Models.Portal import Portal
 from app.models.ValueMetric_Models.Goal import Goal
@@ -15,15 +15,17 @@ from app.utils.portal_permissions import check_portal_editor_permission
 from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy import func
 from datetime import datetime
+from app.utils.auth import jwt_required
 
 portal_bp = Blueprint('portal', __name__)
 
 # GET: Portal details
 @portal_bp.route('/details', methods=['GET'])
+@jwt_required
 def api_portal_details():
     # Accept both 'portal_id' and 'portals_id'
     portal_id = request.args.get('portal_id', type=int) or request.args.get('portals_id', type=int)
-    user_id = session.get('user_id') or request.args.get('user_id', type=int)
+    user_id = g.current_user.id or request.args.get('user_id', type=int)
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
@@ -100,14 +102,15 @@ def api_portal_details():
     return jsonify({'result': portal_data})
 
 # POST: Create portal
-@portal_bp.route('', methods=['POST'])
+@portal_bp.route('/', methods=['POST'])
+@jwt_required
 def api_create_portal():
     data = request.get_json()
     required_fields = ['name', 'about']
     if not data or not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
 
-    user_id = session.get('user_id') or data.get('users_id')
+    user_id = g.current_user.id or data.get('users_id')
     if not user_id:
         return jsonify({'error': 'users_id required'}), 400
 
@@ -140,9 +143,10 @@ def api_create_portal():
 
 # POST: Edit portal
 @portal_bp.route('/edit', methods=['POST'])
+@jwt_required
 def api_edit_portal():
     data = request.get_json()
-    user_id = session.get('user_id') or data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     portal_id = data.get('portal_id')
 
     if not user_id:
@@ -205,9 +209,10 @@ def api_edit_portal():
 
 # POST: Delete portal
 @portal_bp.route('/delete', methods=['POST'])
+@jwt_required
 def api_delete_portal():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     portal_id = data.get('portal_id')
 
     if not user_id:
@@ -230,9 +235,10 @@ def api_delete_portal():
 
 # POST: Remove a user from a portal
 @portal_bp.route('/user/delete', methods=['POST'])
+@jwt_required
 def api_delete_portal_user():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     portals_users_id = data.get('portals_users_id')
 
     if not user_id:
@@ -263,9 +269,10 @@ def api_delete_portal_user():
 
 # GET: Find the nearest portal representative (leader)
 @portal_bp.route('/nearest_rep', methods=['GET'])
+@jwt_required
 def api_get_portal_nearest_rep():
     portal_id = request.args.get('portals_id')
-    user_id = request.args.get('user_id')
+    user_id = g.current_user.id or request.args.get('user_id')
     keyword = request.args.get('keyword', '')
     lat = request.args.get('lat')
     lng = request.args.get('lng')

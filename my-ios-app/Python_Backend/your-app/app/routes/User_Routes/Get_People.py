@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
@@ -12,6 +12,7 @@ from app.models.People_Models.user import User
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
+from app.utils.auth import jwt_required
 
 people_bp = Blueprint('people', __name__)
 
@@ -73,18 +74,13 @@ def batch_get_last_group_messages(chat_ids):
     return last_msg_map
 
 @people_bp.route('/api/active_chat_list', methods=['GET'])
+@jwt_required
 def api_active_chat_list():
     """
     Returns the user's active chat list (OPEN tab): all direct and group chats the user is part of,
     sorted by most recent message (direct or group) descending.
     """
-    user_id = session.get('user_id') or request.args.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'Login error!'}), 401
-    try:
-        user_id = int(user_id)
-    except Exception:
-        return jsonify({'error': 'Invalid user_id!'}), 400
+    user_id = g.current_user.id
 
     limit = int(request.args.get('limit', 50))
     offset = int(request.args.get('offset', 0))
@@ -167,18 +163,13 @@ def api_active_chat_list():
     return jsonify({'result': result})
 
 @people_bp.route('/api/filter_people', methods=['GET'])
+@jwt_required
 def filter_people():
     """
     Returns a list of people for the MainScreen, filtered by tab: open, ntwk, all.
-    Use ?user_id=...&tab=open|ntwk|all
+    Use ?tab=open|ntwk|all&keyword=...&limit=...&offset=...
     """
-    user_id = session.get('user_id') or request.args.get('user_id')
-    if not user_id:
-        return jsonify({'error': 'Login error!'}), 401
-    try:
-        user_id = int(user_id)
-    except Exception:
-        return jsonify({'error': 'Invalid user_id!'}), 400
+    user_id = g.current_user.id
 
     tab = request.args.get('tab', 'open')  # 'open', 'ntwk', 'all'
     keyword = request.args.get('keyword', '')
@@ -210,7 +201,6 @@ def filter_people():
             (User.fname.ilike(f"%{keyword}%")) | (User.lname.ilike(f"%{keyword}%")) | (User.username.ilike(f"%{keyword}%"))
         )
 
-  
     users = query.offset(offset).limit(limit).all()
     result = [u.as_dict() for u in users]
     return jsonify({'result': result})

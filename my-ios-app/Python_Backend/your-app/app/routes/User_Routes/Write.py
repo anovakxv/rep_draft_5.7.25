@@ -2,14 +2,16 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Write_Models.Writings_Model import Write
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('user_writes', __name__)
 
 # --- 1. List all writes for a user ---
 @user_bp.route('/writes', methods=['GET'])
+@jwt_required
 def get_user_writes():
     users_id = request.args.get('users_id', type=int)
     if not users_id:
@@ -20,8 +22,9 @@ def get_user_writes():
 
 # --- 2. Add a new write block ---
 @user_bp.route('/write', methods=['POST'])
+@jwt_required
 def add_user_write():
-    users_id = session.get('user_id')
+    users_id = g.current_user.id
     data = request.get_json()
     title = data.get('title', '').strip()
     content = data.get('content', '').strip()
@@ -36,8 +39,9 @@ def add_user_write():
 
 # --- 3. Edit a write block ---
 @user_bp.route('/write/<int:write_id>', methods=['PUT'])
+@jwt_required
 def edit_user_write(write_id):
-    users_id = session.get('user_id')
+    users_id = g.current_user.id
     write = Write.query.get(write_id)
     if not write or write.users_id != users_id:
         return jsonify({'error': 'Write not found or unauthorized'}), 404
@@ -51,8 +55,9 @@ def edit_user_write(write_id):
 
 # --- 4. Delete a write block ---
 @user_bp.route('/write/<int:write_id>', methods=['DELETE'])
+@jwt_required
 def delete_user_write(write_id):
-    users_id = session.get('user_id')
+    users_id = g.current_user.id
     write = Write.query.get(write_id)
     if not write or write.users_id != users_id:
         return jsonify({'error': 'Write not found or unauthorized'}), 404

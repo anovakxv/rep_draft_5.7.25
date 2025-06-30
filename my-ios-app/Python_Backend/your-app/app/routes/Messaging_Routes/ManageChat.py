@@ -2,18 +2,20 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.user import User
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('manage_chat', __name__)
 
 @user_bp.route('/manage_chat', methods=['POST'])
+@jwt_required
 def api_manage_chat():
     data = request.get_json()
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     chats_id = data.get('chats_id')
     title = data.get('title')
     aAddIDs = data.get('aAddIDs', [])

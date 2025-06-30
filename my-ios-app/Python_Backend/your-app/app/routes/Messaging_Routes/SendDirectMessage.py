@@ -2,20 +2,22 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
+from app.utils.auth import jwt_required
 from datetime import datetime
 
 user_bp = Blueprint('send_message', __name__)
 
 @user_bp.route('/send_message', methods=['POST'])
+@jwt_required
 def api_send_message():
     data = request.get_json()
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     to_user_id = data.get('users_id')
     message_text = data.get('message')
     portals_id = data.get('portals_id', None)
@@ -58,7 +60,7 @@ def api_send_message():
     )
     db.session.commit()
 
-  # Use as_dict() for unified response, includes sender and recipient user objects
+    # Use as_dict() for unified response, includes sender and recipient user objects
     message_obj = msg.as_dict()
     sender = User.query.filter_by(id=user_id).first()
     recipient = User.query.filter_by(id=to_user_id).first()

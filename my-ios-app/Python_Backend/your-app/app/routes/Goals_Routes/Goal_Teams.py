@@ -2,15 +2,17 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.People_Models.user import User
+from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('goal_team', __name__)
 
 # --- GET: List all team members for a goal ---
 @goals_bp.route('/<int:goal_id>/team', methods=['GET'])
+@jwt_required
 def get_goal_team(goal_id):
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
     result = [tm.as_dict() for tm in team]
@@ -18,9 +20,10 @@ def get_goal_team(goal_id):
 
 # --- POST: Invite or add users to the team ---
 @goals_bp.route('/<int:goal_id>/team', methods=['POST'])
+@jwt_required
 def invite_goal_team(goal_id):
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     users = data.get('users', [])
     results = {}
     for u_id in users:
@@ -38,9 +41,10 @@ def invite_goal_team(goal_id):
 
 # --- PATCH: Accept, decline, or mark invites as read ---
 @goals_bp.route('/<int:goal_id>/team', methods=['PATCH'])
+@jwt_required
 def update_goal_team(goal_id):
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     action = data.get('action')  # 'accept', 'decline', 'mark_as_read'
     users = data.get('users', [])
     results = {}
@@ -74,8 +78,9 @@ def update_goal_team(goal_id):
 
 # --- DELETE: Remove or leave team ---
 @goals_bp.route('/<int:goal_id>/team/<int:user_id>', methods=['DELETE'])
+@jwt_required
 def remove_goal_team(goal_id, user_id):
-    session_user_id = session.get('user_id')
+    session_user_id = g.current_user.id
     team = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id).first()
     if not team:
         return jsonify({"error": "not found"}), 404

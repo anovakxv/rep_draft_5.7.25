@@ -2,16 +2,18 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('goal_progress', __name__)
 
 # --- GET: List progress logs for a goal ---
 @goals_bp.route('/<int:goal_id>/progress', methods=['GET'])
+@jwt_required
 def get_goal_progress(goal_id):
     logs = GoalProgressLog.query.filter_by(goals_id=goal_id).order_by(GoalProgressLog.timestamp.desc()).all()
     result = [log.as_dict() for log in logs]
@@ -19,9 +21,10 @@ def get_goal_progress(goal_id):
 
 # --- POST: Add a progress log (update filled_quota) ---
 @goals_bp.route('/<int:goal_id>/progress', methods=['POST'])
+@jwt_required
 def add_goal_progress(goal_id):
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     added_value = data.get('added_value')
     note = data.get('note', '')
 
@@ -68,9 +71,10 @@ def add_goal_progress(goal_id):
 
 # --- PATCH: Edit a progress log ---
 @goals_bp.route('/<int:goal_id>/progress/<int:log_id>', methods=['PATCH'])
+@jwt_required
 def edit_goal_progress(goal_id, log_id):
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     log = GoalProgressLog.query.filter_by(id=log_id, goals_id=goal_id).first()
     if not log:
         return jsonify({'error': 'Progress log not found'}), 404
@@ -98,8 +102,9 @@ def edit_goal_progress(goal_id, log_id):
 
 # --- DELETE: Remove a progress log ---
 @goals_bp.route('/<int:goal_id>/progress/<int:log_id>', methods=['DELETE'])
+@jwt_required
 def delete_goal_progress(goal_id, log_id):
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     log = GoalProgressLog.query.filter_by(id=log_id, goals_id=goal_id).first()
     if not log:
         return jsonify({'error': 'Progress log not found'}), 404

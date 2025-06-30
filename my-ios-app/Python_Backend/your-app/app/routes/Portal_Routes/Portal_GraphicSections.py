@@ -2,19 +2,21 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
 from app.models.s3Content_Models.s3Content import S3Content, PortalGraphicSectionS3Content
 from app.utils.portal_permissions import check_portal_editor_permission
+from app.utils.auth import jwt_required
 
 portal_bp = Blueprint('portal_graphic_sections', __name__)
 
 # GET: List all graphic sections (with files) for a portal
 @portal_bp.route('/graphic_sections', methods=['GET'])
+@jwt_required
 def api_get_portal_graphic_sections():
     portal_id = request.args.get('portal_id')
-    user_id = request.args.get('user_id')
+    user_id = g.current_user.id or request.args.get('user_id')
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
     if not portal_id:
@@ -44,9 +46,10 @@ def api_get_portal_graphic_sections():
 
 # POST: Add or update graphic sections and their files
 @portal_bp.route('/graphic_sections', methods=['POST'])
+@jwt_required
 def api_add_update_portal_graphic_sections():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     portal_id = data.get('portal_id')
     sections = data.get('aSections')
     if not user_id or not portal_id or not isinstance(sections, list) or not sections:
@@ -101,9 +104,10 @@ def api_add_update_portal_graphic_sections():
 
 # DELETE: Delete graphic sections and their files
 @portal_bp.route('/graphic_sections', methods=['DELETE'])
+@jwt_required
 def api_delete_portal_graphic_sections():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     section_ids = data.get('aSectionIDs')
     if not user_id or not isinstance(section_ids, list) or not section_ids:
         return jsonify({'error': 'Missing or invalid parameters'}), 400
@@ -123,9 +127,10 @@ def api_delete_portal_graphic_sections():
 
 # DELETE: Delete specific files by group hash
 @portal_bp.route('/graphic_files', methods=['DELETE'])
+@jwt_required
 def api_delete_portal_graphic_files():
     data = request.get_json()
-    user_id = data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     group_hashes = data.get('aGroupHash')
     if not user_id or not isinstance(group_hashes, list) or not group_hashes:
         return jsonify({'error': 'Missing or invalid parameters'}), 400

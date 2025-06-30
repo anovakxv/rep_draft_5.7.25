@@ -2,14 +2,16 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.People_Models.user import User
+from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('get_goal_feed', __name__)
 
 @goals_bp.route('/progress_feed', methods=['GET'])
+@jwt_required
 def api_get_goals_progress_feed():
     goal_id = request.args.get('goals_id', type=int)
     offset = request.args.get('offset', default=0, type=int)

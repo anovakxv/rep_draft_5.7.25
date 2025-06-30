@@ -2,17 +2,19 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 # from app.models.chats_hidden_conversations import ChatsHiddenConversations
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('hide_chat_convo', __name__)
 
 @user_bp.route('/hide_chat_conversation', methods=['POST'])
+@jwt_required
 def api_hide_chat_conversation():
     data = request.get_json()
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     chats_id = data.get('chats_id')
     todo = data.get('todo')
 

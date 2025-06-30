@@ -2,17 +2,19 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('join_leave_goal', __name__)
 
 @goals_bp.route('/join_leave', methods=['POST'])
+@jwt_required
 def api_join_leave_goal():
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     goals_ids = data.get('aGoalsIDs', [])
     todo = data.get('todo')  # 'join' or 'leave'
 

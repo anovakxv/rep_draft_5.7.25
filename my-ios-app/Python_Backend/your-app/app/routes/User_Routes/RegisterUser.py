@@ -50,7 +50,6 @@ def api_register_user():
         lname=data.get('lname', ''),
         username=data['email'],
         confirmed=True,
-        facebook_id=data.get('facebook_id', ''),
         device_token=data.get('device_token', ''),
         twitter_id=data.get('twitter_id', ''),
         manual_city=data.get('manual_city', ''),

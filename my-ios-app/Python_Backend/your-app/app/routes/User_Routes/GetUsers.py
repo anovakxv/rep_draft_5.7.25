@@ -2,13 +2,15 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.user import User
+from app.utils.auth import jwt_required
 
 user_bp = Blueprint('get_users', __name__)
 
 @user_bp.route('/get_users', methods=['GET'])
+@jwt_required
 def api_get_users():
     args = request.args
     offset = int(args.get('offset', 0))
@@ -19,7 +21,7 @@ def api_get_users():
     lng = args.get('lng')
     restrict_by_distance = args.get('restrict_by_distance', '0')
     distance = float(args.get('distance', 10))
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
 
     if offset < 0:
         return jsonify({'error': 'offset is wrong!'}), 400

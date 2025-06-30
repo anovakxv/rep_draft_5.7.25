@@ -2,10 +2,11 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import session, jsonify
+from flask import g, jsonify
 from app.models.People_Models.Messaging_Models.GroupChatUsers import GroupChatUsers
 from app.models.People_Models.Messaging_Models.Group_Messages import Group_Messages
 from app.models.People_Models.user import User
+from app.utils.auth import jwt_required
 
 def is_user_in_chat(user_id, chats_id):
     """
@@ -37,13 +38,15 @@ def require_login_and_chat_membership(chats_id):
     Checks if the user is logged in and is a member of the chat.
     Returns (user_id, error_response) where error_response is None if checks pass.
     """
-    user_id = session.get('user_id')
-    if not user_id:
-        return None, jsonify({'error': 'login required!'}), 401
+    # Use JWT auth context
+    user_id = getattr(g, "current_user", None)
+    if not user_id or not getattr(g.current_user, "id", None):
+        return None, (jsonify({'error': 'login required!'}), 401)
 
+    user_id = g.current_user.id
     is_member = GroupChatUsers.query.filter_by(group_id=chats_id, user_id=user_id).count()
     if not is_member:
-        return None, jsonify({'error': 'permission denied'}), 403
+        return None, (jsonify({'error': 'permission denied'}), 403)
 
     return user_id, None
 
@@ -51,7 +54,6 @@ def chat_exists(chats_id):
     """
     Returns True if the chat exists, otherwise False.
     """
-    # If you have a GroupChat model, use it here. Otherwise, adjust as needed.
     from app.models.People_Models.Messaging_Models.GroupChatMetaData import GroupChatMetaData
     return GroupChatMetaData.query.filter_by(id=chats_id).first() is not None
 

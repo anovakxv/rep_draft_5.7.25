@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
@@ -11,6 +11,7 @@ from app.models.ValueMetric_Models.GoalMetric import GoalMetric
 from app.models.ValueMetric_Models.GoalType import GoalType
 from app.models.ValueMetric_Models.ReportingIncrement import ReportingIncrement
 from app.models.People_Models.user import User
+from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('goals', __name__)
 
@@ -19,9 +20,10 @@ def check_permission(goal, user_id):
 
 # --- GET: Goal Details ---
 @goals_bp.route('/details', methods=['GET'])
+@jwt_required
 def api_goal_details():
     goal_id = request.args.get('goals_id', type=int)
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     if not goal_id:
         return jsonify({'error': 'goals_id required!'}), 400
     goal = Goal.query.get(goal_id)
@@ -31,9 +33,10 @@ def api_goal_details():
 
 # --- POST: Create Goal ---
 @goals_bp.route('/create', methods=['POST'])
+@jwt_required
 def api_create_goal():
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
     required_fields = ['description', 'portals_id', 'goal_types_id', 'reporting_increments_id']
@@ -82,9 +85,10 @@ def api_create_goal():
 
 # --- POST: Edit Goal ---
 @goals_bp.route('/edit', methods=['POST'])
+@jwt_required
 def api_edit_goal():
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     goal_id = data.get('goals_id')
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
@@ -117,9 +121,10 @@ def api_edit_goal():
 
 # --- POST: Delete Goal ---
 @goals_bp.route('/delete', methods=['POST'])
+@jwt_required
 def api_delete_goal():
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     goal_id = data.get('goals_id')
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401

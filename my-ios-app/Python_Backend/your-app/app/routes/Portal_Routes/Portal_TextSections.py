@@ -2,18 +2,20 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.Purpose_Models.PortalTexts import PortalText
 from app.utils.portal_permissions import check_portal_editor_permission
+from app.utils.auth import jwt_required
 
 portal_bp = Blueprint('portal_texts', __name__)
 
 # GET: Get all text sections for a portal
 @portal_bp.route('/texts', methods=['GET'])
+@jwt_required
 def api_get_portal_texts():
     portal_id = request.args.get('portal_id')
-    user_id = session.get('user_id') or request.args.get('user_id')
+    user_id = g.current_user.id or request.args.get('user_id')
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
     if not portal_id:
@@ -25,9 +27,10 @@ def api_get_portal_texts():
 
 # POST: Add or update text sections for a portal (replaces all)
 @portal_bp.route('/texts', methods=['POST'])
+@jwt_required
 def api_add_update_portal_texts():
     data = request.get_json()
-    user_id = session.get('user_id') or data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     portal_id = data.get('portal_id')
     texts = data.get('aTexts')
 
@@ -58,9 +61,10 @@ def api_add_update_portal_texts():
 
 # DELETE: Delete specific text sections by IDs
 @portal_bp.route('/texts', methods=['DELETE'])
+@jwt_required
 def api_delete_portal_texts():
     data = request.get_json()
-    user_id = session.get('user_id') or data.get('user_id')
+    user_id = g.current_user.id or data.get('user_id')
     portal_id = data.get('portal_id')
     text_ids = data.get('aTextIDs')
 

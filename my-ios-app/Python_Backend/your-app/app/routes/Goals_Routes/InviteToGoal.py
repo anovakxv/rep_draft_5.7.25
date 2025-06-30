@@ -2,17 +2,19 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.GoalPreInvite import GoalPreInvite
+from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('goal_invite', __name__)
 
 # --- POST: Add invites (email, phone) ---
 @goals_bp.route('/<int:goal_id>/invites', methods=['POST'])
+@jwt_required
 def add_goal_invites(goal_id):
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     emails = data.get('emails', [])
     phones = data.get('phones', [])
     results = {}
@@ -48,9 +50,10 @@ def add_goal_invites(goal_id):
 
 # --- DELETE: Remove invites (email, phone, fb) ---
 @goals_bp.route('/<int:goal_id>/invites', methods=['DELETE'])
+@jwt_required
 def remove_goal_invites(goal_id):
     data = request.json
-    user_id = session.get('user_id')
+    user_id = g.current_user.id
     emails = data.get('emails', [])
     phones = data.get('phones', [])
     results = {}

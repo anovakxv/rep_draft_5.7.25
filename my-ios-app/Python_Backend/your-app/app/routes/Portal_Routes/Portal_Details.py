@@ -10,12 +10,13 @@ from app.models.Purpose_Models.PortalUser import PortalUser
 from app.models.Purpose_Models.PortalTexts import PortalText
 from app.models.People_Models.user import User
 from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
-from app.models.s3Content_Models.s3Content import S3Content
+from app.models.s3Content_Models.s3Content import S3Content, PortalGraphicSectionS3Content
 from app.utils.portal_permissions import check_portal_editor_permission
 from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy import func
 from datetime import datetime
 from app.utils.auth import jwt_required
+from werkzeug.utils import secure_filename
 
 portal_bp = Blueprint('portal', __name__)
 
@@ -101,11 +102,14 @@ def api_portal_details():
 
     return jsonify({'result': portal_data})
 
-# POST: Create portal
+# POST: Create portal (with optional images)
 @portal_bp.route('/', methods=['POST'])
 @jwt_required
 def api_create_portal():
-    data = request.get_json()
+    if request.content_type and request.content_type.startswith('multipart/form-data'):
+        data = request.form
+    else:
+        data = request.get_json()
     required_fields = ['name', 'about']
     if not data or not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
@@ -133,6 +137,39 @@ def api_create_portal():
             updated_at=datetime.utcnow()
         )
         db.session.add(portal)
+        db.session.flush()  # Get portal.id before commit
+
+        # Handle images (uploaded files)
+        images = request.files.getlist('images')
+        if images:
+            main_section = PortalGraphicSection(portals_id=portal.id, title="Main Section", position=1)
+            db.session.add(main_section)
+            db.session.flush()
+            for img in images:
+                filename = secure_filename(img.filename)
+                # Here you would upload to S3 and get the URL and gr_hash
+                # For demo, use filename as gr_hash and url
+                s3_url = f"https://your-s3-bucket/{filename}"
+                gr_hash = filename
+                img.seek(0)
+                s3_content = S3Content(
+                    gr_hash=gr_hash,
+                    tbl_id=main_section.id,
+                    tbl_index=6,
+                    key=filename,
+                    url=s3_url,
+                    file_type=img.mimetype,
+                    file_size=len(img.read())
+                )
+                img.seek(0)
+                db.session.add(s3_content)
+                db.session.flush()
+                link = PortalGraphicSectionS3Content(
+                    portals_graphic_sections_id=main_section.id,
+                    s3_gr_hash=gr_hash
+                )
+                db.session.add(link)
+
         db.session.commit()
     except Exception as e:
         db.session.rollback()
@@ -141,11 +178,14 @@ def api_create_portal():
     # Return the full portal card dict for immediate frontend use
     return jsonify({'result': 'Portal created', 'portal': portal.as_card_dict()}), 201
 
-# POST: Edit portal
+# POST: Edit portal (with optional images)
 @portal_bp.route('/edit', methods=['POST'])
 @jwt_required
 def api_edit_portal():
-    data = request.get_json()
+    if request.content_type and request.content_type.startswith('multipart/form-data'):
+        data = request.form
+    else:
+        data = request.get_json()
     user_id = g.current_user.id or data.get('user_id')
     portal_id = data.get('portal_id')
 
@@ -178,15 +218,22 @@ def api_edit_portal():
 
     # Handle texts
     if 'aTexts' in data:
-        PortalText.query.filter_by(portal_id=portal_id).delete(synchronize_session=False)
-        texts = data['aTexts']
-        for text_obj in texts:
-            title = text_obj.get('title', '').strip()
-            text = text_obj.get('text', '').strip()
-            section = text_obj.get('section', '').strip()
-            if title or text:
-                new_text = PortalText(portal_id=portal_id, title=title, text=text, section=section)
-                db.session.add(new_text)
+        try:
+            texts = data.get('aTexts')
+            if isinstance(texts, str):
+                import json
+                texts = json.loads(texts)
+            PortalText.query.filter_by(portal_id=portal_id).delete(synchronize_session=False)
+            for text_obj in texts:
+                title = text_obj.get('title', '').strip()
+                text = text_obj.get('text', '').strip()
+                section = text_obj.get('section', '').strip()
+                if title or text:
+                    new_text = PortalText(portal_id=portal_id, title=title, text=text, section=section)
+                    db.session.add(new_text)
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Invalid aTexts: {str(e)}'}), 400
 
     # Handle leads/users (if you use roles, update accordingly)
     if isinstance(data.get('aLeadsIDs'), list) and data['aLeadsIDs']:
@@ -201,6 +248,42 @@ def api_edit_portal():
             # Add new leads
             for lead_id in leads_ids:
                 db.session.add(PortalUser(user_id=lead_id, portal_id=portal_id, role='lead'))
+
+    # Handle images (uploaded files)
+    images = request.files.getlist('images')
+    if images:
+        # Find or create the main graphic section
+        main_section = PortalGraphicSection.query.filter_by(portals_id=portal_id, title="Main Section").first()
+        if not main_section:
+            main_section = PortalGraphicSection(portals_id=portal_id, title="Main Section", position=1)
+            db.session.add(main_section)
+            db.session.flush()
+        # Remove existing links
+        PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=main_section.id).delete(synchronize_session=False)
+        for img in images:
+            filename = secure_filename(img.filename)
+            # Here you would upload to S3 and get the URL and gr_hash
+            # For demo, use filename as gr_hash and url
+            s3_url = f"https://your-s3-bucket/{filename}"
+            gr_hash = filename
+            img.seek(0)
+            s3_content = S3Content(
+                gr_hash=gr_hash,
+                tbl_id=main_section.id,
+                tbl_index=6,
+                key=filename,
+                url=s3_url,
+                file_type=img.mimetype,
+                file_size=len(img.read())
+            )
+            img.seek(0)
+            db.session.add(s3_content)
+            db.session.flush()
+            link = PortalGraphicSectionS3Content(
+                portals_graphic_sections_id=main_section.id,
+                s3_gr_hash=gr_hash
+            )
+            db.session.add(link)
 
     db.session.commit()
 

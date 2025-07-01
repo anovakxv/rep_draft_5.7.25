@@ -24,7 +24,7 @@ def get_goals_by_user():
             "title": goal.title,
             "subtitle": goal.subtitle or "",
             "progressPercent": round(100 * goal.filled_quota / goal.quota) if goal.quota else 0,
-            "typeName": goal.goal_type.title if goal.goal_type else "",
+            "typeName": goal.goal_type if goal.goal_type else "",
             "chartData": [
                 {
                     "value": d["value"],
@@ -55,7 +55,7 @@ def get_goals_by_portal():
             "title": goal.title,
             "subtitle": goal.subtitle or "",
             "progressPercent": round(100 * goal.filled_quota / goal.quota) if goal.quota else 0,
-            "typeName": goal.goal_type.title if goal.goal_type else "",
+            "typeName": goal.goal_type if goal.goal_type else "",
             "chartData": [
                 {
                     "value": d["value"],

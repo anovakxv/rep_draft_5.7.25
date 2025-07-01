@@ -36,6 +36,32 @@ def api_goal_details():
     goal = Goal.query.get(goal_id)
     if not goal:
         return jsonify({'error': "the goal doesn't exist"}), 404
+
+    # Patch: Fix AttributeError in as_dict's chart_data
+    # Patch the Goal instance to use correct chart_data ordering
+    def patched_chart_data(self, increment='month', num_periods=4):
+        from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+        logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
+        from collections import defaultdict
+        data = defaultdict(int)
+        for log in logs:
+            if log.timestamp:
+                if increment == 'month':
+                    label = log.timestamp.strftime('%b')
+                elif increment == 'week':
+                    label = f"W{log.timestamp.isocalendar()[1]}"
+                elif increment == 'day':
+                    label = log.timestamp.strftime('%d %b')
+                else:
+                    label = log.timestamp.strftime('%b')
+                data[label] += log.added_value or 0
+        items = list(data.items())[-num_periods:]
+        return [
+            {"value": value, "label": label, "color": "#00FF00"}
+            for label, value in items
+        ]
+    goal.chart_data = patched_chart_data.__get__(goal, Goal)
+
     return jsonify({'result': goal.as_dict(include_team=True, include_progress_logs=True)})
 
 # --- POST: Create Goal ---
@@ -47,7 +73,8 @@ def api_create_goal():
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
 
-    required_fields = ['description', 'goal_type', 'reporting_increments_id', 'quota']
+    # Add "title" to required fields
+    required_fields = ['title', 'description', 'goal_type', 'reporting_increments_id', 'quota']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'{field} required!'}), 400
@@ -73,6 +100,7 @@ def api_create_goal():
 
     portals_id = data.get('portals_id')
     goal = Goal(
+        title=data['title'],
         users_id=user_id,
         description=data['description'],
         portals_id=portals_id,
@@ -117,7 +145,7 @@ def api_edit_goal():
         return jsonify({'error': "Permission denied."}), 403
 
     editable_fields = [
-        'goal_type', 'metric', 'rep_commission', 'lead_id',
+        'title', 'goal_type', 'metric', 'rep_commission', 'lead_id',
         'description', 'reporting_increments_id', 'quota', 'portals_id'
     ]
     for field in editable_fields:

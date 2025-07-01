@@ -64,7 +64,8 @@ class Goal(db.Model):
         increment: 'month', 'week', or 'day'
         num_periods: how many periods to include (e.g., last 4 months)
         """
-        logs = self.progress_logs.order_by(self.progress_logs.prop.mapper.class_.timestamp.asc()).all()
+        from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+        logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
         data = defaultdict(int)
         for log in logs:
             if log.timestamp:
@@ -118,7 +119,8 @@ class Goal(db.Model):
         # Latest progress logs (for feed in detail view)
         a_latest_progress = None
         if include_progress_logs:
-            logs = self.progress_logs.order_by(self.progress_logs.prop.mapper.class_.timestamp.desc()).limit(4).all()
+            from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+            logs = self.progress_logs.order_by(GoalProgressLog.timestamp.desc()).limit(4).all()
             a_latest_progress = [
                 {
                     "id": log.id,

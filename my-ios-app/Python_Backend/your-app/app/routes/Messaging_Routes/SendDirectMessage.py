@@ -10,6 +10,7 @@ from app.models.Purpose_Models.Portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
 from app.utils.auth import jwt_required
 from datetime import datetime
+from sqlalchemy import text 
 
 user_bp = Blueprint('send_message', __name__)
 
@@ -53,12 +54,14 @@ def api_send_message():
     register_new_activity(user_id, to_user_id, "new_direct_message", 1, msg.id, "messages")
 
     # Optionally, remove hidden conversations
-    db.session.execute(
-        "DELETE FROM users_hidden_conversations WHERE "
-        "   (users_id1=:uid1 AND users_id2=:uid2) OR (users_id2=:uid1 AND users_id1=:uid2)",
-        {'uid1': user_id, 'uid2': to_user_id}
-    )
-    db.session.commit()
+    # db.session.execute(
+    #    text(
+    #        "DELETE FROM users_hidden_conversations WHERE "
+    #        "   (users_id1=:uid1 AND users_id2=:uid2) OR (users_id2=:uid1 AND users_id1=:uid2)"
+    #    ),
+    #    {'uid1': user_id, 'uid2': to_user_id}
+    #)
+    #db.session.commit()
 
     # Use as_dict() for unified response, includes sender and recipient user objects
     message_obj = msg.as_dict()

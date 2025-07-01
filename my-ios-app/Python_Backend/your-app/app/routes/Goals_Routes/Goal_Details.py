@@ -7,13 +7,20 @@ from app import db
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
-from app.models.ValueMetric_Models.GoalMetric import GoalMetric
-from app.models.ValueMetric_Models.GoalType import GoalType
 from app.models.ValueMetric_Models.ReportingIncrement import ReportingIncrement
 from app.models.People_Models.user import User
 from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('goals', __name__)
+
+GOAL_TYPE_METRIC_MAP = {
+    "Recruiting": "Team Members",
+    "Sales": "Dollars",
+    "Fund": "Dollars",
+    "Marketing": "Shares",
+    "Hours": "Hours"
+    # "Other" handled separately
+}
 
 def check_permission(goal, user_id):
     return user_id == goal.users_id or user_id == goal.lead_id
@@ -39,10 +46,14 @@ def api_create_goal():
     user_id = g.current_user.id
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
-    required_fields = ['description', 'portals_id', 'goal_types_id', 'reporting_increments_id']
+
+    required_fields = ['description', 'goal_type', 'reporting_increments_id', 'quota']
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'{field} required!'}), 400
+
+    goal_type = data.get('goal_type')
+    metric = data.get('metric')
     quota = int(data.get('quota', 100))
     if quota < 1:
         return jsonify({'error': 'quota < 1'}), 400
@@ -50,19 +61,24 @@ def api_create_goal():
     if lead_id:
         if not User.query.get(lead_id):
             return jsonify({'error': 'Wrong lead_id'}), 400
-    goal_metrics_id = data.get('goal_metrics_id')
-    if not goal_metrics_id:
-        metric = GoalMetric.query.filter_by(goal_types_id=data['goal_types_id']).first()
+
+    # Determine metric based on goal_type
+    if goal_type == "Other":
+        if not metric or not goal_type:
+            return jsonify({'error': 'Custom goal_type and metric required for Other'}), 400
+    else:
+        metric = GOAL_TYPE_METRIC_MAP.get(goal_type)
         if not metric:
-            return jsonify({'error': 'No metric found for this goal type'}), 400
-        goal_metrics_id = metric.id
+            return jsonify({'error': 'Invalid goal_type'}), 400
+
+    portals_id = data.get('portals_id')
     goal = Goal(
         users_id=user_id,
         description=data['description'],
-        portals_id=data['portals_id'],
+        portals_id=portals_id,
         quota=quota,
-        goal_types_id=data['goal_types_id'],
-        goal_metrics_id=goal_metrics_id,
+        goal_type=goal_type,
+        metric=metric,
         rep_commission=data.get('rep_commission'),
         reporting_increments_id=data['reporting_increments_id'],
         lead_id=lead_id
@@ -99,20 +115,13 @@ def api_edit_goal():
         return jsonify({'error': "Goal not found"}), 404
     if not check_permission(goal, user_id):
         return jsonify({'error': "Permission denied."}), 403
+
     editable_fields = [
-        'goal_types_id', 'goal_metrics_id', 'rep_commission', 'lead_id',
-        'description', 'reporting_increments_id', 'quota'
+        'goal_type', 'metric', 'rep_commission', 'lead_id',
+        'description', 'reporting_increments_id', 'quota', 'portals_id'
     ]
     for field in editable_fields:
         if field in data and data[field] is not None:
-            if field == 'goal_types_id' and not GoalType.query.get(data[field]):
-                return jsonify({'error': 'Invalid goal_types_id'}), 400
-            if field == 'goal_metrics_id' and not GoalMetric.query.get(data[field]):
-                return jsonify({'error': 'Invalid goal_metrics_id'}), 400
-            if field == 'reporting_increments_id' and not ReportingIncrement.query.get(data[field]):
-                return jsonify({'error': 'Invalid reporting_increments_id'}), 400
-            if field == 'lead_id' and data[field] and not User.query.get(data[field]):
-                return jsonify({'error': 'Invalid lead_id'}), 400
             if field == 'quota' and int(data[field]) < 1:
                 return jsonify({'error': 'quota < 1'}), 400
             setattr(goal, field, data[field])

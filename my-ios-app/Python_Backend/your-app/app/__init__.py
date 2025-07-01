@@ -100,15 +100,15 @@ def create_app():
     from app.routes.Messaging_Routes.SendDirectMessage import user_bp as send_direct_message_bp
     from app.routes.Messaging_Routes.SendGroupChat import user_bp as send_group_chat_bp
 
-    app.register_blueprint(delete_group_chat_bp)
-    app.register_blueprint(delete_message_bp)
-    app.register_blueprint(group_chat_bp)
-    app.register_blueprint(get_messages_bp)
-    app.register_blueprint(hide_convo_bp)
-    app.register_blueprint(hide_group_chat_bp)
-    app.register_blueprint(manage_chat_bp)
-    app.register_blueprint(send_direct_message_bp)
-    app.register_blueprint(send_group_chat_bp)
+    app.register_blueprint(delete_group_chat_bp, url_prefix='/api/message')
+    app.register_blueprint(delete_message_bp, url_prefix='/api/message')
+    app.register_blueprint(group_chat_bp, url_prefix='/api/message')
+    app.register_blueprint(get_messages_bp, url_prefix='/api/message')
+    app.register_blueprint(hide_convo_bp, url_prefix='/api/message')
+    app.register_blueprint(hide_group_chat_bp, url_prefix='/api/message')
+    app.register_blueprint(manage_chat_bp, url_prefix='/api/message')
+    app.register_blueprint(send_direct_message_bp, url_prefix='/api/message')
+    app.register_blueprint(send_group_chat_bp, url_prefix='/api/message')
 
     # --- Register Goal API Blueprints ---
     from app.routes.Goals_Routes.GetGoalProgressFeed import goals_bp as get_goal_progress_feed_bp
@@ -121,14 +121,14 @@ def create_app():
     from app.routes.Goals_Routes.UpdateGoalFilledQuota import goals_bp as update_goal_filled_quota_bp
     from app.routes.Goals_Routes.GetGoals import goals_bp as get_goals_bp  
 
-    app.register_blueprint(get_goal_progress_feed_bp)
-    app.register_blueprint(get_goal_users_bp)
-    app.register_blueprint(goal_details_bp)
-    app.register_blueprint(goal_progress_bp)
-    app.register_blueprint(goal_teams_bp)
-    app.register_blueprint(invite_to_goal_bp)
-    app.register_blueprint(join_or_leave_goal_bp)
-    app.register_blueprint(update_goal_filled_quota_bp)
-    app.register_blueprint(get_goals_bp)
+    app.register_blueprint(get_goal_progress_feed_bp, url_prefix='/api/goals')
+    app.register_blueprint(get_goal_users_bp, url_prefix='/api/goals')
+    app.register_blueprint(goal_details_bp, url_prefix='/api/goals')
+    app.register_blueprint(goal_progress_bp, url_prefix='/api/goals')
+    app.register_blueprint(goal_teams_bp, url_prefix='/api/goals')
+    app.register_blueprint(invite_to_goal_bp, url_prefix='/api/goals')
+    app.register_blueprint(join_or_leave_goal_bp, url_prefix='/api/goals')
+    app.register_blueprint(update_goal_filled_quota_bp, url_prefix='/api/goals')
+    app.register_blueprint(get_goals_bp, url_prefix='/api/goals')
 
     return app

@@ -17,6 +17,7 @@ from sqlalchemy import func
 from datetime import datetime
 from app.utils.auth import jwt_required
 from werkzeug.utils import secure_filename
+import uuid
 
 portal_bp = Blueprint('portal', __name__)
 
@@ -150,7 +151,7 @@ def api_create_portal():
                 # Here you would upload to S3 and get the URL and gr_hash
                 # For demo, use filename as gr_hash and url
                 s3_url = f"https://your-s3-bucket/{filename}"
-                gr_hash = filename
+                gr_hash = f"{uuid.uuid4().hex}_{filename}"
                 img.seek(0)
                 s3_content = S3Content(
                     gr_hash=gr_hash,
@@ -265,7 +266,7 @@ def api_edit_portal():
             # Here you would upload to S3 and get the URL and gr_hash
             # For demo, use filename as gr_hash and url
             s3_url = f"https://your-s3-bucket/{filename}"
-            gr_hash = filename
+            gr_hash = f"{uuid.uuid4().hex}_{filename}"
             img.seek(0)
             s3_content = S3Content(
                 gr_hash=gr_hash,

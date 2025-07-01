@@ -16,14 +16,17 @@ class Goal(db.Model):
     title = db.Column(db.String(255), nullable=False)  # Goal title
     subtitle = db.Column(db.String(255))  # Optional subtitle
     users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  # Creator/owner
-    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False, index=True)  # Portal/group
+    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=True, index=True)  # Portal/group, now optional
     lead_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Team lead (optional)
     description = db.Column(db.Text, nullable=False)  # Goal description
     quota = db.Column(db.Integer, default=100)  # Target value
     filled_quota = db.Column(db.Integer, default=0)  # Current progress
     quota_is_reached_note = db.Column(db.Boolean, default=False)  # Flag if quota reached
-    goal_types_id = db.Column(db.Integer, db.ForeignKey('goal_types.id'), nullable=False, index=True)  # Type FK
-    goal_metrics_id = db.Column(db.Integer, db.ForeignKey('goal_metrics.id'), nullable=False, index=True)  # Metric FK
+
+    # NEW: Direct string fields for goal type and metric
+    goal_type = db.Column(db.String(50), nullable=False)  # e.g., "Recruiting", "Sales", etc.
+    metric = db.Column(db.String(50), nullable=False)     # e.g., "Team Members", "Dollars", etc.
+
     rep_commission = db.Column(db.Float)  # Optional commission
     reporting_increments_id = db.Column(db.Integer, db.ForeignKey('reporting_increments.id'), nullable=False, index=True)  # Reporting period FK
 
@@ -31,8 +34,6 @@ class Goal(db.Model):
     creator = db.relationship('User', foreign_keys=[users_id])
     lead = db.relationship('User', foreign_keys=[lead_id])
     portal = db.relationship('Portal', backref='goals')
-    goal_type = db.relationship('GoalType', backref='goals')
-    goal_metric = db.relationship('GoalMetric', backref='goals')
     reporting_increment = db.relationship('ReportingIncrement', backref='goals')
     progress_logs = db.relationship('GoalProgressLog', backref='goal', lazy='dynamic')
     team_members = db.relationship('GoalTeam', backref='goal', lazy='dynamic')
@@ -139,13 +140,14 @@ class Goal(db.Model):
             "progressPercent": round(100 * self.filled_quota / self.quota) if self.quota else 0,
             "quota": self.quota,
             "filledQuota": self.filled_quota,
-            "metricName": self.goal_metric.title if self.goal_metric else "",
-            "typeName": self.goal_type.title if self.goal_type else "",
+            "metricName": self.metric,
+            "typeName": self.goal_type,
             "reportingName": self.reporting_increment.title if self.reporting_increment else "",
             "quotaString": quota_string,
             "valueString": value_string,
             "chartData": chart_data,
             "aLatestProgress": a_latest_progress,
             "team": team,
-            # Add more fields as
+            # Add more fields as needed
         }
+    

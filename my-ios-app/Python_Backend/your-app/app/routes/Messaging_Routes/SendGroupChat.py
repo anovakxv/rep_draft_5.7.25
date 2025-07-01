@@ -9,6 +9,7 @@ from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
 from datetime import datetime
+from sqlalchemy import text  # <-- Add this import
 
 user_bp = Blueprint('send_group_chat', __name__)
 
@@ -50,11 +51,13 @@ def api_send_chat_message():
     db.session.commit()
 
     # Optionally, remove hidden chat conversations
-    db.session.execute(
-        "DELETE FROM chats_hidden_conversations WHERE chats_id=:cid",
-        {'cid': chat_id}
-    )
-    db.session.commit()
+    # db.session.execute(
+    #     text(
+    #         "DELETE FROM chats_hidden_conversations WHERE chats_id=:cid"
+    #    ),
+    #    {'cid': chat_id}
+    #)
+    # db.session.commit()
 
     # Use as_dict() for unified response, includes sender user object
     message_obj = msg.as_dict()

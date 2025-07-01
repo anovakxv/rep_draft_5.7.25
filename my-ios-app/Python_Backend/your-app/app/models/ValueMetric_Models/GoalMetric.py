@@ -4,15 +4,16 @@
 
 from app import db
 
+# This model is now deprecated in favor of direct goal_type/metric mapping.
+# You can safely remove this model if you are no longer using dynamic metrics.
+
 class GoalMetric(db.Model):
     __tablename__ = 'goal_metrics'
 
     id = db.Column(db.Integer, primary_key=True)
-    goal_types_id = db.Column(db.Integer, db.ForeignKey('goal_types.id'), nullable=False)
-    title = db.Column(db.String(100), nullable=False)
-
-    goal_type = db.relationship('GoalType', backref='metrics')
+    goal_type = db.Column(db.String(50), nullable=False)  # e.g., "Recruiting", "Sales", etc.
+    metric = db.Column(db.String(50), nullable=False)     # e.g., "Team Members", "Dollars", etc.
 
     def __repr__(self):
-        return f"<GoalMetric id={self.id} title={self.title}>"
-        
+        return f"<GoalMetric id={self.id} goal_type={self.goal_type} metric={self.metric}>"
+    

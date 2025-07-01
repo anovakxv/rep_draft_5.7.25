@@ -26,13 +26,18 @@ class Portal(db.Model):
     lead = db.relationship('User', foreign_keys=[lead_id], backref='lead_portals')
     category = db.relationship('Category', foreign_keys=[categories_id], backref='portals')
     city = db.relationship('City', foreign_keys=[cities_id], backref='portals')
-    graphic_sections = db.relationship('PortalGraphicSection', backref='portal', lazy='dynamic', cascade="all, delete-orphan")
+    graphic_sections = db.relationship('PortalGraphicSection', backref='portal', lazy='select', cascade="all, delete-orphan")
 
     @property
     def main_image_url(self):
-        first_section = self.graphic_sections.order_by('position', 'id').first()
+        # Use sorted() since graphic_sections is a list, not a query
+        if not self.graphic_sections:
+            return None
+        first_section = sorted(self.graphic_sections, key=lambda s: (getattr(s, 'position', 0), getattr(s, 'id', 0)))[0]
         if first_section and hasattr(first_section, 's3_files'):
-            first_file = first_section.s3_files.order_by('id').first()
+            s3_files = list(first_section.s3_files) if hasattr(first_section.s3_files, '__iter__') else []
+            first_files = sorted(s3_files, key=lambda f: getattr(f, 'id', 0))
+            first_file = first_files[0] if first_files else None
             if first_file:
                 return first_file.url
         return None

@@ -29,7 +29,7 @@ def batch_get_last_direct_messages(user_id, contact_ids):
     last_msgs = (
         db.session.query(
             db.case(
-                [(DirectMessage.sender_id == user_id, DirectMessage.recipient_id)],
+                (DirectMessage.sender_id == user_id, DirectMessage.recipient_id),
                 else_=DirectMessage.sender_id
             ).label('contact_id'),
             db.func.max(DirectMessage.created_at).label('last_message_time')
@@ -93,7 +93,7 @@ def api_active_chat_list():
     # Get the latest message per direct chat (between user and each contact)
     direct_contacts = db.session.query(
         db.case(
-            [(DirectMessage.sender_id == user_id, DirectMessage.recipient_id)],
+            (DirectMessage.sender_id == user_id, DirectMessage.recipient_id),
             else_=DirectMessage.sender_id
         ).label('contact_id'),
         db.func.max(DirectMessage.created_at).label('last_message_time')

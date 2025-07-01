@@ -23,9 +23,9 @@ class Goal(db.Model):
     filled_quota = db.Column(db.Integer, default=0)  # Current progress
     quota_is_reached_note = db.Column(db.Boolean, default=False)  # Flag if quota reached
 
-    # NEW: Direct string fields for goal type and metric
-    goal_type = db.Column(db.String(50), nullable=False)  # e.g., "Recruiting", "Sales", etc.
-    metric = db.Column(db.String(50), nullable=False)     # e.g., "Team Members", "Dollars", etc.
+    # Goal type and metric: user selects from allowed types or enters custom for "Other"
+    goal_type = db.Column(db.String(50), nullable=False)  # e.g., "Recruiting", "Sales", etc. or custom string for "Other"
+    metric = db.Column(db.String(50), nullable=False)     # e.g., "Team Members", "Dollars", etc. or custom string for "Other"
 
     rep_commission = db.Column(db.Float)  # Optional commission
     reporting_increments_id = db.Column(db.Integer, db.ForeignKey('reporting_increments.id'), nullable=False, index=True)  # Reporting period FK

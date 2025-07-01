@@ -53,9 +53,9 @@ def api_update_goal_filled_quota():
     if not (is_owner or is_team_member):
         return jsonify({'error': 'Permission denied'}), 403
 
-    # Prevent update for internal goal types (1, 2, 5)
-    if str(goal.goal_types_id) in ['1', '2', '5']:
-        return jsonify({'error': 'INTERNAL GOALS (No Update Goal Form Needed)'}), 400
+    # (Optional) Prevent update for internal goal types by name
+    # if goal.goal_type in ['InternalType1', 'InternalType2', 'InternalType3']:
+    #     return jsonify({'error': 'INTERNAL GOALS (No Update Goal Form Needed)'}), 400
 
     # Add progress log
     progress_log = GoalProgressLog(
@@ -101,8 +101,8 @@ def api_update_goal_filled_quota():
         'filled_quota': goal.filled_quota,
         'progress': round(goal.filled_quota / goal.quota, 2) if goal.quota else 0,
         'progress_percent': round(100 * goal.filled_quota / goal.quota) if goal.quota else 0,
-        'goal_types_id': goal.goal_types_id,
-        'goal_metrics_id': goal.goal_metrics_id,
+        'goal_type': goal.goal_type,
+        'metric': goal.metric,
         'rep_commission': goal.rep_commission,
         'reporting_increments_id': goal.reporting_increments_id,
         'portals_id': goal.portals_id,

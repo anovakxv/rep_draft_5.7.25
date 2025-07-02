@@ -11,3 +11,4 @@ eventlet
 boto3
 gunicorn
 PyJWT
+Flask-Cors

@@ -67,13 +67,9 @@ struct EditProfileView: View {
                                 Text("City")
                                     .font(.custom("Inter", size: 16).weight(.bold))
                                     .foregroundColor(.black)
-                                // Placeholder for city picker
-                                Text("Select City")
-                                    .font(.body)
-                                    .foregroundColor(.gray)
-                                    .frame(height: 34)
-                                    .frame(maxWidth: .infinity)
-                                    .background(Color(red: 0.85, green: 0.85, blue: 0.85))
+                                TextField("Enter City (optional)", text: $viewModel.profileInfo.cityName)
+                                    .padding()
+                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
                                     .cornerRadius(6)
                             }
                         }
@@ -243,6 +239,8 @@ class ProfileInfoViewModel: ObservableObject {
     @Published var items: [UIImage] = []
     var mode: EditMode
 
+    @AppStorage("jwtToken") var jwtToken: String = ""
+
     init(profileInfo: ProfileInfo, mode: EditMode) {
         self.profileInfo = profileInfo
         self.mode = mode
@@ -263,6 +261,9 @@ class ProfileInfoViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
 
         var body = Data()
         func appendFormField(_ name: String, _ value: String) {
@@ -277,9 +278,10 @@ class ProfileInfoViewModel: ObservableObject {
         if !profileInfo.about.isEmpty { appendFormField("about", profileInfo.about) }
         if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
         if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
-        // Add type and city if you have their IDs
+        // Add type if you have its ID
         if let typeId = profileInfo.type.id { appendFormField("users_types_id", "\(typeId)") }
-        if let cityId = profileInfo.cityId { appendFormField("cities_id", "\(cityId)") }
+        // Add city name if provided (use manual_city for backend compatibility)
+        if !profileInfo.cityName.isEmpty { appendFormField("manual_city", profileInfo.cityName) }
         // Add skills as comma-separated IDs
         if !profileInfo.skils.isEmpty {
             let skillIds = profileInfo.skils.map { "\($0.id)" }.joined(separator: ",")
@@ -321,6 +323,7 @@ class ProfileInfoViewModel: ObservableObject {
                     .hrProductivity
                 ],
                 type: .lead,
+                cityName: "New York",
                 image: eventsImageItem,
                 about: "About me...",
                 broadcast: "Broadcast message...",

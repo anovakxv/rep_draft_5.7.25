@@ -106,10 +106,11 @@ class PortalsViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
+    @AppStorage("jwtToken") var jwtToken: String = ""
+
     func fetchPortals(userId: Int, section: Int) {
         isLoading = true
         errorMessage = nil
-        // Use filter_network_portals API for all tabs
         let tab: String
         switch section {
         case 0: tab = "open"
@@ -123,7 +124,12 @@ class PortalsViewModel: ObservableObject {
             isLoading = false
             return
         }
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        var request = URLRequest(url: url)
+        // Add JWT token to the request header
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
             DispatchQueue.main.async {
                 self.isLoading = false
                 if let error = error {
@@ -154,6 +160,8 @@ class PeopleViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
 
+    @AppStorage("jwtToken") var jwtToken: String = ""
+
     func fetchPeople(userId: Int, section: Int) {
         isLoading = true
         errorMessage = nil
@@ -166,7 +174,12 @@ class PeopleViewModel: ObservableObject {
                 isLoading = false
                 return
             }
-            URLSession.shared.dataTask(with: url) { data, _, error in
+            var request = URLRequest(url: url)
+            // Add JWT token to the request header
+            if !jwtToken.isEmpty {
+                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+            }
+            URLSession.shared.dataTask(with: request) { data, _, error in
                 DispatchQueue.main.async {
                     self.isLoading = false
                     if let error = error {
@@ -197,7 +210,12 @@ class PeopleViewModel: ObservableObject {
                 isLoading = false
                 return
             }
-            URLSession.shared.dataTask(with: url) { data, _, error in
+            var request = URLRequest(url: url)
+            // Add JWT token to the request header
+            if !jwtToken.isEmpty {
+                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+            }
+            URLSession.shared.dataTask(with: request) { data, _, error in
                 DispatchQueue.main.async {
                     self.isLoading = false
                     if let error = error {
@@ -239,8 +257,8 @@ struct MainScreen: View {
     @StateObject private var portalsVM = PortalsViewModel()
     @StateObject private var peopleVM = PeopleViewModel()
     @AppStorage("userId") var userId: Int = 0
-    @State private var page: Page = .people
-    @State private var section = 0
+    @State private var page: Page = .portals // Start on Portals
+    @State private var section = 2           // Start on "All" tab
 
     var body: some View {
         NavigationStack {
@@ -475,20 +493,23 @@ struct ActiveChatList: View {
                                 }
                             }
                             .buttonStyle(PlainButtonStyle())
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Text(user.fullName)
-                                        .font(.subheadline)
-                                    Spacer()
-                                    if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
-                                        Text(date.timeAgoDisplay())
-                                            .font(.caption)
+                            NavigationLink(destination: Chat(userId: user.id)) {
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        Text(user.fullName)
+                                            .font(.subheadline)
+                                        Spacer()
+                                        if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
+                                            Text(date.timeAgoDisplay())
+                                                .font(.caption)
+                                        }
                                     }
+                                    Text(chat.last_message?.text ?? "")
+                                        .font(.caption)
                                 }
-                                Text(chat.last_message?.text ?? "")
-                                    .font(.caption)
+                                .padding(.leading, 8)
                             }
-                            .padding(.leading, 8)
+                            .buttonStyle(PlainButtonStyle())
                         }
                         .frame(height: 64)
                         .padding(.vertical, 8)

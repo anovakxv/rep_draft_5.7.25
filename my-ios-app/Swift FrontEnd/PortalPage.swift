@@ -16,10 +16,18 @@ class PortalViewModel: ObservableObject {
     @Published var section = 0
     @Published var isEditPresented = false
 
+    // JWT token for authentication
+    @AppStorage("jwtToken") var jwtToken: String = ""
+
     func fetchPortalDetail(portalId: Int, userId: Int) {
         let urlString = "http://localhost:5000/api/portal/details?portals_id=\(portalId)&user_id=\(userId)"
         guard let url = URL(string: urlString) else { return }
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        var request = URLRequest(url: url)
+        // Add JWT token to the request header
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode(PortalDetailResponse.self, from: data)
@@ -41,6 +49,7 @@ struct PortalPage: View {
     let userId: Int
     @Environment(\.dismiss) private var dismiss
     @State private var showMessageSheet = false
+    @State private var selectedGoalId: Int? = nil
 
     // Helper to get the Lead Rep user object
     private func leadRepUser(from portal: PortalDetail) -> User? {
@@ -49,125 +58,140 @@ struct PortalPage: View {
     }
 
     var body: some View {
-        Group {
-            if let portal = viewModel.portalDetail {
-                VStack(spacing: 0) {
-                    // Custom Back Header
-                    HStack {
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "chevron.left")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.system(size: 20))
-                        }
-                        Spacer()
-                        Text(portal.name)
-                            .font(.system(size: 20, weight: .bold))
-                        Spacer()
-                        Color.clear.frame(width: 24, height: 24)
-                    }
-                    .frame(height: 60)
-                    .padding(.horizontal, 15)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .frame(height: 1)
-                            .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                        alignment: .bottom
-                    )
-                    GeometryReader { geometry in
-                        ImageTabView(sections: portal.aSections)
-                            .frame(width: geometry.size.width, height: geometry.size.width * 9 / 16)
-                            .clipped()
-                    }
-                    .frame(height: UIScreen.main.bounds.width * 9 / 16)
-                    CustomSegmentedPicker(
-                        segments: ["Story", "Offering", "Results"],
-                        selectedIndex: $viewModel.section
-                    )
-                    .padding(.horizontal)
-
-                    Group {
-                        if viewModel.section == 0 {
-                            PortalStorySection(portal: portal)
-                        } else if viewModel.section == 1 {
-                            PortalOfferingSection(portal: portal)
-                        } else if viewModel.section == 2 {
-                            PortalResultsSection(goals: portal.aGoals)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-
-                    Spacer()
-                    // --- Bottom Bar (matches ProfileView) ---
-                    HStack(spacing: 30) {
-                        Button(action: {
-                            // Your action here, e.g., join team
-                        }) {
-                            Image(systemName: "plus")
-                                .font(.system(size: 20))
-                                .foregroundColor(.white)
-                                .frame(width: 291, height: 41)
-                                .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                                .cornerRadius(6)
-                                .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
-                        }
-                        if let lead = leadRepUser(from: portal) {
-                            Button(action: { showMessageSheet = true }) {
-                                Image(systemName: "message")
+        NavigationStack {
+            Group {
+                if let portal = viewModel.portalDetail {
+                    VStack(spacing: 0) {
+                        // Custom Back Header
+                        HStack {
+                            Button(action: { dismiss() }) {
+                                Image(systemName: "chevron.left")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                                     .font(.system(size: 20))
-                                    .foregroundColor(.black)
                             }
-                            .accessibilityLabel("Message Lead Rep")
+                            Spacer()
+                            Text(portal.name)
+                                .font(.system(size: 20, weight: .bold))
+                            Spacer()
+                            Color.clear.frame(width: 24, height: 24)
                         }
-                    }
-                    .frame(height: 51)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.white)
-                    .overlay(
-                        Rectangle()
-                            .frame(height: 1)
-                            .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                        alignment: .top
-                    )
-                    // --- End Bottom Bar ---
-                }
-                .background(Color.white.edgesIgnoringSafeArea(.all))
-                .navigationBarHidden(true)
-                .navigationTitle(portal.name)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Menu {
-                            Button("Join Team") { /* ... */ }
-                            Button("Share Portal") { /* ... */ }
-                            Button("Support") { /* ... */ }
-                            Button("Edit Portal") { viewModel.isEditPresented = true }
-                        } label: {
-                            Image(systemName: "ellipsis.circle")
-                        }
-                    }
-                }
-                .sheet(isPresented: $viewModel.isEditPresented) {
-                    EditPortalView(portal: portal)
-                }
-                .sheet(isPresented: $showMessageSheet) {
-                    if let lead = leadRepUser(from: portal) {
-                        // Message will go to the Lead Rep user of the portal
-                        Chat_Individual(
-                            currentUserId: userId,
-                            otherUserId: lead.id,
-                            otherUserName: "\(lead.fname ?? "") \(lead.lname ?? "")"
+                        .frame(height: 60)
+                        .padding(.horizontal, 15)
+                        .background(Color.white)
+                        .overlay(
+                            Rectangle()
+                                .frame(height: 1)
+                                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                            alignment: .bottom
                         )
-                    } else {
-                        Text("Lead Rep not found.")
+                        GeometryReader { geometry in
+                            ImageTabView(sections: portal.aSections)
+                                .frame(width: geometry.size.width, height: geometry.size.width * 9 / 16)
+                                .clipped()
+                        }
+                        .frame(height: UIScreen.main.bounds.width * 9 / 16)
+                        CustomSegmentedPicker(
+                            segments: ["Story", "Offering", "Results"],
+                            selectedIndex: $viewModel.section
+                        )
+                        .padding(.horizontal)
+
+                        Group {
+                            if viewModel.section == 0 {
+                                PortalStorySection(portal: portal)
+                            } else if viewModel.section == 1 {
+                                PortalOfferingSection(portal: portal)
+                            } else if viewModel.section == 2 {
+                                PortalResultsSection(goals: portal.aGoals, selectedGoalId: $selectedGoalId)
+                            }
+                        }
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+
+                        Spacer()
+                        // --- Bottom Bar (matches ProfileView) ---
+                        HStack(spacing: 30) {
+                            Button(action: {
+                                // Your action here, e.g., join team
+                            }) {
+                                Image(systemName: "plus")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                                    .frame(width: 291, height: 41)
+                                    .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                                    .cornerRadius(6)
+                                    .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
+                            }
+                            if let lead = leadRepUser(from: portal) {
+                                Button(action: { showMessageSheet = true }) {
+                                    Image(systemName: "message")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(.black)
+                                }
+                                .accessibilityLabel("Message Lead Rep")
+                            }
+                        }
+                        .frame(height: 51)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white)
+                        .overlay(
+                            Rectangle()
+                                .frame(height: 1)
+                                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                            alignment: .top
+                        )
+                        // --- End Bottom Bar ---
                     }
+                    .background(Color.white.edgesIgnoringSafeArea(.all))
+                    .navigationBarHidden(true)
+                    .navigationTitle(portal.name)
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Menu {
+                                Button("Join Team") { /* ... */ }
+                                Button("Share Portal") { /* ... */ }
+                                Button("Support") { /* ... */ }
+                                Button("Edit Portal") { viewModel.isEditPresented = true }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                            }
+                        }
+                    }
+                    .sheet(isPresented: $viewModel.isEditPresented) {
+                        EditPortalView(portal: portal)
+                    }
+                    .sheet(isPresented: $showMessageSheet) {
+                        if let lead = leadRepUser(from: portal) {
+                            // Message will go to the Lead Rep user of the portal
+                            Chat_Individual(
+                                currentUserId: userId,
+                                otherUserId: lead.id,
+                                otherUserName: "\(lead.fname ?? "") \(lead.lname ?? "")"
+                            )
+                        } else {
+                            Text("Lead Rep not found.")
+                        }
+                    }
+                    // Navigation to GoalsDetailView
+                    .background(
+                        NavigationLink(
+                            destination: selectedGoalId.map { GoalsDetailView(goalId: $0) },
+                            tag: selectedGoalId ?? -1,
+                            selection: Binding(
+                                get: { selectedGoalId },
+                                set: { selectedGoalId = $0 }
+                            ),
+                            label: { EmptyView() }
+                        )
+                        .hidden()
+                    )
+                } else {
+                    ProgressView()
+                        .onAppear {
+                            viewModel.fetchPortalDetail(portalId: portalId, userId: userId)
+                        }
                 }
-            } else {
-                ProgressView()
-                    .onAppear {
-                        viewModel.fetchPortalDetail(portalId: portalId, userId: userId)
-                    }
             }
         }
     }
@@ -284,12 +308,16 @@ struct PortalOfferingSection: View {
 
 struct PortalResultsSection: View {
     let goals: [Goal]
+    @Binding var selectedGoalId: Int?
     var body: some View {
         ForEach(goals) { goal in
             VStack {
-                NavigationLink(destination: GoalDetailPage(goal: goal)) {
+                Button(action: {
+                    selectedGoalId = goal.id
+                }) {
                     GoalListItem(goal: goal)
                 }
+                .buttonStyle(PlainButtonStyle())
                 Divider()
             }
         }
@@ -433,9 +461,12 @@ extension Color {
     static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
 }
 
-struct GoalDetailPage: View {
-    let goal: Goal
+// MARK: - Goals Detail View Navigation
+
+struct GoalsDetailView: View {
+    let goalId: Int
     var body: some View {
-        Text("Goal: \(goal.title)")
+        Text("GoalsDetailView for goalId: \(goalId)")
+        // Replace with your actual GoalsDetailView implementation
     }
 }

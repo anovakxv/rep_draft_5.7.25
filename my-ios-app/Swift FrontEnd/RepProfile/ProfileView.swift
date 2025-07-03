@@ -231,19 +231,31 @@ class ProfileViewModel: ObservableObject {
         )
     ]
 
-    var isCurrentUser: Bool = true
+    @AppStorage("jwtToken") var jwtToken: String = ""
+    @AppStorage("userId") var loggedInUserId: Int = 0
+
+    let viewedUserId: Int
+    var isCurrentUser: Bool { viewedUserId == loggedInUserId }
     var showAddPartner: Bool { false }
+
+    init(userId: Int) {
+        self.viewedUserId = userId
+    }
 
     func loadProfile() {
         fetchUser()
         fetchPortals()
         fetchGoals()
-        fetchWrites(for: user.id)
+        fetchWrites(for: viewedUserId)
     }
 
     func fetchUser() {
-        guard let url = URL(string: "http://localhost:5000/api/user/profile?users_id=1") else { return }
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        guard let url = URL(string: "http://localhost:5000/api/user/profile?users_id=\(viewedUserId)") else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let apiResponse = try JSONDecoder().decode(UserProfileAPIResponse.self, from: data)
@@ -257,8 +269,12 @@ class ProfileViewModel: ObservableObject {
     }
 
     func fetchPortals() {
-        guard let url = URL(string: "http://localhost:5000/api/portals?users_id=1") else { return }
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        guard let url = URL(string: "http://localhost:5000/api/portals?users_id=\(viewedUserId)") else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let apiResponse = try JSONDecoder().decode(PortalsAPIResponse.self, from: data)
@@ -272,8 +288,12 @@ class ProfileViewModel: ObservableObject {
     }
 
     func fetchGoals() {
-        guard let url = URL(string: "http://localhost:5000/api/goals/list?users_id=1") else { return }
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        guard let url = URL(string: "http://localhost:5000/api/goals/list?users_id=\(viewedUserId)") else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let apiResponse = try JSONDecoder().decode(GoalsAPIResponse.self, from: data)
@@ -288,7 +308,11 @@ class ProfileViewModel: ObservableObject {
 
     func fetchWrites(for userId: Int) {
         guard let url = URL(string: "http://localhost:5000/api/user/writes?users_id=\(userId)") else { return }
-        URLSession.shared.dataTask(with: url) { data, _, error in
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode([String: [WriteBlock]].self, from: data)
@@ -306,6 +330,9 @@ class ProfileViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
         let body: [String: Any] = [
             "title": writeTitle,
             "content": writeText,
@@ -317,7 +344,7 @@ class ProfileViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.writeText = ""
                     self.writeTitle = ""
-                    self.fetchWrites(for: self.user.id)
+                    self.fetchWrites(for: self.viewedUserId)
                 }
             }
         }.resume()
@@ -328,6 +355,9 @@ class ProfileViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
         let body: [String: Any] = [
             "title": write.title ?? "",
             "content": write.content,
@@ -338,7 +368,7 @@ class ProfileViewModel: ObservableObject {
             if let _ = data {
                 DispatchQueue.main.async {
                     self.editingWrite = nil
-                    self.fetchWrites(for: self.user.id)
+                    self.fetchWrites(for: self.viewedUserId)
                 }
             }
         }.resume()
@@ -348,10 +378,13 @@ class ProfileViewModel: ObservableObject {
         guard let url = URL(string: "http://localhost:5000/api/user/write/\(write.id)") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
         URLSession.shared.dataTask(with: request) { data, _, error in
             if let _ = data {
                 DispatchQueue.main.async {
-                    self.fetchWrites(for: self.user.id)
+                    self.fetchWrites(for: self.viewedUserId)
                 }
             }
         }.resume()
@@ -361,8 +394,11 @@ class ProfileViewModel: ObservableObject {
         // Handle navigation back
     }
 
-    func handleAction(_ action: String) {
-        // Handle Recruit, Edit Profile, Network, etc.
+    func handleAction(_ action: String, editProfile: @escaping () -> Void) {
+        if action == "Edit Profile" {
+            editProfile()
+        }
+        // Handle other actions as needed
     }
 
     func addPartner() {
@@ -373,16 +409,16 @@ class ProfileViewModel: ObservableObject {
 // MARK: - Main Profile View
 
 struct ProfileView: View {
-    @StateObject private var viewModel = ProfileViewModel()
+    @StateObject private var viewModel: ProfileViewModel
     @State private var selectedTab = 0 // 0: Rep, 1: Goals, 2: Write
     @State private var showAddPurpose = false
-    @State private var showMessageSheet = false // <-- Added for chat sheet
+    @State private var showMessageSheet = false
+    @State private var showAddGoal = false
+    @State private var showEditProfile = false
     @Environment(\.dismiss) private var dismiss
 
-    // Replace this with your actual logged-in user ID logic
-    var loggedInUserId: Int {
-        // Example: return from your auth/session manager
-        return 1
+    init(userId: Int) {
+        _viewModel = StateObject(wrappedValue: ProfileViewModel(userId: userId))
     }
 
     var body: some View {
@@ -420,7 +456,6 @@ struct ProfileView: View {
                             VStack(spacing: 0) {
                                 ProfileCardsSection(cards: viewModel.profileCards)
                                     .padding(.bottom, 16)
-                                // --- Add Purpose Button ---
                                 if viewModel.isCurrentUser {
                                     Button(action: {
                                         showAddPurpose = true
@@ -440,7 +475,6 @@ struct ProfileView: View {
                                     }
                                     .padding(.bottom, 12)
                                 }
-                                // --- End Add Purpose Button ---
                                 ForEach(viewModel.portals) { portal in
                                     NavigationLink(destination: PortalPage(portal: portal)) {
                                         PortalItem(portal: portal)
@@ -456,19 +490,40 @@ struct ProfileView: View {
                             }
                         }
                     } else if selectedTab == 1 {
-                        List {
-                            ForEach(viewModel.goals) { goal in
-                                NavigationLink(destination: GoalDetailPage(goal: goal)) {
-                                    GoalListItem(goal: goal)
+                        VStack(spacing: 0) {
+                            if viewModel.isCurrentUser {
+                                Button(action: {
+                                    showAddGoal = true
+                                }) {
+                                    HStack {
+                                        Image(systemName: "plus.circle.fill")
+                                            .foregroundColor(.green)
+                                        Text("Add Goal")
+                                            .fontWeight(.bold)
+                                            .foregroundColor(.green)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding()
+                                    .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
+                                    .cornerRadius(8)
+                                    .padding(.horizontal)
+                                }
+                                .padding(.bottom, 12)
+                            }
+                            List {
+                                ForEach(viewModel.goals) { goal in
+                                    NavigationLink(destination: GoalDetailPage(goal: goal)) {
+                                        GoalListItem(goal: goal)
+                                    }
+                                }
+                                if viewModel.goals.isEmpty {
+                                    Text("No goals yet.")
+                                        .foregroundColor(.secondary)
+                                        .padding(.horizontal)
                                 }
                             }
-                            if viewModel.goals.isEmpty {
-                                Text("No goals yet.")
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal)
-                            }
+                            .listStyle(PlainListStyle())
                         }
-                        .listStyle(PlainListStyle())
                     } else if selectedTab == 2 {
                         WriteContentView(
                             viewModel: viewModel,
@@ -481,7 +536,13 @@ struct ProfileView: View {
                 Spacer()
                 BottomBarView(
                     onAdd: { /* Add new item action */ },
-                    onMessage: { showMessageSheet = true } // <-- Open chat sheet
+                    onMessage: { showMessageSheet = true },
+                    onAction: {
+                        if viewModel.isCurrentUser {
+                            showEditProfile = true
+                        }
+                    },
+                    isCurrentUser: viewModel.isCurrentUser
                 )
             }
             .navigationBarHidden(true)
@@ -490,9 +551,16 @@ struct ProfileView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
+                        if viewModel.isCurrentUser {
+                            Button("Edit Profile") {
+                                showEditProfile = true
+                            }
+                        }
                         ForEach(viewModel.actions, id: \.self) { action in
                             Button(action) {
-                                viewModel.handleAction(action)
+                                viewModel.handleAction(action, editProfile: {
+                                    showEditProfile = true
+                                })
                             }
                         }
                     } label: {
@@ -500,7 +568,6 @@ struct ProfileView: View {
                     }
                 }
             }
-            // --- Add Purpose Sheet Navigation ---
             .sheet(isPresented: $showAddPurpose) {
                 EditPortalView(
                     portal: PortalDetail(
@@ -522,20 +589,37 @@ struct ProfileView: View {
                     userId: viewModel.user.id
                 )
             }
-            // --- End Add Purpose Sheet Navigation ---
-            // --- Message Sheet Navigation ---
+            .sheet(isPresented: $showAddGoal) {
+                AddGoalSheet(viewModel: viewModel)
+            }
             .sheet(isPresented: $showMessageSheet) {
-                // Message the user being viewed
                 MessageView(
                     viewModel: MessageViewModel(
-                        currentUserId: loggedInUserId,
+                        currentUserId: viewModel.loggedInUserId,
                         otherUserId: viewModel.user.id,
                         otherUserName: viewModel.user.fullName,
                         otherUserPhotoURL: viewModel.user.profilePictureURL
                     )
                 )
             }
-            // --- End Message Sheet Navigation ---
+            .sheet(isPresented: $showEditProfile) {
+                EditProfileView(
+                    viewModel: ProfileInfoViewModel(
+                        profileInfo: ProfileInfo(
+                            firstName: viewModel.user.fname ?? "",
+                            lastName: viewModel.user.lname ?? "",
+                            skils: [], // You may want to map user.skills to your model
+                            type: .lead, // Map user.userType to your RepTypeModel
+                            cityName: viewModel.user.city ?? "",
+                            image: nil, // Load from user.profilePictureURL if needed
+                            about: viewModel.user.about ?? "",
+                            broadcast: viewModel.user.broadcast ?? "",
+                            otherSkill: ""
+                        ),
+                        mode: .edit
+                    )
+                )
+            }
         }
     }
 }
@@ -549,7 +633,6 @@ struct StatusBarView: View {
                 .font(.system(size: 14))
                 .foregroundColor(.black)
             Spacer()
-            // Add icons if desired
         }
         .frame(height: 48)
         .padding(.horizontal, 19)
@@ -879,7 +962,7 @@ struct WriteContentView: View {
         }
         .padding(.vertical)
         .onAppear {
-            viewModel.fetchWrites(for: viewModel.user.id)
+            viewModel.fetchWrites(for: viewModel.viewedUserId)
         }
     }
 }
@@ -887,6 +970,8 @@ struct WriteContentView: View {
 struct BottomBarView: View {
     var onAdd: () -> Void
     var onMessage: () -> Void
+    var onAction: () -> Void
+    var isCurrentUser: Bool
 
     var body: some View {
         HStack(spacing: 30) {
@@ -903,6 +988,13 @@ struct BottomBarView: View {
                 Image(systemName: "message")
                     .font(.system(size: 20))
                     .foregroundColor(.black)
+            }
+            if isCurrentUser {
+                Button(action: onAction) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 20))
+                        .foregroundColor(.black)
+                }
             }
         }
         .frame(height: 51)
@@ -931,4 +1023,4 @@ struct GoalDetailPage: View {
     var body: some View {
         Text("Goal: \(goal.title)")
     }
-}       
+}

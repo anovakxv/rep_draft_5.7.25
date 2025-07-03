@@ -1,0 +1,61 @@
+# Xcode
+DerivedData/
+build/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xcscmblueprint
+
+# SwiftPM
+.build/
+.swiftpm/xcode/package.xcworkspace/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# Archives
+*.xcarchive
+
+# App data
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# User settings
+*.xcuserstate
+
+# OS files
+.DS_Store
+
+# Playground
+timeline.xctimeline
+playground.xcworkspace
+
+# SPM Packages
+Package.resolved
+
+# Xcode Preview Content
+Preview Content/
+
+# SwiftLint
+.swiftlint.yml
+
+# Misc
+*.moved-aside
+*.xcuserdatad

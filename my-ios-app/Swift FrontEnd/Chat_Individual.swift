@@ -49,6 +49,8 @@ class MessageViewModel: ObservableObject {
     let otherUserName: String
     let otherUserPhotoURL: URL?
     
+    @AppStorage("jwtToken") var jwtToken: String = ""
+    
     init(currentUserId: Int, otherUserId: Int, otherUserName: String, otherUserPhotoURL: URL?) {
         self.currentUserId = currentUserId
         self.otherUserId = otherUserId
@@ -58,7 +60,11 @@ class MessageViewModel: ObservableObject {
     
     func fetchMessages() {
         guard let url = URL(string: "http://localhost:5000/api/user/get_messages?users_id=\(otherUserId)&order=ASC&mark_as_read=1") else { return }
-        let task = URLSession.shared.dataTask(with: url) { data, _, error in
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let task = URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else { return }
             if let apiResult = try? JSONDecoder().decode(GetMessagesAPIResponse.self, from: data) {
                 DispatchQueue.main.async {
@@ -76,6 +82,9 @@ class MessageViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
         let body: [String: Any] = [
             "users_id": otherUserId,
             "message": trimmed

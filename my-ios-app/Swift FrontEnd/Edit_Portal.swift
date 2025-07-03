@@ -1,4 +1,4 @@
-////  EditPortalView.swift
+//  EditPortalView.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.23.2025
@@ -56,7 +56,7 @@ struct EditPortalView: View {
                     // Add/Change Images Button
                     PhotosPicker(
                         selection: $photoPickerItems,
-                        maxSelectionCount: 5 - viewModel.selectedImages.count,
+                        maxSelectionCount: 10 - viewModel.selectedImages.count,
                         matching: .images,
                         photoLibrary: .shared()
                     ) {
@@ -152,7 +152,7 @@ struct EditPortalView: View {
                             VStack(alignment: .leading) {
                                 TextField("Goal Title", text: $goal.title)
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
-                                TextField("Goal Subtitle", text: $goal.subtitle ?? .constant(""))
+                                TextField("Goal Subtitle", text: Binding($goal.subtitle, default: ""))
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                                 // Add more fields as needed
                             }
@@ -188,7 +188,7 @@ class EditPortalViewModel: ObservableObject {
 
     let portalId: Int
     let userId: Int
-    let maxImages = 5
+    let maxImages = 10
 
     init(portal: PortalDetail, userId: Int) {
         self.portalId = portal.id
@@ -311,5 +311,17 @@ struct EditableGoal: Identifiable {
         self.subtitle = subtitle
         self.progressPercent = progressPercent
         self.typeName = typeName
-        self.chartData =
-        
+        self.chartData = chartData
+    }
+}
+
+// MARK: - Optional String Binding Helper
+
+extension Binding where Value == String? {
+    init(_ source: Binding<String?>, default defaultValue: String) {
+        self.init(
+            get: { source.wrappedValue ?? defaultValue },
+            set: { source.wrappedValue = $0 }
+        )
+    }
+}

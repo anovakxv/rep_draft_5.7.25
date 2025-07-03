@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+ENV/
+env/
+.venv/
+
+# Environment variables
+.env
+
+# Database files
+*.sqlite3
+*.db
+
+# Flask instance folder
+instance/
+
+# Uploaded files
+uploads/
+
+# Migrations (optional: keep if you want to track migrations in git)
+# migrations/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VSCode settings (optional)
+.vscode/
+
+# Pytest cache
+.pytest_cache/
+
+# Log files
+*.log

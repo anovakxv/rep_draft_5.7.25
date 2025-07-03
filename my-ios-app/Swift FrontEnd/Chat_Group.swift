@@ -57,6 +57,11 @@ struct ChatInfo: Decodable {
     let description: String?
 }
 
+struct SendGroupMessageAPIResponse: Decodable {
+    let result: String
+    let message: GroupMessage
+}
+
 // MARK: - Group Chat ViewModel
 
 class GroupChatViewModel: ObservableObject {
@@ -68,6 +73,8 @@ class GroupChatViewModel: ObservableObject {
     let currentUserId: Int
     let chatId: Int
 
+    @AppStorage("jwtToken") var jwtToken: String = ""
+
     init(currentUserId: Int, chatId: Int) {
         self.currentUserId = currentUserId
         self.chatId = chatId
@@ -76,7 +83,11 @@ class GroupChatViewModel: ObservableObject {
 
     func fetchGroupChat() {
         guard let url = URL(string: "http://localhost:5000/api/group_chat?chats_id=\(chatId)&limit=50") else { return }
-        let task = URLSession.shared.dataTask(with: url) { data, _, error in
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let task = URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else { return }
             if let apiResult = try? JSONDecoder().decode(GroupChatAPIResponse.self, from: data) {
                 DispatchQueue.main.async {
@@ -96,6 +107,9 @@ class GroupChatViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
         let body: [String: Any] = [
             "chats_id": chatId,
             "message": trimmed
@@ -111,11 +125,6 @@ class GroupChatViewModel: ObservableObject {
             }
         }.resume()
     }
-}
-
-struct SendGroupMessageAPIResponse: Decodable {
-    let result: String
-    let message: GroupMessage
 }
 
 // MARK: - Group Chat View
@@ -285,4 +294,8 @@ struct GroupChatView_Previews: PreviewProvider {
         GroupChatView(
             viewModel: GroupChatViewModel(
                 currentUserId: 1,
-                chatId:
+                chatId: 1
+            )
+        )
+    }
+}

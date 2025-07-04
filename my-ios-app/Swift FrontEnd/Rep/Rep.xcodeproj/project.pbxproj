@@ -20,7 +20,6 @@
 		005B637D2E16F88600A1F0C1 /* Chat_Group.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B635F2E16F88600A1F0C1 /* Chat_Group.swift */; };
 		005B637E2E16F88600A1F0C1 /* RepTypeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B63702E16F88600A1F0C1 /* RepTypeModel.swift */; };
 		005B637F2E16F88600A1F0C1 /* GoalsDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B63632E16F88600A1F0C1 /* GoalsDetailView.swift */; };
-		005B63802E16F88600A1F0C1 /* MultiPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B636C2E16F88600A1F0C1 /* MultiPicker.swift */; };
 		005B63812E16F88600A1F0C1 /* RegisterNewProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B636E2E16F88600A1F0C1 /* RegisterNewProfile.swift */; };
 		005B63822E16F88600A1F0C1 /* PortalItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B63672E16F88600A1F0C1 /* PortalItem.swift */; };
 		005B63832E16F88600A1F0C1 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B636D2E16F88600A1F0C1 /* ProfileView.swift */; };
@@ -67,7 +66,6 @@
 		005B63692E16F88600A1F0C1 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		005B636A2E16F88600A1F0C1 /* RepApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepApp.swift; sourceTree = "<group>"; };
 		005B636B2E16F88600A1F0C1 /* EditProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditProfile.swift; sourceTree = "<group>"; };
-		005B636C2E16F88600A1F0C1 /* MultiPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiPicker.swift; sourceTree = "<group>"; };
 		005B636D2E16F88600A1F0C1 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		005B636E2E16F88600A1F0C1 /* RegisterNewProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegisterNewProfile.swift; sourceTree = "<group>"; };
 		005B636F2E16F88600A1F0C1 /* RepSkillsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepSkillsModel.swift; sourceTree = "<group>"; };
@@ -166,7 +164,6 @@
 			isa = PBXGroup;
 			children = (
 				005B636B2E16F88600A1F0C1 /* EditProfile.swift */,
-				005B636C2E16F88600A1F0C1 /* MultiPicker.swift */,
 				005B636D2E16F88600A1F0C1 /* ProfileView.swift */,
 				005B636E2E16F88600A1F0C1 /* RegisterNewProfile.swift */,
 				005B636F2E16F88600A1F0C1 /* RepSkillsModel.swift */,
@@ -336,7 +333,6 @@
 				005B637D2E16F88600A1F0C1 /* Chat_Group.swift in Sources */,
 				005B637E2E16F88600A1F0C1 /* RepTypeModel.swift in Sources */,
 				005B637F2E16F88600A1F0C1 /* GoalsDetailView.swift in Sources */,
-				005B63802E16F88600A1F0C1 /* MultiPicker.swift in Sources */,
 				005B63812E16F88600A1F0C1 /* RegisterNewProfile.swift in Sources */,
 				005B63822E16F88600A1F0C1 /* PortalItem.swift in Sources */,
 				005B63832E16F88600A1F0C1 /* ProfileView.swift in Sources */,

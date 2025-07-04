@@ -1,12 +1,15 @@
+//
+//  PortalItem.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.15.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+//
 
 import SwiftUI
 
 struct PortalItem: View {
-    let portal: Portal
+    let portal: PortalModel
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {

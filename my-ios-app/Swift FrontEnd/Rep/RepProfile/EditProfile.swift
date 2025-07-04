@@ -1,18 +1,18 @@
-//
 //  EditProfile.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.23.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
-//
 
 import SwiftUI
 import Combine
+import PhotosUI
 
 struct EditProfileView: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var navigateToMainScreen = false
+    @State private var selectedPhoto: PhotosPickerItem? = nil
 
     var body: some View {
         NavigationStack {
@@ -26,7 +26,7 @@ struct EditProfileView: View {
                         }
                     }
                 )
-                EditProfileInfoSection(viewModel: viewModel)
+                EditProfileInfoSection(viewModel: viewModel, selectedPhoto: $selectedPhoto)
                 VStack(alignment: .leading, spacing: 12) {
                     TextField("About (optional)", text: $viewModel.profileInfo.about)
                         .padding()
@@ -56,7 +56,7 @@ struct EditProfileView: View {
                                     RepTypeModel.title,
                                     selection: $viewModel.profileInfo.type
                                 ) {
-                                    ForEach(RepTypeModel.allCases) { role in
+                                    ForEach(RepTypeModel.allCases, id: \.self) { role in
                                         Text(role.rawValue)
                                             .mpTag(role)
                                     }
@@ -83,7 +83,7 @@ struct EditProfileView: View {
                                 RepSkillsModel.title,
                                 selection: $viewModel.profileInfo.skils
                             ) {
-                                ForEach(RepSkillsModel.allCases) { skill in
+                                ForEach(RepSkillsModel.allCases, id: \.self) { skill in
                                     Text(skill.rawValue)
                                         .mpTag(skill)
                                         .disabled(false)
@@ -131,8 +131,15 @@ struct EditProfileView: View {
                     .padding(.bottom, 32)
                 }
                 .background(Color.white)
-                .sheet(isPresented: $viewModel.isAddingPhoto) {
-                    PhotoPicker(items: $viewModel.items)
+                .onChange(of: selectedPhoto) { newItem in
+                    if let newItem {
+                        Task {
+                            if let data = try? await newItem.loadTransferable(type: Data.self),
+                               let image = UIImage(data: data) {
+                                viewModel.profileInfo.image = image
+                            }
+                        }
+                    }
                 }
                 NavigationLink(
                     destination: MainScreen(),
@@ -144,21 +151,6 @@ struct EditProfileView: View {
             .background(Color.white.edgesIgnoringSafeArea(.all))
             .navigationBarHidden(true)
         }
-    }
-}
-
-// MARK: - Status Bar (matches ProfileView)
-struct StatusBarView: View {
-    var body: some View {
-        HStack {
-            Text("9:41")
-                .font(.system(size: 14))
-                .foregroundColor(.black)
-            Spacer()
-        }
-        .frame(height: 48)
-        .padding(.horizontal, 19)
-        .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
     }
 }
 
@@ -199,21 +191,44 @@ struct EditProfileHeaderView: View {
 // MARK: - Profile Info Section (matches ProfileView)
 struct EditProfileInfoSection: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
+    @Binding var selectedPhoto: PhotosPickerItem?
 
     var body: some View {
         HStack(alignment: .top, spacing: 11) {
-            GridItemView(size: 108, item: viewModel.profileInfo.image)
-                .clipShape(Circle())
-                .frame(width: 108, height: 108)
-                .overlay(
-                    Button(action: viewModel.setNewPhoto) {
-                        Text("+Edit\nPhoto")
-                            .font(.custom("Inter", size: 16))
-                            .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.47))
-                            .multilineTextAlignment(.center)
-                    }
-                    .offset(x: -10, y: 40)
-                , alignment: .bottomLeading)
+            ZStack(alignment: .bottomTrailing) {
+                if let image = viewModel.profileInfo.image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                        .clipShape(Circle())
+                        .frame(width: 108, height: 108)
+                } else {
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 108, height: 108)
+                        .overlay(
+                            Image(systemName: "person.crop.circle")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 80, height: 80)
+                                .foregroundColor(.gray)
+                        )
+                }
+                PhotosPicker(
+                    selection: $selectedPhoto,
+                    matching: .images,
+                    photoLibrary: .shared()
+                ) {
+                    Text("+Edit\nPhoto")
+                        .font(.custom("Inter", size: 16))
+                        .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.47))
+                        .multilineTextAlignment(.center)
+                        .padding(6)
+                        .background(Color.white.opacity(0.8))
+                        .cornerRadius(8)
+                }
+                .offset(x: -10, y: 10)
+            }
             VStack(alignment: .leading, spacing: 7) {
                 Text(viewModel.profileInfo.type.description)
                     .font(.system(size: 17, weight: .bold))
@@ -231,7 +246,18 @@ struct EditProfileInfoSection: View {
     }
 }
 
-// MARK: - ViewModel API Integration Example
+// MARK: - EditMode
+
+enum EditMode {
+    case edit
+    case create
+}
+
+// MARK: - Preview Image
+
+let eventsImageItem = UIImage(systemName: "person.crop.circle")
+
+// MARK: - ViewModel
 
 class ProfileInfoViewModel: ObservableObject {
     @Published var profileInfo: ProfileInfo
@@ -279,12 +305,12 @@ class ProfileInfoViewModel: ObservableObject {
         if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
         if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
         // Add type if you have its ID
-        if let typeId = profileInfo.type.id { appendFormField("users_types_id", "\(typeId)") }
+        appendFormField("users_types_id", profileInfo.type.id)
         // Add city name if provided (use manual_city for backend compatibility)
         if !profileInfo.cityName.isEmpty { appendFormField("manual_city", profileInfo.cityName) }
         // Add skills as comma-separated IDs
         if !profileInfo.skils.isEmpty {
-            let skillIds = profileInfo.skils.map { "\($0.id)" }.joined(separator: ",")
+            let skillIds = profileInfo.skils.map { $0.id }.joined(separator: ",")
             appendFormField("aSkills", skillIds)
         }
 
@@ -314,15 +340,15 @@ class ProfileInfoViewModel: ObservableObject {
 #Preview {
     EditProfileView(
         viewModel: .init(
-            profileInfo: .init(
+            profileInfo: ProfileInfo(
                 firstName: "Alex",
                 lastName: "Cooper",
                 skils: [
-                    .cantentGraphics,
-                    .eventsPlanning,
-                    .hrProductivity
+                    RepSkillsModel.cantentGraphics,
+                    RepSkillsModel.eventsPlanning,
+                    RepSkillsModel.hrProductivity
                 ],
-                type: .lead,
+                type: RepTypeModel.lead,
                 cityName: "New York",
                 image: eventsImageItem,
                 about: "About me...",

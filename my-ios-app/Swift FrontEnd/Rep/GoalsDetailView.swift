@@ -61,7 +61,12 @@ struct GoalsDetailView: View {
                             FeedCell(feed: feedItem)
                         }
                     } else if selectedSegment == 1 {
-                        ReportCell(chartData: viewModel.goal.chartData)
+                        // Use LargeBarChartView for the report
+                        if viewModel.goal.chartData.isEmpty {
+                            Text("No chart data available.")
+                        } else {
+                            LargeBarChartView(data: viewModel.goal.chartData)
+                        }
                     } else if selectedSegment == 2 {
                         ForEach(viewModel.team) { user in
                             TeamCell(user: user)
@@ -142,7 +147,6 @@ class GoalsDetailViewModel: ObservableObject {
     func load(goalId: Int) {
         guard let url = URL(string: "http://localhost:5000/api/goals/details?goals_id=\(goalId)") else { return }
         var request = URLRequest(url: url)
-        // Add JWT token to the request header
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
@@ -268,12 +272,6 @@ struct Goal: Identifiable {
     )
 }
 
-struct User: Identifiable {
-    var id: Int
-    var name: String
-    var imageName: String
-}
-
 struct Feed: Identifiable {
     let id: Int
     let userImageName: String
@@ -284,11 +282,19 @@ struct Feed: Identifiable {
     let line4: String
 }
 
+// MARK: - Bar Chart Data Model
+
 struct BarChartData: Identifiable, Codable {
     let id = UUID()
     let value: Double
     let valueLabel: String
     let bottomLabel: String
+
+    init(value: Double, valueLabel: String, bottomLabel: String) {
+        self.value = value
+        self.valueLabel = valueLabel
+        self.bottomLabel = bottomLabel
+    }
 }
 
 // MARK: - Cells
@@ -336,24 +342,9 @@ struct TeamCell: View {
     }
 }
 
-struct ReportCell: View {
-    let chartData: [BarChartData]
-    var body: some View {
-        if chartData.isEmpty {
-            Text("No chart data available.")
-        } else {
-            BarChartView(data: chartData)
-        }
-    }
-}
+// MARK: - Large Bar Chart View
 
-// MARK: - Bar Chart
-
-extension Color {
-    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
-}
-
-struct BarChartView: View {
+struct LargeBarChartView: View {
     let data: [BarChartData]
 
     var body: some View {

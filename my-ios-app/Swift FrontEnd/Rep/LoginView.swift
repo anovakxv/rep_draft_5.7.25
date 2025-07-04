@@ -1,6 +1,6 @@
 //
 //  LoginView.swift
-//  Rep 
+//  Rep
 //
 //  Created by Dmytro Holovko on 04.12.2023.
 //  Updated by Adam Novak on 06.19.2025
@@ -8,6 +8,44 @@
 
 import SwiftUI
 import Combine
+
+// --- Stub Views for compilation ---
+
+struct SignUpView: View {
+    var body: some View { Text("Sign Up View Placeholder") }
+}
+
+struct GTextField: View {
+    enum Model { case email, password }
+    let model: Model
+    @Binding var text: String
+    var body: some View {
+        TextField(model == .email ? "Email" : "Password", text: $text)
+            .textContentType(model == .email ? .emailAddress : .password)
+            .autocapitalization(.none)
+            .disableAutocorrection(true)
+            .padding()
+            .background(Color.gray.opacity(0.1))
+            .cornerRadius(8)
+    }
+}
+
+struct GButton: View {
+    let text: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Text(text)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(SwiftUI.Color.repGreen)
+                .foregroundColor(.white)
+                .cornerRadius(8)
+        }
+    }
+}
+
+// --- Main LoginView ---
 
 struct LoginView: View {
     @StateObject private var viewModel = APILoginViewModel()
@@ -17,7 +55,7 @@ struct LoginView: View {
     enum Field: Hashable {
         case email, password
     }
-    
+
     var body: some View {
         VStack {
             VStack {
@@ -45,10 +83,9 @@ struct LoginView: View {
         .alert(viewModel.error?.debugDescription ?? "", isPresented: $isAlertPresented) {
             Button("Ok", role: .cancel) { viewModel.error = nil }
         }
-        .loading(isLoading: viewModel.isLoading)
         .background(Color.white)
     }
-    
+    		
     @ViewBuilder
     var headerView: some View {
         HStack {
@@ -86,7 +123,7 @@ struct LoginView: View {
                 viewModel.forgotPassword()
             }
             .buttonStyle(.borderless)
-            .accentColor(.repGreen)
+            .accentColor(SwiftUI.Color.repGreen)
             .font(.caption)
         }
     }
@@ -107,7 +144,7 @@ struct LoginView: View {
                     Text("Sign Up")
                 })
                 .buttonStyle(.borderless)
-                .accentColor(.repGreen)
+                .accentColor(SwiftUI.Color.repGreen)
             }
         }
         .padding(24)
@@ -186,7 +223,7 @@ struct UserProfile: Decodable {
     // Add other fields as needed
 }
 
-enum ServiceError: Error, CustomDebugStringConvertible {
+enum ServiceError: Error, CustomDebugStringConvertible, Equatable {
     case inputDataError
     case networkError
     case serverError(String)
@@ -204,10 +241,28 @@ enum ServiceError: Error, CustomDebugStringConvertible {
             return "An unknown error occurred."
         }
     }
+
+    static func == (lhs: ServiceError, rhs: ServiceError) -> Bool {
+        switch (lhs, rhs) {
+        case (.inputDataError, .inputDataError),
+             (.networkError, .networkError),
+             (.unknown, .unknown):
+            return true
+        case (.serverError(let lMsg), .serverError(let rMsg)):
+            return lMsg == rMsg
+        default:
+            return false
+        }
+    }
+}
+extension SwiftUI.Color {
+    static let repGreen = SwiftUI.Color(red: 0/255, green: 200/255, blue: 83/255)
 }
 
-extension Color {
-    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
-}
+// --- Preview ---
 
-#Preview
+struct LoginView_Previews: PreviewProvider {
+    static var previews: some View {
+        LoginView()
+    }
+}

@@ -7,12 +7,168 @@
 import SwiftUI
 import PhotosUI
 
+// MARK: - EditableGoal Model
+
+struct EditableGoal: Identifiable {
+    let id = UUID()
+    var title: String
+    var subtitle: String?
+    var progressPercent: Double?
+    var typeName: String?
+    var chartData: [BarChartData]?
+
+    init(goal: Goal) {
+        self.title = goal.title
+        self.subtitle = goal.subtitle
+        self.progressPercent = goal.progressPercent
+        self.typeName = goal.typeName
+        self.chartData = goal.chartData
+    }
+
+    init(title: String, subtitle: String?, progressPercent: Double?, typeName: String?, chartData: [BarChartData]?) {
+        self.title = title
+        self.subtitle = subtitle
+        self.progressPercent = progressPercent
+        self.typeName = typeName
+        self.chartData = chartData
+    }
+}
+
+// MARK: - EditPortalViewModel
+
+class EditPortalViewModel: ObservableObject {
+    @Published var name: String
+    @Published var subtitle: String
+    @Published var about: String
+    @Published var section: Int = 0
+    @Published var storyText: String
+    @Published var offeringText: String
+    @Published var goals: [EditableGoal]
+    @Published var selectedImages: [UIImage] = []
+    @Published var mainImageIndex: Int = 0
+
+    let portalId: Int
+    let userId: Int
+    let maxImages = 10
+
+    init(portal: PortalDetail, userId: Int) {
+        self.portalId = portal.id
+        self.userId = userId
+        self.name = portal.name
+        self.subtitle = portal.subtitle ?? ""
+        self.about = portal.about ?? ""
+        self.storyText = portal.aTexts.first?.text ?? ""
+        self.offeringText = portal.about ?? ""
+        self.goals = portal.aGoals.map { EditableGoal(goal: $0) }
+        // Optionally load existing images from portal.aSections/aFiles if needed
+    }
+
+    func addGoal() {
+        goals.append(EditableGoal(title: "", subtitle: "", progressPercent: nil, typeName: "", chartData: []))
+    }
+
+    func removeImage(at index: Int) {
+        guard selectedImages.indices.contains(index) else { return }
+        selectedImages.remove(at: index)
+        if mainImageIndex >= selectedImages.count {
+            mainImageIndex = max(0, selectedImages.count - 1)
+        }
+    }
+
+    func loadImages(from items: [PhotosPickerItem]) {
+        let currentCount = selectedImages.count
+        let availableSlots = maxImages - currentCount
+        let itemsToLoad = Array(items.prefix(availableSlots))
+        for item in itemsToLoad {
+            item.loadTransferable(type: Data.self) { result in
+                switch result {
+                case .success(let data):
+                    if let data, let image = UIImage(data: data) {
+                        DispatchQueue.main.async {
+                            self.selectedImages.append(image)
+                        }
+                    }
+                case .failure(let error):
+                    print("Failed to load image: \(error)")
+                }
+            }
+        }
+    }
+
+    func save(completion: @escaping () -> Void) {
+        let boundary = UUID().uuidString
+        guard let url = URL(string: "http://localhost:5000/api/portal/edit") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+        func appendFormField(_ name: String, _ value: String) {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+
+        // Required fields
+        appendFormField("portal_id", "\(portalId)")
+        appendFormField("user_id", "\(userId)")
+
+        // Main fields
+        appendFormField("name", name)
+        appendFormField("subtitle", subtitle)
+        appendFormField("about", about)
+        // Add categories_id, cities_id, lead_id, visible, etc. as needed
+
+        // Texts (story, offering, etc.)
+        let texts: [[String: String]] = [
+            ["title": "Story", "text": storyText, "section": "story"],
+            ["title": "Offering", "text": offeringText, "section": "offering"]
+        ]
+        if let textsData = try? JSONSerialization.data(withJSONObject: texts) {
+            appendFormField("aTexts", String(data: textsData, encoding: .utf8) ?? "")
+        }
+
+        // Images
+        for (idx, image) in selectedImages.prefix(maxImages).enumerated() {
+            if let imageData = image.jpegData(compressionQuality: 0.85) {
+                body.append("--\(boundary)\r\n".data(using: .utf8)!)
+                body.append("Content-Disposition: form-data; name=\"images\"; filename=\"portal_image_\(idx).jpg\"\r\n".data(using: .utf8)!)
+                body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+                body.append(imageData)
+                body.append("\r\n".data(using: .utf8)!)
+            }
+        }
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                // Handle response, update UI, show error/success, etc.
+                completion()
+            }
+        }.resume()
+    }
+}
+
+// MARK: - Optional String Binding Helper
+
+extension Binding where Value == String? {
+    init(_ source: Binding<String?>, default defaultValue: String) {
+        self.init(
+            get: { source.wrappedValue ?? defaultValue },
+            set: { source.wrappedValue = $0 }
+        )
+    }
+}
+
+// MARK: - EditPortalView
+
 struct EditPortalView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: EditPortalViewModel
     @State private var photoPickerItems: [PhotosPickerItem] = []
 
-    // Pass userId from your app/session here
     let userId: Int
 
     init(portal: PortalDetail, userId: Int) {
@@ -130,7 +286,7 @@ struct EditPortalView: View {
                     }
 
                     // Editable Sections (Story, Offering, Results)
-                    CustomSegmentedPicker(
+                    PortalSegmentedPicker(
                         segments: ["Story", "Offering", "Results"],
                         selectedIndex: $viewModel.section
                     )
@@ -173,155 +329,33 @@ struct EditPortalView: View {
     }
 }
 
-// MARK: - ViewModel
+// MARK: - PortalSegmentedPicker (reuse from PortalPage)
 
-class EditPortalViewModel: ObservableObject {
-    @Published var name: String
-    @Published var subtitle: String
-    @Published var about: String
-    @Published var section: Int = 0
-    @Published var storyText: String
-    @Published var offeringText: String
-    @Published var goals: [EditableGoal]
-    @Published var selectedImages: [UIImage] = []
-    @Published var mainImageIndex: Int = 0
+struct PortalSegmentedPicker: View {
+    let segments: [String]
+    @Binding var selectedIndex: Int
 
-    let portalId: Int
-    let userId: Int
-    let maxImages = 10
-
-    init(portal: PortalDetail, userId: Int) {
-        self.portalId = portal.id
-        self.userId = userId
-        self.name = portal.name
-        self.subtitle = portal.subtitle ?? ""
-        self.about = portal.about ?? ""
-        self.storyText = portal.aTexts.first?.text ?? ""
-        self.offeringText = portal.about ?? ""
-        self.goals = portal.aGoals.map { EditableGoal(goal: $0) }
-        // Optionally load existing images from portal.aSections/aFiles if needed
-    }
-
-    func addGoal() {
-        goals.append(EditableGoal(title: "", subtitle: "", progressPercent: nil, typeName: "", chartData: []))
-    }
-
-    func removeImage(at index: Int) {
-        guard selectedImages.indices.contains(index) else { return }
-        selectedImages.remove(at: index)
-        if mainImageIndex >= selectedImages.count {
-            mainImageIndex = max(0, selectedImages.count - 1)
-        }
-    }
-
-    func loadImages(from items: [PhotosPickerItem]) {
-        let currentCount = selectedImages.count
-        let availableSlots = maxImages - currentCount
-        let itemsToLoad = Array(items.prefix(availableSlots))
-        for item in itemsToLoad {
-            item.loadTransferable(type: Data.self) { result in
-                switch result {
-                case .success(let data):
-                    if let data, let image = UIImage(data: data) {
-                        DispatchQueue.main.async {
-                            self.selectedImages.append(image)
-                        }
-                    }
-                case .failure(let error):
-                    print("Failed to load image: \(error)")
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(segments.indices, id: \.self) { index in
+                Button(action: {
+                    selectedIndex = index
+                }) {
+                    Text(segments[index])
+                        .fontWeight(.medium)
+                        .foregroundColor(selectedIndex == index ? .white : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(selectedIndex == index ? Color.black : Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 0)
+                                .stroke(Color.black, lineWidth: 1)
+                        )
                 }
             }
         }
-    }
-
-    func save(completion: @escaping () -> Void) {
-        let boundary = UUID().uuidString
-        guard let url = URL(string: "http://localhost:5000/api/portal/edit") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-
-        var body = Data()
-        func appendFormField(_ name: String, _ value: String) {
-            body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"\(name)\"\r\n\r\n".data(using: .utf8)!)
-            body.append("\(value)\r\n".data(using: .utf8)!)
-        }
-
-        // Required fields
-        appendFormField("portal_id", "\(portalId)")
-        appendFormField("user_id", "\(userId)")
-
-        // Main fields
-        appendFormField("name", name)
-        appendFormField("subtitle", subtitle)
-        appendFormField("about", about)
-        // Add categories_id, cities_id, lead_id, visible, etc. as needed
-
-        // Texts (story, offering, etc.)
-        let texts: [[String: String]] = [
-            ["title": "Story", "text": storyText, "section": "story"],
-            ["title": "Offering", "text": offeringText, "section": "offering"]
-        ]
-        if let textsData = try? JSONSerialization.data(withJSONObject: texts) {
-            appendFormField("aTexts", String(data: textsData, encoding: .utf8) ?? "")
-        }
-
-        // Images
-        for (idx, image) in selectedImages.prefix(maxImages).enumerated() {
-            if let imageData = image.jpegData(compressionQuality: 0.85) {
-                body.append("--\(boundary)\r\n".data(using: .utf8)!)
-                body.append("Content-Disposition: form-data; name=\"images\"; filename=\"portal_image_\(idx).jpg\"\r\n".data(using: .utf8)!)
-                body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-                body.append(imageData)
-                body.append("\r\n".data(using: .utf8)!)
-            }
-        }
-
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        request.httpBody = body
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                // Handle response, update UI, show error/success, etc.
-                completion()
-            }
-        }.resume()
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 0))
     }
 }
 
-struct EditableGoal: Identifiable {
-    let id = UUID()
-    var title: String
-    var subtitle: String?
-    var progressPercent: Double?
-    var typeName: String?
-    var chartData: [BarChartData]?
-
-    init(goal: Goal) {
-        self.title = goal.title
-        self.subtitle = goal.subtitle
-        self.progressPercent = goal.progressPercent
-        self.typeName = goal.typeName
-        self.chartData = goal.chartData
-    }
-
-    init(title: String, subtitle: String?, progressPercent: Double?, typeName: String?, chartData: [BarChartData]?) {
-        self.title = title
-        self.subtitle = subtitle
-        self.progressPercent = progressPercent
-        self.typeName = typeName
-        self.chartData = chartData
-    }
-}
-
-// MARK: - Optional String Binding Helper
-
-extension Binding where Value == String? {
-    init(_ source: Binding<String?>, default defaultValue: String) {
-        self.init(
-            get: { source.wrappedValue ?? defaultValue },
-            set: { source.wrappedValue = $0 }
-        )
-    }
-}

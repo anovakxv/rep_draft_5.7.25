@@ -3,49 +3,11 @@
 //
 //  Created by Adam Novak on 06.15.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
-//
 
 import SwiftUI
 
-// MARK: - Bar Chart Data Model
+// MARK: - BarChartData & Goal Model
 
-struct BarChartData: Identifiable, Codable {
-    let id = UUID()
-    let value: Double
-    let valueLabel: String
-    let bottomLabel: String
-
-    init(value: Double, valueLabel: String, bottomLabel: String) {
-        self.value = value
-        self.valueLabel = valueLabel
-        self.bottomLabel = bottomLabel
-    }
-}
-
-// MARK: - Goal Model (Synced with API)
-
-struct Goal: Identifiable, Codable {
-    let id: Int
-    let title: String
-    let subtitle: String
-    let progressPercent: Double
-    let typeName: String
-    let chartData: [BarChartData]
-
-    static let placeholder = Goal(
-        id: 1,
-        title: "Grow Membership",
-        subtitle: "Increase by 20% this year",
-        progressPercent: 60,
-        typeName: "Recruiting",
-        chartData: [
-            BarChartData(value: 10, valueLabel: "10", bottomLabel: "Jan"),
-            BarChartData(value: 30, valueLabel: "30", bottomLabel: "Feb"),
-            BarChartData(value: 20, valueLabel: "20", bottomLabel: "Mar"),
-            BarChartData(value: 40, valueLabel: "40", bottomLabel: "Apr")
-        ]
-    )
-}
 
 // MARK: - Unified User Model
 
@@ -58,17 +20,16 @@ struct User: Identifiable, Codable {
     let about: String?
     let broadcast: String?
     let profilePictureURL: URL?
+    let imageName: String
     let userType: String?
     let city: String?
     let skills: [String]?
     let lastLogin: String?
     let createdAt: String?
     let updatedAt: String?
-    // Messaging fields
     let lastMessage: String?
     let lastMessageDate: String?
 
-    // For UI compatibility
     var repTypeAndCity: String {
         let type = userType ?? ""
         let cityStr = city ?? ""
@@ -99,6 +60,7 @@ struct User: Identifiable, Codable {
         case updatedAt = "updated_at"
         case lastMessage = "last_message"
         case lastMessageDate = "last_message_date"
+        case imageName
     }
 
     static let placeholder = User(
@@ -110,6 +72,7 @@ struct User: Identifiable, Codable {
         about: "Passionate about building teams and products...",
         broadcast: "Looking for partners in NYC!",
         profilePictureURL: nil,
+        imageName: "profile_placeholder", // must precede userType
         userType: "Lead",
         city: "New York",
         skills: ["Leadership", "Marketing", "Fundraising"],
@@ -390,27 +353,18 @@ class ProfileViewModel: ObservableObject {
         }.resume()
     }
 
-    func goBack() {
-        // Handle navigation back
-    }
-
+    func goBack() {}
     func handleAction(_ action: String, editProfile: @escaping () -> Void) {
-        if action == "Edit Profile" {
-            editProfile()
-        }
-        // Handle other actions as needed
+        if action == "Edit Profile" { editProfile() }
     }
-
-    func addPartner() {
-        // Handle add partner action
-    }
+    func addPartner() {}
 }
 
 // MARK: - Main Profile View
 
 struct ProfileView: View {
     @StateObject private var viewModel: ProfileViewModel
-    @State private var selectedTab = 0 // 0: Rep, 1: Goals, 2: Write
+    @State private var selectedTab = 0
     @State private var showAddPurpose = false
     @State private var showMessageSheet = false
     @State private var showAddGoal = false
@@ -445,7 +399,7 @@ struct ProfileView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
-                CustomSegmentedPicker(
+                ProfileSegmentedPicker(
                     segments: ["Rep", "Goals", "Write"],
                     selectedIndex: $selectedTab
                 )
@@ -457,9 +411,7 @@ struct ProfileView: View {
                                 ProfileCardsSection(cards: viewModel.profileCards)
                                     .padding(.bottom, 16)
                                 if viewModel.isCurrentUser {
-                                    Button(action: {
-                                        showAddPurpose = true
-                                    }) {
+                                    Button(action: { showAddPurpose = true }) {
                                         HStack {
                                             Image(systemName: "plus.circle.fill")
                                                 .foregroundColor(.green)
@@ -492,9 +444,7 @@ struct ProfileView: View {
                     } else if selectedTab == 1 {
                         VStack(spacing: 0) {
                             if viewModel.isCurrentUser {
-                                Button(action: {
-                                    showAddGoal = true
-                                }) {
+                                Button(action: { showAddGoal = true }) {
                                     HStack {
                                         Image(systemName: "plus.circle.fill")
                                             .foregroundColor(.green)
@@ -608,10 +558,10 @@ struct ProfileView: View {
                         profileInfo: ProfileInfo(
                             firstName: viewModel.user.fname ?? "",
                             lastName: viewModel.user.lname ?? "",
-                            skils: [], // You may want to map user.skills to your model
-                            type: .lead, // Map user.userType to your RepTypeModel
+                            skils: [],
+                            type: .lead,
                             cityName: viewModel.user.city ?? "",
-                            image: nil, // Load from user.profilePictureURL if needed
+                            image: nil,
                             about: viewModel.user.about ?? "",
                             broadcast: viewModel.user.broadcast ?? "",
                             otherSkill: ""
@@ -621,6 +571,36 @@ struct ProfileView: View {
                 )
             }
         }
+    }
+}
+
+// MARK: - Profile Segmented Picker
+
+struct ProfileSegmentedPicker: View {
+    let segments: [String]
+    @Binding var selectedIndex: Int
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(segments.indices, id: \.self) { index in
+                Button(action: {
+                    selectedIndex = index
+                }) {
+                    Text(segments[index])
+                        .fontWeight(.medium)
+                        .foregroundColor(selectedIndex == index ? .white : .black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(selectedIndex == index ? Color.black : Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 0)
+                                .stroke(Color.black, lineWidth: 1)
+                        )
+                }
+            }
+        }
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 0))
     }
 }
 
@@ -707,34 +687,6 @@ struct ProfileInfoView: View {
     }
 }
 
-struct CustomSegmentedPicker: View {
-    let segments: [String]
-    @Binding var selectedIndex: Int
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(segments.indices, id: \.self) { index in
-                Button(action: {
-                    selectedIndex = index
-                }) {
-                    Text(segments[index])
-                        .fontWeight(.medium)
-                        .foregroundColor(selectedIndex == index ? .white : .black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(selectedIndex == index ? Color.black : Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 0)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
-                }
-            }
-        }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 0))
-    }
-}
-
 struct ProfileCardsSection: View {
     let cards: [ProfileCard]
 
@@ -764,7 +716,7 @@ struct ProfileCardView: View {
                     if let image = phase.image {
                         image
                             .resizable()
-                            .aspectRatio(contentMode: .cover)
+                            .aspectRatio(contentMode: .fill)
                     } else if phase.error != nil {
                         Color.gray
                     } else {
@@ -792,7 +744,6 @@ struct ProfileCardView: View {
     }
 }
 
-// Example custom content for a card
 struct BGCLogoView: View {
     var body: some View {
         ZStack {
@@ -823,65 +774,6 @@ struct BGCLogoView: View {
             .frame(width: 131)
         }
     }
-}
-
-struct GoalListItem: View {
-    let goal: Goal
-    var body: some View {
-        HStack(spacing: 16) {
-            BarChartView(data: goal.chartData)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(goal.title)
-                    .font(.headline)
-                if !goal.subtitle.isEmpty {
-                    Text(goal.subtitle)
-                        .font(.subheadline)
-                }
-                Text("\(Int(goal.progressPercent))% [\(goal.typeName)]")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-            Spacer()
-        }
-        .frame(height: 64)
-        .padding(.vertical, 4)
-        .padding(.horizontal)
-        .background(Color.white)
-    }
-}
-
-struct BarChartView: View {
-    let data: [BarChartData]
-
-    var maxValue: Double {
-        data.map { $0.value }.max() ?? 1
-    }
-
-    var body: some View {
-        VStack(spacing: 2) {
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(data) { bar in
-                    Rectangle()
-                        .fill(Color.repGreen)
-                        .frame(width: 14, height: CGFloat(bar.value / maxValue) * 40)
-                        .cornerRadius(3)
-                }
-            }
-            HStack(spacing: 6) {
-                ForEach(data) { bar in
-                    Text(bar.bottomLabel)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .frame(width: 14)
-                }
-            }
-        }
-        .frame(width: 70, height: 56)
-    }
-}
-
-extension Color {
-    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
 }
 
 struct WriteContentView: View {
@@ -1009,18 +901,42 @@ struct BottomBarView: View {
     }
 }
 
-// MARK: - Placeholder for PortalPage and GoalDetailPage
-
-struct PortalPage: View {
-    let portal: Portal
-    var body: some View {
-        Text("Portal: \(portal.name)")
-    }
-}
+// --- Placeholders for missing views ---
 
 struct GoalDetailPage: View {
     let goal: Goal
     var body: some View {
-        Text("Goal: \(goal.title)")
+        Text(goal.title)
     }
+}
+
+struct GoalListItem: View {
+    let goal: Goal
+    var body: some View {
+        Text(goal.title)
+    }
+}
+
+struct AddGoalSheet: View {
+    @ObservedObject var viewModel: ProfileViewModel
+    var body: some View {
+        Text("Add Goal Sheet")
+    }
+}
+
+struct ProfileInfo {
+    let firstName: String
+    let lastName: String
+    let skils: [String]
+    let type: RepType
+    let cityName: String
+    let image: UIImage?
+    let about: String
+    let broadcast: String
+    let otherSkill: String
+}
+
+
+enum RepType {
+    case lead
 }

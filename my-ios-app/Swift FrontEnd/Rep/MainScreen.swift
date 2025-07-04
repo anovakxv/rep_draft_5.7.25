@@ -1,5 +1,5 @@
 //  MainScreen.swift
-//  Rep 
+//  Rep
 //
 //  Created by Dmytro Holovko on 02.12.2023.
 //  Updated by Adam Novak on 06.19.2025
@@ -22,52 +22,7 @@ struct PortalModel: Identifiable, Decodable {
     let mainImageUrl: String?
 }
 
-// MARK: - Unified User Model
-
-struct User: Identifiable, Codable {
-    let id: Int
-    let fullName: String
-    let fname: String?
-    let lname: String?
-    let username: String
-    let about: String?
-    let broadcast: String?
-    let profilePictureURL: URL?
-    let userType: String?
-    let city: String?
-    let skills: [String]?
-    let lastLogin: String?
-    let createdAt: String?
-    let updatedAt: String?
-    // Messaging fields
-    let lastMessage: String?
-    let lastMessageDate: String?
-
-    enum CodingKeys: String, CodingKey {
-        case id
-        case fullName = "full_name"
-        case fname
-        case lname
-        case username
-        case about
-        case broadcast
-        case profilePictureURL = "profile_picture_url"
-        case userType = "user_type"
-        case city
-        case skills
-        case lastLogin = "last_login"
-        case createdAt = "created_at"
-        case updatedAt = "updated_at"
-        case lastMessage = "last_message"
-        case lastMessageDate = "last_message_date"
-    }
-}
-
 // MARK: - API Responses
-
-struct PortalsAPIResponse: Decodable {
-    let result: [PortalModel]
-}
 
 struct UsersAPIResponse: Decodable {
     let result: [User]
@@ -89,14 +44,12 @@ struct ActiveChat: Identifiable, Decodable {
 struct ChatModel: Decodable {
     let id: Int
     let name: String?
-    // Add other fields as needed
 }
 
 struct MessageModel: Decodable {
     let id: Int
     let text: String?
     let created_at: String?
-    // Add other fields as needed
 }
 
 // MARK: - ViewModels
@@ -125,7 +78,6 @@ class PortalsViewModel: ObservableObject {
             return
         }
         var request = URLRequest(url: url)
-        // Add JWT token to the request header
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
@@ -143,8 +95,8 @@ class PortalsViewModel: ObservableObject {
                     return
                 }
                 do {
-                    let response = try JSONDecoder().decode(PortalsAPIResponse.self, from: data)
-                    self.portals = response.result
+                    let response = try JSONDecoder().decode([String: [PortalModel]].self, from: data)
+                    self.portals = response["result"] ?? []
                 } catch {
                     self.errorMessage = "Failed to decode: \(error.localizedDescription)"
                     self.portals = []
@@ -167,7 +119,6 @@ class PeopleViewModel: ObservableObject {
         errorMessage = nil
 
         if section == 0 {
-            // OPEN tab: fetch active chat list
             let urlString = "http://localhost:5000/api/active_chat_list?user_id=\(userId)"
             guard let url = URL(string: urlString) else {
                 errorMessage = "Invalid URL"
@@ -175,7 +126,6 @@ class PeopleViewModel: ObservableObject {
                 return
             }
             var request = URLRequest(url: url)
-            // Add JWT token to the request header
             if !jwtToken.isEmpty {
                 request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
             }
@@ -202,7 +152,6 @@ class PeopleViewModel: ObservableObject {
                 }
             }.resume()
         } else {
-            // NTWK or ALL tab: fetch filtered people
             let tab = section == 1 ? "ntwk" : "all"
             let urlString = "http://localhost:5000/api/filter_people?user_id=\(userId)&tab=\(tab)"
             guard let url = URL(string: urlString) else {
@@ -211,7 +160,6 @@ class PeopleViewModel: ObservableObject {
                 return
             }
             var request = URLRequest(url: url)
-            // Add JWT token to the request header
             if !jwtToken.isEmpty {
                 request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
             }
@@ -257,8 +205,8 @@ struct MainScreen: View {
     @StateObject private var portalsVM = PortalsViewModel()
     @StateObject private var peopleVM = PeopleViewModel()
     @AppStorage("userId") var userId: Int = 0
-    @State private var page: Page = .portals // Start on Portals
-    @State private var section = 2           // Start on "All" tab
+    @State private var page: Page = .portals
+    @State private var section = 2
 
     var body: some View {
         NavigationStack {
@@ -273,7 +221,6 @@ struct MainScreen: View {
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if section == 0 {
-                        // OPEN tab: show active chats
                         if peopleVM.activeChats.isEmpty {
                             Text("No chats found.")
                                 .foregroundColor(.secondary)
@@ -282,13 +229,12 @@ struct MainScreen: View {
                             ActiveChatList(chats: peopleVM.activeChats)
                         }
                     } else {
-                        // NTWK or ALL tab: show users
                         if peopleVM.users.isEmpty {
                             Text("No people found.")
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            ChatList(users: peopleVM.users.sorted(by: { ($0.lastMessageDate ?? "") > ($1.lastMessageDate ?? "") }))
+                            ChatList(users: peopleVM.users)
                         }
                     }
                 case .portals:
@@ -329,7 +275,7 @@ struct MainScreen: View {
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink(destination: ProfileView()) {
+                    NavigationLink(destination: ProfileView(userId: userId)) {
                         Image(systemName: "person.crop.circle")
                             .resizable()
                             .frame(width: Constants.imageSize, height: Constants.imageSize)
@@ -386,7 +332,7 @@ struct MainScreen: View {
     }
 }
 
-// MARK: - Portal List & Item
+// MARK: - Portal List
 
 struct PortalList: View {
     var portals: [PortalModel]
@@ -411,54 +357,6 @@ struct PortalList: View {
     }
 }
 
-struct PortalItem: View {
-    var portal: PortalModel
-
-    var body: some View {
-        HStack(alignment: .top) {
-            if let urlString = portal.mainImageUrl, let url = URL(string: urlString) {
-                AsyncImage(url: url) { image in
-                    image.resizable().aspectRatio(16/9, contentMode: .fill)
-                } placeholder: {
-                    Color.gray
-                }
-                .frame(width: 80, height: 45)
-                .clipped()
-            } else {
-                Color.gray.frame(width: 80, height: 45).clipped()
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(portal.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text(portal.categories_id?.description ?? "")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                if let subtitle = portal.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                HStack {
-                    Text(portal.cities_id?.description ?? "")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("\(portal._c_users_count ?? 0) leads")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-            }
-        }
-        .frame(height: 64)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-    }
-}
 
 // MARK: - Active Chat List
 
@@ -475,7 +373,7 @@ struct ActiveChatList: View {
                 ForEach(chats) { chat in
                     if chat.type == "direct", let user = chat.user {
                         HStack(alignment: .top, spacing: 0) {
-                            NavigationLink(destination: ProfileView()) {
+                            NavigationLink(destination: ProfileView(userId: user.id)) {
                                 if let url = user.profilePictureURL {
                                     AsyncImage(url: url) { image in
                                         image.resizable().scaledToFill()
@@ -550,7 +448,7 @@ struct ActiveChatList: View {
     }
 }
 
-// MARK: - Chat List (Unified User Model)
+// MARK: - Chat List
 
 struct ChatList: View {
     var users: [User]
@@ -564,7 +462,7 @@ struct ChatList: View {
             List {
                 ForEach(users) { user in
                     HStack(alignment: .top, spacing: 0) {
-                        NavigationLink(destination: ProfileView()) {
+                        NavigationLink(destination: ProfileView(userId: user.id)) {
                             if let url = user.profilePictureURL {
                                 AsyncImage(url: url) { image in
                                     image.resizable().scaledToFill()
@@ -618,15 +516,7 @@ extension Date {
     }
 }
 
-// MARK: - Placeholder for PortalPage and Chat
-
-struct PortalPage: View {
-    let portalId: Int
-    let userId: Int
-    var body: some View {
-        Text("Portal ID: \(portalId), User ID: \(userId)")
-    }
-}
+// MARK: - Chat Page
 
 struct Chat: View {
     let userId: Int

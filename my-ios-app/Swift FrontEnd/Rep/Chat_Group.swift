@@ -281,11 +281,6 @@ struct GroupMessageBubble: View {
     }
 }
 
-// MARK: - repGreen Color
-
-extension Color {
-    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
-}
 
 // MARK: - Preview
 

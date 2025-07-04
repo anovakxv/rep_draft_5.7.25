@@ -1,5 +1,5 @@
 //  PortalPage.swift
-//  Rep 
+//  Rep
 //
 //  Created by Dmytro Holovko on 10.28.2023.
 //  Updated by Adam Novak on 06.20.2025
@@ -90,7 +90,7 @@ struct PortalPage: View {
                                 .clipped()
                         }
                         .frame(height: UIScreen.main.bounds.width * 9 / 16)
-                        CustomSegmentedPicker(
+                        PortalSegmentedPicker(
                             segments: ["Story", "Offering", "Results"],
                             selectedIndex: $viewModel.section
                         )
@@ -159,15 +159,17 @@ struct PortalPage: View {
                         }
                     }
                     .sheet(isPresented: $viewModel.isEditPresented) {
-                        EditPortalView(portal: portal)
+                        EditPortalView(portal: portal, userId: userId)
                     }
                     .sheet(isPresented: $showMessageSheet) {
                         if let lead = leadRepUser(from: portal) {
-                            // Message will go to the Lead Rep user of the portal
-                            Chat_Individual(
-                                currentUserId: userId,
-                                otherUserId: lead.id,
-                                otherUserName: "\(lead.fname ?? "") \(lead.lname ?? "")"
+                            MessageView(
+                                viewModel: MessageViewModel(
+                                    currentUserId: userId,
+                                    otherUserId: lead.id,
+                                    otherUserName: "\(lead.fname ?? "") \(lead.lname ?? "")",
+                                    otherUserPhotoURL: nil // Provide a URL if available
+                                )
                             )
                         } else {
                             Text("Lead Rep not found.")
@@ -233,9 +235,9 @@ struct ImageTabView: View {
     }
 }
 
-// MARK: - Segmented Picker
+// MARK: - Portal Segmented Picker
 
-struct CustomSegmentedPicker: View {
+struct PortalSegmentedPicker: View {
     let segments: [String]
     @Binding var selectedIndex: Int
 
@@ -324,15 +326,6 @@ struct PortalResultsSection: View {
     }
 }
 
-// MARK: - Edit Portal View (Stub)
-
-struct EditPortalView: View {
-    let portal: PortalDetail
-    var body: some View {
-        Text("Edit Portal View Placeholder for \(portal.name)")
-    }
-}
-
 // MARK: - Models
 
 struct PortalDetailResponse: Codable {
@@ -356,22 +349,6 @@ struct PortalDetail: Identifiable, Codable {
     let aUsers: [User]
 }
 
-struct Goal: Identifiable, Codable {
-    let id: Int
-    let title: String
-    let subtitle: String?
-    let progressPercent: Double?
-    let typeName: String?
-    let chartData: [BarChartData]?
-}
-
-struct BarChartData: Identifiable, Codable {
-    let id = UUID()
-    let value: Double
-    let valueLabel: String
-    let bottomLabel: String
-}
-
 struct PortalUser: Identifiable, Codable {
     let id: Int
 }
@@ -392,40 +369,7 @@ struct PortalFile: Identifiable, Codable {
     let url: String?
 }
 
-struct User: Identifiable, Codable {
-    let id: Int
-    let fname: String?
-    let lname: String?
-}
-
 // MARK: - Goal List Item & Detail
-
-struct GoalListItem: View {
-    let goal: Goal
-    var body: some View {
-        HStack(spacing: 16) {
-            if let chartData = goal.chartData, !chartData.isEmpty {
-                BarChartView(data: chartData)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(goal.title)
-                    .font(.headline)
-                if let subtitle = goal.subtitle, !subtitle.isEmpty {
-                    Text(subtitle)
-                        .font(.subheadline)
-                }
-                if let percent = goal.progressPercent, let type = goal.typeName {
-                    Text("\(Int(percent))% [\(type)]")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-            }
-            Spacer()
-        }
-        .padding()
-        .background(Color.white)
-    }
-}
 
 struct BarChartView: View {
     let data: [BarChartData]
@@ -454,19 +398,5 @@ struct BarChartView: View {
             }
         }
         .frame(width: 70, height: 56)
-    }
-}
-
-extension Color {
-    static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
-}
-
-// MARK: - Goals Detail View Navigation
-
-struct GoalsDetailView: View {
-    let goalId: Int
-    var body: some View {
-        Text("GoalsDetailView for goalId: \(goalId)")
-        // Replace with your actual GoalsDetailView implementation
     }
 }

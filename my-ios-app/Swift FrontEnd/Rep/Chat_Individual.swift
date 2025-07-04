@@ -1,5 +1,5 @@
 //  Chat.swift
-//  Rep 
+//  Rep
 //
 //  Created by Adam Novak on 06.19.2025
 //  (c) 2025 Networked Capital Inc. All rights reserved.
@@ -153,7 +153,9 @@ struct MessageView: View {
                         }
                     }
                 }
-            } ;               HStack(spacing: 8) {
+            }
+            
+            HStack(spacing: 8) {
                 TextField("Type a message...", text: $viewModel.inputText)
                     .padding(12)
                     .background(Color(UIColor.systemGray6))
@@ -186,51 +188,45 @@ struct MessageView: View {
         .onAppear {
             viewModel.fetchMessages()
         }
-        
-        
-        
-        // MARK: - Message Bubble
-        
-        struct MessageBubble: View {
-            let message: SimpleMessage
-            let isCurrentUser: Bool
-            let profilePicURL: URL?
-            
-            var body: some View {
-                VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
-                    Text(message.text)
-                        .padding(10)
-                        .background(isCurrentUser ? SwiftUI.Color.repGreen : Color(UIColor.systemGray5))
-                        .foregroundColor(isCurrentUser ? .white : .black)
-                        .cornerRadius(16)
-                    Text(message.timestamp, style: .time)
-                        .font(.caption2)
-                        .foregroundColor(.gray)
-                }
-                .frame(maxWidth: 260, alignment: isCurrentUser ? .trailing : .leading)
-                .id(message.id)
-            }
-        }
-        
-        // MARK: - repGreen Color
-        
-        extension Color {
-            static let repGreen = Color(red: 0/255, green: 200/255, blue: 83/255)
-        }
-        
-        // MARK: - Preview
-        
-        struct MessageView_Previews: PreviewProvider {
-            static var previews: some View {
-                MessageView(
-                    viewModel: MessageViewModel(
-                        currentUserId: 1,
-                        otherUserId: 2,
-                        otherUserName: "Alex",
-                        otherUserPhotoURL: URL(string: "https://randomuser.me/api/portraits/men/32.jpg")
-                    )
-                )
-            }
-        }
     }
 }
+
+// MARK: - Message Bubble
+
+struct MessageBubble: View {
+    let message: SimpleMessage
+    let isCurrentUser: Bool
+    let profilePicURL: URL?
+    
+    var body: some View {
+        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
+            Text(message.text)
+                .padding(10)
+                .background(isCurrentUser ? SwiftUI.Color.repGreen : Color(UIColor.systemGray5))
+                .foregroundColor(isCurrentUser ? .white : .black)
+                .cornerRadius(16)
+            Text(message.timestamp, style: .time)
+                .font(.caption2)
+                .foregroundColor(.gray)
+        }
+        .frame(maxWidth: 260, alignment: isCurrentUser ? .trailing : .leading)
+        .id(message.id)
+    }
+}
+
+
+// MARK: - Preview
+
+struct MessageView_Previews: PreviewProvider {
+    static var previews: some View {
+        MessageView(
+            viewModel: MessageViewModel(
+                currentUserId: 1,
+                otherUserId: 2,
+                otherUserName: "Alex",
+                otherUserPhotoURL: URL(string: "https://randomuser.me/api/portraits/men/32.jpg")
+            )
+        )
+    }
+}
+

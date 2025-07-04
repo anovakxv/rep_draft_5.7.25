@@ -18,7 +18,17 @@ struct RegisterNewProfileView: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
     @State private var navigateToEditProfile: Bool = false
-    @State private var registeredUser: ProfileInfo = ProfileInfo() // Replace with your actual model if needed
+    @State private var registeredUser: ProfileInfo = ProfileInfo(
+        firstName: "",
+        lastName: "",
+        skils: [],
+        type: .lead,
+        cityName: "",
+        image: nil,
+        about: "",
+        broadcast: "",
+        otherSkill: ""
+    )
 
     // AppStorage for registration state and userId
     @AppStorage("isRegistered") var isRegistered: Bool = false
@@ -148,28 +158,29 @@ struct RegisterNewProfileView: View {
                         ),
                         isActive: $navigateToEditProfile
                     ) {
-                        Button(action: {
-                            registerUser()
-                        }) {
-                            if isLoading {
-                                ProgressView()
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 54)
-                            } else {
-                                Text("Next")
-                                    .font(.custom("Inter", size: 16).weight(.semibold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 54)
-                            }
-                        }
-                        .background(Color(red: 0.48, green: 0.75, blue: 0.29))
-                        .cornerRadius(14)
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, 24)
-                        .disabled(isLoading)
+                        EmptyView()
                     }
-                    .buttonStyle(PlainButtonStyle())
+
+                    Button(action: {
+                        registerUser()
+                    }) {
+                        if isLoading {
+                            ProgressView()
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 54)
+                        } else {
+                            Text("Next")
+                                .font(.custom("Inter", size: 16).weight(.semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 54)
+                        }
+                    }
+                    .background(Color(red: 0.48, green: 0.75, blue: 0.29))
+                    .cornerRadius(14)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
+                    .disabled(isLoading)
 
                     // Progress bar at bottom
                     Rectangle()
@@ -262,8 +273,12 @@ struct RegisterNewProfileView: View {
                     firstName: firstName,
                     lastName: lastName,
                     skils: [],
-                    type: .none,
-                    image: nil
+                    type: .lead,
+                    cityName: "",
+                    image: nil,
+                    about: "",
+                    broadcast: "",
+                    otherSkill: ""
                 )
                 navigateToEditProfile = true
             }
@@ -273,6 +288,9 @@ struct RegisterNewProfileView: View {
 
 // MARK: - Preview
 
-#Preview {
-    RegisterNewProfileView()
+struct RegisterNewProfileView_Previews: PreviewProvider {
+    static var previews: some View {
+        RegisterNewProfileView()
+    }
 }
+

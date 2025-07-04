@@ -1,24 +1,20 @@
-//
 //  RepRoleModel.swift
-//  Rep 
+//  Rep
 //
 //  Created by Dmytro Holovko on 10.12.2023.
 //
 
 import Foundation
 
-enum RepTypeModel: String {
+enum RepTypeModel: String, CaseIterable, Identifiable, Codable {
     case lead = "Lead"
     case team = "Team"
-}
 
-// MARK: - RepRoleModel + CustomStringConvertible -
+    // MARK: - Identifiable
+    var id: String { self.rawValue }
 
-extension RepTypeModel: CustomStringConvertible {
-    static var title: String {
-        "Rep Type"
-    }
-    
+    // MARK: - CustomStringConvertible
+    static var title: String { "Rep Type" }
     var description: String {
         switch self {
         case .lead: return "Lead"
@@ -26,17 +22,4 @@ extension RepTypeModel: CustomStringConvertible {
         }
     }
 }
-
-// MARK: - RepRoleModel + Identifiable -
-
-extension RepTypeModel: Identifiable {
-    var id: String {
-        self.rawValue
-    }
-}
-
-// MARK: - RepRoleModel + CaseIterable -
-
-extension RepTypeModel: CaseIterable {}
-
 

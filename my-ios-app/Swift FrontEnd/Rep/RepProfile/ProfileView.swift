@@ -6,9 +6,6 @@
 
 import SwiftUI
 
-// MARK: - BarChartData & Goal Model
-
-
 // MARK: - Unified User Model
 
 struct User: Identifiable, Codable {
@@ -72,7 +69,7 @@ struct User: Identifiable, Codable {
         about: "Passionate about building teams and products...",
         broadcast: "Looking for partners in NYC!",
         profilePictureURL: nil,
-        imageName: "profile_placeholder", // must precede userType
+        imageName: "profile_placeholder",
         userType: "Lead",
         city: "New York",
         skills: ["Leadership", "Marketing", "Fundraising"],
@@ -558,8 +555,8 @@ struct ProfileView: View {
                         profileInfo: ProfileInfo(
                             firstName: viewModel.user.fname ?? "",
                             lastName: viewModel.user.lname ?? "",
-                            skils: [],
-                            type: .lead,
+                            skils: (viewModel.user.skills ?? []).compactMap { RepSkillsModel(rawValue: $0) },
+                            type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
                             cityName: viewModel.user.city ?? "",
                             image: nil,
                             about: viewModel.user.about ?? "",
@@ -910,13 +907,6 @@ struct GoalDetailPage: View {
     }
 }
 
-struct GoalListItem: View {
-    let goal: Goal
-    var body: some View {
-        Text(goal.title)
-    }
-}
-
 struct AddGoalSheet: View {
     @ObservedObject var viewModel: ProfileViewModel
     var body: some View {
@@ -924,19 +914,3 @@ struct AddGoalSheet: View {
     }
 }
 
-struct ProfileInfo {
-    let firstName: String
-    let lastName: String
-    let skils: [String]
-    let type: RepType
-    let cityName: String
-    let image: UIImage?
-    let about: String
-    let broadcast: String
-    let otherSkill: String
-}
-
-
-enum RepType {
-    case lead
-}

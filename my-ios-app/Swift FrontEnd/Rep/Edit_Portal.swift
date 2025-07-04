@@ -328,34 +328,3 @@ struct EditPortalView: View {
         .navigationBarHidden(true)
     }
 }
-
-// MARK: - PortalSegmentedPicker (reuse from PortalPage)
-
-struct PortalSegmentedPicker: View {
-    let segments: [String]
-    @Binding var selectedIndex: Int
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(segments.indices, id: \.self) { index in
-                Button(action: {
-                    selectedIndex = index
-                }) {
-                    Text(segments[index])
-                        .fontWeight(.medium)
-                        .foregroundColor(selectedIndex == index ? .white : .black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(selectedIndex == index ? Color.black : Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 0)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
-                }
-            }
-        }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 0))
-    }
-}
-

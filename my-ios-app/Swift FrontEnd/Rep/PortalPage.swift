@@ -58,6 +58,7 @@ struct PortalPage: View {
     }
 
     var body: some View {
+        let imageTabHeight = UIScreen.main.bounds.width * 9 / 16
         NavigationStack {
             Group {
                 if let portal = viewModel.portalDetail {
@@ -85,11 +86,12 @@ struct PortalPage: View {
                             alignment: .bottom
                         )
                         GeometryReader { geometry in
+                            let width = geometry.size.width
                             ImageTabView(sections: portal.aSections)
-                                .frame(width: geometry.size.width, height: geometry.size.width * 9 / 16)
+                                .frame(width: width, height: imageTabHeight)
                                 .clipped()
                         }
-                        .frame(height: UIScreen.main.bounds.width * 9 / 16)
+                        .frame(height: imageTabHeight)
                         PortalSegmentedPicker(
                             segments: ["Story", "Offering", "Results"],
                             selectedIndex: $viewModel.section
@@ -236,6 +238,7 @@ struct ImageTabView: View {
 }
 
 // MARK: - Portal Segmented Picker
+// Only define this ONCE in your project. Remove any duplicate definitions elsewhere.
 
 struct PortalSegmentedPicker: View {
     let segments: [String]
@@ -400,3 +403,4 @@ struct BarChartView: View {
         .frame(width: 70, height: 56)
     }
 }
+

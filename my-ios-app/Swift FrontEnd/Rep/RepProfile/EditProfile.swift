@@ -8,6 +8,22 @@ import SwiftUI
 import Combine
 import PhotosUI
 
+// MARK: - ProfileInfo Model
+
+struct ProfileInfo {
+    var firstName: String
+    var lastName: String
+    var skils: [RepSkillsModel]
+    var type: RepTypeModel
+    var cityName: String
+    var image: UIImage?
+    var about: String
+    var broadcast: String
+    var otherSkill: String
+}
+
+// MARK: - EditProfileView
+
 struct EditProfileView: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
     @Environment(\.dismiss) private var dismiss
@@ -304,13 +320,13 @@ class ProfileInfoViewModel: ObservableObject {
         if !profileInfo.about.isEmpty { appendFormField("about", profileInfo.about) }
         if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
         if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
-        // Add type if you have its ID
-        appendFormField("users_types_id", profileInfo.type.id)
+        // Add type as rawValue
+        appendFormField("users_types_id", profileInfo.type.rawValue)
         // Add city name if provided (use manual_city for backend compatibility)
         if !profileInfo.cityName.isEmpty { appendFormField("manual_city", profileInfo.cityName) }
-        // Add skills as comma-separated IDs
+        // Add skills as comma-separated rawValues
         if !profileInfo.skils.isEmpty {
-            let skillIds = profileInfo.skils.map { $0.id }.joined(separator: ",")
+            let skillIds = profileInfo.skils.map { $0.rawValue }.joined(separator: ",")
             appendFormField("aSkills", skillIds)
         }
 
@@ -335,27 +351,3 @@ class ProfileInfoViewModel: ObservableObject {
     }
 }
 
-// MARK: - Preview
-
-#Preview {
-    EditProfileView(
-        viewModel: .init(
-            profileInfo: ProfileInfo(
-                firstName: "Alex",
-                lastName: "Cooper",
-                skils: [
-                    RepSkillsModel.cantentGraphics,
-                    RepSkillsModel.eventsPlanning,
-                    RepSkillsModel.hrProductivity
-                ],
-                type: RepTypeModel.lead,
-                cityName: "New York",
-                image: eventsImageItem,
-                about: "About me...",
-                broadcast: "Broadcast message...",
-                otherSkill: "Public Speaking"
-            ),
-            mode: .edit
-        )
-    )
-}

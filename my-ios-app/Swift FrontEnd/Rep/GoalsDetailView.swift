@@ -184,7 +184,25 @@ class GoalsDetailViewModel: ObservableObject {
                         )
                     } ?? []
                     self.team = apiGoal.team?.map { apiUser in
-                        User(id: apiUser.id, name: apiUser.name ?? "User", imageName: apiUser.imageName ?? "profile_placeholder")
+                        User(
+                            id: apiUser.id,
+                            fullName: apiUser.name ?? "User",
+                            fname: nil,
+                            lname: nil,
+                            username: "",
+                            about: nil,
+                            broadcast: nil,
+                            profilePictureURL: nil,
+                            imageName: apiUser.imageName ?? "profile_placeholder",
+                            userType: nil,
+                            city: nil,
+                            skills: nil,
+                            lastLogin: nil,
+                            createdAt: nil,
+                            updatedAt: nil,
+                            lastMessage: nil,
+                            lastMessageDate: nil
+                        )
                     } ?? []
                 }
             } catch {
@@ -248,7 +266,7 @@ struct APIUser: Codable, Identifiable {
 
 // MARK: - Models
 
-struct Goal: Identifiable {
+struct Goal: Identifiable, Codable {
     var id: Int
     var title: String
     var subtitle: String
@@ -285,12 +303,13 @@ struct Feed: Identifiable {
 // MARK: - Bar Chart Data Model
 
 struct BarChartData: Identifiable, Codable {
-    let id = UUID()
+    let id: UUID
     let value: Double
     let valueLabel: String
     let bottomLabel: String
 
-    init(value: Double, valueLabel: String, bottomLabel: String) {
+    init(id: UUID = UUID(), value: Double, valueLabel: String, bottomLabel: String) {
+        self.id = id
         self.value = value
         self.valueLabel = valueLabel
         self.bottomLabel = bottomLabel
@@ -337,7 +356,7 @@ struct TeamCell: View {
                 .scaledToFill()
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
-            Text(user.name)
+            Text(user.fullName) // FIXED: use fullName
         }
     }
 }

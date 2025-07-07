@@ -82,7 +82,7 @@ class GroupChatViewModel: ObservableObject {
     }
 
     func fetchGroupChat() {
-        guard let url = URL(string: "http://localhost:5000/api/group_chat?chats_id=\(chatId)&limit=50") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/group_chat?chats_id=\(chatId)&limit=50") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -103,7 +103,7 @@ class GroupChatViewModel: ObservableObject {
     func sendMessage() {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        guard let url = URL(string: "http://localhost:5000/api/user/send_chat_message") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/send_chat_message") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

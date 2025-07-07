@@ -214,7 +214,7 @@ struct RegisterNewProfileView: View {
 
         // Prepare multipart/form-data body
         let boundary = UUID().uuidString
-        var request = URLRequest(url: URL(string: "http://localhost:5000/api/user/register")!)
+        var request = URLRequest(url: URL(string: "\(APIConfig.baseURL)/api/user/register")!)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
 

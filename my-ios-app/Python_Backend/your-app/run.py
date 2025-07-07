@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 from app import create_app, db, socketio
 from flask_migrate import Migrate
 

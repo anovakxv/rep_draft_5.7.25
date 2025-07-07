@@ -19,7 +19,7 @@ class PortalViewModel: ObservableObject {
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     func fetchPortalDetail(portalId: Int, userId: Int) {
-        let urlString = "http://localhost:5000/api/portal/details?portals_id=\(portalId)&user_id=\(userId)"
+        let urlString = "\(APIConfig.baseURL)/api/portal/details?portals_id=\(portalId)&user_id=\(userId)"
         guard let url = URL(string: urlString) else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {

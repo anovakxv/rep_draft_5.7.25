@@ -59,7 +59,7 @@ class MessageViewModel: ObservableObject {
     }
     
     func fetchMessages() {
-        guard let url = URL(string: "http://localhost:5000/api/user/get_messages?users_id=\(otherUserId)&order=ASC&mark_as_read=1") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/get_messages?users_id=\(otherUserId)&order=ASC&mark_as_read=1") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -78,7 +78,7 @@ class MessageViewModel: ObservableObject {
     func sendMessage() {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        guard let url = URL(string: "http://localhost:5000/api/user/send_message") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/send_message") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

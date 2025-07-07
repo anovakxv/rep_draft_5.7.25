@@ -146,7 +146,7 @@ class GoalsDetailViewModel: ObservableObject {
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     func load(goalId: Int) {
-        guard let url = URL(string: "http://localhost:5000/api/goals/details?goals_id=\(goalId)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/details?goals_id=\(goalId)") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")

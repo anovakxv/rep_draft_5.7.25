@@ -7,7 +7,7 @@
 import Foundation
 
 func fetchSkills(jwtToken: String, completion: @escaping ([SkillModel]) -> Void) {
-    guard let url = URL(string: "http://localhost:5000/api/user/get_skills") else { return }
+    guard let url = URL(string: "\(APIConfig.baseURL)/api/user/get_skills") else { return }
     var request = URLRequest(url: url)
     if !jwtToken.isEmpty {
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")

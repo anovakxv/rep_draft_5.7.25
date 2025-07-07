@@ -2,8 +2,6 @@
 //  ContentView.swift
 //  Rep
 //
-//  Created by user275855 on 7/3/25.
-//
 
 import SwiftUI
 

@@ -56,7 +56,7 @@ class PortalsViewModel: ObservableObject {
         case 2: tab = "all"
         default: tab = "open"
         }
-        let urlString = "http://localhost:5000/api/filter_network_portals?user_id=\(userId)&tab=\(tab)"
+        let urlString = "\(APIConfig.baseURL)/api/filter_network_portals?user_id=\(userId)&tab=\(tab)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
@@ -104,7 +104,7 @@ class PeopleViewModel: ObservableObject {
         errorMessage = nil
 
         if section == 0 {
-            let urlString = "http://localhost:5000/api/active_chat_list?user_id=\(userId)"
+            let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
             guard let url = URL(string: urlString) else {
                 errorMessage = "Invalid URL"
                 isLoading = false
@@ -138,7 +138,7 @@ class PeopleViewModel: ObservableObject {
             }.resume()
         } else {
             let tab = section == 1 ? "ntwk" : "all"
-            let urlString = "http://localhost:5000/api/filter_people?user_id=\(userId)&tab=\(tab)"
+            let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)"
             guard let url = URL(string: urlString) else {
                 errorMessage = "Invalid URL"
                 isLoading = false

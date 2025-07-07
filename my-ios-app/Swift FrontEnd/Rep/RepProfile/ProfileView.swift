@@ -221,7 +221,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func fetchUser() {
-        guard let url = URL(string: "http://localhost:5000/api/user/profile?users_id=\(viewedUserId)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/profile?users_id=\(viewedUserId)") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -240,7 +240,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func fetchPortals() {
-        guard let url = URL(string: "http://localhost:5000/api/portals?users_id=\(viewedUserId)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/portals?users_id=\(viewedUserId)") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -259,7 +259,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func fetchGoals() {
-        guard let url = URL(string: "http://localhost:5000/api/goals/list?users_id=\(viewedUserId)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/list?users_id=\(viewedUserId)") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -278,7 +278,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func fetchWrites(for userId: Int) {
-        guard let url = URL(string: "http://localhost:5000/api/user/writes?users_id=\(userId)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/writes?users_id=\(userId)") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -297,7 +297,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func addWrite() {
-        guard let url = URL(string: "http://localhost:5000/api/user/write") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -322,7 +322,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func editWrite(_ write: WriteBlock) {
-        guard let url = URL(string: "http://localhost:5000/api/user/write/\(write.id)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write/\(write.id)") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -346,7 +346,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func deleteWrite(_ write: WriteBlock) {
-        guard let url = URL(string: "http://localhost:5000/api/user/write/\(write.id)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write/\(write.id)") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
         if !jwtToken.isEmpty {

@@ -168,7 +168,7 @@ class APILoginViewModel: ObservableObject {
             return
         }
         isLoading = true
-        let url = URL(string: "http://localhost:5000/api/user/login")!
+        let url = URL(string: "\(APIConfig.baseURL)/api/user/login")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

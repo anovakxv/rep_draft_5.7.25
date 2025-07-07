@@ -97,7 +97,7 @@ class EditPortalViewModel: ObservableObject {
 
     func save(completion: @escaping () -> Void) {
         let boundary = UUID().uuidString
-        guard let url = URL(string: "http://localhost:5000/api/portal/edit") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/edit") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")

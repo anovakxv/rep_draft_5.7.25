@@ -21,7 +21,7 @@ struct RegisterNewProfileView: View {
     @State private var registeredUser: ProfileInfo = ProfileInfo(
         firstName: "",
         lastName: "",
-        skils: [],
+        skills: [],
         type: .lead,
         cityName: "",
         image: nil,
@@ -272,7 +272,7 @@ struct RegisterNewProfileView: View {
                 registeredUser = ProfileInfo(
                     firstName: firstName,
                     lastName: lastName,
-                    skils: [],
+                    skills: [],
                     type: .lead,
                     cityName: "",
                     image: nil,

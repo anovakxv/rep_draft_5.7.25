@@ -68,16 +68,13 @@ struct EditProfileView: View {
                                 Text("Rep Type")
                                     .font(.custom("Inter", size: 16).weight(.bold))
                                     .foregroundColor(.black)
-                                MultiPicker(
-                                    RepTypeModel.title,
-                                    selection: $viewModel.profileInfo.type
-                                ) {
+                                // You can keep your RepType picker as is, or use a Picker if you want to simplify
+                                Picker("Rep Type", selection: $viewModel.profileInfo.type) {
                                     ForEach(RepTypeModel.allCases, id: \.self) { role in
-                                        Text(role.rawValue)
-                                            .mpTag(role)
+                                        Text(role.rawValue).tag(role)
                                     }
                                 }
-                                .mpPickerStyle(.navigationLink)
+                                .pickerStyle(.menu)
                             }
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("City")
@@ -90,7 +87,7 @@ struct EditProfileView: View {
                             }
                         }
                         .padding(.horizontal, 24)
-                        // Edit Skills (Dynamic)
+                        // Edit Skills (Dynamic) - SIMPLE MULTISELECT
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Edit Skills")
                                 .font(.custom("Inter", size: 16).weight(.bold))
@@ -98,18 +95,26 @@ struct EditProfileView: View {
                             if viewModel.availableSkills.isEmpty {
                                 ProgressView("Loading skills...")
                             } else {
-                                MultiPicker(
-                                    "Edit Skills",
-                                    selection: $viewModel.profileInfo.skills
-                                ) {
+                                // Simple multi-select using a List
+                                List {
                                     ForEach(viewModel.availableSkills, id: \.self) { skill in
-                                        Text(skill.title)
-                                            .mpTag(skill)
+                                        MultipleSelectionRow(
+                                            skill: skill,
+                                            isSelected: viewModel.profileInfo.skills.contains(skill)
+                                        ) {
+                                            if viewModel.profileInfo.skills.contains(skill) {
+                                                viewModel.profileInfo.skills.remove(skill)
+                                            } else if viewModel.profileInfo.skills.count < 3 { // max 3
+                                                viewModel.profileInfo.skills.insert(skill)
+                                            }
+                                        }
                                     }
                                 }
-                                .mpPickerStyle(.navigationLink)
-                                .choiceRepresentationStyle(.rich)
-                                .maxValues(3)
+                                .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44)) // Adjust height as needed
+                                .listStyle(.plain)
+                                Text("\(viewModel.profileInfo.skills.count) of 3 selected")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
                             }
                         }
                         .padding(.horizontal, 24)
@@ -175,6 +180,27 @@ struct EditProfileView: View {
         }
     }
 }
+
+// MARK: - MultipleSelectionRow for Skills
+struct MultipleSelectionRow: View {
+    let skill: SkillModel
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(skill.title)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.accentColor)
+                }
+            }
+        }
+    }
+}
+
 
 // MARK: - Top Navigation Header (matches ProfileView)
 struct EditProfileHeaderView: View {

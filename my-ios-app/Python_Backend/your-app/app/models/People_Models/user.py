@@ -42,11 +42,12 @@ class User(UserMixin, db.Model):
         return f"<User id={self.id} username={self.username}>"
 
     def get_skills(self):
-        # TODO: Replace with real logic to fetch user skills
-        # For now, use other_skill as a single skill if present
+        # Fetch skills from the UserSkill join table
+        skills = [us.skill.title for us in self.user_skills if us.skill and us.skill.visible]
+        # Optionally include 'other_skill' if present
         if self.other_skill:
-            return [self.other_skill]
-        return ["Leadership", "Marketing", "Fundraising"]
+            skills.append(self.other_skill)
+        return skills
 
     def as_dict(self, include_message=False, last_message=None, last_message_date=None):
         return {

@@ -13,7 +13,7 @@ import PhotosUI
 struct ProfileInfo {
     var firstName: String
     var lastName: String
-    var skils: [RepSkillsModel]
+    var skills: Set<SkillModel>
     var type: RepTypeModel
     var cityName: String
     var image: UIImage?
@@ -90,24 +90,27 @@ struct EditProfileView: View {
                             }
                         }
                         .padding(.horizontal, 24)
-                        // Edit Skills
+                        // Edit Skills (Dynamic)
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Edit Skills")
                                 .font(.custom("Inter", size: 16).weight(.bold))
                                 .foregroundColor(.black)
-                            MultiPicker(
-                                RepSkillsModel.title,
-                                selection: $viewModel.profileInfo.skils
-                            ) {
-                                ForEach(RepSkillsModel.allCases, id: \.self) { skill in
-                                    Text(skill.rawValue)
-                                        .mpTag(skill)
-                                        .disabled(false)
+                            if viewModel.availableSkills.isEmpty {
+                                ProgressView("Loading skills...")
+                            } else {
+                                MultiPicker(
+                                    "Edit Skills",
+                                    selection: $viewModel.profileInfo.skills
+                                ) {
+                                    ForEach(viewModel.availableSkills, id: \.self) { skill in
+                                        Text(skill.title)
+                                            .mpTag(skill)
+                                    }
                                 }
+                                .mpPickerStyle(.navigationLink)
+                                .choiceRepresentationStyle(.rich)
+                                .maxValues(3)
                             }
-                            .mpPickerStyle(.navigationLink)
-                            .choiceRepresentationStyle(.rich)
-                            .maxValues(3)
                         }
                         .padding(.horizontal, 24)
                         // Name Fields
@@ -166,6 +169,9 @@ struct EditProfileView: View {
             }
             .background(Color.white.edgesIgnoringSafeArea(.all))
             .navigationBarHidden(true)
+            .onAppear {
+                viewModel.fetchAvailableSkills()
+            }
         }
     }
 }
@@ -249,8 +255,8 @@ struct EditProfileInfoSection: View {
                 Text(viewModel.profileInfo.type.description)
                     .font(.system(size: 17, weight: .bold))
                 VStack(alignment: .leading, spacing: 4) {
-                    ForEach(Array(viewModel.profileInfo.skils), id: \.self) { skill in
-                        Text(skill.rawValue)
+                    ForEach(Array(viewModel.profileInfo.skills), id: \.self) { skill in
+                        Text(skill.title)
                             .font(.system(size: 17))
                     }
                 }
@@ -279,6 +285,7 @@ class ProfileInfoViewModel: ObservableObject {
     @Published var profileInfo: ProfileInfo
     @Published var isAddingPhoto: Bool = false
     @Published var items: [UIImage] = []
+    @Published var availableSkills: [SkillModel] = []
     var mode: EditMode
 
     @AppStorage("jwtToken") var jwtToken: String = ""
@@ -286,6 +293,12 @@ class ProfileInfoViewModel: ObservableObject {
     init(profileInfo: ProfileInfo, mode: EditMode) {
         self.profileInfo = profileInfo
         self.mode = mode
+    }
+
+    func fetchAvailableSkills() {
+        fetchSkills(jwtToken: jwtToken) { [weak self] skills in
+            self?.availableSkills = skills
+        }
     }
 
     func cancel() {
@@ -324,9 +337,9 @@ class ProfileInfoViewModel: ObservableObject {
         appendFormField("users_types_id", profileInfo.type.rawValue)
         // Add city name if provided (use manual_city for backend compatibility)
         if !profileInfo.cityName.isEmpty { appendFormField("manual_city", profileInfo.cityName) }
-        // Add skills as comma-separated rawValues
-        if !profileInfo.skils.isEmpty {
-            let skillIds = profileInfo.skils.map { $0.rawValue }.joined(separator: ",")
+        // Add skills as comma-separated IDs
+        if !profileInfo.skills.isEmpty {
+            let skillIds = profileInfo.skills.map { String($0.id) }.joined(separator: ",")
             appendFormField("aSkills", skillIds)
         }
 
@@ -350,4 +363,3 @@ class ProfileInfoViewModel: ObservableObject {
         }.resume()
     }
 }
-

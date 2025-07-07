@@ -16,4 +16,10 @@ class Skill(db.Model):
 
     def __repr__(self):
         return f"<Skill id={self.id} title={self.title}>"
-        
+
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title
+        }
+    

@@ -190,6 +190,7 @@ class ProfileViewModel: ObservableObject {
             imageUrl: "https://cdn.builder.io/api/v1/image/assets/TEMP/461e6c1c1c471394cd09dedd26d51cd4cd28f236"
         )
     ]
+    @Published var availableSkills: [SkillModel] = []
 
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("userId") var loggedInUserId: Int = 0
@@ -200,6 +201,7 @@ class ProfileViewModel: ObservableObject {
 
     init(userId: Int) {
         self.viewedUserId = userId
+        fetchAvailableSkills()
     }
 
     func loadProfile() {
@@ -207,6 +209,15 @@ class ProfileViewModel: ObservableObject {
         fetchPortals()
         fetchGoals()
         fetchWrites(for: viewedUserId)
+        fetchAvailableSkills()
+    }
+
+    func fetchAvailableSkills() {
+        fetchSkills(jwtToken: jwtToken) { [weak self] skills in
+            DispatchQueue.main.async {
+                self?.availableSkills = skills
+            }
+        }
     }
 
     func fetchUser() {
@@ -380,7 +391,7 @@ struct ProfileView: View {
                 ProfileInfoView(
                     photoURL: viewModel.user.profilePictureURL,
                     repTypeAndCity: viewModel.user.repTypeAndCity,
-                    skills: viewModel.user.skills ?? []
+                    skills: mappedSkillTitles
                 )
                 VStack(alignment: .leading, spacing: 8) {
                     if let about = viewModel.user.about, !about.isEmpty {
@@ -555,7 +566,11 @@ struct ProfileView: View {
                         profileInfo: ProfileInfo(
                             firstName: viewModel.user.fname ?? "",
                             lastName: viewModel.user.lname ?? "",
-                            skils: (viewModel.user.skills ?? []).compactMap { RepSkillsModel(rawValue: $0) },
+                            skills: Set(
+                                (viewModel.user.skills ?? []).compactMap { skillName in
+                                    viewModel.availableSkills.first(where: { $0.title == skillName })
+                                }
+                            ),
                             type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
                             cityName: viewModel.user.city ?? "",
                             image: nil,
@@ -567,6 +582,15 @@ struct ProfileView: View {
                     )
                 )
             }
+        }
+    }
+
+    // Helper to map user.skills [String] to [SkillModel.title] for display
+    private var mappedSkillTitles: [String] {
+        guard let userSkills = viewModel.user.skills else { return [] }
+        // Try to match with availableSkills, fallback to the string if not found
+        return userSkills.map { skillName in
+            viewModel.availableSkills.first(where: { $0.title == skillName })?.title ?? skillName
         }
     }
 }
@@ -913,4 +937,3 @@ struct AddGoalSheet: View {
         Text("Add Goal Sheet")
     }
 }
-

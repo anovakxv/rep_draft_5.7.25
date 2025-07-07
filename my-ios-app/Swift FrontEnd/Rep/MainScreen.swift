@@ -7,21 +7,6 @@
 
 import SwiftUI
 
-// MARK: - Portal Model
-
-struct PortalModel: Identifiable, Decodable {
-    let id: Int
-    let name: String
-    let subtitle: String?
-    let about: String?
-    let categories_id: Int?
-    let cities_id: Int?
-    let lead_id: Int?
-    let users_id: Int?
-    let _c_users_count: Int?
-    let mainImageUrl: String?
-}
-
 // MARK: - API Responses
 
 struct UsersAPIResponse: Decodable {
@@ -55,7 +40,7 @@ struct MessageModel: Decodable {
 // MARK: - ViewModels
 
 class PortalsViewModel: ObservableObject {
-    @Published var portals: [PortalModel] = []
+    @Published var portals: [Portal] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -95,7 +80,7 @@ class PortalsViewModel: ObservableObject {
                     return
                 }
                 do {
-                    let response = try JSONDecoder().decode([String: [PortalModel]].self, from: data)
+                    let response = try JSONDecoder().decode([String: [Portal]].self, from: data)
                     self.portals = response["result"] ?? []
                 } catch {
                     self.errorMessage = "Failed to decode: \(error.localizedDescription)"
@@ -335,7 +320,7 @@ struct MainScreen: View {
 // MARK: - Portal List
 
 struct PortalList: View {
-    var portals: [PortalModel]
+    var portals: [Portal]
     @AppStorage("userId") var userId: Int = 0
 
     var body: some View {
@@ -356,7 +341,6 @@ struct PortalList: View {
         .listStyle(.plain)
     }
 }
-
 
 // MARK: - Active Chat List
 
@@ -524,3 +508,4 @@ struct Chat: View {
         Text("Chat with user \(userId)")
     }
 }
+	

@@ -160,6 +160,30 @@ extension Binding where Value == String? {
             set: { source.wrappedValue = $0 }
         )
     }
+
+    var unwrapped: Binding<String> {
+        Binding<String>(
+            get: { self.wrappedValue ?? "" },
+            set: { self.wrappedValue = $0 }
+        )
+    }
+}
+
+// MARK: - EditableGoalView Subview
+
+struct EditableGoalView: View {
+    @Binding var goal: EditableGoal
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            TextField("Goal Title", text: $goal.title)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            TextField("Goal Subtitle", text: Binding($goal.subtitle, default: "").unwrapped)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            // Add more fields as needed
+        }
+        .padding(.vertical, 4)
+    }
 }
 
 // MARK: - EditPortalView
@@ -305,14 +329,7 @@ struct EditPortalView: View {
                     } else if viewModel.section == 2 {
                         // Editable Results Section (Goals)
                         ForEach($viewModel.goals) { $goal in
-                            VStack(alignment: .leading) {
-                                TextField("Goal Title", text: $goal.title)
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                TextField("Goal Subtitle", text: Binding($goal.subtitle, default: ""))
-                                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                                // Add more fields as needed
-                            }
-                            .padding(.vertical, 4)
+                            EditableGoalView(goal: $goal)
                         }
                         Button("+ Add Goal") {
                             viewModel.addGoal()

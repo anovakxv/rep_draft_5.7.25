@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct PortalItem: View {
-    let portal: PortalModel
+    let portal: Portal
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -80,3 +80,4 @@ struct PortalItem: View {
         .frame(height: 64)
     }
 }
+

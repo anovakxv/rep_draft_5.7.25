@@ -1,4 +1,3 @@
-//
 //  RegisterNewProfile.swift
 //  Rep
 //
@@ -110,7 +109,8 @@ struct RegisterNewProfileView: View {
                                     .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
                             )
 
-                        SecureField("Password", text: $password)
+                        // For debugging only
+                        TextField("Password", text: $password)
                             .padding()
                             .background(Color(red: 0.95, green: 0.95, blue: 0.95))
                             .cornerRadius(14)
@@ -119,7 +119,7 @@ struct RegisterNewProfileView: View {
                                     .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
                             )
 
-                        SecureField("Confirm Password", text: $confirmPassword)
+                        TextField("Confirm Password", text: $confirmPassword)
                             .padding()
                             .background(Color(red: 0.95, green: 0.95, blue: 0.95))
                             .cornerRadius(14)
@@ -293,4 +293,3 @@ struct RegisterNewProfileView_Previews: PreviewProvider {
         RegisterNewProfileView()
     }
 }
-

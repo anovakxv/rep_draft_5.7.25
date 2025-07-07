@@ -10,7 +10,7 @@ import SwiftUI
 // MARK: - Goal List Item
 
 struct GoalListItem: View {
-    let goal: GoalModel
+    let goal: Goal
 
     var body: some View {
         HStack(spacing: 16) {
@@ -35,36 +35,34 @@ struct GoalListItem: View {
     }
 }
 
-// MARK: - Goal Model (Synced with API)
+// MARK: - Preview
 
-struct GoalModel: Identifiable, Codable {
-    let id: Int
-    let title: String
-    let subtitle: String
-    let progressPercent: Double
-    let typeName: String
-    let chartData: [BarChartData]
-    // MARK: - Preview
-    
-    struct GoalListItem_Previews: PreviewProvider {
-        static let sampleGoal = GoalModel(
-            id: 1,
-            title: "Grow Membership",
-            subtitle: "Increase by 20% this year",
-            progressPercent: 60,
-            typeName: "Recruiting",
-            chartData: [
-                BarChartData(value: 10, valueLabel: "10", bottomLabel: "Jan"),
-                BarChartData(value: 30, valueLabel: "30", bottomLabel: "Feb"),
-                BarChartData(value: 20, valueLabel: "20", bottomLabel: "Mar"),
-                BarChartData(value: 40, valueLabel: "40", bottomLabel: "Apr")
-            ]
-        )
-        
-        static var previews: some View {
-            GoalListItem(goal: sampleGoal)
-                .previewLayout(.sizeThatFits)
-                .background(Color(UIColor.systemGroupedBackground))
-        }
+struct GoalListItem_Previews: PreviewProvider {
+    static let sampleGoal = Goal(
+        id: 1,
+        title: "Grow Membership",
+        subtitle: "Increase by 20% this year",
+        description: "",
+        progress: 0.6,
+        progressPercent: 60,
+        quota: 100,
+        filledQuota: 60,
+        metricName: "Members",
+        typeName: "Recruiting",
+        reportingName: "Monthly",
+        quotaString: "100",
+        valueString: "60",
+        chartData: [
+            BarChartData(value: 10, valueLabel: "10", bottomLabel: "Jan"),
+            BarChartData(value: 30, valueLabel: "30", bottomLabel: "Feb"),
+            BarChartData(value: 20, valueLabel: "20", bottomLabel: "Mar"),
+            BarChartData(value: 40, valueLabel: "40", bottomLabel: "Apr")
+        ]
+    )
+
+    static var previews: some View {
+        GoalListItem(goal: sampleGoal)
+            .previewLayout(.sizeThatFits)
+            .background(Color(UIColor.systemGroupedBackground))
     }
 }

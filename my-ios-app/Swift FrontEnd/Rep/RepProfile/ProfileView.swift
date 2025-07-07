@@ -414,74 +414,21 @@ struct ProfileView: View {
                 .padding(.horizontal)
                 Group {
                     if selectedTab == 0 {
-                        ScrollView {
-                            VStack(spacing: 0) {
-                                ProfileCardsSection(cards: viewModel.profileCards)
-                                    .padding(.bottom, 16)
-                                if viewModel.isCurrentUser {
-                                    Button(action: { showAddPurpose = true }) {
-                                        HStack {
-                                            Image(systemName: "plus.circle.fill")
-                                                .foregroundColor(.green)
-                                            Text("Add Purpose")
-                                                .fontWeight(.bold)
-                                                .foregroundColor(.green)
-                                        }
-                                        .frame(maxWidth: .infinity)
-                                        .padding()
-                                        .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
-                                        .cornerRadius(8)
-                                        .padding(.horizontal)
-                                    }
-                                    .padding(.bottom, 12)
-                                }
-                                ForEach(viewModel.portals) { portal in
-                                    NavigationLink(destination: PortalPage(portal: portal)) {
-                                        PortalItem(portal: portal)
-                                    }
-                                    .padding(.horizontal)
-                                }
-                                if viewModel.showAddPartner {
-                                    Button("Add Partner") {
-                                        viewModel.addPartner()
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                }
-                            }
-                        }
+                        ProfileRepSection(
+                            profileCards: viewModel.profileCards,
+                            isCurrentUser: viewModel.isCurrentUser,
+                            portals: viewModel.portals,
+                            showAddPurpose: $showAddPurpose,
+                            showAddPartner: viewModel.showAddPartner,
+                            addPartnerAction: viewModel.addPartner,
+                            userId: viewModel.user.id
+                        )
                     } else if selectedTab == 1 {
-                        VStack(spacing: 0) {
-                            if viewModel.isCurrentUser {
-                                Button(action: { showAddGoal = true }) {
-                                    HStack {
-                                        Image(systemName: "plus.circle.fill")
-                                            .foregroundColor(.green)
-                                        Text("Add Goal")
-                                            .fontWeight(.bold)
-                                            .foregroundColor(.green)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
-                                    .cornerRadius(8)
-                                    .padding(.horizontal)
-                                }
-                                .padding(.bottom, 12)
-                            }
-                            List {
-                                ForEach(viewModel.goals) { goal in
-                                    NavigationLink(destination: GoalDetailPage(goal: goal)) {
-                                        GoalListItem(goal: goal)
-                                    }
-                                }
-                                if viewModel.goals.isEmpty {
-                                    Text("No goals yet.")
-                                        .foregroundColor(.secondary)
-                                        .padding(.horizontal)
-                                }
-                            }
-                            .listStyle(PlainListStyle())
-                        }
+                        GoalsListSection(
+                            goals: viewModel.goals,
+                            isCurrentUser: viewModel.isCurrentUser,
+                            showAddGoal: $showAddGoal
+                        )
                     } else if selectedTab == 2 {
                         WriteContentView(
                             viewModel: viewModel,
@@ -591,6 +538,99 @@ struct ProfileView: View {
         // Try to match with availableSkills, fallback to the string if not found
         return userSkills.map { skillName in
             viewModel.availableSkills.first(where: { $0.title == skillName })?.title ?? skillName
+        }
+    }
+}
+
+// MARK: - Profile Rep Section (extracted for compiler performance)
+
+struct ProfileRepSection: View {
+    let profileCards: [ProfileCard]
+    let isCurrentUser: Bool
+    let portals: [Portal]
+    @Binding var showAddPurpose: Bool
+    let showAddPartner: Bool
+    let addPartnerAction: () -> Void
+    let userId: Int
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                ProfileCardsSection(cards: profileCards)
+                    .padding(.bottom, 16)
+                if isCurrentUser {
+                    Button(action: { showAddPurpose = true }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Add Purpose")
+                                .fontWeight(.bold)
+                                .foregroundColor(.green)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
+                        .cornerRadius(8)
+                        .padding(.horizontal)
+                    }
+                    .padding(.bottom, 12)
+                }
+                ForEach(portals, id: \.id) { portal in
+                    NavigationLink(destination: PortalPage(portalId: portal.id, userId: userId)) {
+                        PortalItem(portal: portal)
+                    }
+                    .padding(.horizontal)
+                }
+                if showAddPartner {
+                    Button("Add Partner") {
+                        addPartnerAction()
+                    }
+                    .frame(maxWidth: .infinity, alignment: .center)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Goals List Section (Refactored for compiler performance)
+
+struct GoalsListSection: View {
+    let goals: [Goal]
+    let isCurrentUser: Bool
+    @Binding var showAddGoal: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if isCurrentUser {
+                Button(action: { showAddGoal = true }) {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Add Goal")
+                            .fontWeight(.bold)
+                            .foregroundColor(.green)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
+                    .cornerRadius(8)
+                    .padding(.horizontal)
+                }
+                .padding(.bottom, 12)
+            }
+            List {
+                ForEach(goals) { goal in
+                    NavigationLink(destination: GoalDetailPage(goal: goal)) {
+                        GoalListItem(goal: goal)
+                    }
+                }
+                if goals.isEmpty {
+                    Text("No goals yet.")
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                }
+            }
+            .listStyle(PlainListStyle())
         }
     }
 }
@@ -937,3 +977,4 @@ struct AddGoalSheet: View {
         Text("Add Goal Sheet")
     }
 }
+

@@ -9,6 +9,7 @@ import SwiftUI
 // MARK: - Main View
 
 struct GoalsDetailView: View {
+    let goalId: Int
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
 
@@ -98,7 +99,7 @@ struct GoalsDetailView: View {
                 }
             }
             .onAppear {
-                viewModel.load(goalId: viewModel.goal.id)
+                viewModel.load(goalId: goalId)
             }
         }
     }
@@ -356,7 +357,7 @@ struct TeamCell: View {
                 .scaledToFill()
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
-            Text(user.fullName) // FIXED: use fullName
+            Text(user.fullName)
         }
     }
 }

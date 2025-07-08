@@ -380,6 +380,15 @@ struct ProfileView: View {
     @State private var showActionSheet = false
     @Environment(\.dismiss) private var dismiss
 
+    // For custom action sheet navigation
+    @State private var pendingAction: PendingAction? = nil
+
+    enum PendingAction {
+        case editProfile
+        case addPurpose
+        case addGoal
+    }
+
     init(userId: Int) {
         _viewModel = StateObject(wrappedValue: ProfileViewModel(userId: userId))
     }
@@ -412,33 +421,48 @@ struct ProfileView: View {
                     selectedIndex: $selectedTab
                 )
                 .padding(.horizontal)
-                Group {
-                    if selectedTab == 0 {
-                        ProfileRepSection(
-                            profileCards: viewModel.profileCards,
-                            isCurrentUser: viewModel.isCurrentUser,
-                            portals: viewModel.portals,
-                            showAddPurpose: $showAddPurpose,
-                            showAddPartner: viewModel.showAddPartner,
-                            addPartnerAction: viewModel.addPartner,
-                            userId: viewModel.user.id
-                        )
-                    } else if selectedTab == 1 {
-                        GoalsListSection(
-                            goals: viewModel.goals,
-                            isCurrentUser: viewModel.isCurrentUser,
-                            showAddGoal: $showAddGoal
-                        )
-                    } else if selectedTab == 2 {
-                        WriteContentView(
-                            viewModel: viewModel,
-                            isCurrentUser: viewModel.isCurrentUser
-                        )
+                
+                ZStack {
+                    switch selectedTab {
+                    case 0:
+                        ScrollView {
+                            ProfileRepSection(
+                                profileCards: viewModel.profileCards,
+                                isCurrentUser: viewModel.isCurrentUser,
+                                portals: viewModel.portals,
+                                showAddPurpose: .constant(false), // No longer used here
+                                showAddPartner: viewModel.showAddPartner,
+                                addPartnerAction: viewModel.addPartner,
+                                userId: viewModel.user.id
+                            )
+                            .padding(.top, 8)
+                            .background(Color.white)
+                        }
+                    case 1:
+                        ScrollView {
+                            GoalsListSection(
+                                goals: viewModel.goals,
+                                isCurrentUser: viewModel.isCurrentUser,
+                                showAddGoal: .constant(false) // No longer used here
+                            )
+                            .padding(.top, 8)
+                            .background(Color.white)
+                        }
+                    case 2:
+                        ScrollView {
+                            WriteContentView(
+                                viewModel: viewModel,
+                                isCurrentUser: viewModel.isCurrentUser
+                            )
+                            .padding(.top, 8)
+                            .background(Color.white)
+                        }
+                    default:
+                        EmptyView()
                     }
                 }
-                .padding(.top, 8)
-                .background(Color.white)
-                Spacer()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
                 BottomBarView(
                     onAdd: {
                         if viewModel.isCurrentUser {
@@ -471,17 +495,61 @@ struct ProfileView: View {
                     }
                 }
             }
-            .confirmationDialog(
-                "Actions",
-                isPresented: $showActionSheet,
-                titleVisibility: .visible
-            ) {
-                if viewModel.isCurrentUser {
-                    Button("Edit Profile") {
-                        showEditProfile = true
+            // Custom Action Sheet
+            .sheet(isPresented: $showActionSheet) {
+                VStack(spacing: 24) {
+                    if viewModel.isCurrentUser {
+                        Button(action: {
+                            pendingAction = .editProfile
+                            showActionSheet = false
+                        }) {
+                            Text("Edit Profile")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                        Button(action: {
+                            pendingAction = .addPurpose
+                            showActionSheet = false
+                        }) {
+                            Text("Add Purpose")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                        Button(action: {
+                            pendingAction = .addGoal
+                            showActionSheet = false
+                        }) {
+                            Text("Add Goal")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                    }
+                    Button(action: { showActionSheet = false }) {
+                        Text("Cancel")
+                            .foregroundColor(.secondary)
                     }
                 }
-                Button("Cancel", role: .cancel) {}
+                .padding()
+                .presentationDetents([.medium])
+            }
+            // Handle navigation after sheet closes
+            .onChange(of: pendingAction) { action in
+                guard let action = action else { return }
+                switch action {
+                case .editProfile:
+                    showEditProfile = true
+                case .addPurpose:
+                    showAddPurpose = true
+                case .addGoal:
+                    showAddGoal = true
+                }
+                pendingAction = nil
             }
             .sheet(isPresented: $showAddPurpose) {
                 EditPortalView(
@@ -556,45 +624,26 @@ struct ProfileRepSection: View {
     let profileCards: [ProfileCard]
     let isCurrentUser: Bool
     let portals: [Portal]
-    @Binding var showAddPurpose: Bool
+    @Binding var showAddPurpose: Bool // not used anymore
     let showAddPartner: Bool
     let addPartnerAction: () -> Void
     let userId: Int
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                ProfileCardsSection(cards: profileCards)
-                    .padding(.bottom, 16)
-                if isCurrentUser {
-                    Button(action: { showAddPurpose = true }) {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Add Purpose")
-                                .fontWeight(.bold)
-                                .foregroundColor(.green)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
-                        .cornerRadius(8)
-                        .padding(.horizontal)
-                    }
-                    .padding(.bottom, 12)
+        VStack(spacing: 0) {
+            ProfileCardsSection(cards: profileCards)
+                .padding(.bottom, 16)
+            ForEach(portals, id: \.id) { portal in
+                NavigationLink(destination: PortalPage(portalId: portal.id, userId: userId)) {
+                    PortalItem(portal: portal)
                 }
-                ForEach(portals, id: \.id) { portal in
-                    NavigationLink(destination: PortalPage(portalId: portal.id, userId: userId)) {
-                        PortalItem(portal: portal)
-                    }
-                    .padding(.horizontal)
+                .padding(.horizontal)
+            }
+            if showAddPartner {
+                Button("Add Partner") {
+                    addPartnerAction()
                 }
-                if showAddPartner {
-                    Button("Add Partner") {
-                        addPartnerAction()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                }
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
     }
@@ -605,27 +654,10 @@ struct ProfileRepSection: View {
 struct GoalsListSection: View {
     let goals: [Goal]
     let isCurrentUser: Bool
-    @Binding var showAddGoal: Bool
+    @Binding var showAddGoal: Bool // not used anymore
 
     var body: some View {
         VStack(spacing: 0) {
-            if isCurrentUser {
-                Button(action: { showAddGoal = true }) {
-                    HStack {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Add Goal")
-                            .fontWeight(.bold)
-                            .foregroundColor(.green)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(UIColor(red: 0.95, green: 1.0, blue: 0.95, alpha: 1.0)))
-                    .cornerRadius(8)
-                    .padding(.horizontal)
-                }
-                .padding(.bottom, 12)
-            }
             List {
                 ForEach(goals) { goal in
                     NavigationLink(destination: GoalDetailPage(goal: goal)) {
@@ -659,7 +691,7 @@ struct ProfileSegmentedPicker: View {
                         .fontWeight(.medium)
                         .foregroundColor(selectedIndex == index ? .white : .black)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         .background(selectedIndex == index ? Color.black : Color.white)
                 }
                 .overlay(
@@ -894,7 +926,8 @@ struct WriteContentView: View {
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                     )
                     .padding(.horizontal)
-                Button(viewModel.editingWrite == nil ? "Save" : "Update") {
+                // Small green "Save"/"Update" text button
+                Button(action: {
                     if let editing = viewModel.editingWrite {
                         var updated = editing
                         updated.title = viewModel.writeTitle
@@ -903,13 +936,15 @@ struct WriteContentView: View {
                     } else {
                         viewModel.addWrite()
                     }
+                }) {
+                    Text(viewModel.editingWrite == nil ? "Save" : "Update")
+                        .font(.body)
+                        .fontWeight(.bold)
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .padding(.top, 8)
                 }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                .foregroundColor(.white)
-                .cornerRadius(8)
-                .padding(.horizontal)
+                .buttonStyle(PlainButtonStyle())
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .padding(.vertical)

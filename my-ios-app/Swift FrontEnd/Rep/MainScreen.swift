@@ -174,6 +174,47 @@ class PeopleViewModel: ObservableObject {
     }
 }
 
+// MARK: - MainSegmentedPicker
+
+struct MainSegmentedPicker: View {
+    let segments: [String]
+    @Binding var selectedIndex: Int
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(segments.indices, id: \.self) { index in
+                Button(action: {
+                    selectedIndex = index
+                }) {
+                    ZStack {
+                        (selectedIndex == index ? Color.black : Color.white)
+                        Text(segments[index])
+                            .fontWeight(.medium)
+                            .foregroundColor(selectedIndex == index ? .white : .black)
+                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .padding(.vertical, 2)
+                    }
+                }
+                .buttonStyle(PlainButtonStyle())
+                .frame(maxWidth: .infinity)
+                .overlay(
+                    Rectangle()
+                        .frame(width: index < segments.count - 1 ? 1 : 0)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .trailing
+                )
+            }
+        }
+        .frame(width: 240, height: 32)
+        .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+        .overlay(
+            RoundedRectangle(cornerRadius: 0)
+                .stroke(Color.black, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 0))
+    }
+}
+
 // MARK: - MainScreen
 
 extension MainScreen {
@@ -184,6 +225,11 @@ extension MainScreen {
     enum Constants {
         static let imageSize: CGFloat = 24.0
     }
+    enum MainActionSheetAction {
+        case addPurpose
+        case editProfile
+        case newChat
+    }
 }
 
 struct MainScreen: View {
@@ -193,9 +239,16 @@ struct MainScreen: View {
     @State private var page: Page = .portals
     @State private var section = 2
 
+    // Action Sheet State
+    @State private var showActionSheet = false
+    @State private var pendingAction: MainActionSheetAction?
+    @State private var showEditProfile = false
+    @State private var showAddPurpose = false
+
     var body: some View {
         NavigationStack {
-            VStack {
+            VStack(spacing: 0) {
+                // Main content
                 switch page {
                 case .people:
                     if peopleVM.isLoading {
@@ -239,16 +292,14 @@ struct MainScreen: View {
                     }
                 }
             }
-            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Picker("", selection: $section) {
-                        Text("OPEN").tag(0)
-                        Text("NTWK").tag(1)
-                        Text("ALL").tag(2)
-                    }
-                    .pickerStyle(.segmented)
+                    MainSegmentedPicker(
+                        segments: ["OPEN", "NTWK", "ALL"],
+                        selectedIndex: $section
+                    )
                     .onChange(of: section) { newSection in
                         if page == .portals {
                             portalsVM.fetchPortals(userId: userId, section: newSection)
@@ -271,16 +322,16 @@ struct MainScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
-                        action: {},
+                        action: { showActionSheet = true },
                         label: {
-                            Image(systemName: "arrow.down")
+                            Image(systemName: "plus")
                                 .resizable()
-                                .scaledToFill()
+                                .scaledToFit()
                                 .frame(
                                     width: Constants.imageSize/1.5,
                                     height: Constants.imageSize/1.5
                                 )
-                                .accentColor(.green)
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                         }
                     )
                 }
@@ -306,6 +357,99 @@ struct MainScreen: View {
                 .padding(.bottom, 12)
             }
             .navigationBarBackButtonHidden()
+        }
+        .sheet(isPresented: $showActionSheet) {
+            VStack(spacing: 0) {
+                Button(action: {
+                    pendingAction = .addPurpose
+                    showActionSheet = false
+                }) {
+                    Text("Add Purpose")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 12)
+                }
+                Button(action: {
+                    pendingAction = .editProfile
+                    showActionSheet = false
+                }) {
+                    Text("Edit Profile")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 12)
+                }
+                Button(action: {
+                    pendingAction = .newChat
+                    showActionSheet = false
+                }) {
+                    Text("New Chat")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 12)
+                }
+                Button(action: { showActionSheet = false }) {
+                    Text("Cancel")
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 12)
+                }
+            }
+            .padding()
+            .presentationDetents([.medium])
+        }
+        .onChange(of: pendingAction) { action in
+            guard let action = action else { return }
+            switch action {
+            case .addPurpose:
+                showAddPurpose = true
+            case .editProfile:
+                showEditProfile = true
+            case .newChat:
+                // TODO: Present Group Chat page
+                break
+            }
+            pendingAction = nil
+        }
+        .sheet(isPresented: $showAddPurpose) {
+            EditPortalView(
+                portal: PortalDetail(
+                    id: 0,
+                    name: "",
+                    subtitle: "",
+                    about: "",
+                    categories_id: nil,
+                    cities_id: nil,
+                    lead_id: nil,
+                    users_id: userId,
+                    _c_users_count: nil,
+                    aGoals: [],
+                    aPortalUsers: [],
+                    aTexts: [],
+                    aSections: [],
+                    aUsers: []
+                ),
+                userId: userId
+            )
+        }
+        .sheet(isPresented: $showEditProfile) {
+            EditProfileView(
+                viewModel: ProfileInfoViewModel(
+                    profileInfo: ProfileInfo(
+                        firstName: "",
+                        lastName: "",
+                        skills: [],
+                        type: .lead,
+                        cityName: "",
+                        image: nil,
+                        about: "",
+                        broadcast: "",
+                        otherSkill: ""
+                    ),
+                    mode: .edit
+                )
+            )
         }
         .onAppear {
             if page == .portals {
@@ -508,4 +652,3 @@ struct Chat: View {
         Text("Chat with user \(userId)")
     }
 }
-	

@@ -387,10 +387,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // --- Standardized Status Bar and Navigation Header ---
-                StatusBarView()
                 NavigationHeaderView(name: viewModel.user.fullName, onBack: { dismiss() })
-                // -----------------------------------------------------
                 ProfileInfoView(
                     photoURL: viewModel.user.profilePictureURL,
                     repTypeAndCity: viewModel.user.repTypeAndCity,
@@ -442,7 +439,6 @@ struct ProfileView: View {
                 .padding(.top, 8)
                 .background(Color.white)
                 Spacer()
-                // --- Updated BottomBarView: "+" triggers action sheet, no pencil icon ---
                 BottomBarView(
                     onAdd: {
                         if viewModel.isCurrentUser {
@@ -546,17 +542,15 @@ struct ProfileView: View {
         }
     }
 
-    // Helper to map user.skills [String] to [SkillModel.title] for display
     private var mappedSkillTitles: [String] {
         guard let userSkills = viewModel.user.skills else { return [] }
-        // Try to match with availableSkills, fallback to the string if not found
         return userSkills.map { skillName in
             viewModel.availableSkills.first(where: { $0.title == skillName })?.title ?? skillName
         }
     }
 }
 
-// MARK: - Profile Rep Section (extracted for compiler performance)
+// MARK: - Profile Rep Section
 
 struct ProfileRepSection: View {
     let profileCards: [ProfileCard]
@@ -606,7 +600,7 @@ struct ProfileRepSection: View {
     }
 }
 
-// MARK: - Goals List Section (Refactored for compiler performance)
+// MARK: - Goals List Section
 
 struct GoalsListSection: View {
     let goals: [Goal]
@@ -649,7 +643,7 @@ struct GoalsListSection: View {
     }
 }
 
-// MARK: - Profile Segmented Picker (rounded corners)
+// MARK: - Profile Segmented Picker
 
 struct ProfileSegmentedPicker: View {
     let segments: [String]
@@ -667,34 +661,24 @@ struct ProfileSegmentedPicker: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .background(selectedIndex == index ? Color.black : Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
+                .overlay(
+                    Rectangle()
+                        .frame(width: index < segments.count - 1 ? 1 : 0)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .trailing
+                )
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 5)
+        .background(Color.white)
+        .overlay(
+            RoundedRectangle(cornerRadius: 0)
                 .stroke(Color.black, lineWidth: 1)
-                .background(RoundedRectangle(cornerRadius: 5).fill(Color.white))
         )
-        .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }
 
 // MARK: - Supporting Views
-
-struct StatusBarView: View {
-    var body: some View {
-        HStack {
-            Text("9:41")
-                .font(.system(size: 14))
-                .foregroundColor(.black)
-            Spacer()
-        }
-        .frame(height: 48)
-        .padding(.horizontal, 19)
-        .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
-    }
-}
 
 struct NavigationHeaderView: View {
     let name: String
@@ -713,9 +697,9 @@ struct NavigationHeaderView: View {
             Spacer()
             Color.clear.frame(width: 24, height: 24)
         }
-        .frame(height: 60)
+        .frame(height: 44) // Standard navigation bar height
         .padding(.horizontal, 15)
-        .background(Color.white)
+        .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
         .overlay(
             Rectangle()
                 .frame(height: 1)
@@ -935,7 +919,7 @@ struct WriteContentView: View {
     }
 }
 
-// MARK: - BottomBarView (updated, "+" triggers action sheet, no pencil icon)
+// MARK: - BottomBarView
 
 struct BottomBarView: View {
     var onAdd: () -> Void

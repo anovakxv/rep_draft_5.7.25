@@ -135,7 +135,6 @@ struct GroupChatView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            StatusBarView()
             NavigationHeaderView(name: viewModel.groupName, onBack: { dismiss() })
 
             // Group Members Bar

@@ -110,7 +110,6 @@ struct MessageView: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            StatusBarView()
             NavigationHeaderView(name: viewModel.otherUserName, onBack: { dismiss() })
             
             ScrollViewReader { proxy in

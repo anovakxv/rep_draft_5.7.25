@@ -33,7 +33,6 @@ struct EditProfileView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                StatusBarView()
                 EditProfileHeaderView(
                     onCancel: { viewModel.cancel(); dismiss() },
                     onSave: {

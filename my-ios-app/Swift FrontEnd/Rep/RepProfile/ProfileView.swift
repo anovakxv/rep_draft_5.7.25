@@ -377,6 +377,7 @@ struct ProfileView: View {
     @State private var showMessageSheet = false
     @State private var showAddGoal = false
     @State private var showEditProfile = false
+    @State private var showActionSheet = false
     @Environment(\.dismiss) private var dismiss
 
     init(userId: Int) {
@@ -386,8 +387,10 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // --- Standardized Status Bar and Navigation Header ---
                 StatusBarView()
-                NavigationHeaderView(name: viewModel.user.fullName,  onBack: { dismiss() })
+                NavigationHeaderView(name: viewModel.user.fullName, onBack: { dismiss() })
+                // -----------------------------------------------------
                 ProfileInfoView(
                     photoURL: viewModel.user.profilePictureURL,
                     repTypeAndCity: viewModel.user.repTypeAndCity,
@@ -439,15 +442,14 @@ struct ProfileView: View {
                 .padding(.top, 8)
                 .background(Color.white)
                 Spacer()
+                // --- Updated BottomBarView: "+" triggers action sheet, no pencil icon ---
                 BottomBarView(
-                    onAdd: { /* Add new item action */ },
-                    onMessage: { showMessageSheet = true },
-                    onAction: {
+                    onAdd: {
                         if viewModel.isCurrentUser {
-                            showEditProfile = true
+                            showActionSheet = true
                         }
                     },
-                    isCurrentUser: viewModel.isCurrentUser
+                    onMessage: { showMessageSheet = true }
                 )
             }
             .navigationBarHidden(true)
@@ -472,6 +474,18 @@ struct ProfileView: View {
                         Image(systemName: "ellipsis.circle")
                     }
                 }
+            }
+            .confirmationDialog(
+                "Actions",
+                isPresented: $showActionSheet,
+                titleVisibility: .visible
+            ) {
+                if viewModel.isCurrentUser {
+                    Button("Edit Profile") {
+                        showEditProfile = true
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
             }
             .sheet(isPresented: $showAddPurpose) {
                 EditPortalView(
@@ -635,7 +649,7 @@ struct GoalsListSection: View {
     }
 }
 
-// MARK: - Profile Segmented Picker
+// MARK: - Profile Segmented Picker (rounded corners)
 
 struct ProfileSegmentedPicker: View {
     let segments: [String]
@@ -653,15 +667,16 @@ struct ProfileSegmentedPicker: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .background(selectedIndex == index ? Color.black : Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 0)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
             }
         }
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .background(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(Color.black, lineWidth: 1)
+                .background(RoundedRectangle(cornerRadius: 5).fill(Color.white))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 5))
     }
 }
 
@@ -920,11 +935,11 @@ struct WriteContentView: View {
     }
 }
 
+// MARK: - BottomBarView (updated, "+" triggers action sheet, no pencil icon)
+
 struct BottomBarView: View {
     var onAdd: () -> Void
     var onMessage: () -> Void
-    var onAction: () -> Void
-    var isCurrentUser: Bool
 
     var body: some View {
         HStack(spacing: 30) {
@@ -941,13 +956,6 @@ struct BottomBarView: View {
                 Image(systemName: "message")
                     .font(.system(size: 20))
                     .foregroundColor(.black)
-            }
-            if isCurrentUser {
-                Button(action: onAction) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 20))
-                        .foregroundColor(.black)
-                }
             }
         }
         .frame(height: 51)
@@ -977,4 +985,3 @@ struct AddGoalSheet: View {
         Text("Add Goal Sheet")
     }
 }
-

@@ -4,6 +4,9 @@
 
 from app import db
 from datetime import datetime
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy import select, func
+from app.models.Purpose_Models.PortalUser import PortalUser
 
 class Portal(db.Model):
     __tablename__ = 'portals'
@@ -27,6 +30,26 @@ class Portal(db.Model):
     category = db.relationship('Category', foreign_keys=[categories_id], backref='portals')
     city = db.relationship('City', foreign_keys=[cities_id], backref='portals')
     graphic_sections = db.relationship('PortalGraphicSection', backref='portal', lazy='select', cascade="all, delete-orphan")
+
+    @hybrid_property
+    def lead_user_count(self):
+        from app import db
+        return db.session.query(PortalUser.user_id).filter(
+            PortalUser.portal_id == self.id,
+            PortalUser.role == 'lead'
+        ).distinct().count()
+
+    @lead_user_count.expression
+    def lead_user_count(cls):
+        return (
+            select(func.count(func.distinct(PortalUser.user_id)))
+            .where(
+                PortalUser.portal_id == cls.id,
+                PortalUser.role == 'lead'
+            )
+            .correlate(cls)
+            .scalar_subquery()
+        )
 
     @property
     def main_image_url(self):
@@ -55,10 +78,10 @@ class Portal(db.Model):
             'visible': self.visible,
             'status': self.status,
             'mainImageUrl': self.main_image_url,
+            'lead_user_count': self.lead_user_count,  # <-- Expose in API output
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
 
     def __repr__(self):
         return f"<Portal {self.id} {self.name}>"
-    

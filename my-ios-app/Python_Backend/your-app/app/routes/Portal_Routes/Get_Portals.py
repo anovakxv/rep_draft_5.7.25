@@ -10,8 +10,9 @@ from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.Purpose_Models.PortalUser import PortalUser
 from app.models.Purpose_Models.PortalsUsersShare import PortalsUsersShare
+from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
 from sqlalchemy import or_
-from sqlalchemy.orm import subqueryload, joinedload
+from sqlalchemy.orm import subqueryload
 from app.utils.auth import jwt_required
 
 portal_bp = Blueprint('portal_list', __name__)
@@ -47,7 +48,7 @@ def api_get_portals():
         return jsonify({'error': 'limit should be <= 4096'}), 400
 
     query = Portal.query.options(
-        subqueryload(Portal.graphic_sections).joinedload('s3_files')
+        subqueryload(Portal.graphic_sections)
     )
 
     # Shared logic
@@ -71,12 +72,12 @@ def api_get_portals():
     elif users_id:
         query = query.filter(Portal.users_id == users_id)
 
-    # Exclude hidden portals
-    if show_hidden != "1" and not portals_id and (user_id or users_id):
-        uid = user_id or users_id
-        query = query.filter(~Portal.id.in_(
-            db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=uid)
-        ))
+    # Exclude hidden portals (feature disabled)
+    # if show_hidden != "1" and not portals_id and (user_id or users_id):
+    #     uid = user_id or users_id
+    #     query = query.filter(~Portal.id.in_(
+    #         db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=uid)
+    #     ))
 
     # Keyword search
     if keyword:
@@ -108,7 +109,7 @@ def api_get_portals():
     if shared == "1":
         query = query.order_by(PortalsUsersShare.id.desc())
     else:
-        query = query.order_by(Portal._c_users_count.desc())
+        query = query.order_by(Portal.lead_user_count.desc())
 
     portals = query.offset(offset).limit(limit).all()
     result = [portal.as_card_dict() for portal in portals]
@@ -143,7 +144,7 @@ def filter_network_portals():
         return jsonify({'error': 'user_id required!'}), 400
 
     query = Portal.query.options(
-        subqueryload(Portal.graphic_sections).joinedload('s3_files')
+        subqueryload(Portal.graphic_sections)
     )
 
     if tab == "open":
@@ -162,9 +163,9 @@ def filter_network_portals():
                 Portal.id.in_(goal_team_portal_ids)
             )
         )
-        query = query.filter(~Portal.id.in_(
-            db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=user_id)
-        ))
+        # query = query.filter(~Portal.id.in_(
+        #     db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=user_id)
+        # ))
     elif tab == "ntwk":
         # NTWK tab = all portals where a member of my network is on a GoalTeam
         from app.models.People_Models.UserNetwork import UserNetwork
@@ -186,7 +187,7 @@ def filter_network_portals():
     if portals_id:
         query = query.filter(Portal.id == portals_id)
 
-    query = query.order_by(Portal._c_users_count.desc())
+    query = query.order_by(Portal.lead_user_count.desc())
     portals = query.offset(offset).limit(limit).all()
     result = [portal.as_card_dict() for portal in portals]
     return jsonify({'result': result})

@@ -118,4 +118,4 @@ def api_get_messages():
         'portals': aPortals,
         'chats': aChats
     }
-    return jsonify(result)
+    return jsonify({'result': result})

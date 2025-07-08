@@ -18,24 +18,7 @@ def get_goals_by_user():
 
     goals = Goal.query.filter_by(users_id=users_id).all()
 
-    aGoals = [
-        {
-            "id": goal.id,
-            "title": goal.title,
-            "subtitle": goal.subtitle or "",
-            "progressPercent": round(100 * goal.filled_quota / goal.quota) if goal.quota else 0,
-            "typeName": goal.goal_type if goal.goal_type else "",
-            "chartData": [
-                {
-                    "value": d["value"],
-                    "valueLabel": str(d["value"]),
-                    "bottomLabel": d["label"]
-                }
-                for d in goal.chart_data()
-            ]
-        }
-        for goal in goals
-    ]
+    aGoals = [goal.as_dict() for goal in goals]
 
     return jsonify({"aGoals": aGoals})
 
@@ -49,23 +32,6 @@ def get_goals_by_portal():
 
     goals = Goal.query.filter_by(portals_id=portals_id).all()
 
-    aGoals = [
-        {
-            "id": goal.id,
-            "title": goal.title,
-            "subtitle": goal.subtitle or "",
-            "progressPercent": round(100 * goal.filled_quota / goal.quota) if goal.quota else 0,
-            "typeName": goal.goal_type if goal.goal_type else "",
-            "chartData": [
-                {
-                    "value": d["value"],
-                    "valueLabel": str(d["value"]),
-                    "bottomLabel": d["label"]
-                }
-                for d in goal.chart_data()
-            ]
-        }
-        for goal in goals
-    ]
+    aGoals = [goal.as_dict() for goal in goals]
 
     return jsonify({"aGoals": aGoals})

@@ -177,7 +177,7 @@ def api_create_portal():
         return jsonify({'error': str(e)}), 500
 
     # Return the full portal card dict for immediate frontend use
-    return jsonify({'result': 'Portal created', 'portal': portal.as_card_dict()}), 201
+    return jsonify({'result': portal.as_card_dict()}), 201
 
 # POST: Edit portal (with optional images)
 @portal_bp.route('/edit', methods=['POST'])
@@ -289,7 +289,7 @@ def api_edit_portal():
     db.session.commit()
 
     # Return the updated portal card dict for immediate frontend use
-    return jsonify({'result': 'Portal updated', 'portal': portal.as_card_dict()})
+    return jsonify({'result': portal.as_card_dict()})
 
 # POST: Delete portal
 @portal_bp.route('/delete', methods=['POST'])

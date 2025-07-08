@@ -65,4 +65,4 @@ def api_send_chat_message():
     sender = User.query.filter_by(id=user_id).first()
     message_obj['sender'] = sender.as_dict() if sender else None
 
-    return jsonify({'result': message_obj}), 200
+    return jsonify({'result': 'Message sent.', 'message': message_obj}), 200

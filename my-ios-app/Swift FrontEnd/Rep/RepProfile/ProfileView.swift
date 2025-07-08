@@ -387,6 +387,7 @@ struct ProfileView: View {
         case editProfile
         case addPurpose
         case addGoal
+        case logout
     }
 
     init(userId: Int) {
@@ -490,6 +491,11 @@ struct ProfileView: View {
                                 })
                             }
                         }
+                        if viewModel.isCurrentUser {
+                            Button("Logout") {
+                                pendingAction = .logout
+                            }
+                        }
                     } label: {
                         Image(systemName: "ellipsis.circle")
                     }
@@ -529,6 +535,16 @@ struct ProfileView: View {
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
+                        Button(action: {
+                            pendingAction = .logout
+                            showActionSheet = false
+                        }) {
+                            Text("Logout")
+                                .foregroundColor(.red)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
                     }
                     Button(action: { showActionSheet = false }) {
                         Text("Cancel")
@@ -538,7 +554,6 @@ struct ProfileView: View {
                 .padding()
                 .presentationDetents([.medium])
             }
-            // Handle navigation after sheet closes
             .onChange(of: pendingAction) { action in
                 guard let action = action else { return }
                 switch action {
@@ -548,6 +563,8 @@ struct ProfileView: View {
                     showAddPurpose = true
                 case .addGoal:
                     showAddGoal = true
+                case .logout:
+                    logoutAndClearSession()
                 }
                 pendingAction = nil
             }
@@ -608,6 +625,27 @@ struct ProfileView: View {
                 )
             }
         }
+    }
+
+    private func logoutAndClearSession() {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/logout") else {
+            viewModel.jwtToken = ""
+            viewModel.loggedInUserId = 0
+            dismiss()
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        if !viewModel.jwtToken.isEmpty {
+            request.setValue("Bearer \(viewModel.jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { _, _, _ in
+            DispatchQueue.main.async {
+                viewModel.jwtToken = ""
+                viewModel.loggedInUserId = 0
+                dismiss()
+            }
+        }.resume()
     }
 
     private var mappedSkillTitles: [String] {

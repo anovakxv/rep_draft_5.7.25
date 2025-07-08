@@ -108,5 +108,4 @@ def api_edit_user():
         db.session.commit()
 
     # Return updated user profile with skills and relationships
-    return jsonify(get_user_response(user, session_user_id=user_id))     
-                                
+    return jsonify({'result': get_user_response(user, session_user_id=user_id)})

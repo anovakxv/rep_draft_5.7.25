@@ -70,4 +70,4 @@ def api_send_message():
     message_obj['sender'] = sender.as_dict() if sender else None
     message_obj['recipient'] = recipient.as_dict() if recipient else None
 
-    return jsonify({'result': message_obj}), 200
+    return jsonify({'result': 'Message sent.', 'message': message_obj}), 200

@@ -48,10 +48,10 @@ def api_group_chat():
     # Use as_dict() for unified message response (includes sender object)
     messages_result = [msg.as_dict() for msg in reversed(messages)]
 
-    return jsonify({
-        'result': {
-            'chat': chat.as_dict() if hasattr(chat, 'as_dict') else {},
-            'users': users_result,
-            'messages': messages_result
-        }
-    })
+    result = {
+        'chat': chat.as_dict() if hasattr(chat, 'as_dict') else {},
+        'users': users_result,
+        'messages': messages_result
+    }
+
+    return jsonify({'result': result})

@@ -23,6 +23,8 @@ def patch_profile_picture_url(user_row):
     url = user_row.get('profile_picture_url')
     if url and not url.startswith("http"):
         user_row['profile_picture_url'] = S3_BASE_URL + url
+    if not url or str(url).strip() == "":
+        user_row['profile_picture_url'] = None
     return user_row
 
 def batch_get_skills(user_ids):

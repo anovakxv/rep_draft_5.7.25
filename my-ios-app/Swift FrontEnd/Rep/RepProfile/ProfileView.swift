@@ -533,7 +533,17 @@ struct ProfileView: View {
                 )
             }
             .sheet(isPresented: $showAddGoal) {
-                AddGoalSheet(viewModel: viewModel)
+                EditGoalPage(
+                    existingGoal: nil,
+                    portalId: viewModel.portals.first?.id ?? 0,
+                    userId: viewModel.user.id,
+                    reportingIncrements: [
+                        ReportingIncrement(id: 1, title: "Monthly"),
+                        ReportingIncrement(id: 2, title: "Weekly"),
+                        ReportingIncrement(id: 3, title: "Daily")
+                        // Add more increments as needed
+                    ]
+                )
             }
             .sheet(isPresented: $showMessageSheet) {
                 MessageView(
@@ -884,12 +894,5 @@ struct GoalDetailPage: View {
     let goal: Goal
     var body: some View {
         Text(goal.title)
-    }
-}
-
-struct AddGoalSheet: View {
-    @ObservedObject var viewModel: ProfileViewModel
-    var body: some View {
-        Text("Add Goal Sheet")
     }
 }

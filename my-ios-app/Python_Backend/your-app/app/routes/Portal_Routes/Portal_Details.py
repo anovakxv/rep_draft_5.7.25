@@ -24,6 +24,21 @@ S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 
 portal_bp = Blueprint('portal', __name__)
 
+def user_as_portal_dict(user):
+    url = getattr(user, "profile_picture_url", None)
+    if url and not url.startswith("http"):
+        url = S3_BASE_URL + url
+    if not url or str(url).strip() == "":
+        url = None
+    return {
+        "id": user.id,
+        "fname": user.fname,
+        "lname": user.lname,
+        "username": getattr(user, "username", None),
+        "profile_picture_url": url,
+        # Add more fields as needed
+    }
+
 # GET: Portal details
 @portal_bp.route('/details', methods=['GET'])
 @jwt_required
@@ -107,7 +122,7 @@ def api_portal_details():
         'aPortalUsers': [pu.as_dict() for pu in portal_users],
         'aTexts': [t.as_dict() for t in texts],
         'aSections': aSections,
-        'aUsers': [u.as_dict() for u in users]
+        'aUsers': [user_as_portal_dict(u) for u in users]
     }
 
     return jsonify({'result': portal_data})

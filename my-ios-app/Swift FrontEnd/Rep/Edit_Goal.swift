@@ -1,0 +1,162 @@
+//  Edit_Goal.swift
+//  Rep
+//
+//  Created by Adam Novak: July 2025
+//  (c) 2025 Networked Capital Inc. All rights reserved.
+
+import SwiftUI
+
+// MARK: - ReportingIncrement Model
+
+struct ReportingIncrement: Identifiable, Codable, Hashable {
+    let id: Int
+    let title: String
+}
+
+// MARK: - Edit/Add Goal Page
+
+struct EditGoalPage: View {
+    // If editing, pass an existing goal; if adding, pass nil
+    var existingGoal: Goal?
+    var portalId: Int
+    var userId: Int
+    var reportingIncrements: [ReportingIncrement]
+
+    @State private var title: String = ""
+    @State private var subtitle: String = ""
+    @State private var description: String = ""
+    @State private var quota: String = ""
+    @State private var goalType: String = "Recruiting"
+    @State private var metric: String = ""
+    @State private var reportingIncrementId: Int?
+    @State private var isSaving = false
+    @State private var errorMessage: String?
+    @Environment(\.dismiss) private var dismiss
+
+    let goalTypes = ["Recruiting", "Sales", "Fund", "Marketing", "Hours", "Other"]
+
+    var isEdit: Bool { existingGoal != nil }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section(header: Text(isEdit ? "Edit Goal" : "Add Goal")) {
+                    TextField("Title", text: $title)
+                    TextField("Subtitle", text: $subtitle)
+                    TextField("Description", text: $description)
+                    Picker("Goal Type", selection: $goalType) {
+                        ForEach(goalTypes, id: \.self) { type in
+                            Text(type)
+                        }
+                    }
+                    if goalType == "Other" {
+                        TextField("Metric", text: $metric)
+                    }
+                    TextField("Quota", text: $quota)
+                        .keyboardType(.numberPad)
+                    Picker("Reporting Increment", selection: $reportingIncrementId) {
+                        ForEach(reportingIncrements, id: \.id) { increment in
+                            Text(increment.title).tag(Optional(increment.id))
+                        }
+                    }
+                }
+                Section {
+                    Button(isEdit ? "Save Changes" : "Add Goal") {
+                        saveGoal()
+                    }
+                    .disabled(isSaving || title.isEmpty || quota.isEmpty || reportingIncrementId == nil)
+                }
+                if let error = errorMessage {
+                    Section {
+                        Text(error)
+                            .foregroundColor(.red)
+                    }
+                }
+            }
+            .navigationTitle(isEdit ? "Edit Goal" : "Add Goal")
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+            .onAppear {
+                if let goal = existingGoal {
+                    title = goal.title
+                    subtitle = goal.subtitle
+                    description = goal.description
+                    quota = "\(Int(goal.quota))"
+                    goalType = goal.typeName
+                    metric = goal.metricName
+                    // Try to match reporting increment by name
+                    if let match = reportingIncrements.first(where: { $0.title == goal.reportingName }) {
+                        reportingIncrementId = match.id
+                    }
+                }
+            }
+        }
+    }
+
+    func saveGoal() {
+        isSaving = true
+        errorMessage = nil
+        let urlString: String
+        var params: [String: Any] = [
+            "title": title,
+            "subtitle": subtitle,
+            "description": description,
+            "goal_type": goalType,
+            "quota": Int(quota) ?? 1,
+            "portals_id": portalId,
+            "reporting_increments_id": reportingIncrementId ?? 1,
+            "user_id": userId
+        ]
+        if goalType == "Other" {
+            params["metric"] = metric
+        }
+        if isEdit, let goal = existingGoal {
+            urlString = "\(APIConfig.baseURL)/api/goals/edit"
+            params["goals_id"] = goal.id
+        } else {
+            urlString = "\(APIConfig.baseURL)/api/goals/create"
+        }
+
+        guard let url = URL(string: urlString),
+              let body = try? JSONSerialization.data(withJSONObject: params) else {
+            isSaving = false
+            errorMessage = "Invalid request."
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = UserDefaults.standard.string(forKey: "jwtToken") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = body
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isSaving = false
+                if let error = error {
+                    errorMessage = error.localizedDescription
+                    return
+                }
+                guard let data = data else {
+                    errorMessage = "No response from server."
+                    return
+                }
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
+                    if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                       let err = json["error"] as? String {
+                        errorMessage = err
+                    } else {
+                        errorMessage = "Server error."
+                    }
+                    return
+                }
+                dismiss()
+            }
+        }.resume()
+    }
+}

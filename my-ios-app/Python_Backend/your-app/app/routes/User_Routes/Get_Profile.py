@@ -19,17 +19,19 @@ from werkzeug.utils import secure_filename
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 
+def patch_profile_picture_url(user_row):
+    url = user_row.get('profile_picture_url')
+    if url and not url.startswith("http"):
+        user_row['profile_picture_url'] = S3_BASE_URL + url
+    if not url or str(url).strip() == "":
+        user_row['profile_picture_url'] = None
+    return user_row
+
 user_bp = Blueprint('user', __name__)
 
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
-
-def patch_profile_picture_url(user_row):
-    url = user_row.get('profile_picture_url')
-    if url and not url.startswith("http"):
-        user_row['profile_picture_url'] = S3_BASE_URL + url
-    return user_row
 
 def get_user_response(user, session_user_id=None):
     user_row = user.as_dict()

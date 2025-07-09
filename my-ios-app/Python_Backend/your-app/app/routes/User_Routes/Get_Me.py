@@ -15,13 +15,15 @@ from app.utils.auth import jwt_required
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 
-user_bp = Blueprint('get_me', __name__)
-
 def patch_profile_picture_url(user_row):
     url = user_row.get('profile_picture_url')
     if url and not url.startswith("http"):
         user_row['profile_picture_url'] = S3_BASE_URL + url
+    if not url or str(url).strip() == "":
+        user_row['profile_picture_url'] = None
     return user_row
+
+user_bp = Blueprint('get_me', __name__)
 
 def get_user_response(user, session_user_id=None):
     user_row = user.as_dict()

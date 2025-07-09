@@ -18,16 +18,18 @@ from app.utils.auth import jwt_required
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 
-portal_bp = Blueprint('portal_list', __name__)
-
 def patch_main_image_url(portal_dict):
     """
-    Ensures mainImageUrl is a full S3 URL.
+    Ensures mainImageUrl is a full S3 URL or None.
     """
     url = portal_dict.get('mainImageUrl')
     if url and not url.startswith("http"):
         portal_dict['mainImageUrl'] = S3_BASE_URL + url
+    if not url or str(url).strip() == "":
+        portal_dict['mainImageUrl'] = None
     return portal_dict
+
+portal_bp = Blueprint('portal_list', __name__)
 
 # --- Existing API for ProfileView "Rep" tab ---
 @portal_bp.route('/portals', methods=['GET'])

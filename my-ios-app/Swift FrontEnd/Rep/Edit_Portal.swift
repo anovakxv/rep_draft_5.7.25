@@ -1,4 +1,3 @@
-//  EditPortalView.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.23.2025
@@ -70,8 +69,11 @@ class EditPortalViewModel: ObservableObject {
     func removeImage(at index: Int) {
         guard selectedImages.indices.contains(index) else { return }
         selectedImages.remove(at: index)
-        if mainImageIndex >= selectedImages.count {
-            mainImageIndex = max(0, selectedImages.count - 1)
+        // Defensive fix: always keep mainImageIndex in a valid range
+        if selectedImages.isEmpty {
+            mainImageIndex = 0
+        } else if mainImageIndex >= selectedImages.count {
+            mainImageIndex = selectedImages.count - 1
         }
     }
 

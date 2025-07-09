@@ -1,4 +1,3 @@
-//
 //  PortalItem.swift
 //  Rep
 //
@@ -10,6 +9,10 @@ import SwiftUI
 
 struct PortalItem: View {
     let portal: Portal
+
+    // 16:9 ratio for width 144: height = 144 * 9 / 16 = 81
+    private let imageWidth: CGFloat = 144
+    private let imageHeight: CGFloat = 81
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
@@ -25,13 +28,13 @@ struct PortalItem: View {
                         Color.gray.opacity(0.3)
                     }
                 }
-                .frame(width: 80, height: 45)
+                .frame(width: imageWidth, height: imageHeight)
                 .clipped()
-                .cornerRadius(6)
+                .cornerRadius(3)
             } else {
                 Color.gray.opacity(0.2)
-                    .frame(width: 80, height: 45)
-                    .cornerRadius(6)
+                    .frame(width: imageWidth, height: imageHeight)
+                    .cornerRadius(3)
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -73,11 +76,15 @@ struct PortalItem: View {
             Spacer()
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
         .background(Color.white)
-        .cornerRadius(10)
-        .shadow(color: Color.black.opacity(0.04), radius: 2, x: 0, y: 2)
-        .frame(height: 64)
+        .cornerRadius(12)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(UIColor(red: 0.9, green: 0.9, blue: 0.9, alpha: 1.0))),
+            alignment: .bottom
+        )
+        .frame(height: imageHeight + 24)
     }
 }
-

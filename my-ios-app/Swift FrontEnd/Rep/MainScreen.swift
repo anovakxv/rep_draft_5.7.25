@@ -56,7 +56,8 @@ class PortalsViewModel: ObservableObject {
         case 2: tab = "all"
         default: tab = "open"
         }
-        let urlString = "\(APIConfig.baseURL)/api/filter_network_portals?user_id=\(userId)&tab=\(tab)"
+        // Updated API URL root to match Flask blueprint registration
+        let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
@@ -208,10 +209,10 @@ struct MainSegmentedPicker: View {
         .frame(width: 240, height: 32)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
         .overlay(
-            RoundedRectangle(cornerRadius: 0)
+            RoundedRectangle(cornerRadius: 4)
                 .stroke(Color.black, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 

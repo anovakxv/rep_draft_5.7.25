@@ -50,6 +50,8 @@ class EditPortalViewModel: ObservableObject {
     let userId: Int
     let maxImages = 10
 
+    @AppStorage("jwtToken") var jwtToken: String = ""
+
     init(portal: PortalDetail, userId: Int) {
         self.portalId = portal.id
         self.userId = userId
@@ -99,10 +101,15 @@ class EditPortalViewModel: ObservableObject {
 
     func save(completion: @escaping () -> Void) {
         let boundary = UUID().uuidString
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/edit") else { return }
+        let isNew = portalId == 0
+        let endpoint = isNew ? "/api/portal/" : "/api/portal/edit"
+        guard let url = URL(string: "\(APIConfig.baseURL)\(endpoint)") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
 
         var body = Data()
         func appendFormField(_ name: String, _ value: String) {
@@ -112,7 +119,9 @@ class EditPortalViewModel: ObservableObject {
         }
 
         // Required fields
-        appendFormField("portal_id", "\(portalId)")
+        if !isNew {
+            appendFormField("portal_id", "\(portalId)")
+        }
         appendFormField("user_id", "\(userId)")
 
         // Main fields

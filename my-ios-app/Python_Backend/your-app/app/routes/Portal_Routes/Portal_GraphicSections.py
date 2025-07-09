@@ -9,6 +9,9 @@ from app.models.s3Content_Models.s3Content import S3Content, PortalGraphicSectio
 from app.utils.portal_permissions import check_portal_editor_permission
 from app.utils.auth import jwt_required
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 portal_bp = Blueprint('portal_graphic_sections', __name__)
 
 # GET: List all graphic sections (with files) for a portal
@@ -27,11 +30,14 @@ def api_get_portal_graphic_sections():
     files = S3Content.query.filter(S3Content.tbl_index == 6, S3Content.tbl_id.in_(section_ids)).all()
     files_by_section = {}
     for f in files:
+        file_url = f.url
+        if file_url and not file_url.startswith("http"):
+            file_url = S3_BASE_URL + file_url
         files_by_section.setdefault(f.tbl_id, []).append({
             'id': f.id,
             'gr_hash': f.gr_hash,
             'key': f.key,
-            'url': f.url
+            'url': file_url
         })
     result = []
     for section in sections:

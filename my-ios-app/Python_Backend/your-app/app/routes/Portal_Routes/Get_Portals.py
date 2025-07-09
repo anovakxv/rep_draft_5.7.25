@@ -15,7 +15,19 @@ from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from app.utils.auth import jwt_required
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 portal_bp = Blueprint('portal_list', __name__)
+
+def patch_main_image_url(portal_dict):
+    """
+    Ensures mainImageUrl is a full S3 URL.
+    """
+    url = portal_dict.get('mainImageUrl')
+    if url and not url.startswith("http"):
+        portal_dict['mainImageUrl'] = S3_BASE_URL + url
+    return portal_dict
 
 # --- Existing API for ProfileView "Rep" tab ---
 @portal_bp.route('/portals', methods=['GET'])
@@ -112,7 +124,7 @@ def api_get_portals():
         query = query.order_by(Portal.lead_user_count.desc())
 
     portals = query.offset(offset).limit(limit).all()
-    result = [portal.as_card_dict() for portal in portals]
+    result = [patch_main_image_url(portal.as_card_dict()) for portal in portals]
     return jsonify({'result': result})
 
 # --- New API for MainScreen filtering tabs ---
@@ -189,5 +201,5 @@ def filter_network_portals():
 
     query = query.order_by(Portal.lead_user_count.desc())
     portals = query.offset(offset).limit(limit).all()
-    result = [portal.as_card_dict() for portal in portals]
+    result = [patch_main_image_url(portal.as_card_dict()) for portal in portals]
     return jsonify({'result': result})

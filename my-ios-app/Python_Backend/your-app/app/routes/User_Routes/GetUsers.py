@@ -7,7 +7,16 @@ from app import db
 from app.models.People_Models.user import User
 from app.utils.auth import jwt_required
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 user_bp = Blueprint('get_users', __name__)
+
+def patch_profile_picture_url(user_row):
+    url = user_row.get('profile_picture_url')
+    if url and not url.startswith("http"):
+        user_row['profile_picture_url'] = S3_BASE_URL + url
+    return user_row
 
 @user_bp.route('/get_users', methods=['GET'])
 @jwt_required
@@ -60,5 +69,9 @@ def api_get_users():
         query = query.filter(User.id != user_id)
 
     users = query.order_by(User.id.desc()).offset(offset).limit(limit).all()
-    result = [u.as_dict() for u in users]
+    result = []
+    for u in users:
+        user_row = u.as_dict()
+        user_row = patch_profile_picture_url(user_row)
+        result.append(user_row)
     return jsonify({'result': result})

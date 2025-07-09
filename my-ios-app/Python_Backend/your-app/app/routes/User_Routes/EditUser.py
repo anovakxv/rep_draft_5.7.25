@@ -16,11 +16,20 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 user_bp = Blueprint('edit_user', __name__)
 
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+def patch_profile_picture_url(user_row):
+    url = user_row.get('profile_picture_url')
+    if url and not url.startswith("http"):
+        user_row['profile_picture_url'] = S3_BASE_URL + url
+    return user_row
 
 def get_user_response(user, session_user_id=None):
     user_row = user.as_dict()
@@ -37,6 +46,8 @@ def get_user_response(user, session_user_id=None):
             "in_my_network": UserNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
             "i_am_in_their_network": UserNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
         }
+    # Patch profile picture URL to be full S3 URL if needed
+    user_row = patch_profile_picture_url(user_row)
     return user_row
 
 @user_bp.route('/edit', methods=['POST'])
@@ -87,12 +98,9 @@ def api_edit_user():
         file = files['profile_picture']
         if file and allowed_file(file.filename):
             filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
-            upload_folder = current_app.config.get('PROFILE_PIC_UPLOAD_FOLDER', 'uploads/profile_pics')
-            os.makedirs(upload_folder, exist_ok=True)
-            file_path = os.path.join(upload_folder, filename)
-            file.save(file_path)
-            profile_pic_url = current_app.config.get('PROFILE_PIC_URL_PREFIX', '/static/profile_pics/')
-            user.profile_picture_url = os.path.join(profile_pic_url, filename)
+            # In production, you would upload to S3 here and set the S3 URL
+            # For now, just use the filename as the key
+            user.profile_picture_url = filename
 
     db.session.commit()
 

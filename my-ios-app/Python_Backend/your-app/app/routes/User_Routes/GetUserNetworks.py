@@ -14,7 +14,16 @@ from app.models.People_Models.UserFollower import UserFollower
 from app.utils.user_utils import manage_user_row
 from app.utils.auth import jwt_required
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 user_bp = Blueprint('get_user_skills', __name__)
+
+def patch_profile_picture_url(user_row):
+    url = user_row.get('profile_picture_url')
+    if url and not url.startswith("http"):
+        user_row['profile_picture_url'] = S3_BASE_URL + url
+    return user_row
 
 def batch_get_skills(user_ids):
     # Fetch all skills for all users in one query
@@ -73,6 +82,8 @@ def get_user_response_batch(users, session_user_id=None, skills_map=None, rel_ma
                 "in_my_network": False,
                 "i_am_in_their_network": False,
             })
+        # Patch profile picture URL to be full S3 URL if needed
+        user_row = patch_profile_picture_url(user_row)
         result.append(user_row)
     return result
 

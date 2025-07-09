@@ -19,6 +19,9 @@ from app.utils.auth import jwt_required
 from werkzeug.utils import secure_filename
 import uuid
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 portal_bp = Blueprint('portal', __name__)
 
 # GET: Portal details
@@ -53,11 +56,15 @@ def api_portal_details():
     if section_ids:
         files = S3Content.query.filter(S3Content.tbl_index == 6, S3Content.tbl_id.in_(section_ids)).all()
         for f in files:
+            # Ensure returned url is full S3 URL
+            file_url = f.url
+            if file_url and not file_url.startswith("http"):
+                file_url = S3_BASE_URL + file_url
             files_by_section.setdefault(f.tbl_id, []).append({
                 'id': f.id,
                 'gr_hash': f.gr_hash,
                 'key': f.key,
-                'url': f.url
+                'url': file_url
             })
 
     # Compose sections with files
@@ -82,6 +89,8 @@ def api_portal_details():
 
     # Identify the main image (first file of the first section)
     main_image_url = portal.main_image_url
+    if main_image_url and not main_image_url.startswith("http"):
+        main_image_url = S3_BASE_URL + main_image_url
 
     portal_data = {
         'id': portal.id,
@@ -148,9 +157,8 @@ def api_create_portal():
             db.session.flush()
             for img in images:
                 filename = secure_filename(img.filename)
-                # Here you would upload to S3 and get the URL and gr_hash
-                # For demo, use filename as gr_hash and url
-                s3_url = f"https://your-s3-bucket/{filename}"
+                # Use S3_BASE_URL for the image URL
+                s3_url = f"{S3_BASE_URL}{filename}"
                 gr_hash = f"{uuid.uuid4().hex}_{filename}"
                 img.seek(0)
                 s3_content = S3Content(
@@ -263,9 +271,8 @@ def api_edit_portal():
         PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=main_section.id).delete(synchronize_session=False)
         for img in images:
             filename = secure_filename(img.filename)
-            # Here you would upload to S3 and get the URL and gr_hash
-            # For demo, use filename as gr_hash and url
-            s3_url = f"https://your-s3-bucket/{filename}"
+            # Use S3_BASE_URL for the image URL
+            s3_url = f"{S3_BASE_URL}{filename}"
             gr_hash = f"{uuid.uuid4().hex}_{filename}"
             img.seek(0)
             s3_content = S3Content(

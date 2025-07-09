@@ -14,7 +14,16 @@ from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
 from app.utils.auth import jwt_required
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 people_bp = Blueprint('people', __name__)
+
+def patch_profile_picture_url(user_row):
+    url = user_row.get('profile_picture_url')
+    if url and not url.startswith("http"):
+        user_row['profile_picture_url'] = S3_BASE_URL + url
+    return user_row
 
 def batch_get_users(user_ids):
     users = User.query.filter(User.id.in_(user_ids)).all()
@@ -144,9 +153,11 @@ def api_active_chat_list():
         if event['type'] == 'direct':
             user = users_map.get(event['contact_id'])
             last_msg = last_direct_msgs.get(event['contact_id'])
+            user_dict = user.as_dict() if user else {}
+            user_dict = patch_profile_picture_url(user_dict)
             result.append({
                 'type': 'direct',
-                'user': user.as_dict() if user else {},
+                'user': user_dict,
                 'last_message': last_msg.as_dict() if last_msg else {},
                 'last_message_time': event['last_message_time']
             })
@@ -202,5 +213,9 @@ def filter_people():
         )
 
     users = query.offset(offset).limit(limit).all()
-    result = [u.as_dict() for u in users]
+    result = []
+    for u in users:
+        user_dict = u.as_dict()
+        user_dict = patch_profile_picture_url(user_dict)
+        result.append(user_dict)
     return jsonify({'result': result})

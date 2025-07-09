@@ -15,11 +15,20 @@ import jwt
 import datetime
 from werkzeug.utils import secure_filename
 
+# --- S3 BASE URL ---
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
 user_bp = Blueprint('register_user', __name__)
 
 def allowed_file(filename):
     allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
+
+def patch_profile_picture_url(user_row):
+    url = user_row.get('profile_picture_url')
+    if url and not url.startswith("http"):
+        user_row['profile_picture_url'] = S3_BASE_URL + url
+    return user_row
 
 @user_bp.route('/register', methods=['POST'])
 def api_register_user():
@@ -75,16 +84,16 @@ def api_register_user():
         file = files['profile_picture']
         if file and allowed_file(file.filename):
             filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
-            upload_folder = current_app.config.get('PROFILE_PIC_UPLOAD_FOLDER', 'uploads/profile_pics')
-            os.makedirs(upload_folder, exist_ok=True)
-            file_path = os.path.join(upload_folder, filename)
-            file.save(file_path)
-            profile_pic_url = url_for('static', filename=f"profile_pics/{filename}", _external=True)
-            user.profile_picture_url = profile_pic_url
+            # In production, you would upload to S3 here and set the S3 URL
+            # For now, just use the filename as the key
+            user.profile_picture_url = filename
             db.session.commit()
+            profile_pic_url = S3_BASE_URL + filename
 
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
-    user_row['profile_picture_url'] = profile_pic_url
+    user_row = patch_profile_picture_url(user_row)
+    if profile_pic_url:
+        user_row['profile_picture_url'] = profile_pic_url
 
     jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
     token = jwt.encode({
@@ -117,6 +126,7 @@ def api_verify_email():
     }, jwt_secret, algorithm='HS256')
 
     user_row = manage_user_row(user.as_dict(), user.id, level='0')
+    user_row = patch_profile_picture_url(user_row)
     return jsonify({
         'result': 'Email verified successfully',
         'user_id': user.id,

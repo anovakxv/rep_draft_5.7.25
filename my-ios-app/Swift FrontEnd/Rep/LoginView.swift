@@ -1,4 +1,3 @@
-//
 //  LoginView.swift
 //  Rep
 //
@@ -11,10 +10,6 @@ import Combine
 
 // --- Stub Views for compilation ---
 
-struct SignUpView: View {
-    var body: some View { Text("Sign Up View Placeholder") }
-}
-
 struct GTextField: View {
     enum Model { case email, password }
     let model: Model
@@ -22,6 +17,7 @@ struct GTextField: View {
     var body: some View {
         TextField(model == .email ? "Email" : "Password", text: $text)
             .textContentType(model == .email ? .emailAddress : .password)
+            .keyboardType(model == .email ? .emailAddress : .default)
             .autocapitalization(.none)
             .disableAutocorrection(true)
             .padding()
@@ -57,35 +53,37 @@ struct LoginView: View {
     }
 
     var body: some View {
-        VStack {
+        NavigationStack {
             VStack {
-                Spacer(minLength: 0)
-                headerView
-                Spacer(minLength: 0)
-                VStack (spacing: 12.0) {
-                    textFieldsView
-                    forgotPasswordButton
+                VStack {
+                    Spacer(minLength: 0)
+                    headerView
+                    Spacer(minLength: 0)
+                    VStack (spacing: 12.0) {
+                        textFieldsView
+                        forgotPasswordButton
+                    }
+                    Spacer()
+                    Spacer()
+                    Spacer()
+                    NavigationLink(destination: MainScreen(), isActive: $viewModel.isLoggedIn) { EmptyView() }
+                    NavigationLink(destination: RegisterNewProfileView(), isActive: $viewModel.isSignUpPresented) { EmptyView() }
                 }
-                Spacer()
-                Spacer()
-                Spacer()
-                NavigationLink(destination: MainScreen(), isActive: $viewModel.isLoggedIn) { EmptyView() }
-                NavigationLink(destination: SignUpView(), isActive: $viewModel.isSignUpPresented) { EmptyView() }
+                .padding(24)
+                buttonsView
             }
-            .padding(24)
-            buttonsView
+            .toolbar(.hidden)
+            .ignoresSafeArea(.keyboard)
+            .onChange(of: viewModel.error) { _, newValue in
+                isAlertPresented = newValue != nil
+            }
+            .alert(viewModel.error?.debugDescription ?? "", isPresented: $isAlertPresented) {
+                Button("Ok", role: .cancel) { viewModel.error = nil }
+            }
+            .background(Color.white)
         }
-        .toolbar(.hidden)
-        .ignoresSafeArea(.keyboard)
-        .onChange(of: viewModel.error) { _, newValue in
-            isAlertPresented = newValue != nil
-        }
-        .alert(viewModel.error?.debugDescription ?? "", isPresented: $isAlertPresented) {
-            Button("Ok", role: .cancel) { viewModel.error = nil }
-        }
-        .background(Color.white)
     }
-    		
+            
     @ViewBuilder
     var headerView: some View {
         HStack {
@@ -137,11 +135,12 @@ struct LoginView: View {
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.email.isEmpty || viewModel.password.isEmpty)
             HStack {
-                Text("New User?")
+                Text("New?")
                 Button (action:{
                     viewModel.isSignUpPresented = true
                 }, label: {
                     Text("Sign Up")
+                        .font(.custom("Inter", size: 18).weight(.semibold))
                 })
                 .buttonStyle(.borderless)
                 .accentColor(SwiftUI.Color.repGreen)
@@ -160,7 +159,7 @@ class APILoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: ServiceError? = nil
     @AppStorage("userId") var userId: Int = 0
-    @AppStorage("authToken") var authToken: String = ""
+    @AppStorage("jwtToken") var jwtToken: String = "" // <-- Use jwtToken everywhere
 
     func login() {
         guard !email.isEmpty && !password.isEmpty else {
@@ -186,7 +185,7 @@ class APILoginViewModel: ObservableObject {
                 }
                 if let apiResult = try? JSONDecoder().decode(LoginAPIResponse.self, from: data) {
                     self.userId = apiResult.result.id
-                    self.authToken = apiResult.token
+                    self.jwtToken = apiResult.token // <-- Save to jwtToken
                     self.isLoggedIn = true
                 } else if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
                     self.error = .serverError(apiError.error)
@@ -219,9 +218,24 @@ struct APIErrorResponse: Decodable {
 
 struct UserProfile: Decodable {
     let id: Int
-    let email: String
-    // Add other fields as needed
+    let fname: String?
+    let lname: String?
+    let full_name: String?
+    let username: String?
+    let email: String? // Not present in your JSON, but keep if you want
+    let about: String?
+    let broadcast: String?
+    let city: String?
+    let created_at: String?
+    let last_login: String?
+    let last_message: String?
+    let last_message_date: String?
+    let profile_picture_url: String?
+    let skills: [String]?
+    let updated_at: String?
+    let user_type: String?
 }
+
 
 enum ServiceError: Error, CustomDebugStringConvertible, Equatable {
     case inputDataError
@@ -263,6 +277,8 @@ extension SwiftUI.Color {
 
 struct LoginView_Previews: PreviewProvider {
     static var previews: some View {
-        LoginView()
+        NavigationStack {
+            LoginView()
+        }
     }
 }

@@ -35,162 +35,162 @@ struct RegisterNewProfileView: View {
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.white.ignoresSafeArea()
-                VStack(spacing: 0) {
-                    // Status Bar
-                    HStack {
-                        Text("9:41")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.black)
-                        Spacer()
-                    }
-                    .frame(height: 48)
-                    .padding(.horizontal, 19)
-                    .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+        ZStack {
+            Color.white.ignoresSafeArea()
+            VStack(spacing: 0) {
+                Spacer().frame(height: 32)
 
-                    Spacer().frame(height: 32)
-
-                    // Rep Logo
-                    HStack {
-                        Spacer()
-                        Image("REPLogo")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 80, height: 80)
-                            .clipShape(Circle())
-                            .shadow(radius: 4)
-                        Spacer()
-                    }
-                    .padding(.bottom, 24)
-
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Your Info:")
-                            .font(.custom("Inter", size: 20).weight(.bold))
-                            .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
-
-                        HStack(spacing: 12) {
-                            TextField("First Name", text: $firstName)
-                                .padding()
-                                .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                                )
-                            TextField("Last Name", text: $lastName)
-                                .padding()
-                                .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                                )
-                        }
-
-                        Text("Email:")
-                            .font(.custom("Inter", size: 20).weight(.bold))
-                            .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
-                            .padding(.top, 8)
-
-                        Text("You will receive a confirmation email.")
-                            .font(.custom("Inter", size: 15))
-                            .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.47))
-
-                        TextField("Email address", text: $email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
-
-                        // For debugging only
-                        TextField("Password", text: $password)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
-
-                        TextField("Confirm Password", text: $confirmPassword)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
-
-                        TextField("Phone number (optional)", text: $phone)
-                            .keyboardType(.phonePad)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
-
+                // Rep Logo
+                HStack {
                     Spacer()
-
-                    if let error = errorMessage {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .padding(.bottom, 8)
-                    }
-
-                    NavigationLink(
-                        destination: EditProfileView(
-                            viewModel: ProfileInfoViewModel(
-                                profileInfo: registeredUser,
-                                mode: .edit
-                            )
-                        ),
-                        isActive: $navigateToEditProfile
-                    ) {
-                        EmptyView()
-                    }
-
-                    Button(action: {
-                        registerUser()
-                    }) {
-                        if isLoading {
-                            ProgressView()
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 54)
-                        } else {
-                            Text("Next")
-                                .font(.custom("Inter", size: 16).weight(.semibold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 54)
-                        }
-                    }
-                    .background(Color(red: 0.48, green: 0.75, blue: 0.29))
-                    .cornerRadius(14)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
-                    .disabled(isLoading)
-
-                    // Progress bar at bottom
-                    Rectangle()
-                        .frame(width: 134, height: 5)
-                        .foregroundColor(.black)
-                        .cornerRadius(100)
-                        .padding(.bottom, 16)
+                    Image("REPLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 80, height: 80)
+                        .clipShape(Circle())
+                        .shadow(radius: 4)
+                    Spacer()
                 }
+                .padding(.bottom, 24)
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Your Info:")
+                        .font(.custom("Inter", size: 20).weight(.bold))
+                        .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
+
+                    HStack(spacing: 12) {
+                        TextField("First Name", text: $firstName)
+                            .padding()
+                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+                            .cornerRadius(14)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+                            )
+                        TextField("Last Name", text: $lastName)
+                            .padding()
+                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+                            .cornerRadius(14)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+                            )
+                    }
+
+                    Text("Email:")
+                        .font(.custom("Inter", size: 20).weight(.bold))
+                        .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
+                        .padding(.top, 8)
+
+                    Text("You will receive a confirmation email.")
+                        .font(.custom("Inter", size: 15))
+                        .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.47))
+
+                    TextField("Email address", text: $email)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .padding()
+                        .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+                        .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+                        )
+
+                    // For debugging only
+                    TextField("Password", text: $password)
+                        .padding()
+                        .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+                        .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+                        )
+
+                    TextField("Confirm Password", text: $confirmPassword)
+                        .padding()
+                        .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+                        .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+                        )
+
+                    TextField("Phone number (optional)", text: $phone)
+                        .keyboardType(.phonePad)
+                        .padding()
+                        .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+                        .cornerRadius(14)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+                        )
+                }
+                .padding(.horizontal, 24)
+                .padding(.top, 16)
+
+                Spacer()
+
+                if let error = errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .padding(.bottom, 8)
+                }
+
+                NavigationLink(
+                    destination: EditProfileView(
+                        viewModel: ProfileInfoViewModel(
+                            profileInfo: registeredUser,
+                            mode: .edit
+                        )
+                    ),
+                    isActive: $navigateToEditProfile
+                ) {
+                    EmptyView()
+                }
+
+                Button(action: {
+                    registerUser()
+                }) {
+                    if isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                    } else {
+                        Text("Next")
+                            .font(.custom("Inter", size: 16).weight(.semibold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 54)
+                    }
+                }
+                .background(Color(red: 0.48, green: 0.75, blue: 0.29))
+                .cornerRadius(14)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+                .disabled(isLoading)
+
+                HStack {
+                    Text("Already have an account?")
+                        .font(.custom("Inter", size: 16))
+                        .foregroundColor(.gray)
+                    NavigationLink(destination: LoginView()) {
+                        Text("Login")
+                            .font(.custom("Inter", size: 16).weight(.medium))
+                            .foregroundColor(Color.repGreen)
+                    }
+                }
+                .padding(.bottom, 8)
+
+                // Progress bar at bottom
+                Rectangle()
+                    .frame(width: 134, height: 5)
+                    .foregroundColor(.black)
+                    .cornerRadius(100)
+                    .padding(.bottom, 16)
             }
         }
+        .navigationBarBackButtonHidden(true)
     }
 
     func registerUser() {

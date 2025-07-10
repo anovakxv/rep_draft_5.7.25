@@ -449,16 +449,6 @@ struct ProfileView: View {
                 VStack(spacing: 24) {
                     if viewModel.isCurrentUser {
                         Button(action: {
-                            pendingAction = .editProfile
-                            showActionSheet = false
-                        }) {
-                            Text("Edit Profile")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                        Button(action: {
                             pendingAction = .addPurpose
                             showActionSheet = false
                         }) {
@@ -473,6 +463,16 @@ struct ProfileView: View {
                             showActionSheet = false
                         }) {
                             Text("Add Goal")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                        Button(action: {
+                            pendingAction = .editProfile
+                            showActionSheet = false
+                        }) {
+                            Text("Edit Profile")
                                 .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                                 .font(.title2)
                                 .fontWeight(.bold)

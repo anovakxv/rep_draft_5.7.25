@@ -43,6 +43,11 @@ def api_update_goal_filled_quota():
     if added_value is None:
         return jsonify({'error': 'added_value required!'}), 400
 
+    try:
+        added_value = float(added_value)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'added_value must be a number!'}), 400
+
     goal = Goal.query.get(goal_id)
     if not goal:
         return jsonify({'error': 'Goal not found'}), 404
@@ -63,7 +68,7 @@ def api_update_goal_filled_quota():
         goals_id=goal_id,
         added_value=added_value,
         note=note,
-        value=(goal.filled_quota or 0) + int(added_value)
+        value=(goal.filled_quota or 0) + added_value
     )
     db.session.add(progress_log)
     db.session.flush()  # Get progress_log.id before commit
@@ -90,7 +95,7 @@ def api_update_goal_filled_quota():
                 })
 
     # Update goal's filled_quota
-    goal.filled_quota = (goal.filled_quota or 0) + int(added_value)
+    goal.filled_quota = (goal.filled_quota or 0) + added_value
     db.session.commit()
 
     # Return updated goal details with progress and progress_percent

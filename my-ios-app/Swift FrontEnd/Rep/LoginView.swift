@@ -32,12 +32,14 @@ struct GButton: View {
     var body: some View {
         Button(action: action) {
             Text(text)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(SwiftUI.Color.repGreen)
+                .font(.custom("Inter", size: 16).weight(.semibold))
                 .foregroundColor(.white)
-                .cornerRadius(8)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
         }
+        .background(Color(red: 0.48, green: 0.75, blue: 0.29))
+        .cornerRadius(14)
+        .padding(.horizontal, 24)
     }
 }
 

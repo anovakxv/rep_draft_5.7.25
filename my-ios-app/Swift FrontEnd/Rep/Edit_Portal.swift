@@ -58,9 +58,9 @@ class EditPortalViewModel: ObservableObject {
         self.name = portal.name
         self.subtitle = portal.subtitle ?? ""
         self.about = portal.about ?? ""
-        self.storyText = portal.aTexts.first?.text ?? ""
+        self.storyText = (portal.aTexts ?? []).first?.text ?? ""
         self.offeringText = portal.about ?? ""
-        self.goals = portal.aGoals.map { EditableGoal(goal: $0) }
+        self.goals = (portal.aGoals ?? []).map { EditableGoal(goal: $0) }
         // Optionally load existing images from portal.aSections/aFiles if needed
     }
 

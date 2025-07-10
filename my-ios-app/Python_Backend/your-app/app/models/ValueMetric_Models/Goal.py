@@ -90,14 +90,15 @@ class Goal(db.Model):
         Returns a dict representation of the Goal, suitable for both list and detail views.
         Set include_team/progress_logs True to include team or feed data for detail pages.
         """
-        # Format chart data for Swift
+        # Format chart data for Swift, add id to each chartData item
         chart_data = [
             {
+                "id": idx,  # Add id for frontend decoding
                 "value": d["value"],
                 "valueLabel": str(d["value"]),
                 "bottomLabel": d["label"]
             }
-            for d in self.chart_data()
+            for idx, d in enumerate(self.chart_data())
         ]
 
         # Format quota and value strings for display
@@ -152,4 +153,3 @@ class Goal(db.Model):
             "team": team,
             # Add more fields as needed
         }
-    

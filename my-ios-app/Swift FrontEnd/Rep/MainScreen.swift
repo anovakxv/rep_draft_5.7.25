@@ -309,8 +309,6 @@ struct MainScreen: View {
                         }
                     }
                 }
-            }
-            .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink(destination: ProfileView(userId: userId)) {
                         Image(systemName: "person.crop.circle")
@@ -319,8 +317,6 @@ struct MainScreen: View {
                             .clipShape(Circle())
                     }
                 }
-            }
-            .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
                         action: { showActionSheet = true },
@@ -425,6 +421,7 @@ struct MainScreen: View {
                     lead_id: nil,
                     users_id: userId,
                     _c_users_count: nil,
+                    mainImageUrl: nil,
                     aGoals: [],
                     aPortalUsers: [],
                     aTexts: [],
@@ -487,111 +484,19 @@ struct PortalList: View {
     }
 }
 
-// MARK: - Active Chat List
-
-struct ActiveChatList: View {
-    var chats: [ActiveChat]
-
-    var body: some View {
-        if chats.isEmpty {
-            Text("No chats found.")
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            List {
-                ForEach(chats) { chat in
-                    if chat.type == "direct", let user = chat.user {
-                        HStack(alignment: .top, spacing: 0) {
-                            NavigationLink(destination: ProfileView(userId: user.id)) {
-                                if let url = user.profilePictureURL {
-                                    AsyncImage(url: url) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        Color.gray
-                                    }
-                                    .frame(width: 64, height: 64)
-                                    .clipShape(Circle())
-                                } else {
-                                    Image(systemName: "person.crop.circle")
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: 64, height: 64)
-                                        .clipShape(Circle())
-                                }
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            NavigationLink(destination: Chat(userId: user.id)) {
-                                VStack(alignment: .leading) {
-                                    HStack {
-                                        Text(user.fullName)
-                                            .font(.subheadline)
-                                        Spacer()
-                                        if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
-                                            Text(date.timeAgoDisplay())
-                                                .font(.caption)
-                                        }
-                                    }
-                                    Text(chat.last_message?.text ?? "")
-                                        .font(.caption)
-                                }
-                                .padding(.leading, 8)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                        .frame(height: 64)
-                        .padding(.vertical, 8)
-                        Divider()
-                    } else if chat.type == "group", let group = chat.chat {
-                        HStack(alignment: .top, spacing: 0) {
-                            NavigationLink(destination: Chat(userId: group.id)) {
-                                Image(systemName: "person.3.fill")
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 64, height: 64)
-                                    .clipShape(Circle())
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Text(group.name ?? "Group Chat")
-                                        .font(.subheadline)
-                                    Spacer()
-                                    if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
-                                        Text(date.timeAgoDisplay())
-                                            .font(.caption)
-                                    }
-                                }
-                                Text(chat.last_message?.text ?? "")
-                                    .font(.caption)
-                            }
-                            .padding(.leading, 8)
-                        }
-                        .frame(height: 64)
-                        .padding(.vertical, 8)
-                        Divider()
-                    }
-                }
-            }
-            .listStyle(.plain)
-        }
-    }
-}
-
 // MARK: - Chat List
 
 struct ChatList: View {
     var users: [User]
+    @State private var selectedProfileId: Int?
+    @State private var selectedChatId: Int?
 
     var body: some View {
-        if users.isEmpty {
-            Text("No people found.")
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
+        ZStack {
             List {
                 ForEach(users) { user in
-                    HStack(alignment: .top, spacing: 0) {
-                        NavigationLink(destination: ProfileView(userId: user.id)) {
+                    HStack(spacing: 0) {
+                        Button(action: { selectedProfileId = user.id }) {
                             if let url = user.profilePictureURL {
                                 AsyncImage(url: url) { image in
                                     image.resizable().scaledToFill()
@@ -609,10 +514,11 @@ struct ChatList: View {
                             }
                         }
                         .buttonStyle(PlainButtonStyle())
-                        NavigationLink(destination: Chat(userId: user.id)) {
+                        .padding(.leading, 16)
+                        Button(action: { selectedChatId = user.id }) {
                             VStack(alignment: .leading) {
                                 HStack {
-                                    Text(user.fullName)
+                                    Text(user.fullName ?? "")
                                         .font(.subheadline)
                                     Spacer()
                                     if let dateString = user.lastMessageDate, let date = ISO8601DateFormatter().date(from: dateString) {
@@ -628,11 +534,156 @@ struct ChatList: View {
                         .buttonStyle(PlainButtonStyle())
                     }
                     .frame(height: 64)
-                    .padding(.vertical, 8)
-                    Divider()
+                    .padding(.vertical, 16)
+                    .background(Color.white)
+                    .listRowInsets(EdgeInsets())
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                        alignment: .bottom
+                    )
                 }
             }
             .listStyle(.plain)
+
+            // NavigationLinks for programmatic navigation
+            NavigationLink(
+                destination: selectedProfileId.map { ProfileView(userId: $0) },
+                isActive: Binding(
+                    get: { selectedProfileId != nil },
+                    set: { if !$0 { selectedProfileId = nil } }
+                ),
+                label: { EmptyView() }
+            )
+            NavigationLink(
+                destination: selectedChatId.map { Chat(userId: $0) },
+                isActive: Binding(
+                    get: { selectedChatId != nil },
+                    set: { if !$0 { selectedChatId = nil } }
+                ),
+                label: { EmptyView() }
+            )
+        }
+    }
+}
+
+// MARK: - Active Chat List
+
+struct ActiveChatList: View {
+    var chats: [ActiveChat]
+    @State private var selectedProfileId: Int?
+    @State private var selectedChatId: Int?
+
+    var body: some View {
+        ZStack {
+            List {
+                ForEach(chats) { chat in
+                    if chat.type == "direct", let user = chat.user {
+                        HStack(spacing: 0) {
+                            Button(action: { selectedProfileId = user.id }) {
+                                if let url = user.profilePictureURL {
+                                    AsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Color.gray
+                                    }
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
+                                } else {
+                                    Image(systemName: "person.crop.circle")
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 64, height: 64)
+                                        .clipShape(Circle())
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            .padding(.leading, 16)
+                            Button(action: { selectedChatId = user.id }) {
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        Text(user.fullName ?? "")
+                                            .font(.subheadline)
+                                        Spacer()
+                                        if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
+                                            Text(date.timeAgoDisplay())
+                                                .font(.caption)
+                                        }
+                                    }
+                                    Text(chat.last_message?.text ?? "")
+                                        .font(.caption)
+                                }
+                                .padding(.leading, 8)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .frame(height: 64)
+                        .padding(.vertical, 16)
+                        .background(Color.white)
+                        .listRowInsets(EdgeInsets())
+                        .overlay(
+                            Rectangle()
+                                .frame(height: 1)
+                                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                            alignment: .bottom
+                        )
+                    } else if chat.type == "group", let group = chat.chat {
+                        Button(action: { selectedChatId = group.id }) {
+                            HStack(spacing: 0) {
+                                Image(systemName: "person.3.fill")
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        Text(group.name ?? "Group Chat")
+                                            .font(.subheadline)
+                                        Spacer()
+                                        if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
+                                            Text(date.timeAgoDisplay())
+                                                .font(.caption)
+                                        }
+                                    }
+                                    Text(chat.last_message?.text ?? "")
+                                        .font(.caption)
+                                }
+                                .padding(.leading, 8)
+                            }
+                            .frame(height: 64)
+                            .padding(.vertical, 8)
+                            .background(Color.white)
+                            .listRowInsets(EdgeInsets())
+                            .overlay(
+                                Rectangle()
+                                    .frame(height: 1)
+                                    .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                                alignment: .bottom
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            }
+            .listStyle(.plain)
+
+            NavigationLink(
+                destination: selectedProfileId.map { ProfileView(userId: $0) },
+                isActive: Binding(
+                    get: { selectedProfileId != nil },
+                    set: { if !$0 { selectedProfileId = nil } }
+                ),
+                label: { EmptyView() }
+            )
+            NavigationLink(
+                destination: selectedChatId.map { Chat(userId: $0) },
+                isActive: Binding(
+                    get: { selectedChatId != nil },
+                    set: { if !$0 { selectedChatId = nil } }
+                ),
+                label: { EmptyView() }
+            )
         }
     }
 }

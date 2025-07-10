@@ -58,6 +58,8 @@ struct GoalListItem_Previews: PreviewProvider {
             BarChartData(value: 20, valueLabel: "20", bottomLabel: "Mar"),
             BarChartData(value: 40, valueLabel: "40", bottomLabel: "Apr")
         ]
+        creatorId: 1,      
+        portalId: 1    
     )
 
     static var previews: some View {

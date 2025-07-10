@@ -43,7 +43,7 @@ def api_goal_details():
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
         from collections import defaultdict
-        data = defaultdict(int)
+        data = defaultdict(float)
         for log in logs:
             if log.timestamp:
                 if increment == 'month':
@@ -54,7 +54,7 @@ def api_goal_details():
                     label = log.timestamp.strftime('%d %b')
                 else:
                     label = log.timestamp.strftime('%b')
-                data[label] += log.added_value or 0
+                data[label] += float(log.added_value or 0)
         items = list(data.items())[-num_periods:]
         return [
             {"value": value, "label": label, "color": "#00FF00"}
@@ -81,7 +81,7 @@ def api_create_goal():
 
     goal_type = data.get('goal_type')
     metric = data.get('metric')
-    quota = int(data.get('quota', 100))
+    quota = float(data.get('quota', 100))
     if quota < 1:
         return jsonify({'error': 'quota < 1'}), 400
     lead_id = data.get('lead_id')
@@ -119,9 +119,9 @@ def api_create_goal():
     progress_log = GoalProgressLog(
         users_id=user_id,
         goals_id=goal.id,
-        added_value=1,
+        added_value=1.0,
         note="Goal created",
-        value=1
+        value=1.0
     )
     db.session.add(progress_log)
     db.session.commit()
@@ -150,7 +150,7 @@ def api_edit_goal():
     ]
     for field in editable_fields:
         if field in data and data[field] is not None:
-            if field == 'quota' and int(data[field]) < 1:
+            if field == 'quota' and float(data[field]) < 1:
                 return jsonify({'error': 'quota < 1'}), 400
             setattr(goal, field, data[field])
     db.session.commit()

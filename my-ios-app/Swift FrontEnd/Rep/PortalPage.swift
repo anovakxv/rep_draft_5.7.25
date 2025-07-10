@@ -51,7 +51,7 @@ struct PortalPage: View {
 
     private func leadRepUser(from portal: PortalDetail) -> User? {
         guard let leadId = portal.lead_id else { return nil }
-        return portal.aUsers.first(where: { $0.id == leadId })
+        return (portal.aUsers ?? []).first(where: { $0.id == leadId })
     }
 
     var body: some View {
@@ -78,7 +78,7 @@ struct PortalPage: View {
     }
 }
 
-// MARK: - PortalPageContent (split for compiler performance)
+// MARK: - PortalPageContent
 
 struct PortalPageContent: View {
     let portal: PortalDetail
@@ -89,13 +89,23 @@ struct PortalPageContent: View {
     let userId: Int
     let leadRepUser: () -> User?
 
+    @State private var showPortalActionSheet = false
+    @State private var pendingPortalAction: PortalActionSheetAction? = nil
+
+    enum PortalActionSheetAction {
+        case joinTeam
+        case sharePortal
+        case support
+        case editPortal
+    }
+
     var body: some View {
         let imageTabHeight = UIScreen.main.bounds.width * 9 / 16
         VStack(spacing: 0) {
             PortalHeader(portal: portal, dismiss: dismiss)
             GeometryReader { geometry in
                 let width = geometry.size.width
-                ImageTabView(sections: portal.aSections)
+                ImageTabView(sections: portal.aSections ?? [])
                     .frame(width: width, height: imageTabHeight)
                     .clipped()
             }
@@ -115,10 +125,14 @@ struct PortalPageContent: View {
             .padding(.top, 8)
 
             Spacer()
-            PortalBottomBar(
-                portal: portal,
-                showMessageSheet: $showMessageSheet,
-                leadRepUser: leadRepUser
+            PortalActionBar(
+                onAction: { showPortalActionSheet = true },
+                onMessage: {
+                    if leadRepUser() != nil {
+                        showMessageSheet = true
+                    }
+                },
+                leadRepExists: leadRepUser() != nil
             )
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
@@ -128,9 +142,9 @@ struct PortalPageContent: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
-                    Button("Join Team") { /* ... */ }
-                    Button("Share Portal") { /* ... */ }
-                    Button("Support") { /* ... */ }
+                    Button("Join Team") { showPortalActionSheet = true; pendingPortalAction = .joinTeam }
+                    Button("Share Portal") { showPortalActionSheet = true; pendingPortalAction = .sharePortal }
+                    Button("Support") { showPortalActionSheet = true; pendingPortalAction = .support }
                     Button("Edit Portal") { viewModel.isEditPresented = true }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -154,7 +168,73 @@ struct PortalPageContent: View {
                 Text("Lead Rep not found.")
             }
         }
-        // --- Updated NavigationLink for programmatic navigation ---
+        .sheet(isPresented: $showPortalActionSheet) {
+            VStack(spacing: 24) {
+                Button(action: {
+                    pendingPortalAction = .joinTeam
+                    showPortalActionSheet = false
+                }) {
+                    Text("Join Team")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
+                }
+                Button(action: {
+                    pendingPortalAction = .sharePortal
+                    showPortalActionSheet = false
+                }) {
+                    Text("Share Portal")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
+                }
+                Button(action: {
+                    pendingPortalAction = .support
+                    showPortalActionSheet = false
+                }) {
+                    Text("Support")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
+                }
+                Button(action: {
+                    pendingPortalAction = .editPortal
+                    showPortalActionSheet = false
+                }) {
+                    Text("Edit Portal")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
+                }
+                Button(action: { showPortalActionSheet = false }) {
+                    Text("Cancel")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .presentationDetents([.medium])
+        }
+        .onChange(of: pendingPortalAction) { action in
+            guard let action = action else { return }
+            switch action {
+            case .joinTeam:
+                // Implement join team logic
+                break
+            case .sharePortal:
+                // Implement share portal logic
+                break
+            case .support:
+                // Implement support logic
+                break
+            case .editPortal:
+                viewModel.isEditPresented = true
+            }
+            pendingPortalAction = nil
+        }
         .background(
             NavigationLink(
                 destination: selectedGoalId.map { GoalsDetailView(goalId: $0) },
@@ -165,6 +245,45 @@ struct PortalPageContent: View {
                 label: { EmptyView() }
             )
             .hidden()
+        )
+    }
+}
+
+// MARK: - PortalActionBar
+
+struct PortalActionBar: View {
+    var onAction: () -> Void
+    var onMessage: () -> Void
+    var leadRepExists: Bool
+
+    var body: some View {
+        HStack(spacing: 30) {
+            Button(action: onAction) {
+                Image(systemName: "plus")
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+                    .frame(width: 291, height: 41)
+                    .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                    .cornerRadius(6)
+                    .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
+            }
+            if leadRepExists {
+                Button(action: onMessage) {
+                    Image(systemName: "message")
+                        .font(.system(size: 20))
+                        .foregroundColor(.black)
+                }
+                .accessibilityLabel("Message Lead Rep")
+            }
+        }
+        .frame(height: 51)
+        .frame(maxWidth: .infinity)
+        .background(Color.white)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+            alignment: .top
         )
     }
 }
@@ -214,7 +333,7 @@ struct PortalSectionContent: View {
             } else if section == 1 {
                 PortalOfferingSection(portal: portal)
             } else if section == 2 {
-                PortalResultsSection(goals: portal.aGoals, selectedGoalId: $selectedGoalId)
+                PortalResultsSection(goals: portal.aGoals ?? [], selectedGoalId: $selectedGoalId)
             }
         }
     }
@@ -313,17 +432,24 @@ struct PortalSegmentedPicker: View {
                         .fontWeight(.medium)
                         .foregroundColor(selectedIndex == index ? .white : .black)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         .background(selectedIndex == index ? Color.black : Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 0)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
                 }
+                .buttonStyle(PlainButtonStyle())
+                .overlay(
+                    Rectangle()
+                        .frame(width: index < segments.count - 1 ? 1 : 0)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .trailing
+                )
             }
         }
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color.black, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -337,7 +463,7 @@ struct PortalStorySection: View {
                 .font(.headline)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
-                    ForEach(portal.aUsers) { user in
+                    ForEach(portal.aUsers ?? []) { user in
                         VStack {
                             Circle()
                                 .fill(Color.gray.opacity(0.3))
@@ -404,11 +530,12 @@ struct PortalDetail: Identifiable, Codable {
     let lead_id: Int?
     let users_id: Int?
     let _c_users_count: Int?
-    let aGoals: [Goal]
-    let aPortalUsers: [PortalUser]
-    let aTexts: [PortalText]
-    let aSections: [PortalSection]
-    let aUsers: [User]
+    let mainImageUrl: String? 
+    let aGoals: [Goal]?
+    let aPortalUsers: [PortalUser]?
+    let aTexts: [PortalText]?
+    let aSections: [PortalSection]?
+    let aUsers: [User]?
 }
 
 struct PortalUser: Identifiable, Codable {

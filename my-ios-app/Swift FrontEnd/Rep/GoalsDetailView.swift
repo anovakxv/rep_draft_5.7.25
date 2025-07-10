@@ -13,9 +13,15 @@ struct GoalsDetailView: View {
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
 
+    // --- Action Sheet and Sheet State ---
+    @State private var showActionSheet = false
+    @State private var showUpdateGoalSheet = false
+    @State private var showEditGoalSheet = false
+    @State private var showInviteTeamSheet = false
+
     var body: some View {
         NavigationStack {
-            VStack {
+            VStack(spacing: 0) {
                 // Progress Bar and Metrics Section
                 VStack(alignment: .leading, spacing: 8) {
                     ProgressView(value: viewModel.goal.progress)
@@ -78,6 +84,12 @@ struct GoalsDetailView: View {
                     }
                 }
                 .listStyle(.plain)
+
+                // --- Bottom Action Bar ---
+                BottomGoalBar(
+                    onAdd: { showActionSheet = true },
+                    onMessage: { /* Optionally implement messaging */ }
+                )
             }
             .navigationTitle(viewModel.goal.title)
             .toolbar {
@@ -100,6 +112,78 @@ struct GoalsDetailView: View {
             }
             .onAppear {
                 viewModel.load(goalId: goalId)
+            }
+            // --- Custom Action Sheet ---
+            .sheet(isPresented: $showActionSheet) {
+                VStack(spacing: 24) {
+                    Button(action: {
+                        showUpdateGoalSheet = true
+                        showActionSheet = false
+                    }) {
+                        Text("Update Progress")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    Button(action: {
+                        showEditGoalSheet = true
+                        showActionSheet = false
+                    }) {
+                        Text("Edit Goal")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    Button(action: {
+                        showInviteTeamSheet = true
+                        showActionSheet = false
+                    }) {
+                        Text("Invite Team")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    Button(action: { showActionSheet = false }) {
+                        Text("Cancel")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .presentationDetents([.medium])
+            }
+            // --- Sheets for Actions ---
+            .sheet(isPresented: $showUpdateGoalSheet) {
+                // Use the shared UpdateGoalSheet from your other file
+                UpdateGoalSheet(
+                    goalId: viewModel.goal.id,
+                    quota: viewModel.goal.quota,
+                    metricName: viewModel.goal.metricName
+                )
+            }
+            .sheet(isPresented: $showEditGoalSheet) {
+                // Only allow if the current user is the goal creator
+                if viewModel.goal.id != 0, viewModel.goal.creatorId == viewModel.currentUserId {
+                    EditGoalPage(
+                        existingGoal: viewModel.goal,
+                        portalId: viewModel.goal.portalId ?? 0,
+                        userId: viewModel.currentUserId,
+                        reportingIncrements: [
+                            ReportingIncrement(id: 1, title: "Monthly"),
+                            ReportingIncrement(id: 2, title: "Weekly"),
+                            ReportingIncrement(id: 3, title: "Daily")
+                        ]
+                    )
+                } else {
+                    Text("You do not have permission to edit this goal.")
+                        .padding()
+                }
+            }
+            .sheet(isPresented: $showInviteTeamSheet) {
+                // Replace with your InviteTeamView or similar
+                Text("Invite Team Sheet Placeholder")
             }
         }
     }
@@ -144,6 +228,7 @@ class GoalsDetailViewModel: ObservableObject {
     @Published var actions: [String] = []
 
     @AppStorage("jwtToken") var jwtToken: String = ""
+    @AppStorage("userId") var currentUserId: Int = 0
 
     func load(goalId: Int) {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/details?goals_id=\(goalId)") else { return }
@@ -171,7 +256,9 @@ class GoalsDetailViewModel: ObservableObject {
                         reportingName: apiGoal.reportingName ?? "",
                         quotaString: apiGoal.quotaString ?? "",
                         valueString: apiGoal.valueString ?? "",
-                        chartData: apiGoal.chartData ?? []
+                        chartData: apiGoal.chartData ?? [],
+                        creatorId: apiGoal.creatorId ?? 0,
+                        portalId: apiGoal.portalId
                     )
                     self.feed = apiGoal.aLatestProgress?.map { log in
                         Feed(
@@ -248,6 +335,8 @@ struct APIGoalDetail: Codable {
     let chartData: [BarChartData]?
     let aLatestProgress: [APIGoalProgressLog]?
     let team: [APIUser]?
+    let creatorId: Int?
+    let portalId: Int?
 }
 
 struct APIGoalProgressLog: Codable, Identifiable {
@@ -282,12 +371,15 @@ struct Goal: Identifiable, Codable {
     var quotaString: String
     var valueString: String
     var chartData: [BarChartData]
+    var creatorId: Int
+    var portalId: Int?
 
     static let placeholder = Goal(
         id: 1, title: "Goal Title", subtitle: "", description: "",
         progress: 0.5, progressPercent: 50, quota: 100, filledQuota: 50,
         metricName: "Sales", typeName: "Recruiting", reportingName: "Weekly",
-        quotaString: "100", valueString: "50", chartData: []
+        quotaString: "100", valueString: "50", chartData: [],
+        creatorId: 0, portalId: nil
     )
 }
 
@@ -352,12 +444,12 @@ struct TeamCell: View {
     let user: User
     var body: some View {
         HStack {
-            Image(user.imageName)
+            Image(user.imageName ?? "profile_placeholder")
                 .resizable()
                 .scaledToFill()
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
-            Text(user.fullName)
+            Text(user.fullName ?? "")
         }
     }
 }
@@ -398,5 +490,40 @@ struct LargeBarChartView: View {
 
     private var maxValue: Double {
         data.map { $0.value }.max() ?? 1
+    }
+}
+
+// MARK: - BottomGoalBar
+
+struct BottomGoalBar: View {
+    var onAdd: () -> Void
+    var onMessage: () -> Void
+
+    var body: some View {
+        HStack(spacing: 30) {
+            Button(action: onAdd) {
+                Image(systemName: "plus")
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+                    .frame(width: 291, height: 41)
+                    .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                    .cornerRadius(6)
+                    .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
+            }
+            Button(action: onMessage) {
+                Image(systemName: "message")
+                    .font(.system(size: 20))
+                    .foregroundColor(.black)
+            }
+        }
+        .frame(height: 51)
+        .frame(maxWidth: .infinity)
+        .background(Color.white)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+            alignment: .top
+        )
     }
 }

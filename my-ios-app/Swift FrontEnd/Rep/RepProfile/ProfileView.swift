@@ -12,14 +12,14 @@ import SwiftUI
 
 struct User: Identifiable, Codable {
     let id: Int
-    let fullName: String
+    let fullName: String?         // Make optional
     let fname: String?
     let lname: String?
-    let username: String
+    let username: String?
     let about: String?
     let broadcast: String?
     let profilePictureURL: URL?
-    let imageName: String
+    let imageName: String?
     let userType: String?
     let city: String?
     let skills: [String]?
@@ -28,6 +28,13 @@ struct User: Identifiable, Codable {
     let updatedAt: String?
     let lastMessage: String?
     let lastMessageDate: String?
+
+    var displayName: String {
+        if let fullName = fullName, !fullName.isEmpty {
+            return fullName
+        }
+        return [fname, lname].compactMap { $0 }.joined(separator: " ")
+    }
 
     var repTypeAndCity: String {
         let type = userType ?? ""
@@ -342,7 +349,7 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                NavigationHeaderView(name: viewModel.user.fullName, onBack: { dismiss() })
+                NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
                 ProfileInfoView(
                     photoURL: viewModel.user.profilePictureURL,
                     repTypeAndCity: viewModel.user.repTypeAndCity,
@@ -523,6 +530,7 @@ struct ProfileView: View {
                         lead_id: nil,
                         users_id: viewModel.user.id,
                         _c_users_count: nil,
+                        mainImageUrl: nil,
                         aGoals: [],
                         aPortalUsers: [],
                         aTexts: [],
@@ -550,7 +558,7 @@ struct ProfileView: View {
                     viewModel: MessageViewModel(
                         currentUserId: viewModel.loggedInUserId,
                         otherUserId: viewModel.user.id,
-                        otherUserName: viewModel.user.fullName,
+                        otherUserName: viewModel.user.fullName ?? "",
                         otherUserPhotoURL: viewModel.user.profilePictureURL
                     )
                 )

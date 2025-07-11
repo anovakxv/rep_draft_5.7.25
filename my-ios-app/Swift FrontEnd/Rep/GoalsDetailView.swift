@@ -396,12 +396,12 @@ struct Feed: Identifiable {
 // MARK: - Bar Chart Data Model
 
 struct BarChartData: Identifiable, Codable {
-    let id: UUID
+    let id: Int
     let value: Double
     let valueLabel: String
     let bottomLabel: String
 
-    init(id: UUID = UUID(), value: Double, valueLabel: String, bottomLabel: String) {
+    init(id: Int, value: Double, valueLabel: String, bottomLabel: String) {
         self.id = id
         self.value = value
         self.valueLabel = valueLabel

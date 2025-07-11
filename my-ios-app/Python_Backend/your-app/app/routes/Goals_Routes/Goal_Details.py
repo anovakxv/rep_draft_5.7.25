@@ -57,8 +57,13 @@ def api_goal_details():
                 data[label] += float(log.added_value or 0)
         items = list(data.items())[-num_periods:]
         return [
-            {"value": value, "label": label, "color": "#00FF00"}
-            for label, value in items
+            {
+                "id": idx + 1,
+                "value": value,
+                "valueLabel": str(value),
+                "bottomLabel": label
+            }
+            for idx, (label, value) in enumerate(items)
         ]
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
 

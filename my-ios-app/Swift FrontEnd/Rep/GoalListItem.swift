@@ -53,13 +53,13 @@ struct GoalListItem_Previews: PreviewProvider {
         quotaString: "100",
         valueString: "60",
         chartData: [
-            BarChartData(value: 10, valueLabel: "10", bottomLabel: "Jan"),
-            BarChartData(value: 30, valueLabel: "30", bottomLabel: "Feb"),
-            BarChartData(value: 20, valueLabel: "20", bottomLabel: "Mar"),
-            BarChartData(value: 40, valueLabel: "40", bottomLabel: "Apr")
-        ]
-        creatorId: 1,      
-        portalId: 1    
+            BarChartData(id: 1, value: 10, valueLabel: "10", bottomLabel: "Jan"),
+            BarChartData(id: 2, value: 30, valueLabel: "30", bottomLabel: "Feb"),
+            BarChartData(id: 3, value: 20, valueLabel: "20", bottomLabel: "Mar"),
+            BarChartData(id: 4, value: 40, valueLabel: "40", bottomLabel: "Apr")
+        ],
+        creatorId: 1,
+        portalId: 1
     )
 
     static var previews: some View {

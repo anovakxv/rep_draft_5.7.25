@@ -91,6 +91,10 @@ struct EditGoalPage: View {
                     if let match = reportingIncrements.first(where: { $0.title == goal.reportingName }) {
                         reportingIncrementId = match.id
                     }
+                } else if reportingIncrementId == nil, reportingIncrements.count >= 3 {
+                    reportingIncrementId = reportingIncrements[2].id
+                } else if reportingIncrementId == nil, let first = reportingIncrements.first {
+                    reportingIncrementId = first.id
                 }
             }
         }

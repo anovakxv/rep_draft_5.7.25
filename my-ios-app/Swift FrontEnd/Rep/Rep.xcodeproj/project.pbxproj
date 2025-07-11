@@ -30,6 +30,8 @@
 		005B63872E16F88600A1F0C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 005B635E2E16F88600A1F0C1 /* Assets.xcassets */; };
 		00D80A5F2E1B6AF7003C926D /* SkillModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D80A5E2E1B6AF7003C926D /* SkillModel.swift */; };
 		00D80A612E1B6B0C003C926D /* SkillAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D80A602E1B6B0C003C926D /* SkillAPI.swift */; };
+		00E10AAD2E21951E00BC7392 /* Edit_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */; };
+		00E10AAF2E21953000BC7392 /* Update_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAE2E21953000BC7392 /* Update_Goal.swift */; };
 		00FDCFA52E1C2F3C00A63D8D /* appstore.png in Resources */ = {isa = PBXBuildFile; fileRef = 00FDCFA42E1C2F3C00A63D8D /* appstore.png */; };
 /* End PBXBuildFile section */
 
@@ -78,6 +80,8 @@
 		005B63712E16F88600A1F0C1 /* SupportingTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportingTypes.swift; sourceTree = "<group>"; };
 		00D80A5E2E1B6AF7003C926D /* SkillModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillModel.swift; sourceTree = "<group>"; };
 		00D80A602E1B6B0C003C926D /* SkillAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillAPI.swift; sourceTree = "<group>"; };
+		00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Edit_Goal.swift; sourceTree = "<group>"; };
+		00E10AAE2E21953000BC7392 /* Update_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Update_Goal.swift; sourceTree = "<group>"; };
 		00FDCFA42E1C2F3C00A63D8D /* appstore.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = appstore.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -138,10 +142,12 @@
 				005B63602E16F88600A1F0C1 /* Chat_Individual.swift */,
 				005B63612E16F88600A1F0C1 /* Edit_Portal.swift */,
 				005B63622E16F88600A1F0C1 /* GoalListItem.swift */,
+				00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */,
 				005B63632E16F88600A1F0C1 /* GoalsDetailView.swift */,
 				005B63642E16F88600A1F0C1 /* Info.plist */,
 				005B63652E16F88600A1F0C1 /* LoginView.swift */,
 				005B63662E16F88600A1F0C1 /* MainScreen.swift */,
+				00E10AAE2E21953000BC7392 /* Update_Goal.swift */,
 				001258922E1C220400D4B1FC /* APIConfig.swift */,
 				005B63672E16F88600A1F0C1 /* PortalItem.swift */,
 				005B63682E16F88600A1F0C1 /* PortalPage.swift */,
@@ -333,6 +339,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00E10AAD2E21951E00BC7392 /* Edit_Goal.swift in Sources */,
 				005B63732E16F88600A1F0C1 /* EditProfile.swift in Sources */,
 				005B63742E16F88600A1F0C1 /* Edit_Portal.swift in Sources */,
 				005B63752E16F88600A1F0C1 /* RepApp.swift in Sources */,
@@ -350,6 +357,7 @@
 				005B63812E16F88600A1F0C1 /* RegisterNewProfile.swift in Sources */,
 				005B63822E16F88600A1F0C1 /* PortalItem.swift in Sources */,
 				00D80A612E1B6B0C003C926D /* SkillAPI.swift in Sources */,
+				00E10AAF2E21953000BC7392 /* Update_Goal.swift in Sources */,
 				005B63832E16F88600A1F0C1 /* ProfileView.swift in Sources */,
 				005B63842E16F88600A1F0C1 /* LoginView.swift in Sources */,
 				001258932E1C220400D4B1FC /* APIConfig.swift in Sources */,

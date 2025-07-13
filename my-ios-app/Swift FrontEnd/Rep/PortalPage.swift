@@ -2,7 +2,7 @@
 //  Rep
 //
 //  Created by Dmytro Holovko on 10.28.2023.
-//  Updated by Adam Novak on 06.20.2025
+//  Updated by Adam Novak on 07.13.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
@@ -15,6 +15,7 @@ class PortalViewModel: ObservableObject {
     @Published var portalDetail: PortalDetail?
     @Published var section = 0
     @Published var isEditPresented = false
+    @Published var reportingIncrements: [ReportingIncrement] = []
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
@@ -37,6 +38,26 @@ class PortalViewModel: ObservableObject {
             }
         }.resume()
     }
+
+    func fetchReportingIncrements() {
+        let urlString = "\(APIConfig.baseURL)/api/reporting_increments/list"
+        guard let url = URL(string: urlString) else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data else { return }
+            do {
+                let increments = try JSONDecoder().decode([ReportingIncrement].self, from: data)
+                DispatchQueue.main.async {
+                    self.reportingIncrements = increments
+                }
+            } catch {
+                print("Decode error:", error)
+            }
+        }.resume()
+    }
 }
 
 // MARK: - Portal Page
@@ -48,10 +69,13 @@ struct PortalPage: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showMessageSheet = false
     @State private var selectedGoalId: Int? = nil
+    @State private var showAddGoal = false
 
     private func leadRepUser(from portal: PortalDetail) -> User? {
-        guard let leadId = portal.lead_id else { return nil }
-        return (portal.aUsers ?? []).first(where: { $0.id == leadId })
+        return portal.aUsers?.first
+    }
+    private func isCurrentUserLead(_ portal: PortalDetail) -> Bool {
+        portal.aUsers?.contains(where: { $0.id == userId }) ?? false
     }
 
     var body: some View {
@@ -65,8 +89,24 @@ struct PortalPage: View {
                         showMessageSheet: $showMessageSheet,
                         selectedGoalId: $selectedGoalId,
                         userId: userId,
-                        leadRepUser: { leadRepUser(from: portal) }
+                        leadRepUser: { leadRepUser(from: portal) },
+                        isCurrentUserLead: isCurrentUserLead(portal),
+                        showAddGoal: $showAddGoal
                     )
+                    .sheet(isPresented: $showAddGoal) {
+                        EditGoalPage(
+                            existingGoal: nil,
+                            portalId: portal.id,
+                            userId: userId,
+                            reportingIncrements: viewModel.reportingIncrements,
+                            associatedPortalName: portal.name
+                        )
+                    }
+                    .onAppear {
+                        if viewModel.reportingIncrements.isEmpty {
+                            viewModel.fetchReportingIncrements()
+                        }
+                    }
                 } else {
                     ProgressView()
                         .onAppear {
@@ -88,9 +128,17 @@ struct PortalPageContent: View {
     @Binding var selectedGoalId: Int?
     let userId: Int
     let leadRepUser: () -> User?
+    let isCurrentUserLead: Bool
+    @Binding var showAddGoal: Bool
 
     @State private var showPortalActionSheet = false
     @State private var pendingPortalAction: PortalActionSheetAction? = nil
+
+    // Chat navigation state
+    @State private var navigateToChat = false
+    @State private var chatUserId: Int? = nil
+    @State private var chatUserName: String = ""
+    @State private var chatUserPhotoURL: URL? = nil
 
     enum PortalActionSheetAction {
         case joinTeam
@@ -99,8 +147,35 @@ struct PortalPageContent: View {
         case editPortal
     }
 
+    private var imageTabHeight: CGFloat {
+        UIScreen.main.bounds.width * 9 / 16
+    }
+
+    private var chatDestination: some View {
+        Group {
+            if let id = chatUserId {
+                Chat(
+                    userId: id,
+                    userName: chatUserName,
+                    userPhotoURL: chatUserPhotoURL
+                )
+            } else {
+                EmptyView()
+            }
+        }
+    }
+
+    private var goalDestination: some View {
+        Group {
+            if let goalId = selectedGoalId {
+                GoalsDetailView(goalId: goalId)
+            } else {
+                EmptyView()
+            }
+        }
+    }
+
     var body: some View {
-        let imageTabHeight = UIScreen.main.bounds.width * 9 / 16
         VStack(spacing: 0) {
             PortalHeader(portal: portal, dismiss: dismiss)
             GeometryReader { geometry in
@@ -125,14 +200,16 @@ struct PortalPageContent: View {
             .padding(.top, 8)
 
             Spacer()
-            PortalActionBar(
-                onAction: { showPortalActionSheet = true },
+            BottomBarView(
+                onAdd: { showPortalActionSheet = true },
                 onMessage: {
-                    if leadRepUser() != nil {
-                        showMessageSheet = true
+                    if let lead = leadRepUser() {
+                        chatUserId = lead.id
+                        chatUserName = (lead.fname ?? "") + " " + (lead.lname ?? "")
+                        chatUserPhotoURL = lead.profilePictureURL
+                        navigateToChat = true
                     }
-                },
-                leadRepExists: leadRepUser() != nil
+                }
             )
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
@@ -170,6 +247,18 @@ struct PortalPageContent: View {
         }
         .sheet(isPresented: $showPortalActionSheet) {
             VStack(spacing: 24) {
+                if isCurrentUserLead {
+                    Button(action: {
+                        showAddGoal = true
+                        showPortalActionSheet = false
+                    }) {
+                        Text("Add Goal")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                }
                 Button(action: {
                     pendingPortalAction = .joinTeam
                     showPortalActionSheet = false
@@ -236,54 +325,23 @@ struct PortalPageContent: View {
             pendingPortalAction = nil
         }
         .background(
-            NavigationLink(
-                destination: selectedGoalId.map { GoalsDetailView(goalId: $0) },
-                isActive: Binding(
-                    get: { selectedGoalId != nil },
-                    set: { isActive in if !isActive { selectedGoalId = nil } }
-                ),
-                label: { EmptyView() }
-            )
-            .hidden()
-        )
-    }
-}
-
-// MARK: - PortalActionBar
-
-struct PortalActionBar: View {
-    var onAction: () -> Void
-    var onMessage: () -> Void
-    var leadRepExists: Bool
-
-    var body: some View {
-        HStack(spacing: 30) {
-            Button(action: onAction) {
-                Image(systemName: "plus")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 291, height: 41)
-                    .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                    .cornerRadius(6)
-                    .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
+            Group {
+                NavigationLink(
+                    destination: chatDestination,
+                    isActive: $navigateToChat,
+                    label: { EmptyView() }
+                )
+                .hidden()
+                NavigationLink(
+                    destination: goalDestination,
+                    isActive: Binding(
+                        get: { selectedGoalId != nil },
+                        set: { isActive in if !isActive { selectedGoalId = nil } }
+                    ),
+                    label: { EmptyView() }
+                )
+                .hidden()
             }
-            if leadRepExists {
-                Button(action: onMessage) {
-                    Image(systemName: "message")
-                        .font(.system(size: 20))
-                        .foregroundColor(.black)
-                }
-                .accessibilityLabel("Message Lead Rep")
-            }
-        }
-        .frame(height: 51)
-        .frame(maxWidth: .infinity)
-        .background(Color.white)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-            alignment: .top
         )
     }
 }
@@ -307,7 +365,7 @@ struct PortalHeader: View {
             Spacer()
             Color.clear.frame(width: 24, height: 24)
         }
-        .frame(height: 60)
+        .frame(height: 44)
         .padding(.horizontal, 15)
         .background(Color.white)
         .overlay(
@@ -336,47 +394,6 @@ struct PortalSectionContent: View {
                 PortalResultsSection(goals: portal.aGoals ?? [], selectedGoalId: $selectedGoalId)
             }
         }
-    }
-}
-
-// MARK: - PortalBottomBar
-
-struct PortalBottomBar: View {
-    let portal: PortalDetail
-    @Binding var showMessageSheet: Bool
-    let leadRepUser: () -> User?
-
-    var body: some View {
-        HStack(spacing: 30) {
-            Button(action: {
-                // Your action here, e.g., join team
-            }) {
-                Image(systemName: "plus")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 291, height: 41)
-                    .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                    .cornerRadius(6)
-                    .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
-            }
-            if let lead = leadRepUser() {
-                Button(action: { showMessageSheet = true }) {
-                    Image(systemName: "message")
-                        .font(.system(size: 20))
-                        .foregroundColor(.black)
-                }
-                .accessibilityLabel("Message Lead Rep")
-            }
-        }
-        .frame(height: 51)
-        .frame(maxWidth: .infinity)
-        .background(Color.white)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-            alignment: .top
-        )
     }
 }
 
@@ -530,7 +547,7 @@ struct PortalDetail: Identifiable, Codable {
     let lead_id: Int?
     let users_id: Int?
     let _c_users_count: Int?
-    let mainImageUrl: String? 
+    let mainImageUrl: String?
     let aGoals: [Goal]?
     let aPortalUsers: [PortalUser]?
     let aTexts: [PortalText]?

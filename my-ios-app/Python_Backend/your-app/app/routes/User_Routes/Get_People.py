@@ -149,7 +149,7 @@ def api_active_chat_list():
     chat_events.sort(key=lambda x: x['last_message_time'], reverse=True)
     chat_events = chat_events[offset:offset+limit]
 
-    # Build response: for each chat, include user/chat info and last message
+    # Build response: for each chat, include user/chat info and last message, and add 'id' field
     result = []
     for event in chat_events:
         if event['type'] == 'direct':
@@ -158,6 +158,7 @@ def api_active_chat_list():
             user_dict = user.as_dict() if user else {}
             user_dict = patch_profile_picture_url(user_dict)
             result.append({
+                'id': f"direct-{user.id}" if user else None,
                 'type': 'direct',
                 'user': user_dict,
                 'last_message': last_msg.as_dict() if last_msg else {},
@@ -167,6 +168,7 @@ def api_active_chat_list():
             chat = chats_map.get(event['chat_id'])
             last_msg = last_group_msgs.get(event['chat_id'])
             result.append({
+                'id': f"group-{chat.id}" if chat else None,
                 'type': 'group',
                 'chat': chat.as_dict() if chat else {},
                 'last_message': last_msg.as_dict() if last_msg else {},

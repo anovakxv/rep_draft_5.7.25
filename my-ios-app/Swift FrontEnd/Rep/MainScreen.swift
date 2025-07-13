@@ -490,6 +490,7 @@ struct ChatList: View {
     var users: [User]
     @State private var selectedProfileId: Int?
     @State private var selectedChatId: Int?
+    @AppStorage("userId") var currentUserId: Int = 0
 
     var body: some View {
         ZStack {
@@ -557,7 +558,17 @@ struct ChatList: View {
                 label: { EmptyView() }
             )
             NavigationLink(
-                destination: selectedChatId.map { Chat(userId: $0) },
+                destination: selectedChatId.flatMap { id in
+                    if let user = users.first(where: { $0.id == id }) {
+                        Chat(
+                            userId: user.id,
+                            userName: user.fullName ?? "",
+                            userPhotoURL: user.profilePictureURL
+                        )
+                    } else {
+                        Chat(userId: id)
+                    }
+                },
                 isActive: Binding(
                     get: { selectedChatId != nil },
                     set: { if !$0 { selectedChatId = nil } }
@@ -574,6 +585,7 @@ struct ActiveChatList: View {
     var chats: [ActiveChat]
     @State private var selectedProfileId: Int?
     @State private var selectedChatId: Int?
+    @AppStorage("userId") var currentUserId: Int = 0
 
     var body: some View {
         ZStack {
@@ -677,7 +689,17 @@ struct ActiveChatList: View {
                 label: { EmptyView() }
             )
             NavigationLink(
-                destination: selectedChatId.map { Chat(userId: $0) },
+                destination: selectedChatId.flatMap { id in
+                    if let chat = chats.first(where: { $0.user?.id == id }) {
+                        Chat(
+                            userId: id,
+                            userName: chat.user?.fullName ?? "",
+                            userPhotoURL: chat.user?.profilePictureURL
+                        )
+                    } else {
+                        Chat(userId: id)
+                    }
+                },
                 isActive: Binding(
                     get: { selectedChatId != nil },
                     set: { if !$0 { selectedChatId = nil } }
@@ -700,7 +722,18 @@ extension Date {
 
 struct Chat: View {
     let userId: Int
+    var userName: String = ""
+    var userPhotoURL: URL? = nil
+    @AppStorage("userId") var currentUserId: Int = 0
+
     var body: some View {
-        Text("Chat with user \(userId)")
+        MessageView(
+            viewModel: MessageViewModel(
+                currentUserId: currentUserId,
+                otherUserId: userId,
+                otherUserName: userName,
+                otherUserPhotoURL: userPhotoURL
+            )
+        )
     }
 }

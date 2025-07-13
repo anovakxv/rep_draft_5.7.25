@@ -191,7 +191,6 @@ class ProfileViewModel: ObservableObject {
     }
 
     func fetchPortals() {
-        // Use the correct API to get all relevant portals for the user (creator, lead, or goal team)
         guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(viewedUserId)&tab=open") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
@@ -318,6 +317,42 @@ class ProfileViewModel: ObservableObject {
         if action == "Edit Profile" { editProfile() }
     }
     func addPartner() {}
+
+    // MARK: - Add to Network
+    func addToNetwork(completion: @escaping (Bool, String?) -> Void) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/network_action") else {
+            completion(false, "Invalid URL")
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "action": "add",
+            "user_id": loggedInUserId,
+            "target_user_id": viewedUserId
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(false, error.localizedDescription)
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(false, "No response")
+                return
+            }
+            if httpResponse.statusCode == 200 {
+                completion(true, nil)
+            } else {
+                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
+                completion(false, message)
+            }
+        }.resume()
+    }
 }
 
 // MARK: - Main Profile View
@@ -330,6 +365,9 @@ struct ProfileView: View {
     @State private var showAddGoal = false
     @State private var showEditProfile = false
     @State private var showActionSheet = false
+    @State private var showProfileActionMenu = false // <-- NEW
+    @State private var showNetworkResultAlert = false
+    @State private var networkResultMessage = ""
     @Environment(\.dismiss) private var dismiss
 
     // For custom action sheet navigation
@@ -415,11 +453,7 @@ struct ProfileView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 BottomBarView(
-                    onAdd: {
-                        if viewModel.isCurrentUser {
-                            showActionSheet = true
-                        }
-                    },
+                    onAdd: { showProfileActionMenu = true }, // <-- UPDATED
                     onMessage: { showMessageSheet = true }
                 )
             }
@@ -504,6 +538,35 @@ struct ProfileView: View {
                 .padding()
                 .presentationDetents([.medium])
             }
+            // Profile "+" Action Menu Sheet
+            .sheet(isPresented: $showProfileActionMenu) {
+                VStack(spacing: 24) {
+                    Button(action: {
+                        viewModel.addToNetwork { success, message in
+                            DispatchQueue.main.async {
+                                networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
+                                showNetworkResultAlert = true
+                                showProfileActionMenu = false
+                            }
+                        }
+                    }) {
+                        Text("+ to NTWK")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    Button(action: { showProfileActionMenu = false }) {
+                        Text("Cancel")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .presentationDetents([.medium])
+            }
+            .alert(isPresented: $showNetworkResultAlert) {
+                Alert(title: Text(networkResultMessage))
+            }
             .onChange(of: pendingAction) { action in
                 guard let action = action else { return }
                 switch action {
@@ -543,14 +606,15 @@ struct ProfileView: View {
             .sheet(isPresented: $showAddGoal) {
                 EditGoalPage(
                     existingGoal: nil,
-                    portalId: viewModel.portals.first?.id ?? 0,
+                    portalId: nil,
                     userId: viewModel.user.id,
                     reportingIncrements: [
                         ReportingIncrement(id: 1, title: "Monthly"),
                         ReportingIncrement(id: 2, title: "Weekly"),
                         ReportingIncrement(id: 3, title: "Daily")
                         // Add more increments as needed
-                    ]
+                    ],
+                    associatedPortalName: nil
                 )
             }
             .sheet(isPresented: $showMessageSheet) {
@@ -811,6 +875,7 @@ struct WriteContentView: View {
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Color.white)
                     .cornerRadius(8)
@@ -833,7 +898,6 @@ struct WriteContentView: View {
                             .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                     )
                     .padding(.horizontal)
-                // Small green "Save"/"Update" text button
                 Button(action: {
                     if let editing = viewModel.editingWrite {
                         var updated = editing

@@ -19,8 +19,8 @@ class Goal(db.Model):
     portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=True, index=True)  # Portal/group, now optional
     lead_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Team lead (optional)
     description = db.Column(db.Text, nullable=False)  # Goal description
-    quota = db.Column(db.Integer, default=100)  # Target value
-    filled_quota = db.Column(db.Integer, default=0)  # Current progress
+    quota = db.Column(db.Float, default=100)  # Target value (float for decimals)
+    filled_quota = db.Column(db.Float, default=0)  # Current progress (float for decimals)
     quota_is_reached_note = db.Column(db.Boolean, default=False)  # Flag if quota reached
 
     # Goal type and metric: user selects from allowed types or enters custom for "Other"
@@ -66,7 +66,7 @@ class Goal(db.Model):
         """
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
-        data = defaultdict(int)
+        data = defaultdict(float)
         for log in logs:
             if log.timestamp:
                 if increment == 'month':
@@ -77,7 +77,7 @@ class Goal(db.Model):
                     label = log.timestamp.strftime('%d %b')
                 else:
                     label = log.timestamp.strftime('%b')
-                data[label] += log.added_value or 0
+                data[label] += float(log.added_value or 0)
         # Only keep the last num_periods
         items = list(data.items())[-num_periods:]
         return [
@@ -136,6 +136,8 @@ class Goal(db.Model):
 
         return {
             "id": self.id,
+            "creatorId": self.users_id,     
+            "portalId": self.portals_id,
             "title": self.title,
             "subtitle": self.subtitle or "",
             "description": self.description or "",

@@ -19,8 +19,8 @@ def does_user_block(blocker_id, blocked_id):
 def api_add_to_network_action():
     data = request.get_json()
     user_id = g.current_user.id
-    target_user_id = data.get('users_id')
-    todo = data.get('todo')
+    target_user_id = data.get('target_user_id')
+    todo = data.get('action')
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401

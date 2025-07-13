@@ -23,9 +23,10 @@ class DirectMessage(db.Model):
         return {
             "id": self.id,
             "sender_id": self.sender_id,
+            "sender_name": self.sender.full_name if self.sender else "",
             "recipient_id": self.recipient_id,
             "text": self.text,
-            "created_at": self.created_at.isoformat() + 'Z',
-            "sender": self.sender.as_dict() if self.sender else None,  # Unified user dict
-            "recipient": self.recipient.as_dict() if self.recipient else None,  # Unified user dict
+            "timestamp": self.created_at.isoformat() + 'Z',
+            "sender": self.sender.as_dict() if self.sender else None,
+            "recipient": self.recipient.as_dict() if self.recipient else None,
         }

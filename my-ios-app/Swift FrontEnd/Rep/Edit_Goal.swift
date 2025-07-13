@@ -18,9 +18,10 @@ struct ReportingIncrement: Identifiable, Codable, Hashable {
 struct EditGoalPage: View {
     // If editing, pass an existing goal; if adding, pass nil
     var existingGoal: Goal?
-    var portalId: Int
+    var portalId: Int? // Pass nil for user-only goals
     var userId: Int
     var reportingIncrements: [ReportingIncrement]
+    var associatedPortalName: String? // Pass portal name if present, else nil
 
     @State private var title: String = ""
     @State private var subtitle: String = ""
@@ -59,6 +60,10 @@ struct EditGoalPage: View {
                             Text(increment.title).tag(Optional(increment.id))
                         }
                     }
+                }
+                Section(header: Text("Associated Portal")) {
+                    Text(associatedPortalName ?? "N/A")
+                        .foregroundColor(.secondary)
                 }
                 Section {
                     Button(isEdit ? "Save Changes" : "Add Goal") {
@@ -110,10 +115,12 @@ struct EditGoalPage: View {
             "description": description,
             "goal_type": goalType,
             "quota": Int(quota) ?? 1,
-            "portals_id": portalId,
             "reporting_increments_id": reportingIncrementId ?? 1,
             "user_id": userId
         ]
+        if let portalId = portalId, portalId != 0 {
+            params["portals_id"] = portalId
+        }
         if goalType == "Other" {
             params["metric"] = metric
         }

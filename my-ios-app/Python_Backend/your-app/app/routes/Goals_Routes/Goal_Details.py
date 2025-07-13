@@ -9,9 +9,11 @@ from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.ValueMetric_Models.ReportingIncrement import ReportingIncrement
 from app.models.People_Models.user import User
+from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
 
-goals_bp = Blueprint('goals', __name__)
+# Use a unique blueprint name for this file
+goals_bp = Blueprint('goal_details', __name__)
 
 GOAL_TYPE_METRIC_MAP = {
     "Recruiting": "Team Members",
@@ -103,7 +105,19 @@ def api_create_goal():
         if not metric:
             return jsonify({'error': 'Invalid goal_type'}), 400
 
+    # portals_id logic: allow None for user-only goals, validate if provided
     portals_id = data.get('portals_id')
+    if not portals_id or str(portals_id).lower() in ['none', '', 'null', '0']:
+        portals_id = None
+    else:
+        try:
+            portals_id = int(portals_id)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'portals_id must be an integer or null'}), 400
+        # Check if portal exists
+        if not db.session.query(Portal).filter_by(id=portals_id).first():
+            return jsonify({'error': 'Invalid portals_id'}), 400
+
     goal = Goal(
         title=data['title'],
         users_id=user_id,
@@ -157,7 +171,20 @@ def api_edit_goal():
         if field in data and data[field] is not None:
             if field == 'quota' and float(data[field]) < 1:
                 return jsonify({'error': 'quota < 1'}), 400
-            setattr(goal, field, data[field])
+            if field == 'portals_id':
+                portals_id = data[field]
+                if not portals_id or str(portals_id).lower() in ['none', '', 'null', '0']:
+                    setattr(goal, field, None)
+                else:
+                    try:
+                        portals_id = int(portals_id)
+                    except (TypeError, ValueError):
+                        return jsonify({'error': 'portals_id must be an integer or null'}), 400
+                    if not db.session.query(Portal).filter_by(id=portals_id).first():
+                        return jsonify({'error': 'Invalid portals_id'}), 400
+                    setattr(goal, field, portals_id)
+            else:
+                setattr(goal, field, data[field])
     db.session.commit()
     return jsonify({'result': goal.as_dict()})
 

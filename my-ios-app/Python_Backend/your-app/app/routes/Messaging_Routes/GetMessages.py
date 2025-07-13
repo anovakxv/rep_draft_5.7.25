@@ -89,8 +89,15 @@ def api_get_messages():
     portal_ids = set()
     chat_ids = set()
     for msg in messages:
-        msg_dict = msg.as_dict()
-        msg_dict['read'] = '1' if msg.id in already_read_ids else '0'
+        sender = User.query.filter_by(id=msg.sender_id).first()
+        msg_dict = {
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "sender_name": sender.full_name if sender else "",
+            "text": msg.text,
+            "timestamp": msg.created_at.isoformat() + "Z",
+            "read": '1' if msg.id in already_read_ids else '0'
+        }
         # Collect related portal/chat ids for context
         if hasattr(msg, 'portal_id') and msg.portal_id:
             portal_ids.add(msg.portal_id)

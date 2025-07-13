@@ -59,17 +59,21 @@ class MessageViewModel: ObservableObject {
     }
     
     func fetchMessages() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/get_messages?users_id=\(otherUserId)&order=ASC&mark_as_read=1") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/get_messages?users_id=\(otherUserId)&order=ASC&mark_as_read=1") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
         let task = URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else { return }
-            if let apiResult = try? JSONDecoder().decode(GetMessagesAPIResponse.self, from: data) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            if let apiResult = try? decoder.decode(GetMessagesAPIResponse.self, from: data) {
                 DispatchQueue.main.async {
                     self.messages = apiResult.result.messages
                 }
+            } else {
+                print("Failed to decode messages: \(String(data: data, encoding: .utf8) ?? "")")
             }
         }
         task.resume()
@@ -78,7 +82,7 @@ class MessageViewModel: ObservableObject {
     func sendMessage() {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/send_message") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_message") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -92,11 +96,15 @@ class MessageViewModel: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data, error == nil else { return }
-            if let apiResult = try? JSONDecoder().decode(SendMessageAPIResponse.self, from: data) {
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            if let apiResult = try? decoder.decode(SendMessageAPIResponse.self, from: data) {
                 DispatchQueue.main.async {
                     self.messages.append(apiResult.message)
                     self.inputText = ""
                 }
+            } else {
+                print("Failed to decode send message response: \(String(data: data, encoding: .utf8) ?? "")")
             }
         }.resume()
     }
@@ -111,7 +119,6 @@ struct MessageView: View {
     var body: some View {
         VStack(spacing: 0) {
             NavigationHeaderView(name: viewModel.otherUserName, onBack: { dismiss() })
-            
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(spacing: 12) {
@@ -121,7 +128,6 @@ struct MessageView: View {
                                     Spacer()
                                     MessageBubble(message: message, isCurrentUser: true, profilePicURL: nil)
                                 } else {
-                                    // Profile pic for the other user
                                     if let url = viewModel.otherUserPhotoURL {
                                         AsyncImage(url: url) { image in
                                             image.resizable().aspectRatio(contentMode: .fill)
@@ -153,7 +159,6 @@ struct MessageView: View {
                     }
                 }
             }
-            
             HStack(spacing: 8) {
                 TextField("Type a message...", text: $viewModel.inputText)
                     .padding(12)
@@ -187,6 +192,7 @@ struct MessageView: View {
         .onAppear {
             viewModel.fetchMessages()
         }
+        .navigationBarHidden(true) // Hide default nav bar and back button
     }
 }
 
@@ -228,4 +234,3 @@ struct MessageView_Previews: PreviewProvider {
         )
     }
 }
-

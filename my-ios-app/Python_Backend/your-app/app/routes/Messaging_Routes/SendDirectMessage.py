@@ -10,7 +10,7 @@ from app.models.Purpose_Models.Portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
 from app.utils.auth import jwt_required
 from datetime import datetime
-from sqlalchemy import text 
+from sqlalchemy import text
 
 user_bp = Blueprint('send_message', __name__)
 
@@ -63,11 +63,14 @@ def api_send_message():
     #)
     #db.session.commit()
 
-    # Use as_dict() for unified response, includes sender and recipient user objects
-    message_obj = msg.as_dict()
+    # Build flat message object for Swift client
     sender = User.query.filter_by(id=user_id).first()
-    recipient = User.query.filter_by(id=to_user_id).first()
-    message_obj['sender'] = sender.as_dict() if sender else None
-    message_obj['recipient'] = recipient.as_dict() if recipient else None
+    message_obj = {
+        "id": msg.id,
+        "sender_id": msg.sender_id,
+        "sender_name": sender.full_name if sender else "",
+        "text": msg.text,
+        "timestamp": msg.created_at.isoformat() + "Z"
+    }
 
     return jsonify({'result': 'Message sent.', 'message': message_obj}), 200

@@ -31,9 +31,9 @@ def add_goal_progress(goal_id):
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
     try:
-        added_value = int(added_value)
+        added_value = float(added_value)
     except (TypeError, ValueError):
-        return jsonify({'error': 'added_value must be an integer!'}), 400
+        return jsonify({'error': 'added_value must be a number!'}), 400
     if added_value is None:
         return jsonify({'error': 'added_value required!'}), 400
     if added_value == 0:
@@ -86,9 +86,9 @@ def edit_goal_progress(goal_id, log_id):
         log.note = data['note']
     if 'added_value' in data:
         try:
-            new_value = int(data['added_value'])
+            new_value = float(data['added_value'])
         except (TypeError, ValueError):
-            return jsonify({'error': 'added_value must be an integer!'}), 400
+            return jsonify({'error': 'added_value must be a number!'}), 400
         diff = new_value - log.added_value
         log.added_value = new_value
         log.value += diff

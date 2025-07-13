@@ -11,9 +11,9 @@ class GoalProgressLog(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     goals_id = db.Column(db.Integer, db.ForeignKey('goals.id'), nullable=False, index=True)
-    added_value = db.Column(db.Integer, nullable=False)
+    added_value = db.Column(db.Float, nullable=False)  # Changed to Float
     note = db.Column(db.Text)
-    value = db.Column(db.Integer, default=0)
+    value = db.Column(db.Float, default=0)  # Changed to Float
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
     user = db.relationship('User', backref='goal_progress_logs')
@@ -41,4 +41,3 @@ class GoalProgressLog(db.Model):
                 } for f in self.progress_files
             ] if hasattr(self, "progress_files") else []
         }
-    

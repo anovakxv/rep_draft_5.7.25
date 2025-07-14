@@ -14,6 +14,7 @@ struct SimpleMessage: Identifiable, Decodable {
     let senderName: String
     let text: String
     let timestamp: Date
+    let read: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -21,6 +22,7 @@ struct SimpleMessage: Identifiable, Decodable {
         case senderName = "sender_name"
         case text
         case timestamp
+        case read
     }
 }
 

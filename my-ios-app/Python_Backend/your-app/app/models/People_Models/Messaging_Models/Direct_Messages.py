@@ -19,7 +19,7 @@ class DirectMessage(db.Model):
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_direct_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_direct_messages')
 
-    def as_dict(self):
+    def as_dict(self, read=None):
         return {
             "id": self.id,
             "sender_id": self.sender_id,
@@ -29,7 +29,8 @@ class DirectMessage(db.Model):
             ),
             "recipient_id": self.recipient_id,
             "text": self.text,
-            "timestamp": self.created_at.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z',
+            "timestamp": self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "sender": self.sender.as_dict() if self.sender else None,
             "recipient": self.recipient.as_dict() if self.recipient else None,
+            "read": read  # <-- Add this field for API compatibility
         }

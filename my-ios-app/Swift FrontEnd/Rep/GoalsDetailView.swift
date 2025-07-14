@@ -1,4 +1,3 @@
-//  GoalsDetailView.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.13.2025
@@ -9,7 +8,7 @@ import SwiftUI
 // MARK: - Main View
 
 struct GoalsDetailView: View {
-    let goalId: Int
+    let initialGoal: Goal
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
 
@@ -23,28 +22,64 @@ struct GoalsDetailView: View {
     @State private var reportingIncrements: [ReportingIncrement] = []
     @State private var isLoadingIncrements = false
 
+    @Environment(\.dismiss) private var dismiss
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // --- Custom Top Bar (matches PortalHeader style) ---
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.system(size: 20))
+                    }
+                    Spacer()
+                    Text(viewModel.goal.title)
+                        .font(.system(size: 20, weight: .bold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer()
+                    Color.clear.frame(width: 24, height: 24)
+                }
+                .frame(height: 44)
+                .padding(.horizontal, 15)
+                .background(Color.white)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .bottom
+                )
+
                 // Progress Bar and Metrics Section
                 VStack(alignment: .leading, spacing: 8) {
-                    ProgressView(value: viewModel.goal.progress)
-                        .progressViewStyle(.linear)
-                        .accentColor(.repGreen)
+                    // Custom thick progress bar with square corners
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(Color(UIColor.systemGray5))
+                            .frame(height: 34)
+                        Rectangle()
+                            .fill(Color.repGreen)
+                            .frame(
+                                width: max(0, CGFloat(viewModel.goal.progress) * UIScreen.main.bounds.width * 0.92),
+                                height: 34
+                            )
+                    }
+                    .frame(height: 34)
+                    .padding(.vertical, 3)
                     HStack {
                         Text("Metric: \(viewModel.goal.metricName)")
                         Spacer()
                         Text("Goal Type: \(viewModel.goal.typeName)")
                     }
-                    .font(.caption)
+                    .font(.callout)
                     HStack {
-                        Text("Progress Markers: \(viewModel.goal.reportingName)")
-                        Spacer()
                         Text("Quota: \(viewModel.goal.quotaString)")
                         Spacer()
                         Text("Progress: \(viewModel.goal.valueString)")
                     }
-                    .font(.caption2)
+                    .font(.callout)
                     if !viewModel.goal.subtitle.isEmpty {
                         Text(viewModel.goal.subtitle)
                             .font(.subheadline)
@@ -58,8 +93,8 @@ struct GoalsDetailView: View {
                 }
                 .padding()
 
-                // Segmented Picker
-                CustomSegmentedPicker(
+                // Segmented Picker (updated to match PortalSegmentedPicker style)
+                GoalSegmentedPicker(
                     segments: ["Feed", "Report", "Team"],
                     selectedIndex: $selectedSegment
                 )
@@ -95,27 +130,13 @@ struct GoalsDetailView: View {
                     onMessage: { /* Optionally implement messaging */ }
                 )
             }
-            .navigationTitle(viewModel.goal.title)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { viewModel.goBack() }) {
-                        Image(systemName: "chevron.left")
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        ForEach(viewModel.actions, id: \.self) { action in
-                            Button(action) {
-                                viewModel.handleAction(action)
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
+            .background(Color.white.edgesIgnoringSafeArea(.all))
+            .navigationBarHidden(true)
             .onAppear {
-                viewModel.load(goalId: goalId)
+                // Set the initial goal instantly
+                viewModel.goal = initialGoal
+                // Then load the latest data from the API
+                viewModel.load(goalId: initialGoal.id)
                 loadReportingIncrements()
             }
             // --- Custom Action Sheet ---
@@ -161,7 +182,6 @@ struct GoalsDetailView: View {
             }
             // --- Sheets for Actions ---
             .sheet(isPresented: $showUpdateGoalSheet) {
-                // Use the shared UpdateGoalSheet from your other file
                 UpdateGoalSheet(
                     goalId: viewModel.goal.id,
                     quota: viewModel.goal.quota,
@@ -169,7 +189,6 @@ struct GoalsDetailView: View {
                 )
             }
             .sheet(isPresented: $showEditGoalSheet) {
-                // Only allow if the current user is the goal creator
                 if viewModel.goal.id != 0, viewModel.goal.creatorId == viewModel.currentUserId {
                     EditGoalPage(
                         existingGoal: viewModel.goal,
@@ -189,7 +208,6 @@ struct GoalsDetailView: View {
                 }
             }
             .sheet(isPresented: $showInviteTeamSheet) {
-                // Replace with your InviteTeamView or similar
                 Text("Invite Team Sheet Placeholder")
             }
         }
@@ -214,9 +232,9 @@ struct GoalsDetailView: View {
     }
 }
 
-// MARK: - Custom Segmented Picker
+// MARK: - Goal Segmented Picker (matches PortalSegmentedPicker style)
 
-struct CustomSegmentedPicker: View {
+struct GoalSegmentedPicker: View {
     let segments: [String]
     @Binding var selectedIndex: Int
 
@@ -230,17 +248,24 @@ struct CustomSegmentedPicker: View {
                         .fontWeight(.medium)
                         .foregroundColor(selectedIndex == index ? .white : .black)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
+                        .padding(.vertical, 6)
                         .background(selectedIndex == index ? Color.black : Color.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 0)
-                                .stroke(Color.black, lineWidth: 1)
-                        )
                 }
+                .buttonStyle(PlainButtonStyle())
+                .overlay(
+                    Rectangle()
+                        .frame(width: index < segments.count - 1 ? 1 : 0)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .trailing
+                )
             }
         }
         .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color.black, lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 }
 
@@ -481,6 +506,8 @@ struct TeamCell: View {
 
 // MARK: - Large Bar Chart View
 
+// MARK: - Large Bar Chart View
+
 struct LargeBarChartView: View {
     let data: [BarChartData]
 
@@ -505,6 +532,7 @@ struct LargeBarChartView: View {
                             .lineLimit(1)
                     }
                 }
+                Spacer() // Ensures bars and labels are left-aligned
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

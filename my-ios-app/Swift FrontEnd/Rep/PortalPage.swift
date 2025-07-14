@@ -167,13 +167,14 @@ struct PortalPageContent: View {
 
     private var goalDestination: some View {
         Group {
-            if let goalId = selectedGoalId {
-                GoalsDetailView(goalId: goalId)
+            if let goalId = selectedGoalId,
+            let selectedGoal = portal.aGoals?.first(where: { $0.id == goalId }) {
+                GoalsDetailView(initialGoal: selectedGoal)
             } else {
                 EmptyView()
             }
         }
-    }
+    }   
 
     var body: some View {
         VStack(spacing: 0) {

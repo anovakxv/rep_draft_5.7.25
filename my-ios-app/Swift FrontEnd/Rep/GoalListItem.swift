@@ -13,8 +13,34 @@ struct GoalListItem: View {
     let goal: Goal
 
     var body: some View {
-        HStack(spacing: 16) {
-            BarChartView(data: goal.chartData)
+        HStack(alignment: .center, spacing: 16) {
+            VStack(spacing: 2) {
+                HStack(alignment: .bottom, spacing: 6) {
+                    ForEach(goal.chartData) { bar in
+                        Rectangle()
+                            .fill(Color.repGreen)
+                            .frame(
+                                width: 24,
+                                height: {
+                                    let maxValue = goal.chartData.map { $0.value }.max() ?? 1
+                                    return max(0, CGFloat(bar.value / maxValue) * 56)
+                                }()
+                            )
+                            .cornerRadius(3)
+                    }
+                    Spacer() 
+                }
+                HStack(spacing: 6) {
+                    ForEach(goal.chartData) { bar in
+                        Text(bar.bottomLabel)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .frame(width: 24)
+                    }
+                    Spacer() 
+                }
+            }
+            .frame(width: 144, height: 81)
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.title)
                     .font(.headline)
@@ -28,7 +54,7 @@ struct GoalListItem: View {
             }
             Spacer()
         }
-        .frame(height: 64)
+        .frame(height: 81)
         .padding(.vertical, 4)
         .padding(.horizontal)
         .background(Color.white)

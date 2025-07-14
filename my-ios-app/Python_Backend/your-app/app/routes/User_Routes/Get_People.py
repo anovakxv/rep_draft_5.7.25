@@ -5,6 +5,7 @@
 from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
+from app.models.People_Models.Messaging_Models.messages_read import MessagesRead
 # from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 # from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 # from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
@@ -116,18 +117,8 @@ def api_active_chat_list():
     users_map = batch_get_users(contact_ids) if contact_ids else {}
     last_direct_msgs = batch_get_last_direct_messages(user_id, contact_ids) if contact_ids else {}
 
-    # --- Group chat logic commented out ---
-    # group_chat_ids = [
-    #     row.chats_id for row in db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id).all()
-    # ]
-    # group_chats = db.session.query(
-    #     GroupMessage.chat_id,
-    #     db.func.max(GroupMessage.created_at).label('last_message_time')
-    # ).filter(
-    #     GroupMessage.chat_id.in_(group_chat_ids)
-    # ).group_by(GroupMessage.chat_id).all()
-    # chats_map = batch_get_chats([row.chat_id for row in group_chats]) if group_chats else {}
-    # last_group_msgs = batch_get_last_group_messages([row.chat_id for row in group_chats]) if group_chats else {}
+    # --- Get all read message IDs for this user ---
+    read_ids = set(r.messages_id for r in MessagesRead.query.filter_by(users_id=user_id).all())
 
     # Collect all latest chat events (direct only)
     chat_events = []
@@ -156,11 +147,13 @@ def api_active_chat_list():
             last_msg = last_direct_msgs.get(event['contact_id'])
             user_dict = user.as_dict() if user else {}
             user_dict = patch_profile_picture_url(user_dict)
+            # --- Add read status to last_message ---
+            is_read = "1" if last_msg and last_msg.id in read_ids else "0"
             result.append({
                 'id': f"direct-{user.id}" if user else None,
                 'type': 'direct',
                 'user': user_dict,
-                'last_message': last_msg.as_dict() if last_msg else {},
+                'last_message': last_msg.as_dict(read=is_read) if last_msg else {},
                 'last_message_time': event['last_message_time']
             })
         # elif event['type'] == 'group':

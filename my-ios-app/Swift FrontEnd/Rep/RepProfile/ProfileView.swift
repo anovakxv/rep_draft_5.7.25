@@ -217,6 +217,7 @@ class ProfileViewModel: ObservableObject {
             guard let data = data else { return }
             do {
                 let apiResponse = try JSONDecoder().decode(GoalsAPIResponse.self, from: data)
+                print("Fetched goals:", apiResponse.aGoals)
                 DispatchQueue.main.async {
                     self.goals = apiResponse.aGoals
                 }
@@ -430,15 +431,14 @@ struct ProfileView: View {
                             .background(Color.white)
                         }
                     case 1:
-                        ScrollView {
-                            GoalsListSection(
-                                goals: viewModel.goals,
-                                isCurrentUser: viewModel.isCurrentUser,
-                                showAddGoal: .constant(false)
-                            )
-                            .padding(.top, 8)
-                            .background(Color.white)
-                        }
+                        // FIX: Remove ScrollView wrapping the List
+                        GoalsListSection(
+                            goals: viewModel.goals,
+                            isCurrentUser: viewModel.isCurrentUser,
+                            showAddGoal: .constant(false)
+                        )
+                        .padding(.top, 8)
+                        .background(Color.white)
                     case 2:
                         ScrollView {
                             WriteContentView(
@@ -639,6 +639,11 @@ struct ProfileView: View {
                     )
                 )
             }
+            .onChange(of: showAddGoal) { isPresented in
+                if !isPresented {
+                    viewModel.fetchGoals() // Refresh goals after sheet closes
+                }
+            }
             .sheet(isPresented: $showEditProfile) {
                 EditProfileView(
                     viewModel: ProfileInfoViewModel(
@@ -748,7 +753,7 @@ struct GoalsListSection: View {
         VStack(spacing: 0) {
             List {
                 ForEach(goals) { goal in
-                    NavigationLink(destination: GoalDetailPage(goal: goal)) {
+                    NavigationLink(destination: GoalsDetailView(initialGoal: goal)) {
                         GoalListItem(goal: goal)
                     }
                 }
@@ -987,14 +992,5 @@ struct BottomBarView: View {
                 .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
             alignment: .top
         )
-    }
-}
-
-// --- Placeholders for missing views ---
-
-struct GoalDetailPage: View {
-    let goal: Goal
-    var body: some View {
-        Text(goal.title)
     }
 }

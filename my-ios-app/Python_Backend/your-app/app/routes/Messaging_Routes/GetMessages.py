@@ -95,7 +95,7 @@ def api_get_messages():
             "sender_id": msg.sender_id,
             "sender_name": sender.full_name if sender else "",
             "text": msg.text,
-            "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
+            "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),  # <-- No milliseconds
             "read": '1' if msg.id in already_read_ids else '0'
         }
         # Collect related portal/chat ids for context

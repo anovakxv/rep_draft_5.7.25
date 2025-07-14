@@ -453,7 +453,13 @@ struct ProfileView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
                 BottomBarView(
-                    onAdd: { showProfileActionMenu = true }, // <-- UPDATED
+                    onAdd: {
+                        if viewModel.isCurrentUser {
+                            showActionSheet = true
+                        } else {
+                            showProfileActionMenu = true
+                        }
+                    },
                     onMessage: { showMessageSheet = true }
                 )
             }

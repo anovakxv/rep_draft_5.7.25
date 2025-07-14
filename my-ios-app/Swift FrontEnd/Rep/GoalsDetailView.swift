@@ -19,6 +19,10 @@ struct GoalsDetailView: View {
     @State private var showEditGoalSheet = false
     @State private var showInviteTeamSheet = false
 
+    // --- Reporting Increments State ---
+    @State private var reportingIncrements: [ReportingIncrement] = []
+    @State private var isLoadingIncrements = false
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -112,6 +116,7 @@ struct GoalsDetailView: View {
             }
             .onAppear {
                 viewModel.load(goalId: goalId)
+                loadReportingIncrements()
             }
             // --- Custom Action Sheet ---
             .sheet(isPresented: $showActionSheet) {
@@ -170,11 +175,13 @@ struct GoalsDetailView: View {
                         existingGoal: viewModel.goal,
                         portalId: viewModel.goal.portalId ?? 0,
                         userId: viewModel.currentUserId,
-                        reportingIncrements: [
-                            ReportingIncrement(id: 1, title: "Monthly"),
-                            ReportingIncrement(id: 2, title: "Weekly"),
-                            ReportingIncrement(id: 3, title: "Daily")
-                        ]
+                        reportingIncrements: reportingIncrements.isEmpty
+                            ? [
+                                ReportingIncrement(id: 1, title: "Monthly"),
+                                ReportingIncrement(id: 2, title: "Weekly"),
+                                ReportingIncrement(id: 3, title: "Daily")
+                              ]
+                            : reportingIncrements
                     )
                 } else {
                     Text("You do not have permission to edit this goal.")
@@ -186,6 +193,24 @@ struct GoalsDetailView: View {
                 Text("Invite Team Sheet Placeholder")
             }
         }
+    }
+
+    private func loadReportingIncrements() {
+        guard !isLoadingIncrements else { return }
+        isLoadingIncrements = true
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/reporting_increments"),
+              let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            defer { isLoadingIncrements = false }
+            guard let data = data else { return }
+            if let decoded = try? JSONDecoder().decode(ReportingIncrementsResponse.self, from: data) {
+                DispatchQueue.main.async {
+                    self.reportingIncrements = decoded.reportingIncrements
+                }
+            }
+        }.resume()
     }
 }
 

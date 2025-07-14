@@ -640,42 +640,44 @@ struct ActiveChatList: View {
                                 .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
                             alignment: .bottom
                         )
-                    } else if chat.type == "group", let group = chat.chat {
-                        Button(action: { selectedChatId = group.id }) {
-                            HStack(spacing: 0) {
-                                Image(systemName: "person.3.fill")
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 64, height: 64)
-                                    .clipShape(Circle())
-                                VStack(alignment: .leading) {
-                                    HStack {
-                                        Text(group.name ?? "Group Chat")
-                                            .font(.subheadline)
-                                        Spacer()
-                                        if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
-                                            Text(date.timeAgoDisplay())
-                                                .font(.caption)
-                                        }
-                                    }
-                                    Text(chat.last_message?.text ?? "")
-                                        .font(.caption)
-                                }
-                                .padding(.leading, 8)
-                            }
-                            .frame(height: 64)
-                            .padding(.vertical, 8)
-                            .background(Color.white)
-                            .listRowInsets(EdgeInsets())
-                            .overlay(
-                                Rectangle()
-                                    .frame(height: 1)
-                                    .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                                alignment: .bottom
-                            )
-                        }
-                        .buttonStyle(PlainButtonStyle())
                     }
+                    // Group chat UI is commented out for now:
+                    // else if chat.type == "group", let group = chat.chat {
+                    //     Button(action: { selectedChatId = group.id }) {
+                    //         HStack(spacing: 0) {
+                    //             Image(systemName: "person.3.fill")
+                    //                 .resizable()
+                    //                 .scaledToFill()
+                    //                 .frame(width: 64, height: 64)
+                    //                 .clipShape(Circle())
+                    //             VStack(alignment: .leading) {
+                    //                 HStack {
+                    //                     Text(group.name ?? "Group Chat")
+                    //                         .font(.subheadline)
+                    //                     Spacer()
+                    //                     if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
+                    //                         Text(date.timeAgoDisplay())
+                    //                             .font(.caption)
+                    //                     }
+                    //                 }
+                    //                 Text(chat.last_message?.text ?? "")
+                    //                     .font(.caption)
+                    //             }
+                    //             .padding(.leading, 8)
+                    //         }
+                    //         .frame(height: 64)
+                    //         .padding(.vertical, 8)
+                    //         .background(Color.white)
+                    //         .listRowInsets(EdgeInsets())
+                    //         .overlay(
+                    //             Rectangle()
+                    //                 .frame(height: 1)
+                    //                 .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    //             alignment: .bottom
+                    //         )
+                    //     }
+                    //     .buttonStyle(PlainButtonStyle())
+                    // }
                 }
             }
             .listStyle(.plain)

@@ -5,12 +5,12 @@
 from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
-from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
+# from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.user import User
 from app.models.Purpose_Models.Portal import Portal
-from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+# from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.People_Models.Messaging_Models.messages_read import MessagesRead
-from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+# from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 # from app.models.users_hidden_conversations import UsersHiddenConversations
 # from app.models.chats_hidden_conversations import ChatsHiddenConversations
 from app.utils.auth import jwt_required
@@ -57,32 +57,32 @@ def api_get_messages():
             query = query.filter(DirectMessage.id > int(newer_than_id))
         query = query.order_by(DirectMessage.created_at.asc() if order == 'ASC' else DirectMessage.created_at.desc())
         messages = query.offset(offset).limit(limit).all()
-    # Group messages
-    elif chats_id:
-        query = GroupMessage.query.filter(GroupMessage.chat_id == chats_id)
-        if newer_than_id:
-            query = query.filter(GroupMessage.id > int(newer_than_id))
-        query = query.order_by(GroupMessage.created_at.asc() if order == 'ASC' else GroupMessage.created_at.desc())
-        messages = query.offset(offset).limit(limit).all()
-    # Inbox/grouped view
+    # Group messages (commented out)
+    # elif chats_id:
+    #     query = GroupMessage.query.filter(GroupMessage.chat_id == chats_id)
+    #     if newer_than_id:
+    #         query = query.filter(GroupMessage.id > int(newer_than_id))
+    #     query = query.order_by(GroupMessage.created_at.asc() if order == 'ASC' else GroupMessage.created_at.desc())
+    #     messages = query.offset(offset).limit(limit).all()
+    # Inbox/grouped view (direct only)
     else:
         direct_query = DirectMessage.query.filter(
             (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)
         )
-        group_query = GroupMessage.query.filter(
-            GroupMessage.chat_id.in_(
-                db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id)
-            )
-        )
+        # group_query = GroupMessage.query.filter(
+        #     GroupMessage.chat_id.in_(
+        #         db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id)
+        #     )
+        # )
         if newer_than_id:
             direct_query = direct_query.filter(DirectMessage.id > int(newer_than_id))
-            group_query = group_query.filter(GroupMessage.id > int(newer_than_id))
+            # group_query = group_query.filter(GroupMessage.id > int(newer_than_id))
         direct_query = direct_query.order_by(DirectMessage.created_at.asc() if order == 'ASC' else DirectMessage.created_at.desc())
-        group_query = group_query.order_by(GroupMessage.created_at.asc() if order == 'ASC' else GroupMessage.created_at.desc())
+        # group_query = group_query.order_by(GroupMessage.created_at.asc() if order == 'ASC' else GroupMessage.created_at.desc())
         direct_messages = direct_query.offset(offset).limit(limit).all()
-        group_messages = group_query.offset(offset).limit(limit).all()
-        messages = direct_messages + group_messages
-        messages.sort(key=lambda m: m.created_at, reverse=(order == 'DESC'))
+        # group_messages = group_query.offset(offset).limit(limit).all()
+        messages = direct_messages  # + group_messages
+        # messages.sort(key=lambda m: m.created_at, reverse=(order == 'DESC'))
 
     # Build message list using as_dict()
     aData = []
@@ -95,14 +95,14 @@ def api_get_messages():
             "sender_id": msg.sender_id,
             "sender_name": sender.full_name if sender else "",
             "text": msg.text,
-            "timestamp": msg.created_at.isoformat() + "Z",
+            "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z",
             "read": '1' if msg.id in already_read_ids else '0'
         }
         # Collect related portal/chat ids for context
         if hasattr(msg, 'portal_id') and msg.portal_id:
             portal_ids.add(msg.portal_id)
-        if hasattr(msg, 'chat_id') and msg.chat_id:
-            chat_ids.add(msg.chat_id)
+        # if hasattr(msg, 'chat_id') and msg.chat_id:
+        #     chat_ids.add(msg.chat_id)
         aData.append(msg_dict)
 
     # Mark messages as read if needed
@@ -115,14 +115,14 @@ def api_get_messages():
 
     # Optionally, preload portals and chats for context
     portals = Portal.query.filter(Portal.id.in_(portal_ids)).all() if portal_ids else []
-    chats = Chats.query.filter(Chats.id.in_(chat_ids)).all() if chat_ids else []
+    # chats = Chats.query.filter(Chats.id.in_(chat_ids)).all() if chat_ids else []
 
     aPortals = [p.as_dict() for p in portals]
-    aChats = [c.as_dict() for c in chats]
+    # aChats = [c.as_dict() for c in chats]
 
     result = {
         'messages': aData,
         'portals': aPortals,
-        'chats': aChats
+        # 'chats': aChats
     }
     return jsonify({'result': result})

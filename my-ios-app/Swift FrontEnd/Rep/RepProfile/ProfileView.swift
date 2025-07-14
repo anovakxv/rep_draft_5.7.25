@@ -1,10 +1,8 @@
-//
 //  ProfileView.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.15.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
-//
 
 import SwiftUI
 
@@ -373,6 +371,10 @@ struct ProfileView: View {
     // For custom action sheet navigation
     @State private var pendingAction: PendingAction? = nil
 
+    // --- Reporting Increments State ---
+    @State private var reportingIncrements: [ReportingIncrement] = []
+    @State private var isLoadingIncrements = false
+
     enum PendingAction {
         case editProfile
         case addPurpose
@@ -464,7 +466,10 @@ struct ProfileView: View {
                 )
             }
             .navigationBarHidden(true)
-            .onAppear { viewModel.loadProfile() }
+            .onAppear {
+                viewModel.loadProfile()
+                loadReportingIncrements()
+            }
             .background(Color.white.edgesIgnoringSafeArea(.all))
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -614,12 +619,13 @@ struct ProfileView: View {
                     existingGoal: nil,
                     portalId: nil,
                     userId: viewModel.user.id,
-                    reportingIncrements: [
-                        ReportingIncrement(id: 1, title: "Monthly"),
-                        ReportingIncrement(id: 2, title: "Weekly"),
-                        ReportingIncrement(id: 3, title: "Daily")
-                        // Add more increments as needed
-                    ],
+                    reportingIncrements: reportingIncrements.isEmpty
+                        ? [
+                            ReportingIncrement(id: 1, title: "Monthly"),
+                            ReportingIncrement(id: 2, title: "Weekly"),
+                            ReportingIncrement(id: 3, title: "Daily")
+                        ]
+                        : reportingIncrements,
                     associatedPortalName: nil
                 )
             }
@@ -656,6 +662,24 @@ struct ProfileView: View {
                 )
             }
         }
+    }
+
+    private func loadReportingIncrements() {
+        guard !isLoadingIncrements else { return }
+        isLoadingIncrements = true
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/reporting_increments"),
+              let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            defer { isLoadingIncrements = false }
+            guard let data = data else { return }
+            if let decoded = try? JSONDecoder().decode(ReportingIncrementsResponse.self, from: data) {
+                DispatchQueue.main.async {
+                    self.reportingIncrements = decoded.reportingIncrements
+                }
+            }
+        }.resume()
     }
 
     private func logoutAndClearSession() {

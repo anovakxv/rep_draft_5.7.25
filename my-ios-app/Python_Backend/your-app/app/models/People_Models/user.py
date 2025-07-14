@@ -49,12 +49,16 @@ class User(UserMixin, db.Model):
             skills.append(self.other_skill)
         return skills
 
+    @property
+    def full_name(self):
+        return f"{self.fname or ''} {self.lname or ''}".strip()
+
     def as_dict(self, include_message=False, last_message=None, last_message_date=None):
         return {
             "id": self.id,
             "fname": self.fname or "",
             "lname": self.lname or "",
-            "full_name": f"{self.fname or ''} {self.lname or ''}".strip(),
+            "full_name": self.full_name,
             "username": self.username,
             "about": self.about or "",
             "broadcast": self.broadcast or "",
@@ -69,4 +73,3 @@ class User(UserMixin, db.Model):
             "last_message": last_message if include_message else None,
             "last_message_date": last_message_date.isoformat() if include_message and last_message_date else None,
         }
-    

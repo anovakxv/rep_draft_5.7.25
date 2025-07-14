@@ -13,6 +13,12 @@ struct ReportingIncrement: Identifiable, Codable, Hashable {
     let title: String
 }
 
+// MARK: - API Response Model
+
+struct ReportingIncrementsResponse: Codable {
+    let reportingIncrements: [ReportingIncrement]
+}
+
 // MARK: - Edit/Add Goal Page
 
 struct EditGoalPage: View {
@@ -34,9 +40,17 @@ struct EditGoalPage: View {
     @State private var errorMessage: String?
     @Environment(\.dismiss) private var dismiss
 
+    // For dynamic increments
+    @State private var loadedIncrements: [ReportingIncrement] = []
+    @State private var isLoadingIncrements = false
+
     let goalTypes = ["Recruiting", "Sales", "Fund", "Marketing", "Hours", "Other"]
 
     var isEdit: Bool { existingGoal != nil }
+
+    var incrementsToUse: [ReportingIncrement] {
+        !loadedIncrements.isEmpty ? loadedIncrements : reportingIncrements
+    }
 
     var body: some View {
         NavigationStack {
@@ -56,7 +70,7 @@ struct EditGoalPage: View {
                     TextField("Quota", text: $quota)
                         .keyboardType(.numberPad)
                     Picker("Reporting Increment", selection: $reportingIncrementId) {
-                        ForEach(reportingIncrements, id: \.id) { increment in
+                        ForEach(incrementsToUse, id: \.id) { increment in
                             Text(increment.title).tag(Optional(increment.id))
                         }
                     }
@@ -85,6 +99,7 @@ struct EditGoalPage: View {
                 }
             }
             .onAppear {
+                loadReportingIncrements()
                 if let goal = existingGoal {
                     title = goal.title
                     subtitle = goal.subtitle
@@ -93,16 +108,46 @@ struct EditGoalPage: View {
                     goalType = goal.typeName
                     metric = goal.metricName
                     // Try to match reporting increment by name
-                    if let match = reportingIncrements.first(where: { $0.title == goal.reportingName }) {
+                    let increments = incrementsToUse
+                    if let match = increments.first(where: { $0.title == goal.reportingName }) {
                         reportingIncrementId = match.id
                     }
-                } else if reportingIncrementId == nil, reportingIncrements.count >= 3 {
-                    reportingIncrementId = reportingIncrements[2].id
-                } else if reportingIncrementId == nil, let first = reportingIncrements.first {
+                } else if reportingIncrementId == nil, incrementsToUse.count >= 3 {
+                    reportingIncrementId = incrementsToUse[2].id
+                } else if reportingIncrementId == nil, let first = incrementsToUse.first {
                     reportingIncrementId = first.id
                 }
             }
         }
+    }
+
+    private func loadReportingIncrements() {
+        guard !isLoadingIncrements else { return }
+        isLoadingIncrements = true
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/reporting_increments"),
+              let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            defer { isLoadingIncrements = false }
+            guard let data = data else { return }
+            if let decoded = try? JSONDecoder().decode(ReportingIncrementsResponse.self, from: data) {
+                DispatchQueue.main.async {
+                    self.loadedIncrements = decoded.reportingIncrements
+                    // Set default selection if not set
+                    if self.reportingIncrementId == nil {
+                        if let goal = existingGoal,
+                           let match = decoded.reportingIncrements.first(where: { $0.title == goal.reportingName }) {
+                            self.reportingIncrementId = match.id
+                        } else if decoded.reportingIncrements.count >= 3 {
+                            self.reportingIncrementId = decoded.reportingIncrements[2].id
+                        } else if let first = decoded.reportingIncrements.first {
+                            self.reportingIncrementId = first.id
+                        }
+                    }
+                }
+            }
+        }.resume()
     }
 
     func saveGoal() {

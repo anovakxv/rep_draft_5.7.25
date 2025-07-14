@@ -23,10 +23,13 @@ class DirectMessage(db.Model):
         return {
             "id": self.id,
             "sender_id": self.sender_id,
-            "sender_name": self.sender.full_name if self.sender else "",
+            "sender_name": (
+                f"{self.sender.fname or ''} {self.sender.lname or ''}".strip()
+                if self.sender else ""
+            ),
             "recipient_id": self.recipient_id,
             "text": self.text,
-            "timestamp": self.created_at.isoformat() + 'Z',
+            "timestamp": self.created_at.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + 'Z',
             "sender": self.sender.as_dict() if self.sender else None,
             "recipient": self.recipient.as_dict() if self.recipient else None,
         }

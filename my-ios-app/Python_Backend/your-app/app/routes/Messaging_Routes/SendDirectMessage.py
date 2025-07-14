@@ -70,7 +70,7 @@ def api_send_message():
         "sender_id": msg.sender_id,
         "sender_name": sender.full_name if sender else "",
         "text": msg.text,
-        "timestamp": msg.created_at.isoformat() + "Z"
+        "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
     }
 
     return jsonify({'result': 'Message sent.', 'message': message_obj}), 200

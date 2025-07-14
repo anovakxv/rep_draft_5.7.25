@@ -5,9 +5,9 @@
 from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
-from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
-from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
-from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+# from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
+# from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+# from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.user import User
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.models.People_Models.Skill import Skill
@@ -31,9 +31,9 @@ def batch_get_users(user_ids):
     users = User.query.filter(User.id.in_(user_ids)).all()
     return {u.id: u for u in users}
 
-def batch_get_chats(chat_ids):
-    chats = Chats.query.filter(Chats.id.in_(chat_ids)).all()
-    return {c.id: c for c in chats}
+# def batch_get_chats(chat_ids):
+#     chats = Chats.query.filter(Chats.id.in_(chat_ids)).all()
+#     return {c.id: c for c in chats}
 
 def batch_get_last_direct_messages(user_id, contact_ids):
     # Get the latest direct message for each contact
@@ -66,30 +66,30 @@ def batch_get_last_direct_messages(user_id, contact_ids):
             last_msg_map[row.contact_id] = last_msg
     return last_msg_map
 
-def batch_get_last_group_messages(chat_ids):
-    # Get the latest group message for each chat
-    last_msgs = (
-        db.session.query(
-            GroupMessage.chat_id,
-            db.func.max(GroupMessage.created_at).label('last_message_time')
-        )
-        .filter(GroupMessage.chat_id.in_(chat_ids))
-        .group_by(GroupMessage.chat_id)
-        .all()
-    )
-    last_msg_map = {}
-    for row in last_msgs:
-        last_msg = GroupMessage.query.filter_by(chat_id=row.chat_id).order_by(GroupMessage.created_at.desc()).first()
-        if last_msg:
-            last_msg_map[row.chat_id] = last_msg
-    return last_msg_map
+# def batch_get_last_group_messages(chat_ids):
+#     # Get the latest group message for each chat
+#     last_msgs = (
+#         db.session.query(
+#             GroupMessage.chat_id,
+#             db.func.max(GroupMessage.created_at).label('last_message_time')
+#         )
+#         .filter(GroupMessage.chat_id.in_(chat_ids))
+#         .group_by(GroupMessage.chat_id)
+#         .all()
+#     )
+#     last_msg_map = {}
+#     for row in last_msgs:
+#         last_msg = GroupMessage.query.filter_by(chat_id=row.chat_id).order_by(GroupMessage.created_at.desc()).first()
+#         if last_msg:
+#             last_msg_map[row.chat_id] = last_msg
+#     return last_msg_map
 
 @people_bp.route('/api/active_chat_list', methods=['GET'])
 @jwt_required
 def api_active_chat_list():
     """
-    Returns the user's active chat list (OPEN tab): all direct and group chats the user is part of,
-    sorted by most recent message (direct or group) descending.
+    Returns the user's active chat list (OPEN tab): all direct chats the user is part of,
+    sorted by most recent message descending.
     """
     user_id = g.current_user.id
 
@@ -116,21 +116,20 @@ def api_active_chat_list():
     users_map = batch_get_users(contact_ids) if contact_ids else {}
     last_direct_msgs = batch_get_last_direct_messages(user_id, contact_ids) if contact_ids else {}
 
-    # Get the latest message per group chat
-    group_chat_ids = [
-        row.chats_id for row in db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id).all()
-    ]
-    group_chats = db.session.query(
-        GroupMessage.chat_id,
-        db.func.max(GroupMessage.created_at).label('last_message_time')
-    ).filter(
-        GroupMessage.chat_id.in_(group_chat_ids)
-    ).group_by(GroupMessage.chat_id).all()
+    # --- Group chat logic commented out ---
+    # group_chat_ids = [
+    #     row.chats_id for row in db.session.query(ChatsUsers.chats_id).filter_by(users_id=user_id).all()
+    # ]
+    # group_chats = db.session.query(
+    #     GroupMessage.chat_id,
+    #     db.func.max(GroupMessage.created_at).label('last_message_time')
+    # ).filter(
+    #     GroupMessage.chat_id.in_(group_chat_ids)
+    # ).group_by(GroupMessage.chat_id).all()
+    # chats_map = batch_get_chats([row.chat_id for row in group_chats]) if group_chats else {}
+    # last_group_msgs = batch_get_last_group_messages([row.chat_id for row in group_chats]) if group_chats else {}
 
-    chats_map = batch_get_chats([row.chat_id for row in group_chats]) if group_chats else {}
-    last_group_msgs = batch_get_last_group_messages([row.chat_id for row in group_chats]) if group_chats else {}
-
-    # Collect all latest chat events (direct and group), sort by time
+    # Collect all latest chat events (direct only)
     chat_events = []
     for row in direct_contacts:
         chat_events.append({
@@ -138,18 +137,18 @@ def api_active_chat_list():
             'contact_id': row.contact_id,
             'last_message_time': row.last_message_time
         })
-    for row in group_chats:
-        chat_events.append({
-            'type': 'group',
-            'chat_id': row.chat_id,
-            'last_message_time': row.last_message_time
-        })
+    # for row in group_chats:
+    #     chat_events.append({
+    #         'type': 'group',
+    #         'chat_id': row.chat_id,
+    #         'last_message_time': row.last_message_time
+    #     })
 
     # Sort all chats by last_message_time descending
     chat_events.sort(key=lambda x: x['last_message_time'], reverse=True)
     chat_events = chat_events[offset:offset+limit]
 
-    # Build response: for each chat, include user/chat info and last message, and add 'id' field
+    # Build response: for each chat, include user info and last message, and add 'id' field
     result = []
     for event in chat_events:
         if event['type'] == 'direct':
@@ -164,16 +163,16 @@ def api_active_chat_list():
                 'last_message': last_msg.as_dict() if last_msg else {},
                 'last_message_time': event['last_message_time']
             })
-        elif event['type'] == 'group':
-            chat = chats_map.get(event['chat_id'])
-            last_msg = last_group_msgs.get(event['chat_id'])
-            result.append({
-                'id': f"group-{chat.id}" if chat else None,
-                'type': 'group',
-                'chat': chat.as_dict() if chat else {},
-                'last_message': last_msg.as_dict() if last_msg else {},
-                'last_message_time': event['last_message_time']
-            })
+        # elif event['type'] == 'group':
+        #     chat = chats_map.get(event['chat_id'])
+        #     last_msg = last_group_msgs.get(event['chat_id'])
+        #     result.append({
+        #         'id': f"group-{chat.id}" if chat else None,
+        #         'type': 'group',
+        #         'chat': chat.as_dict() if chat else {},
+        #         'last_message': last_msg.as_dict() if last_msg else {},
+        #         'last_message_time': event['last_message_time']
+        #     })
 
     return jsonify({'result': result})
 

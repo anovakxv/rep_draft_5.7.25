@@ -146,6 +146,13 @@ def api_create_goal():
     db.session.commit()
     return jsonify({'result': goal.as_dict()})
 
+@goals_bp.route('/reporting_increments', methods=['GET'])
+@jwt_required
+def get_reporting_increments():
+    increments = ReportingIncrement.query.all()
+    result = [{"id": inc.id, "title": inc.title} for inc in increments]
+    return jsonify({"reportingIncrements": result})
+
 # --- POST: Edit Goal ---
 @goals_bp.route('/edit', methods=['POST'])
 @jwt_required

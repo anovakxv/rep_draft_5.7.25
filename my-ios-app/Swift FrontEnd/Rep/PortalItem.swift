@@ -40,21 +40,20 @@ struct PortalItem: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(portal.name)
-                        .font(.subheadline)
-                        .fontWeight(.medium)
+                        .font(.system(size: 15, weight: .semibold)) // Consistent font size
                         .foregroundColor(.primary)
                     Spacer()
                     // Add category if available
                     if let category = portal.categories_id {
                         Text("Category \(category)")
-                            .font(.caption)
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                 }
 
                 if let subtitle = portal.subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.caption)
+                        .font(.system(size: 15)) // Consistent font size
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
@@ -62,13 +61,13 @@ struct PortalItem: View {
                 HStack {
                     if let city = portal.cities_id {
                         Text("City \(city)")
-                            .font(.caption)
+                            .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                     Spacer()
                     if let count = portal._c_users_count {
                         Text("\(count) leads")
-                            .font(.caption)
+                            .font(.system(size: 12))
                             .foregroundColor(.green)
                     }
                 }

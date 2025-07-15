@@ -176,7 +176,7 @@ struct MessageView: View {
                         .padding(.vertical, 10)
                         .padding(.horizontal, 18)
                         .background(SwiftUI.Color.repGreen)
-                        .cornerRadius(20)
+                        .cornerRadius(8)
                 }
                 .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -206,17 +206,48 @@ struct MessageBubble: View {
     let profilePicURL: URL?
     
     var body: some View {
-        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
-            Text(message.text)
-                .padding(10)
-                .background(isCurrentUser ? SwiftUI.Color.repGreen : Color(UIColor.systemGray5))
-                .foregroundColor(isCurrentUser ? .white : .black)
-                .cornerRadius(16)
-            Text(message.timestamp, style: .time)
-                .font(.caption2)
-                .foregroundColor(.gray)
+        HStack(alignment: .bottom, spacing: 8) {
+            if isCurrentUser {
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(message.text)
+                        .padding(10)
+                        .background(Color.black)
+                        .foregroundColor(Color.repGreen)
+                        .cornerRadius(8)
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: 260, alignment: .trailing)
+            } else {
+                if let url = profilePicURL {
+                    AsyncImage(url: url) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle().fill(Color.gray.opacity(0.3))
+                    }
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 32, height: 32)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message.text)
+                        .padding(10)
+                        .background(Color(UIColor.systemGray5))
+                        .foregroundColor(.black)
+                        .cornerRadius(8)
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: 260, alignment: .leading)
+                Spacer()
+            }
         }
-        .frame(maxWidth: 260, alignment: isCurrentUser ? .trailing : .leading)
         .id(message.id)
     }
 }

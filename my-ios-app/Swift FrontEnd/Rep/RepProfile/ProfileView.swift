@@ -319,7 +319,7 @@ class ProfileViewModel: ObservableObject {
 
     // MARK: - Add to Network
     func addToNetwork(completion: @escaping (Bool, String?) -> Void) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/network_action") else {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/network_action") else {
             completion(false, "Invalid URL")
             return
         }
@@ -556,8 +556,11 @@ struct ProfileView: View {
                         viewModel.addToNetwork { success, message in
                             DispatchQueue.main.async {
                                 networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
-                                showNetworkResultAlert = true
                                 showProfileActionMenu = false
+                                // Delay alert until after sheet is dismissed
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                    showNetworkResultAlert = true
+                                }
                             }
                         }
                     }) {

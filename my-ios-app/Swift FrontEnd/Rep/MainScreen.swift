@@ -521,7 +521,7 @@ struct ChatList: View {
                             VStack(alignment: .leading) {
                                 HStack {
                                     Text(user.fullName ?? "")
-                                        .font(.subheadline)
+                                        .font(.system(size: 15, weight: .semibold))
                                     Spacer()
                                     if let dateString = user.lastMessageDate, let date = ISO8601DateFormatter().date(from: dateString) {
                                         Text(date.timeAgoDisplay())
@@ -529,7 +529,7 @@ struct ChatList: View {
                                     }
                                 }
                                 Text(user.lastMessage ?? "")
-                                    .font(.caption)
+                                    .font(.system(size: 15))
                             }
                             .padding(.leading, 8)
                         }
@@ -617,25 +617,24 @@ struct ActiveChatList: View {
                                 VStack(alignment: .leading) {
                                     HStack {
                                         Text(user.fullName ?? "")
-                                            .font(.subheadline)
+                                            .font(.system(size: 15, weight: .semibold))
                                         Spacer()
                                         if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
                                             Text(date.timeAgoDisplay())
                                                 .font(.caption)
                                         }
                                     }
-                                    // Highlight unread message text
                                     if let lastMessage = chat.last_message,
                                        let read = lastMessage.read,
                                        read == "0",
                                        lastMessage.id != currentUserId {
                                         Text(lastMessage.text ?? "")
-                                            .font(.caption)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(Color("repGreen")) // Use your green color asset
+                                            .font(.system(size: 15, weight: .bold))
+                                            .foregroundColor(Color.repGreen)
+                                            .background(Color.white)
                                     } else {
                                         Text(chat.last_message?.text ?? "")
-                                            .font(.caption)
+                                            .font(.system(size: 15))
                                             .foregroundColor(.primary)
                                     }
                                 }

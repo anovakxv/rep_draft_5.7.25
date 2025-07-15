@@ -12,7 +12,6 @@ from app.models.People_Models.user import User
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
 
-# Use a unique blueprint name for this file
 goals_bp = Blueprint('goal_details', __name__)
 
 GOAL_TYPE_METRIC_MAP = {
@@ -40,7 +39,6 @@ def api_goal_details():
         return jsonify({'error': "the goal doesn't exist"}), 404
 
     # Patch: Fix AttributeError in as_dict's chart_data
-    # Patch the Goal instance to use correct chart_data ordering
     def patched_chart_data(self, increment='month', num_periods=4):
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
@@ -69,7 +67,39 @@ def api_goal_details():
         ]
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
 
-    return jsonify({'result': goal.as_dict(include_team=True, include_progress_logs=True)})
+    # --- PATCH: Add team and feed info ---
+    # Team: creator + all confirmed team members (no duplicates)
+    team_members = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).all()
+    team_user_ids = set([goal.users_id] + [tm.users_id2 for tm in team_members])
+    users = User.query.filter(User.id.in_(team_user_ids)).all()
+    team = [
+        {
+            "id": u.id,
+            "name": f"{getattr(u, 'fname', '')} {getattr(u, 'lname', '')}".strip() or getattr(u, 'username', ''),
+            "imageName": "profile_placeholder"
+        }
+        for u in users
+    ]
+
+    # Feed: latest 4 progress logs (for non-Recruiting, or for Recruiting: show team join logs)
+    logs = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).limit(4).all()
+    a_latest_progress = [
+        {
+            "id": log.id,
+            "users_id": log.users_id,
+            "added_value": log.added_value,
+            "note": log.note,
+            "value": log.value,
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None
+        }
+        for log in logs
+    ]
+
+    result = goal.as_dict()
+    result["team"] = team
+    result["aLatestProgress"] = a_latest_progress
+
+    return jsonify({'result': result})
 
 # --- POST: Create Goal ---
 @goals_bp.route('/create', methods=['POST'])
@@ -80,7 +110,6 @@ def api_create_goal():
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
 
-    # Add "title" to required fields
     required_fields = ['title', 'description', 'goal_type', 'reporting_increments_id', 'quota']
     for field in required_fields:
         if not data.get(field):
@@ -96,7 +125,6 @@ def api_create_goal():
         if not User.query.get(lead_id):
             return jsonify({'error': 'Wrong lead_id'}), 400
 
-    # Determine metric based on goal_type
     if goal_type == "Other":
         if not metric or not goal_type:
             return jsonify({'error': 'Custom goal_type and metric required for Other'}), 400
@@ -105,7 +133,6 @@ def api_create_goal():
         if not metric:
             return jsonify({'error': 'Invalid goal_type'}), 400
 
-    # portals_id logic: allow None for user-only goals, validate if provided
     portals_id = data.get('portals_id')
     if not portals_id or str(portals_id).lower() in ['none', '', 'null', '0']:
         portals_id = None
@@ -114,7 +141,6 @@ def api_create_goal():
             portals_id = int(portals_id)
         except (TypeError, ValueError):
             return jsonify({'error': 'portals_id must be an integer or null'}), 400
-        # Check if portal exists
         if not db.session.query(Portal).filter_by(id=portals_id).first():
             return jsonify({'error': 'Invalid portals_id'}), 400
 
@@ -211,7 +237,6 @@ def api_delete_goal():
         return jsonify({'error': "Goal not found"}), 404
     if not check_permission(goal, user_id):
         return jsonify({'error': "Permission denied."}), 403
-    # Delete related data
     GoalTeam.query.filter_by(goals_id=goal.id).delete()
     GoalProgressLog.query.filter_by(goals_id=goal.id).delete()
     db.session.delete(goal)

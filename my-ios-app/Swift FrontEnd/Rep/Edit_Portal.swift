@@ -1,4 +1,5 @@
 //  Rep
+//  Edit_Portal.swift
 //
 //  Created by Adam Novak on 06.23.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
@@ -33,18 +34,40 @@ struct EditableGoal: Identifiable {
     }
 }
 
+// MARK: - PortalWriteBlock Model
+
+struct PortalWriteBlock: Identifiable, Codable {
+    let id: UUID
+    var title: String?
+    var content: String
+    var order: Int?
+    var created_at: String?
+    var updated_at: String?
+
+    init(title: String?, content: String, order: Int? = nil) {
+        self.id = UUID()
+        self.title = title
+        self.content = content
+        self.order = order
+    }
+}
+
 // MARK: - EditPortalViewModel
 
 class EditPortalViewModel: ObservableObject {
     @Published var name: String
     @Published var subtitle: String
     @Published var about: String
-    @Published var section: Int = 0
-    @Published var storyText: String
     @Published var offeringText: String
     @Published var goals: [EditableGoal]
     @Published var selectedImages: [UIImage] = []
     @Published var mainImageIndex: Int = 0
+
+    // Story blocks
+    @Published var storyBlocks: [PortalWriteBlock] = []
+    @Published var storyTitle: String = ""
+    @Published var storyText: String = ""
+    @Published var editingStoryBlock: PortalWriteBlock? = nil
 
     let portalId: Int
     let userId: Int
@@ -58,10 +81,12 @@ class EditPortalViewModel: ObservableObject {
         self.name = portal.name
         self.subtitle = portal.subtitle ?? ""
         self.about = portal.about ?? ""
-        self.storyText = (portal.aTexts ?? []).first?.text ?? ""
         self.offeringText = portal.about ?? ""
         self.goals = (portal.aGoals ?? []).map { EditableGoal(goal: $0) }
-        // Optionally load existing images from portal.aSections/aFiles if needed
+        // Load story blocks from portal.aTexts if available
+        self.storyBlocks = (portal.aTexts?.enumerated().map { idx, text in
+            PortalWriteBlock(title: text.title ?? "", content: text.text ?? "", order: idx)
+        } ?? [])
     }
 
     func addGoal() {
@@ -71,7 +96,6 @@ class EditPortalViewModel: ObservableObject {
     func removeImage(at index: Int) {
         guard selectedImages.indices.contains(index) else { return }
         selectedImages.remove(at: index)
-        // Defensive fix: always keep mainImageIndex in a valid range
         if selectedImages.isEmpty {
             mainImageIndex = 0
         } else if mainImageIndex >= selectedImages.count {
@@ -99,6 +123,27 @@ class EditPortalViewModel: ObservableObject {
         }
     }
 
+    // Story block functions
+    func addStoryBlock() {
+        let newBlock = PortalWriteBlock(title: storyTitle, content: storyText, order: (storyBlocks.last?.order ?? 0) + 1)
+        storyBlocks.append(newBlock)
+        storyTitle = ""
+        storyText = ""
+    }
+
+    func editStoryBlock(_ block: PortalWriteBlock) {
+        if let idx = storyBlocks.firstIndex(where: { $0.id == block.id }) {
+            storyBlocks[idx] = block
+        }
+        editingStoryBlock = nil
+        storyTitle = ""
+        storyText = ""
+    }
+
+    func deleteStoryBlock(_ block: PortalWriteBlock) {
+        storyBlocks.removeAll { $0.id == block.id }
+    }
+
     func save(completion: @escaping () -> Void) {
         let boundary = UUID().uuidString
         let isNew = portalId == 0
@@ -118,28 +163,28 @@ class EditPortalViewModel: ObservableObject {
             body.append("\(value)\r\n".data(using: .utf8)!)
         }
 
-        // Required fields
         if !isNew {
             appendFormField("portal_id", "\(portalId)")
         }
         appendFormField("user_id", "\(userId)")
-
-        // Main fields
         appendFormField("name", name)
         appendFormField("subtitle", subtitle)
         appendFormField("about", about)
-        // Add categories_id, cities_id, lead_id, visible, etc. as needed
 
-        // Texts (story, offering, etc.)
-        let texts: [[String: String]] = [
-            ["title": "Story", "text": storyText, "section": "story"],
+        // Save story blocks as aTexts
+        let texts: [[String: String]] = storyBlocks.map { block in
+            [
+                "title": block.title ?? "",
+                "text": block.content,
+                "section": "story"
+            ]
+        } + [
             ["title": "Offering", "text": offeringText, "section": "offering"]
         ]
         if let textsData = try? JSONSerialization.data(withJSONObject: texts) {
             appendFormField("aTexts", String(data: textsData, encoding: .utf8) ?? "")
         }
 
-        // Images
         for (idx, image) in selectedImages.prefix(maxImages).enumerated() {
             if let imageData = image.jpegData(compressionQuality: 0.85) {
                 body.append("--\(boundary)\r\n".data(using: .utf8)!)
@@ -155,7 +200,6 @@ class EditPortalViewModel: ObservableObject {
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                // Handle response, update UI, show error/success, etc.
                 completion()
             }
         }.resume()
@@ -191,9 +235,117 @@ struct EditableGoalView: View {
                 .textFieldStyle(RoundedBorderTextFieldStyle())
             TextField("Goal Subtitle", text: Binding($goal.subtitle, default: "").unwrapped)
                 .textFieldStyle(RoundedBorderTextFieldStyle())
-            // Add more fields as needed
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - PortalStoryBlocksEditorView
+
+struct PortalStoryBlocksEditorView: View {
+    @ObservedObject var viewModel: EditPortalViewModel
+
+    @State private var showDeleteAlert = false
+    @State private var blockToDelete: PortalWriteBlock?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Story")
+                .font(.title2)
+                .fontWeight(.medium)
+                .padding(.top, 8)
+
+            if viewModel.storyBlocks.isEmpty {
+                Text("No content yet.")
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+            } else {
+                ForEach(viewModel.storyBlocks) { block in
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let title = block.title, !title.isEmpty {
+                            Text(title)
+                                .font(.title2)
+                                .fontWeight(.medium)
+                        }
+                        Text(block.content)
+                            .font(.title3)
+                        HStack {
+                            Button("Edit") {
+                                viewModel.editingStoryBlock = block
+                                viewModel.storyTitle = block.title ?? ""
+                                viewModel.storyText = block.content
+                            }
+                            .font(.title3)
+                            .foregroundColor(.blue)
+                            Spacer()
+                            Button("Delete") {
+                                blockToDelete = block
+                                showDeleteAlert = true
+                            }
+                            .font(.title3)
+                            .foregroundColor(.red)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(8)
+                }
+            }
+
+            Divider()
+            Text(viewModel.editingStoryBlock == nil ? "Add new block:" : "Edit block:")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .padding(.horizontal)
+            TextField("Title", text: $viewModel.storyTitle)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .font(.title2)
+                .padding(.horizontal)
+            TextEditor(text: $viewModel.storyText)
+                .font(.title3)
+                .frame(height: 120)
+                .padding(4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                )
+                .padding(.horizontal)
+            Button(action: {
+                if let editing = viewModel.editingStoryBlock {
+                    var updated = editing
+                    updated.title = viewModel.storyTitle
+                    updated.content = viewModel.storyText
+                    viewModel.editStoryBlock(updated)
+                } else {
+                    viewModel.addStoryBlock()
+                }
+            }) {
+                Text(viewModel.editingStoryBlock == nil ? "Save" : "Update")
+                    .font(.body)
+                    .fontWeight(.bold)
+                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    .padding(.top, 8)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .frame(maxWidth: .infinity, alignment: .center)
+        }
+        .padding(.vertical)
+        .alert(isPresented: $showDeleteAlert) {
+            Alert(
+                title: Text("Delete Story Block"),
+                message: Text("Are you sure you want to delete this story block? This action cannot be undone."),
+                primaryButton: .destructive(Text("Delete")) {
+                    if let block = blockToDelete {
+                        viewModel.deleteStoryBlock(block)
+                        blockToDelete = nil
+                    }
+                },
+                secondaryButton: .cancel {
+                    blockToDelete = nil
+                }
+            )
+        }
     }
 }
 
@@ -213,7 +365,6 @@ struct EditPortalView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Custom Back Header
             HStack {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
@@ -244,7 +395,6 @@ struct EditPortalView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Add/Change Images Button
                     PhotosPicker(
                         selection: $photoPickerItems,
                         maxSelectionCount: 10 - viewModel.selectedImages.count,
@@ -260,7 +410,6 @@ struct EditPortalView: View {
                         viewModel.loadImages(from: newItems)
                     }
 
-                    // Editable Portal Images (swipeable)
                     if !viewModel.selectedImages.isEmpty {
                         TabView(selection: $viewModel.mainImageIndex) {
                             ForEach(Array(viewModel.selectedImages.enumerated()), id: \.offset) { idx, image in
@@ -309,7 +458,6 @@ struct EditPortalView: View {
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    // Editable Fields
                     Group {
                         TextField("Portal Name", text: $viewModel.name)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
@@ -317,37 +465,10 @@ struct EditPortalView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         TextField("About", text: $viewModel.about)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
-                        // Add pickers for category, city, etc. as needed
                     }
 
-                    // Editable Sections (Story, Offering, Results)
-                    PortalSegmentedPicker(
-                        segments: ["Story", "Offering", "Results"],
-                        selectedIndex: $viewModel.section
-                    )
-                    .padding(.vertical, 8)
-
-                    if viewModel.section == 0 {
-                        // Editable Story Section
-                        TextEditor(text: $viewModel.storyText)
-                            .frame(height: 120)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
-                    } else if viewModel.section == 1 {
-                        // Editable Offering Section
-                        TextEditor(text: $viewModel.offeringText)
-                            .frame(height: 120)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.3)))
-                    } else if viewModel.section == 2 {
-                        // Editable Results Section (Goals)
-                        ForEach($viewModel.goals) { $goal in
-                            EditableGoalView(goal: $goal)
-                        }
-                        Button("+ Add Goal") {
-                            viewModel.addGoal()
-                        }
-                        .font(.caption)
-                        .foregroundColor(.blue)
-                    }
+                    // Story blocks editing section
+                    PortalStoryBlocksEditorView(viewModel: viewModel)
                 }
                 .padding()
             }

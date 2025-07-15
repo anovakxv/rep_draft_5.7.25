@@ -43,6 +43,10 @@ def add_goal_progress(goal_id):
     if not goal:
         return jsonify({'error': 'Goal not found'}), 404
 
+    # --- PATCH: Prevent manual progress for Recruiting goals ---
+    if goal.goal_type == "Recruiting":
+        return jsonify({'error': 'Recruiting goals update automatically. Manual progress is not allowed.'}), 400
+
     # Permission: Only owner or confirmed team member can update
     is_owner = goal.users_id == user_id
     is_team_member = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id, confirmed=1).count() > 0
@@ -50,7 +54,7 @@ def add_goal_progress(goal_id):
         return jsonify({'error': 'Permission denied'}), 403
 
     # Prevent update for internal goal types (1, 2, 5)
-    if str(goal.goal_types_id) in ['1', '2', '5']:
+    if hasattr(goal, "goal_types_id") and str(goal.goal_types_id) in ['1', '2', '5']:
         return jsonify({'error': 'INTERNAL GOALS (No Update Goal Form Needed)'}), 400
 
     # Add progress log
@@ -81,6 +85,11 @@ def edit_goal_progress(goal_id, log_id):
     if log.users_id != user_id:
         return jsonify({'error': 'Permission denied'}), 403
 
+    goal = Goal.query.get(goal_id)
+    # --- PATCH: Prevent manual progress edit for Recruiting goals ---
+    if goal and goal.goal_type == "Recruiting":
+        return jsonify({'error': 'Recruiting goals update automatically. Manual progress is not allowed.'}), 400
+
     diff = 0
     if 'note' in data:
         log.note = data['note']
@@ -93,7 +102,6 @@ def edit_goal_progress(goal_id, log_id):
         log.added_value = new_value
         log.value += diff
         # Update goal's filled_quota accordingly
-        goal = Goal.query.get(goal_id)
         if goal:
             goal.filled_quota = max(0, (goal.filled_quota or 0) + diff)
     db.session.commit()
@@ -111,8 +119,12 @@ def delete_goal_progress(goal_id, log_id):
     if log.users_id != user_id:
         return jsonify({'error': 'Permission denied'}), 403
 
-    # Adjust goal's filled_quota
     goal = Goal.query.get(goal_id)
+    # --- PATCH: Prevent manual progress delete for Recruiting goals ---
+    if goal and goal.goal_type == "Recruiting":
+        return jsonify({'error': 'Recruiting goals update automatically. Manual progress is not allowed.'}), 400
+
+    # Adjust goal's filled_quota
     if goal:
         goal.filled_quota = max(0, (goal.filled_quota or 0) - log.added_value)
     db.session.delete(log)

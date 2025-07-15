@@ -18,9 +18,19 @@ from datetime import datetime
 from app.utils.auth import jwt_required
 from werkzeug.utils import secure_filename
 import uuid
+import boto3
+import os
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+S3_BUCKET = "rep-app-dbbucket"
+
+s3 = boto3.client(
+    's3',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.environ.get('AWS_DEFAULT_REGION')
+)
 
 portal_bp = Blueprint('portal', __name__)
 
@@ -172,7 +182,9 @@ def api_create_portal():
             db.session.flush()
             for img in images:
                 filename = secure_filename(img.filename)
-                # Use S3_BASE_URL for the image URL
+                img.seek(0)
+                # Upload to S3
+                s3.upload_fileobj(img, S3_BUCKET, filename)
                 s3_url = f"{S3_BASE_URL}{filename}"
                 gr_hash = f"{uuid.uuid4().hex}_{filename}"
                 img.seek(0)
@@ -286,7 +298,9 @@ def api_edit_portal():
         PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=main_section.id).delete(synchronize_session=False)
         for img in images:
             filename = secure_filename(img.filename)
-            # Use S3_BASE_URL for the image URL
+            img.seek(0)
+            # Upload to S3
+            s3.upload_fileobj(img, S3_BUCKET, filename)
             s3_url = f"{S3_BASE_URL}{filename}"
             gr_hash = f"{uuid.uuid4().hex}_{filename}"
             img.seek(0)

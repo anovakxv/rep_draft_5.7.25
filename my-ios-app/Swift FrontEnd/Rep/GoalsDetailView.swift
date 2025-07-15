@@ -142,31 +142,38 @@ struct GoalsDetailView: View {
             // --- Custom Action Sheet ---
             .sheet(isPresented: $showActionSheet) {
                 VStack(spacing: 24) {
-                    Button(action: {
-                        showUpdateGoalSheet = true
-                        showActionSheet = false
-                    }) {
-                        Text("Update Progress")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
+                    if viewModel.goal.typeName == "Recruiting" {
+                        Button(action: {
+                            viewModel.joinRecruitingGoal(goalId: viewModel.goal.id) { success in
+                                showActionSheet = false
+                                if success {
+                                    viewModel.load(goalId: viewModel.goal.id)
+                                }
+                            }
+                        }) {
+                            Text("Join Team")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                    } else {
+                        Button(action: {
+                            showUpdateGoalSheet = true
+                            showActionSheet = false
+                        }) {
+                            Text("Update Progress")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
                     }
                     Button(action: {
                         showEditGoalSheet = true
                         showActionSheet = false
                     }) {
                         Text("Edit Goal")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
-                    }
-                    Button(action: {
-                        showInviteTeamSheet = true
-                        showActionSheet = false
-                    }) {
-                        Text("Invite Team")
                             .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                             .font(.title2)
                             .fontWeight(.bold)
@@ -349,6 +356,35 @@ class GoalsDetailViewModel: ObservableObject {
         }.resume()
     }
 
+    func joinRecruitingGoal(goalId: Int, completion: @escaping (Bool) -> Void) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/join_leave"),
+              !jwtToken.isEmpty else {
+            completion(false)
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        let params: [String: Any] = [
+            "aGoalsIDs": [goalId],
+            "todo": "join"
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: params)
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let result = json["result"] as? [String: Any],
+                   result["\(goalId)"] as? String == "ok" {
+                    completion(true)
+                } else {
+                    completion(false)
+                }
+            }
+        }.resume()
+    }
+
     func goBack() {
         // Handle navigation back
     }
@@ -479,9 +515,9 @@ struct FeedCell: View {
                     .font(.caption)
                 Text(feed.line2)
                     .font(.subheadline)
-                Text(feed.line3)
+                Text("Note: \(feed.line3.isEmpty ? "NA" : feed.line3)")
                     .font(.subheadline)
-                Text(feed.line4)
+                Text("Attachments: NA") // Replace with actual attachment logic if needed
                     .font(.subheadline)
             }
             .padding(.top, 4)
@@ -506,8 +542,6 @@ struct TeamCell: View {
 
 // MARK: - Large Bar Chart View
 
-// MARK: - Large Bar Chart View
-
 struct LargeBarChartView: View {
     let data: [BarChartData]
 
@@ -522,7 +556,7 @@ struct LargeBarChartView: View {
                         Rectangle()
                             .fill(Color.repGreen)
                             .frame(
-                                width: 20,
+                                width: 40,
                                 height: CGFloat(item.value) / CGFloat(maxValue) * (geometry.size.height - 24)
                             )
                         Text(item.bottomLabel)

@@ -165,7 +165,7 @@ struct MessageView: View {
                 TextField("Type a message...", text: $viewModel.inputText)
                     .padding(12)
                     .background(Color(UIColor.systemGray6))
-                    .cornerRadius(20)
+                    .cornerRadius(8)
                     .font(.body)
                 Button(action: {
                     viewModel.sendMessage()

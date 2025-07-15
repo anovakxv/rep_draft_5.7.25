@@ -45,10 +45,18 @@ class Goal(db.Model):
     @property
     def progress(self):
         """Returns progress as a float between 0 and 1."""
+        # For Recruiting goals, progress is based on team size
+        if self.goal_type == "Recruiting":
+            filled_quota = self.team_members.filter_by(confirmed=1).count()
+            return round(filled_quota / self.quota, 2) if self.quota else 0
         return round(self.filled_quota / self.quota, 2) if self.quota else 0
 
     def is_quota_reached(self):
         """Returns True if the goal's quota has been reached or exceeded."""
+        # For Recruiting goals, check team size
+        if self.goal_type == "Recruiting":
+            filled_quota = self.team_members.filter_by(confirmed=1).count()
+            return filled_quota >= self.quota if self.quota else False
         return self.filled_quota >= self.quota if self.quota else False
 
     def can_user_edit(self, user_id):
@@ -90,6 +98,11 @@ class Goal(db.Model):
         Returns a dict representation of the Goal, suitable for both list and detail views.
         Set include_team/progress_logs True to include team or feed data for detail pages.
         """
+        # --- PATCH: For Recruiting goals, filled_quota = confirmed team members ---
+        filled_quota = self.filled_quota
+        if self.goal_type == "Recruiting":
+            filled_quota = self.team_members.filter_by(confirmed=1).count()
+
         # Format chart data for Swift, add id to each chartData item
         chart_data = [
             {
@@ -103,7 +116,7 @@ class Goal(db.Model):
 
         # Format quota and value strings for display
         quota_string = str(self.quota)
-        value_string = str(self.filled_quota)
+        value_string = str(filled_quota)
 
         # Team info (for detail view)
         team = None
@@ -141,10 +154,10 @@ class Goal(db.Model):
             "title": self.title,
             "subtitle": self.subtitle or "",
             "description": self.description or "",
-            "progress": round(self.filled_quota / self.quota, 2) if self.quota else 0,
-            "progressPercent": round(100 * self.filled_quota / self.quota) if self.quota else 0,
+            "progress": round(filled_quota / self.quota, 2) if self.quota else 0,
+            "progressPercent": round(100 * filled_quota / self.quota) if self.quota else 0,
             "quota": self.quota,
-            "filledQuota": self.filled_quota,
+            "filledQuota": filled_quota,
             "metricName": self.metric,
             "typeName": self.goal_type,
             "reportingName": self.reporting_increment.title if self.reporting_increment else "",

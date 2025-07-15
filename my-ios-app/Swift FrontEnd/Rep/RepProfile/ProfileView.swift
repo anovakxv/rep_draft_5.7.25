@@ -877,9 +877,14 @@ struct ProfileInfoView: View {
     }
 }
 
+// ...existing code...
+
 struct WriteContentView: View {
     @ObservedObject var viewModel: ProfileViewModel
     let isCurrentUser: Bool
+
+    @State private var showDeleteAlert = false
+    @State private var blockToDelete: WriteBlock?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -892,10 +897,11 @@ struct WriteContentView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if let title = write.title, !title.isEmpty {
                             Text(title)
-                                .font(.headline)
+                                .font(.title2)
+                                .fontWeight(.medium)
                         }
                         Text(write.content)
-                            .font(.body)
+                            .font(.title3)
                         if isCurrentUser {
                             HStack {
                                 Button("Edit") {
@@ -903,12 +909,14 @@ struct WriteContentView: View {
                                     viewModel.writeTitle = write.title ?? ""
                                     viewModel.writeText = write.content
                                 }
-                                .font(.caption)
+                                .font(.title3)
                                 .foregroundColor(.blue)
+                                Spacer()
                                 Button("Delete") {
-                                    viewModel.deleteWrite(write)
+                                    blockToDelete = write
+                                    showDeleteAlert = true
                                 }
-                                .font(.caption)
+                                .font(.title3)
                                 .foregroundColor(.red)
                             }
                         }
@@ -927,8 +935,10 @@ struct WriteContentView: View {
                     .padding(.horizontal)
                 TextField("Title", text: $viewModel.writeTitle)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.title2)
                     .padding(.horizontal)
                 TextEditor(text: $viewModel.writeText)
+                    .font(.title3)
                     .frame(height: 120)
                     .padding(4)
                     .overlay(
@@ -959,6 +969,21 @@ struct WriteContentView: View {
         .padding(.vertical)
         .onAppear {
             viewModel.fetchWrites(for: viewModel.viewedUserId)
+        }
+        .alert(isPresented: $showDeleteAlert) {
+            Alert(
+                title: Text("Delete Writing Block"),
+                message: Text("Are you sure you want to delete this writing block? This action cannot be undone."),
+                primaryButton: .destructive(Text("Delete")) {
+                    if let block = blockToDelete {
+                        viewModel.deleteWrite(block)
+                        blockToDelete = nil
+                    }
+                },
+                secondaryButton: .cancel {
+                    blockToDelete = nil
+                }
+            )
         }
     }
 }

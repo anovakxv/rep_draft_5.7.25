@@ -15,9 +15,18 @@ import hashlib
 import os
 import uuid
 from werkzeug.utils import secure_filename
+import boto3
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+S3_BUCKET = "rep-app-dbbucket"
+
+s3 = boto3.client(
+    's3',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.environ.get('AWS_DEFAULT_REGION')
+)
 
 def patch_profile_picture_url(user_row):
     url = user_row.get('profile_picture_url')
@@ -100,8 +109,8 @@ def api_edit_user():
         file = files['profile_picture']
         if file and allowed_file(file.filename):
             filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
-            # In production, you would upload to S3 here and set the S3 URL
-            # For now, just use the filename as the key
+            file.seek(0)
+            s3.upload_fileobj(file, S3_BUCKET, filename)
             user.profile_picture_url = filename
 
     db.session.commit()

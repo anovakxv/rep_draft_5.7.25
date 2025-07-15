@@ -229,7 +229,9 @@ struct PortalPageContent: View {
                 }
             }
         }
-        .sheet(isPresented: $viewModel.isEditPresented) {
+        .sheet(isPresented: $viewModel.isEditPresented, onDismiss: {
+            viewModel.fetchPortalDetail(portalId: portal.id, userId: userId)
+        }) {
             EditPortalView(portal: portal, userId: userId)
         }
         .sheet(isPresented: $showMessageSheet) {
@@ -494,10 +496,21 @@ struct PortalStorySection: View {
                 }
             }
             Divider()
-            Text("Description")
-                .font(.headline)
-            Text(portal.about ?? "")
-                .font(.body)
+            // Show Story Text Blocks
+            ForEach((portal.aTexts ?? []).filter { ($0.section ?? "") == "story" }) { block in
+                VStack(alignment: .leading, spacing: 4) {
+                    if let title = block.title, !title.isEmpty {
+                        Text(title)
+                            .font(.title2)
+                            .fontWeight(.medium)
+                    }
+                    if let text = block.text, !text.isEmpty {
+                        Text(text)
+                            .font(.body)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
         }
     }
 }
@@ -562,7 +575,12 @@ struct PortalUser: Identifiable, Codable {
 
 struct PortalText: Identifiable, Codable {
     let id: Int
-    let text: String
+    let portal_id: Int
+    let title: String?
+    let text: String?
+    let section: String?
+    let created_at: String?
+    let updated_at: String?
 }
 
 struct PortalSection: Identifiable, Codable {

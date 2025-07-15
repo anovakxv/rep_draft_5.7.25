@@ -49,4 +49,8 @@ def api_join_leave_goal():
                 # Optionally: remove progress log, send notifications, etc.
 
     db.session.commit()
-    return jsonify({'result': results})
+    # --- PATCH: Return updated team size for each goal ---
+    team_sizes = {}
+    for goal_id in goals_ids:
+        team_sizes[goal_id] = GoalTeam.query.filter_by(goals_id=goal_id, confirmed=1).count()
+    return jsonify({'result': results, 'team_sizes': team_sizes})

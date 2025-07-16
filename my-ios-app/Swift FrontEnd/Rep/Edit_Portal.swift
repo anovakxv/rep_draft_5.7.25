@@ -1,8 +1,10 @@
-//  Rep
+//
 //  Edit_Portal.swift
+//  Rep
 //
 //  Created by Adam Novak on 06.23.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+//
 
 import SwiftUI
 import PhotosUI
@@ -69,6 +71,9 @@ class EditPortalViewModel: ObservableObject {
     @Published var storyText: String = ""
     @Published var editingStoryBlock: PortalWriteBlock? = nil
 
+    // Add Leads
+    @Published var selectedLeads: [User] = []
+
     let portalId: Int
     let userId: Int
     let maxImages = 10
@@ -87,6 +92,7 @@ class EditPortalViewModel: ObservableObject {
         self.storyBlocks = (portal.aTexts?.enumerated().map { idx, text in
             PortalWriteBlock(title: text.title ?? "", content: text.text ?? "", order: idx)
         } ?? [])
+        // Optionally prefill selectedLeads from portal.aUsers if needed
     }
 
     func addGoal() {
@@ -183,6 +189,14 @@ class EditPortalViewModel: ObservableObject {
         ]
         if let textsData = try? JSONSerialization.data(withJSONObject: texts) {
             appendFormField("aTexts", String(data: textsData, encoding: .utf8) ?? "")
+        }
+
+        // --- FIX: Send aLeadsIDs as JSON array ---
+        if !selectedLeads.isEmpty {
+            let leadIdsArray = selectedLeads.map { $0.id }
+            if let data = try? JSONSerialization.data(withJSONObject: leadIdsArray) {
+                appendFormField("aLeadsIDs", String(data: data, encoding: .utf8) ?? "")
+            }
         }
 
         for (idx, image) in selectedImages.prefix(maxImages).enumerated() {
@@ -349,12 +363,94 @@ struct PortalStoryBlocksEditorView: View {
     }
 }
 
+// MARK: - AddLeadsSheet
+
+struct AddLeadsSheet: View {
+    @Binding var selectedLeads: [User]
+    let userId: Int
+
+    @State private var networkMembers: [User] = []
+    @State private var loading = true
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List(networkMembers, id: \.id) { user in
+                UserSelectionRow(
+                    title: user.displayName,
+                    isSelected: selectedLeads.contains(where: { $0.id == user.id })
+                ) {
+                    if let idx = selectedLeads.firstIndex(where: { $0.id == user.id }) {
+                        selectedLeads.remove(at: idx)
+                    } else {
+                        selectedLeads.append(user)
+                    }
+                }
+            }
+            .navigationTitle("Select Leads")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                fetchNetworkMembers()
+            }
+        }
+    }
+
+    func fetchNetworkMembers() {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/members_of_my_network") else {
+            self.loading = false
+            return
+        }
+        var request = URLRequest(url: url)
+        if let token = UserDefaults.standard.string(forKey: "jwtToken") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            defer { loading = false }
+            guard let data = data else { return }
+            if let decoded = try? JSONDecoder().decode([String: [User]].self, from: data),
+               let users = decoded["result"] {
+                DispatchQueue.main.async {
+                    self.networkMembers = users
+                }
+            }
+        }.resume()
+    }
+}
+
+// MARK: - UserSelectionRow (unique for this file)
+
+struct UserSelectionRow: View {
+    let title: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Text(title)
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .foregroundColor(.accentColor)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - EditPortalView
 
 struct EditPortalView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: EditPortalViewModel
     @State private var photoPickerItems: [PhotosPickerItem] = []
+    @State private var showAddLeadsSheet = false
 
     let userId: Int
 
@@ -465,6 +561,29 @@ struct EditPortalView: View {
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                         TextField("About", text: $viewModel.about)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+
+                    // --- Add Leads Field ---
+                    Button(action: { showAddLeadsSheet = true }) {
+                        HStack {
+                            Text("Add Leads")
+                            Spacer()
+                            if !viewModel.selectedLeads.isEmpty {
+                                Text("\(viewModel.selectedLeads.count) selected")
+                                    .foregroundColor(.secondary)
+                            }
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                        }
+                        .padding()
+                        .background(Color(UIColor.systemGray6))
+                        .cornerRadius(8)
+                    }
+                    .sheet(isPresented: $showAddLeadsSheet) {
+                        AddLeadsSheet(
+                            selectedLeads: $viewModel.selectedLeads,
+                            userId: userId
+                        )
                     }
 
                     // Story blocks editing section

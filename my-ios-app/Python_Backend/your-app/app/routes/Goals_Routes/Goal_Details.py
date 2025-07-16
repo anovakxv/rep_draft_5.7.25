@@ -76,7 +76,7 @@ def api_goal_details():
         {
             "id": u.id,
             "name": f"{getattr(u, 'fname', '')} {getattr(u, 'lname', '')}".strip() or getattr(u, 'username', ''),
-            "imageName": "profile_placeholder"
+            "imageName": getattr(u, 'profile_picture_url', '') or "profile_placeholder"
         }
         for u in users
     ]
@@ -90,12 +90,24 @@ def api_goal_details():
             "added_value": log.added_value,
             "note": log.note,
             "value": log.value,
-            "timestamp": log.timestamp.isoformat() if log.timestamp else None
+            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
+            "user_imageName": getattr(log.user, 'profile_picture_url', '') or "profile_placeholder"
         }
         for log in logs
     ]
 
+    # --- PATCH: Use correct filled_quota for non-Recruiting goals ---
     result = goal.as_dict()
+    if goal.goal_type == "Recruiting":
+        result["filled_quota"] = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).count()
+    else:
+        latest_log = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).first()
+        result["filled_quota"] = latest_log.value if latest_log else 0
+        # Optionally update progress and progress_percent for non-Recruiting
+        result["progress"] = round(result["filled_quota"] / result["quota"], 2) if result.get("quota") else 0
+        result["progress_percent"] = round(100 * result["filled_quota"] / result["quota"]) if result.get("quota") else 0
+        result["valueString"] = str(int(result["filled_quota"]))
+
     result["team"] = team
     result["aLatestProgress"] = a_latest_progress
 
@@ -161,15 +173,17 @@ def api_create_goal():
     team = GoalTeam(users_id1=user_id, users_id2=user_id, goals_id=goal.id, confirmed=1)
     db.session.add(team)
     db.session.commit()
-    progress_log = GoalProgressLog(
-        users_id=user_id,
-        goals_id=goal.id,
-        added_value=1.0,
-        note="Goal created",
-        value=1.0
-    )
-    db.session.add(progress_log)
-    db.session.commit()
+    # Only create initial progress log for Recruiting goals
+    if goal_type == "Recruiting":
+        progress_log = GoalProgressLog(
+            users_id=user_id,
+            goals_id=goal.id,
+            added_value=1.0,
+            note="Goal created",
+            value=1.0
+        )
+        db.session.add(progress_log)
+        db.session.commit()
     return jsonify({'result': goal.as_dict()})
 
 @goals_bp.route('/reporting_increments', methods=['GET'])

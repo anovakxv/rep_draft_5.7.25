@@ -101,10 +101,16 @@ def api_portal_details():
             'aFiles': files_by_section.get(section.id, [])
         })
 
-    # Compose users (owners and portal users)
+    # --- FIX: Compose users and leads separately ---
     portal_users = portal.portal_users
-    user_ids = set([portal.users_id] + [pu.user_id for pu in portal_users])
-    users = User.query.filter(User.id.in_(user_ids)).all()
+    # All users (all roles)
+    all_user_ids = set([portal.users_id] + [pu.user_id for pu in portal_users])
+    all_users = User.query.filter(User.id.in_(all_user_ids)).all()
+
+    # Only leads (role='lead')
+    portal_leads = [pu for pu in portal_users if pu.role == 'lead']
+    lead_user_ids = set([portal.users_id] + [pu.user_id for pu in portal_leads])
+    lead_users = User.query.filter(User.id.in_(lead_user_ids)).all()
 
     # Compose goals
     goals = Goal.query.filter_by(portals_id=portal.id).order_by(Goal.id.desc()).all()
@@ -132,7 +138,10 @@ def api_portal_details():
         'aPortalUsers': [pu.as_dict() for pu in portal_users],
         'aTexts': [t.as_dict() for t in texts],
         'aSections': aSections,
-        'aUsers': [user_as_portal_dict(u) for u in users]
+        'aUsers': [user_as_portal_dict(u) for u in all_users],      # All users (members, leads, etc.)
+        'aLeads': [user_as_portal_dict(u) for u in lead_users],     # Only leads (for "Leads" section)
+        'lead_user_count': len(lead_user_ids),                      # Unique count of leads
+        'user_count': len(all_user_ids),                            # Unique count of all users
     }
 
     return jsonify({'result': portal_data})

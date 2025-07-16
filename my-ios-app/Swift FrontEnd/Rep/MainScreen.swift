@@ -1,4 +1,3 @@
-//  MainScreen.swift
 //  Rep
 //
 //  Created by Dmytro Holovko on 02.12.2023.
@@ -349,6 +348,7 @@ struct MainScreen: View {
     @StateObject private var portalsVM = PortalsViewModel()
     @StateObject private var peopleVM = PeopleViewModel()
     @AppStorage("userId") var userId: Int = 0
+    @AppStorage("jwtToken") var jwtToken: String = ""
     @State private var page: Page = .portals
     @State private var section = 2
 
@@ -361,6 +361,9 @@ struct MainScreen: View {
     // Search State
     @State private var searchText: String = ""
     @State private var searchDebounceTimer: Timer?
+
+    // Current user info for profile pic
+    @State private var currentUser: User? = nil
 
     var body: some View {
         NavigationStack {
@@ -430,10 +433,20 @@ struct MainScreen: View {
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink(destination: ProfileView(userId: userId)) {
-                        Image(systemName: "person.crop.circle")
-                            .resizable()
+                        if let url = currentUser?.profilePictureURL {
+                            AsyncImage(url: url) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                Circle().fill(Color.gray.opacity(0.3))
+                            }
                             .frame(width: Constants.imageSize, height: Constants.imageSize)
                             .clipShape(Circle())
+                        } else {
+                            Image(systemName: "person.crop.circle")
+                                .resizable()
+                                .frame(width: Constants.imageSize, height: Constants.imageSize)
+                                .clipShape(Circle())
+                        }
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -579,6 +592,7 @@ struct MainScreen: View {
             } else {
                 peopleVM.fetchPeople(userId: userId, section: section)
             }
+            fetchCurrentUser()
         }
     }
 
@@ -623,8 +637,25 @@ struct MainScreen: View {
         }
         // For OPEN/NTWK, keep local filtering
     }
-}
 
+    private func fetchCurrentUser() {
+        guard !jwtToken.isEmpty else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/me") else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data = data else { return }
+            do {
+                let decoded = try JSONDecoder().decode(UserProfileAPIResponse.self, from: data)
+                DispatchQueue.main.async {
+                    self.currentUser = decoded.result
+                }
+            } catch {
+                // Ignore error, fallback to placeholder
+            }
+        }.resume()
+    }
+}
 // MARK: - Portal List
 
 struct PortalList: View {

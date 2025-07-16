@@ -364,6 +364,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func deleteWrite(_ write: WriteBlock) {
+        print("deleteWrite called for id:", write.id)
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write/\(write.id)") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
@@ -976,7 +977,6 @@ struct ProfileInfoView: View {
         }
         .padding(15)
         .onAppear {
-            print("Profile pic URL:", photoURL as Any)
         }
     }
 }
@@ -1072,24 +1072,21 @@ struct WriteContentView: View {
         .onAppear {
             viewModel.fetchWrites(for: viewModel.viewedUserId)
         }
-        .alert(isPresented: $showDeleteAlert) {
-            Alert(
-                title: Text("Delete Writing Block"),
-                message: Text("Are you sure you want to delete this writing block? This action cannot be undone."),
-                primaryButton: .destructive(Text("Delete")) {
-                    if let block = blockToDelete {
-                        viewModel.deleteWrite(block)
-                        blockToDelete = nil
-                    }
-                },
-                secondaryButton: .cancel {
+        .alert("Delete Writing Block", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                if let block = blockToDelete {
+                    viewModel.deleteWrite(block)
                     blockToDelete = nil
                 }
-            )
+            }
+            Button("Cancel", role: .cancel) {
+                blockToDelete = nil
+            }
+        } message: {
+            Text("Are you sure you want to delete this writing block? This action cannot be undone.")
         }
     }
 }
-
 // MARK: - BottomBarView
 
 struct BottomBarView: View {

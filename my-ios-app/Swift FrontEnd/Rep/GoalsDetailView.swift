@@ -289,6 +289,17 @@ class GoalsDetailViewModel: ObservableObject {
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("userId") var currentUserId: Int = 0
 
+    private let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
+    func patchProfilePictureURL(_ imageName: String?) -> URL? {
+        guard let imageName = imageName, !imageName.isEmpty else { return nil }
+        if imageName.starts(with: "http") {
+            return URL(string: imageName)
+        } else {
+            return URL(string: s3BaseURL + imageName)
+        }
+    }
+
     func load(goalId: Int) {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/details?goals_id=\(goalId)") else { return }
         var request = URLRequest(url: url)
@@ -320,11 +331,12 @@ class GoalsDetailViewModel: ObservableObject {
                         portalId: apiGoal.portalId
                     )
                     // --- FEED: Use user name if available, format timestamp, round value ---
-                    let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0.name ?? "") })
+                    let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
                     self.feed = apiGoal.aLatestProgress?.compactMap { log in
-                        let userName = teamDict[log.users_id ?? 0] ?? "User"
+                        let apiUser = teamDict[log.users_id ?? 0]
+                        let userName = apiUser?.name ?? "User"
                         let formattedDate = Self.formatDateString(log.timestamp)
-                        // Defensive: skip if log.id is missing (shouldn't happen), or other required fields
+                        let profilePictureURL = self.patchProfilePictureURL(apiUser?.imageName)
                         return Feed(
                             id: log.id,
                             userImageName: "profile_placeholder",
@@ -332,7 +344,8 @@ class GoalsDetailViewModel: ObservableObject {
                             line1: formattedDate,
                             line2: "Value: \(Int(round(log.value ?? 0)))",
                             line3: log.note ?? "",
-                            line4: ""
+                            line4: "",
+                            userProfilePictureURL: profilePictureURL
                         )
                     } ?? []
                     self.team = apiGoal.team?.map { apiUser in
@@ -344,7 +357,7 @@ class GoalsDetailViewModel: ObservableObject {
                             username: "",
                             about: nil,
                             broadcast: nil,
-                            profilePictureURL: nil,
+                            profilePictureURL: self.patchProfilePictureURL(apiUser.imageName),
                             imageName: apiUser.imageName ?? "profile_placeholder",
                             userType: nil,
                             city: nil,
@@ -506,6 +519,7 @@ struct Feed: Identifiable {
     let line2: String
     let line3: String
     let line4: String
+    let userProfilePictureURL: URL?
 }
 
 // MARK: - Bar Chart Data Model
@@ -531,11 +545,19 @@ struct FeedCell: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            Image(feed.userImageName)
-                .resizable()
-                .scaledToFill()
+            if let url = feed.userProfilePictureURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Circle().fill(Color.gray.opacity(0.3))
+                }
                 .frame(width: 80, height: 80)
                 .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 80, height: 80)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(feed.userName)
@@ -559,11 +581,19 @@ struct TeamCell: View {
     let user: User
     var body: some View {
         HStack {
-            Image(user.imageName ?? "profile_placeholder")
-                .resizable()
-                .scaledToFill()
+            if let url = user.profilePictureURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().scaledToFill()
+                } placeholder: {
+                    Circle().fill(Color.gray.opacity(0.3))
+                }
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 40, height: 40)
+            }
             Text(user.fullName ?? "")
         }
     }

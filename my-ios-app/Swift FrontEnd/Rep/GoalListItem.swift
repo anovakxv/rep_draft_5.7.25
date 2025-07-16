@@ -1,4 +1,3 @@
-//  GoalListItem.swift
 //  Rep
 //
 //  Created by Dmytro Holovko on 10.29.2023.
@@ -29,7 +28,8 @@ struct GoalListItem: View {
                                     }()
                                 )
                                 .cornerRadius(3)
-                            Text(bar.valueLabel)
+                            // Show value as Int (no decimal)
+                            Text("\(Int(bar.value))")
                                 .font(.caption2)
                                 .foregroundColor(.black)
                         }
@@ -47,8 +47,8 @@ struct GoalListItem: View {
                         .font(.subheadline)
                 }
                 Text("\(Int(goal.progressPercent))% [\(goal.typeName)]")
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .font(.callout) // Slightly larger than caption2
+                    .foregroundColor(.black) // Make text black
             }
             Spacer()
         }

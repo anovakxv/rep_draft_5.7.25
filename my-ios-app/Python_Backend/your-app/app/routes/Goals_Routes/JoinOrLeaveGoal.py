@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('join_leave_goal', __name__)
@@ -39,7 +40,18 @@ def api_join_leave_goal():
                 new_team = GoalTeam(goals_id=goal_id, users_id1=user_id, users_id2=user_id, confirmed=1)
                 db.session.add(new_team)
                 results[goal_id] = "ok"
-                # Optionally: log progress, send notifications, etc.
+                # --- PATCH: Add progress log for Recruiting goals ---
+                if goal.goal_type == "Recruiting":
+                    existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=user_id).first()
+                    if not existing_log:
+                        progress_log = GoalProgressLog(
+                            users_id=user_id,
+                            goals_id=goal_id,
+                            added_value=1.0,
+                            note="Joined team",
+                            value=1.0
+                        )
+                        db.session.add(progress_log)
         elif todo == 'leave':
             if not team:
                 results[goal_id] = "Not a member"

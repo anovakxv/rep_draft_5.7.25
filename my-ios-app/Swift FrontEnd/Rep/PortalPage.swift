@@ -594,11 +594,21 @@ struct PortalStorySection: View {
                 .font(.headline)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack {
-                    ForEach(portal.aUsers ?? []) { user in
+                    ForEach(portal.aLeads ?? []) { user in   // <-- Use aLeads here
                         VStack {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
+                            if let url = user.profilePictureURL {
+                                AsyncImage(url: url) { image in
+                                    image.resizable().scaledToFill()
+                                } placeholder: {
+                                    Circle().fill(Color.gray.opacity(0.3))
+                                }
                                 .frame(width: 28, height: 28)
+                                .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 28, height: 28)
+                            }
                             Text("\(user.fname?.prefix(1) ?? "")\(user.lname?.prefix(1) ?? "")")
                                 .font(.caption2)
                                 .fontWeight(.semibold)
@@ -673,6 +683,7 @@ struct PortalDetail: Identifiable, Codable {
     let aTexts: [PortalText]?
     let aSections: [PortalSection]?
     let aUsers: [User]?
+    let aLeads: [User]? 
 }
 
 struct PortalUser: Identifiable, Codable {

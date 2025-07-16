@@ -49,7 +49,10 @@ class Goal(db.Model):
         if self.goal_type == "Recruiting":
             filled_quota = self.team_members.filter_by(confirmed=1).count()
             return round(filled_quota / self.quota, 2) if self.quota else 0
-        return round(self.filled_quota / self.quota, 2) if self.quota else 0
+        # For non-Recruiting, use latest progress log value if available
+        latest_log = self.progress_logs.order_by(db.desc('timestamp')).first()
+        filled_quota = latest_log.value if latest_log else 0
+        return round(filled_quota / self.quota, 2) if self.quota else 0
 
     def is_quota_reached(self):
         """Returns True if the goal's quota has been reached or exceeded."""
@@ -57,7 +60,10 @@ class Goal(db.Model):
         if self.goal_type == "Recruiting":
             filled_quota = self.team_members.filter_by(confirmed=1).count()
             return filled_quota >= self.quota if self.quota else False
-        return self.filled_quota >= self.quota if self.quota else False
+        # For non-Recruiting, use latest progress log value if available
+        latest_log = self.progress_logs.order_by(db.desc('timestamp')).first()
+        filled_quota = latest_log.value if latest_log else 0
+        return filled_quota >= self.quota if self.quota else False
 
     def can_user_edit(self, user_id):
         """
@@ -99,9 +105,12 @@ class Goal(db.Model):
         Set include_team/progress_logs True to include team or feed data for detail pages.
         """
         # --- PATCH: For Recruiting goals, filled_quota = confirmed team members ---
-        filled_quota = self.filled_quota
         if self.goal_type == "Recruiting":
             filled_quota = self.team_members.filter_by(confirmed=1).count()
+        else:
+            # For non-Recruiting, use latest progress log value if available
+            latest_log = self.progress_logs.order_by(db.desc('timestamp')).first()
+            filled_quota = latest_log.value if latest_log else 0
 
         # Format chart data for Swift, add id to each chartData item
         chart_data = [

@@ -130,19 +130,6 @@ struct MessageView: View {
                                     Spacer()
                                     MessageBubble(message: message, isCurrentUser: true, profilePicURL: nil)
                                 } else {
-                                    if let url = viewModel.otherUserPhotoURL {
-                                        AsyncImage(url: url) { image in
-                                            image.resizable().aspectRatio(contentMode: .fill)
-                                        } placeholder: {
-                                            SwiftUI.Circle().fill(Color.gray.opacity(0.3))
-                                        }
-                                        .frame(width: 32, height: 32)
-                                        .clipShape(SwiftUI.Circle())
-                                    } else {
-                                        SwiftUI.Circle()
-                                            .fill(Color.gray.opacity(0.3))
-                                            .frame(width: 32, height: 32)
-                                    }
                                     MessageBubble(message: message, isCurrentUser: false, profilePicURL: viewModel.otherUserPhotoURL)
                                     Spacer()
                                 }

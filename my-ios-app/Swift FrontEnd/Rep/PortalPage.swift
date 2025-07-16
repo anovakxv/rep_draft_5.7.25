@@ -629,12 +629,7 @@ struct PortalStorySection: View {
 struct PortalOfferingSection: View {
     let portal: PortalDetail
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("We Offer")
-                .font(.headline)
-            Text(portal.about ?? "")
-                .font(.body)
-        }
+        EmptyView()
     }
 }
 

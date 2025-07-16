@@ -6,6 +6,8 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.People_Models.user import User
+from app.models.ValueMetric_Models.Goal import Goal
+from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('goal_team', __name__)
@@ -61,6 +63,20 @@ def update_goal_team(goal_id):
             team.confirmed = 1
             team.read2 = True
             results[u_id] = "accepted"
+            # --- Add progress log for Recruiting goals ---
+            goal = Goal.query.get(goal_id)
+            if goal and goal.goal_type == "Recruiting":
+                # Only add if not already present for this user/goal
+                existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=u_id).first()
+                if not existing_log:
+                    progress_log = GoalProgressLog(
+                        users_id=u_id,
+                        goals_id=goal_id,
+                        added_value=1.0,
+                        note="Joined team",
+                        value=1.0
+                    )
+                    db.session.add(progress_log)
         elif action == 'decline':
             team.confirmed = -1
             team.read2 = True

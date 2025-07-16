@@ -476,15 +476,10 @@ struct ProfileView: View {
                         // Profile info (now starts below the fixed header)
                         ProfileInfoView(
                             photoURL: viewModel.user.profilePictureURL,
-                            repTypeAndCity: viewModel.user.repTypeAndCity,
+                            city: viewModel.user.city,
                             skills: mappedSkillTitles
                         )
                         VStack(alignment: .leading, spacing: 8) {
-                            if let about = viewModel.user.about, !about.isEmpty {
-                                Text(about)
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                            }
                             if let broadcast = viewModel.user.broadcast, !broadcast.isEmpty {
                                 Text(broadcast)
                                     .font(.body)
@@ -546,6 +541,33 @@ struct ProfileView: View {
                     },
                     onMessage: { showMessageSheet = true }
                 )
+                // --- NavigationLink for EditProfileView (fullscreen push) ---
+                NavigationLink(
+                    destination: EditProfileView(
+                        viewModel: ProfileInfoViewModel(
+                            profileInfo: ProfileInfo(
+                                firstName: viewModel.user.fname ?? "",
+                                lastName: viewModel.user.lname ?? "",
+                                skills: Set(
+                                    (viewModel.user.skills ?? []).compactMap { skillName in
+                                        viewModel.availableSkills.first(where: { $0.title == skillName })
+                                    }
+                                ),
+                                type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
+                                cityName: viewModel.user.city ?? "",
+                                image: nil,
+                                about: viewModel.user.about ?? "",
+                                broadcast: viewModel.user.broadcast ?? "",
+                                otherSkill: ""
+                            ),
+                            mode: .edit
+                        )
+                    ),
+                    isActive: $showEditProfile
+                ) {
+                    EmptyView()
+                }
+                .hidden()
             }
             .navigationBarHidden(true)
             .onAppear {
@@ -726,31 +748,7 @@ struct ProfileView: View {
                     viewModel.fetchGoals()
                 }
             }
-            // PATCH: Reload user after edit profile sheet is dismissed
-            .sheet(isPresented: $showEditProfile, onDismiss: {
-                viewModel.fetchUser()
-            }) {
-                EditProfileView(
-                    viewModel: ProfileInfoViewModel(
-                        profileInfo: ProfileInfo(
-                            firstName: viewModel.user.fname ?? "",
-                            lastName: viewModel.user.lname ?? "",
-                            skills: Set(
-                                (viewModel.user.skills ?? []).compactMap { skillName in
-                                    viewModel.availableSkills.first(where: { $0.title == skillName })
-                                }
-                            ),
-                            type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
-                            cityName: viewModel.user.city ?? "",
-                            image: nil,
-                            about: viewModel.user.about ?? "",
-                            broadcast: viewModel.user.broadcast ?? "",
-                            otherSkill: ""
-                        ),
-                        mode: .edit
-                    )
-                )
-            }
+            // --- Remove .sheet for EditProfileView ---
             // Navigation to GoalsDetailView when a goal is tapped
             .background(
                 NavigationLink(
@@ -941,7 +939,7 @@ struct NavigationHeaderView: View {
 
 struct ProfileInfoView: View {
     let photoURL: URL?
-    let repTypeAndCity: String
+    let city: String?
     let skills: [String]
 
     var body: some View {
@@ -961,8 +959,11 @@ struct ProfileInfoView: View {
             }
 
             VStack(alignment: .leading, spacing: 7) {
-                Text(repTypeAndCity)
-                    .font(.system(size: 17, weight: .bold))
+                // Show city if you want
+                if let city = city, !city.isEmpty {
+                    Text(city)
+                        .font(.system(size: 17, weight: .bold))
+                }
                 VStack(alignment: .leading, spacing: 4) {
                     ForEach(skills, id: \.self) { skill in
                         Text(skill)

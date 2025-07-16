@@ -76,9 +76,10 @@ struct GoalsDetailView: View {
                     }
                     .font(.callout)
                     HStack {
-                        Text("Quota: \(viewModel.goal.quotaString)")
+                        // Show quota and progress as whole numbers
+                        Text("Quota: \(Int(round(viewModel.goal.quota)))")
                         Spacer()
-                        Text("Progress: \(viewModel.goal.valueString)")
+                        Text("Progress: \(Int(round(viewModel.goal.filledQuota)))")
                     }
                     .font(.callout)
                     if !viewModel.goal.subtitle.isEmpty {
@@ -318,13 +319,18 @@ class GoalsDetailViewModel: ObservableObject {
                         creatorId: apiGoal.creatorId ?? 0,
                         portalId: apiGoal.portalId
                     )
-                    self.feed = apiGoal.aLatestProgress?.map { log in
-                        Feed(
+                    // --- FEED: Use user name if available, format timestamp, round value ---
+                    let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0.name ?? "") })
+                    self.feed = apiGoal.aLatestProgress?.compactMap { log in
+                        let userName = teamDict[log.users_id ?? 0] ?? "User"
+                        let formattedDate = Self.formatDateString(log.timestamp)
+                        // Defensive: skip if log.id is missing (shouldn't happen), or other required fields
+                        return Feed(
                             id: log.id,
                             userImageName: "profile_placeholder",
-                            userName: "User \(log.users_id ?? 0)",
-                            line1: log.timestamp ?? "",
-                            line2: "Value: \(log.value ?? 0)",
+                            userName: userName,
+                            line1: formattedDate,
+                            line2: "Value: \(Int(round(log.value ?? 0)))",
                             line3: log.note ?? "",
                             line4: ""
                         )
@@ -355,6 +361,28 @@ class GoalsDetailViewModel: ObservableObject {
                 print("Goal detail decode error:", error)
             }
         }.resume()
+    }
+
+    // Helper to format ISO8601 or server date string to readable date/time
+    static func formatDateString(_ isoString: String?) -> String {
+        guard let isoString = isoString else { return "" }
+        let isoFormatter = ISO8601DateFormatter()
+        if let date = isoFormatter.date(from: isoString) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .none
+            formatter.timeStyle = .short // e.g., 7:25 PM
+            return formatter.string(from: date)
+        }
+        // Try fallback parsing for other formats if needed
+        let fallbackFormatter = DateFormatter()
+        fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        if let date = fallbackFormatter.date(from: isoString) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .none
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
+        }
+        return isoString
     }
 
     func joinRecruitingGoal(goalId: Int, completion: @escaping (Bool) -> Void) {

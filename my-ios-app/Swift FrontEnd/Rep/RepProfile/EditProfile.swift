@@ -32,7 +32,7 @@ struct ProfileInfo {
     var type: RepTypeModel
     var cityName: String
     var image: UIImage?
-    var about: String
+    var about: String // You may remove this property if not needed elsewhere
     var broadcast: String
     var otherSkill: String
 }
@@ -57,15 +57,78 @@ struct EditProfileView: View {
                     }
                 )
                 EditProfileInfoSection(viewModel: viewModel, selectedPhoto: $selectedPhoto)
-                VStack(alignment: .leading, spacing: 12) {
-                    TextField("About (optional)", text: $viewModel.profileInfo.about)
-                        .padding()
-                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                        .cornerRadius(6)
+                VStack(alignment: .leading, spacing: 16) {
+                    // Name fields (first editable fields)
+                    HStack(spacing: 12) {
+                        TextField("First Name", text: $viewModel.profileInfo.firstName)
+                            .padding()
+                            .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                            .cornerRadius(6)
+                        TextField("Last Name", text: $viewModel.profileInfo.lastName)
+                            .padding()
+                            .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                            .cornerRadius(6)
+                    }
+                    // Broadcast
                     TextField("Broadcast (optional)", text: $viewModel.profileInfo.broadcast)
                         .padding()
                         .background(Color(red: 0.98, green: 0.98, blue: 0.98))
                         .cornerRadius(6)
+                    // Rep Type (own line)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Rep Type")
+                            .font(.custom("Inter", size: 16).weight(.bold))
+                            .foregroundColor(.black)
+                        Picker("Rep Type", selection: $viewModel.profileInfo.type) {
+                            ForEach(RepTypeModel.allCases, id: \.self) { role in
+                                Text(role.rawValue).tag(role)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity)
+                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                        .cornerRadius(6)
+                    }
+                    // City (own line)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("City")
+                            .font(.custom("Inter", size: 16).weight(.bold))
+                            .foregroundColor(.black)
+                        TextField("Enter City (optional)", text: $viewModel.profileInfo.cityName)
+                            .padding()
+                            .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                            .cornerRadius(6)
+                    }
+                    // Skills selector (dropdown, up to 3)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Select up to 3 Skills")
+                            .font(.custom("Inter", size: 16).weight(.bold))
+                            .foregroundColor(.black)
+                        if viewModel.availableSkills.isEmpty {
+                            ProgressView("Loading skills...")
+                        } else {
+                            List {
+                                ForEach(viewModel.availableSkills, id: \.self) { skill in
+                                    MultipleSelectionRow(
+                                        skill: skill,
+                                        isSelected: viewModel.profileInfo.skills.contains(skill)
+                                    ) {
+                                        if viewModel.profileInfo.skills.contains(skill) {
+                                            viewModel.profileInfo.skills.remove(skill)
+                                        } else if viewModel.profileInfo.skills.count < 3 {
+                                            viewModel.profileInfo.skills.insert(skill)
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44))
+                            .listStyle(.plain)
+                            Text("\(viewModel.profileInfo.skills.count) of 3 selected")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    // Other Skill
                     TextField("Other Skill (optional)", text: $viewModel.profileInfo.otherSkill)
                         .padding()
                         .background(Color(red: 0.98, green: 0.98, blue: 0.98))
@@ -74,90 +137,7 @@ struct EditProfileView: View {
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 Divider()
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Rep Type & City
-                        HStack(spacing: 16) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Rep Type")
-                                    .font(.custom("Inter", size: 16).weight(.bold))
-                                    .foregroundColor(.black)
-                                Picker("Rep Type", selection: $viewModel.profileInfo.type) {
-                                    ForEach(RepTypeModel.allCases, id: \.self) { role in
-                                        Text(role.rawValue).tag(role)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                            }
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("City")
-                                    .font(.custom("Inter", size: 16).weight(.bold))
-                                    .foregroundColor(.black)
-                                TextField("Enter City (optional)", text: $viewModel.profileInfo.cityName)
-                                    .padding()
-                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                    .cornerRadius(6)
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        // Edit Skills (Dynamic) - SIMPLE MULTISELECT
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Edit Skills")
-                                .font(.custom("Inter", size: 16).weight(.bold))
-                                .foregroundColor(.black)
-                            if viewModel.availableSkills.isEmpty {
-                                ProgressView("Loading skills...")
-                            } else {
-                                List {
-                                    ForEach(viewModel.availableSkills, id: \.self) { skill in
-                                        MultipleSelectionRow(
-                                            skill: skill,
-                                            isSelected: viewModel.profileInfo.skills.contains(skill)
-                                        ) {
-                                            if viewModel.profileInfo.skills.contains(skill) {
-                                                viewModel.profileInfo.skills.remove(skill)
-                                            } else if viewModel.profileInfo.skills.count < 3 {
-                                                viewModel.profileInfo.skills.insert(skill)
-                                            }
-                                        }
-                                    }
-                                }
-                                .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44))
-                                .listStyle(.plain)
-                                Text("\(viewModel.profileInfo.skills.count) of 3 selected")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        // Name Fields
-                        HStack(spacing: 12) {
-                            TextField("First Name", text: $viewModel.profileInfo.firstName)
-                                .padding()
-                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                .cornerRadius(6)
-                            TextField("Last Name", text: $viewModel.profileInfo.lastName)
-                                .padding()
-                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                .cornerRadius(6)
-                        }
-                        .padding(.horizontal, 24)
-                    }
-                    .padding(.top, 16)
-                    Spacer()
-                    // Removed writing section and "+" button here
-                }
-                .background(Color.white)
-                .onChange(of: selectedPhoto) { newItem in
-                    if let newItem {
-                        Task {
-                            if let data = try? await newItem.loadTransferable(type: Data.self),
-                               let image = UIImage(data: data) {
-                                viewModel.profileInfo.image = image
-                            }
-                        }
-                    }
-                }
+                Spacer()
                 NavigationLink(
                     destination: MainScreen(),
                     isActive: $navigateToMainScreen
@@ -169,6 +149,16 @@ struct EditProfileView: View {
             .navigationBarHidden(true)
             .onAppear {
                 viewModel.fetchAvailableSkills()
+            }
+            .onChange(of: selectedPhoto) { newItem in
+                if let newItem {
+                    Task {
+                        if let data = try? await newItem.loadTransferable(type: Data.self),
+                           let image = UIImage(data: data) {
+                            viewModel.profileInfo.image = image
+                        }
+                    }
+                }
             }
         }
     }
@@ -367,7 +357,7 @@ class ProfileInfoViewModel: ObservableObject {
         // Add all fields (only add if not empty)
         if !profileInfo.firstName.isEmpty { appendFormField("fname", profileInfo.firstName) }
         if !profileInfo.lastName.isEmpty { appendFormField("lname", profileInfo.lastName) }
-        if !profileInfo.about.isEmpty { appendFormField("about", profileInfo.about) }
+        // "about" field removed from request
         if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
         if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
         appendFormField("users_types_id", String(profileInfo.type.dbID))

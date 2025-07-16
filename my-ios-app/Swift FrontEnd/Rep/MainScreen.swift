@@ -44,6 +44,8 @@ class PortalsViewModel: ObservableObject {
     @Published var portals: [Portal] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var searchResults: [Portal] = []
+    @Published var isSearching: Bool = false
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
@@ -57,7 +59,9 @@ class PortalsViewModel: ObservableObject {
         case 2: tab = "all"
         default: tab = "open"
         }
-        let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)"
+        // Limit ALL tab to 100 entries for now
+        let limitParam = (tab == "all") ? "&limit=100" : ""
+        let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
@@ -90,6 +94,59 @@ class PortalsViewModel: ObservableObject {
             }
         }.resume()
     }
+
+    func searchPortals(query: String, limit: Int = 50) {
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+            self.searchResults = []
+            self.isSearching = false
+            return
+        }
+        isLoading = true
+        isSearching = true
+        errorMessage = nil
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "\(APIConfig.baseURL)/api/search_portals?q=\(encodedQuery)&limit=\(limit)"
+        guard let url = URL(string: urlString) else {
+            errorMessage = "Invalid URL"
+            isLoading = false
+            isSearching = false
+            return
+        }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if let error = error {
+                    self.errorMessage = error.localizedDescription
+                    self.searchResults = []
+                    self.isSearching = false
+                    return
+                }
+                guard let data = data else {
+                    self.errorMessage = "No data"
+                    self.searchResults = []
+                    self.isSearching = false
+                    return
+                }
+                do {
+                    let response = try JSONDecoder().decode(PortalsAPIResponse.self, from: data)
+                    self.searchResults = response.result
+                } catch {
+                    self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                    self.searchResults = []
+                }
+                self.isSearching = false
+            }
+        }.resume()
+    }
+
+    func clearSearch() {
+        self.searchResults = []
+        self.isSearching = false
+    }
 }
 
 class PeopleViewModel: ObservableObject {
@@ -97,6 +154,8 @@ class PeopleViewModel: ObservableObject {
     @Published var activeChats: [ActiveChat] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var searchResults: [User] = []
+    @Published var isSearching: Bool = false
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
@@ -139,7 +198,9 @@ class PeopleViewModel: ObservableObject {
             }.resume()
         } else {
             let tab = section == 1 ? "ntwk" : "all"
-            let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)"
+            // Limit ALL tab to 100 entries for now
+            let limitParam = (tab == "all") ? "&limit=100" : ""
+            let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
             guard let url = URL(string: urlString) else {
                 errorMessage = "Invalid URL"
                 isLoading = false
@@ -172,6 +233,59 @@ class PeopleViewModel: ObservableObject {
                 }
             }.resume()
         }
+    }
+
+    func searchPeople(query: String, limit: Int = 50) {
+        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
+            self.searchResults = []
+            self.isSearching = false
+            return
+        }
+        isLoading = true
+        isSearching = true
+        errorMessage = nil
+        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "\(APIConfig.baseURL)/api/search_people?q=\(encodedQuery)&limit=\(limit)"
+        guard let url = URL(string: urlString) else {
+            errorMessage = "Invalid URL"
+            isLoading = false
+            isSearching = false
+            return
+        }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                if let error = error {
+                    self.errorMessage = error.localizedDescription
+                    self.searchResults = []
+                    self.isSearching = false
+                    return
+                }
+                guard let data = data else {
+                    self.errorMessage = "No data"
+                    self.searchResults = []
+                    self.isSearching = false
+                    return
+                }
+                do {
+                    let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
+                    self.searchResults = response.result
+                } catch {
+                    self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                    self.searchResults = []
+                }
+                self.isSearching = false
+            }
+        }.resume()
+    }
+
+    func clearSearch() {
+        self.searchResults = []
+        self.isSearching = false
     }
 }
 
@@ -244,6 +358,10 @@ struct MainScreen: View {
     @State private var showAddPurpose = false
     @State private var showSearch = false
 
+    // Search State
+    @State private var searchText: String = ""
+    @State private var searchDebounceTimer: Timer?
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -257,20 +375,20 @@ struct MainScreen: View {
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if section == 0 {
-                        if peopleVM.activeChats.isEmpty {
+                        if filteredActiveChats.isEmpty {
                             Text("No chats found.")
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            ActiveChatList(chats: peopleVM.activeChats)
+                            ActiveChatList(chats: filteredActiveChats)
                         }
                     } else {
-                        if peopleVM.users.isEmpty {
+                        if filteredUsers.isEmpty {
                             Text("No people found.")
                                 .foregroundColor(.secondary)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         } else {
-                            ChatList(users: peopleVM.users)
+                            ChatList(users: filteredUsers)
                         }
                     }
                 case .portals:
@@ -281,12 +399,12 @@ struct MainScreen: View {
                         Text(error)
                             .foregroundColor(.red)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if portalsVM.portals.isEmpty {
+                    } else if filteredPortals.isEmpty {
                         Text("No portals found.")
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        PortalList(portals: portalsVM.portals)
+                        PortalList(portals: filteredPortals)
                     }
                 }
             }
@@ -304,6 +422,10 @@ struct MainScreen: View {
                         } else {
                             peopleVM.fetchPeople(userId: userId, section: newSection)
                         }
+                        // Clear search when switching tabs
+                        searchText = ""
+                        portalsVM.clearSearch()
+                        peopleVM.clearSearch()
                     }
                 }
                 ToolbarItem(placement: .topBarLeading) {
@@ -339,6 +461,10 @@ struct MainScreen: View {
                         } else {
                             peopleVM.fetchPeople(userId: userId, section: section)
                         }
+                        // Clear search when switching pages
+                        searchText = ""
+                        portalsVM.clearSearch()
+                        peopleVM.clearSearch()
                     },
                     label: {
                         Image("REPLogo")
@@ -351,6 +477,40 @@ struct MainScreen: View {
                 .padding(.bottom, 12)
             }
             .navigationBarBackButtonHidden()
+            // --- Search Bar Overlay ---
+            .overlay(
+                Group {
+                    if showSearch {
+                        VStack {
+                            Spacer()
+                            HStack {
+                                TextField("Search...", text: $searchText)
+                                    .padding(10)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(8)
+                                    .padding(.horizontal)
+                                    .onChange(of: searchText) { newValue in
+                                        searchDebounceTimer?.invalidate()
+                                        // Debounce to avoid spamming API
+                                        searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
+                                            performSearch(query: newValue)
+                                        }
+                                    }
+                                Button("Cancel") {
+                                    showSearch = false
+                                    searchText = ""
+                                    portalsVM.clearSearch()
+                                    peopleVM.clearSearch()
+                                }
+                                .padding(.trailing)
+                            }
+                            .padding(.bottom, 8)
+                        }
+                        .transition(.move(edge: .bottom))
+                        .animation(.easeInOut, value: showSearch)
+                    }
+                }, alignment: .bottom
+            )
         }
         .sheet(isPresented: $showActionSheet) {
             VStack(spacing: 0) {
@@ -413,12 +573,6 @@ struct MainScreen: View {
                 userId: userId
             )
         }
-        .sheet(isPresented: $showSearch) {
-            // Replace with your actual SearchView
-            Text("Search View Placeholder")
-                .font(.title)
-                .padding()
-        }
         .onAppear {
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: section)
@@ -426,6 +580,48 @@ struct MainScreen: View {
                 peopleVM.fetchPeople(userId: userId, section: section)
             }
         }
+    }
+
+    // --- Filtering logic for search ---
+    private var filteredUsers: [User] {
+        if showSearch && !searchText.isEmpty && section == 2 {
+            // Use backend search results for ALL tab
+            return peopleVM.searchResults
+        }
+        if searchText.isEmpty { return peopleVM.users }
+        return peopleVM.users.filter {
+            ($0.fullName ?? "").localizedCaseInsensitiveContains(searchText)
+        }
+    }
+    private var filteredActiveChats: [ActiveChat] {
+        if searchText.isEmpty { return peopleVM.activeChats }
+        return peopleVM.activeChats.filter {
+            ($0.user?.fullName ?? "").localizedCaseInsensitiveContains(searchText)
+        }
+    }
+    private var filteredPortals: [Portal] {
+        if showSearch && !searchText.isEmpty && section == 2 {
+            // Use backend search results for ALL tab
+            return portalsVM.searchResults
+        }
+        if searchText.isEmpty { return portalsVM.portals }
+        return portalsVM.portals.filter {
+            $0.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private func performSearch(query: String) {
+        if !showSearch || query.trimmingCharacters(in: .whitespaces).isEmpty {
+            portalsVM.clearSearch()
+            peopleVM.clearSearch()
+            return
+        }
+        if page == .people && section == 2 {
+            peopleVM.searchPeople(query: query)
+        } else if page == .portals && section == 2 {
+            portalsVM.searchPortals(query: query)
+        }
+        // For OPEN/NTWK, keep local filtering
     }
 }
 

@@ -1,3 +1,4 @@
+//  GoalsDetailView.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.13.2025
@@ -111,7 +112,7 @@ struct GoalsDetailView: View {
                         if viewModel.goal.chartData.isEmpty {
                             Text("No chart data available.")
                         } else {
-                            LargeBarChartView(data: viewModel.goal.chartData)
+                            LargeBarChartView(data: viewModel.goal.chartData, quota: viewModel.goal.quota)
                         }
                     } else if selectedSegment == 2 {
                         ForEach(viewModel.team) { user in
@@ -544,21 +545,27 @@ struct TeamCell: View {
 
 struct LargeBarChartView: View {
     let data: [BarChartData]
+    var quota: Double = 1 // Pass the goal's quota when you use this view
 
     var body: some View {
         GeometryReader { geometry in
             HStack(alignment: .bottom, spacing: 8) {
                 ForEach(data) { item in
-                    VStack {
-                        Text(item.valueLabel)
-                            .font(.caption2)
-                            .foregroundColor(.black)
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
                         Rectangle()
                             .fill(Color.repGreen)
                             .frame(
                                 width: 40,
-                                height: CGFloat(item.value) / CGFloat(maxValue) * (geometry.size.height - 24)
+                                height: {
+                                    let quotaValue = quota > 0 ? quota : 1
+                                    return CGFloat(item.value / quotaValue) * (geometry.size.height - 32)
+                                }()
                             )
+                            .cornerRadius(3)
+                        Text(item.valueLabel)
+                            .font(.caption2)
+                            .foregroundColor(.black)
                         Text(item.bottomLabel)
                             .font(.caption2)
                             .foregroundColor(.black)
@@ -566,17 +573,13 @@ struct LargeBarChartView: View {
                             .lineLimit(1)
                     }
                 }
-                Spacer() // Ensures bars and labels are left-aligned
+                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
         .frame(height: 180)
         .padding()
         .background(Color.white)
-    }
-
-    private var maxValue: Double {
-        data.map { $0.value }.max() ?? 1
     }
 }
 

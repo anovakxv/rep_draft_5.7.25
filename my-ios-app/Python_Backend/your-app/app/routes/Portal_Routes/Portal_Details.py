@@ -188,6 +188,9 @@ def api_create_portal():
                 s3_url = f"{S3_BASE_URL}{filename}"
                 gr_hash = f"{uuid.uuid4().hex}_{filename}"
                 img.seek(0)
+                file_data = img.read()
+                file_size = len(file_data)
+                img.seek(0)
                 s3_content = S3Content(
                     gr_hash=gr_hash,
                     tbl_id=main_section.id,
@@ -195,9 +198,8 @@ def api_create_portal():
                     key=filename,
                     url=s3_url,
                     file_type=img.mimetype,
-                    file_size=len(img.read())
+                    file_size=file_size
                 )
-                img.seek(0)
                 db.session.add(s3_content)
                 db.session.flush()
                 link = PortalGraphicSectionS3Content(
@@ -304,6 +306,9 @@ def api_edit_portal():
             s3_url = f"{S3_BASE_URL}{filename}"
             gr_hash = f"{uuid.uuid4().hex}_{filename}"
             img.seek(0)
+            file_data = img.read()
+            file_size = len(file_data)
+            img.seek(0)
             s3_content = S3Content(
                 gr_hash=gr_hash,
                 tbl_id=main_section.id,
@@ -311,9 +316,8 @@ def api_edit_portal():
                 key=filename,
                 url=s3_url,
                 file_type=img.mimetype,
-                file_size=len(img.read())
+                file_size=file_size
             )
-            img.seek(0)
             db.session.add(s3_content)
             db.session.flush()
             link = PortalGraphicSectionS3Content(

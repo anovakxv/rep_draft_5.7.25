@@ -8,6 +8,20 @@ import SwiftUI
 import Combine
 import PhotosUI
 
+// MARK: - SkillModel
+
+struct SkillModel: Identifiable, Hashable, Codable {
+    let id: Int
+    let title: String
+
+    static func == (lhs: SkillModel, rhs: SkillModel) -> Bool {
+        lhs.id == rhs.id
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+}
+
 // MARK: - ProfileInfo Model
 
 struct ProfileInfo {
@@ -67,7 +81,6 @@ struct EditProfileView: View {
                                 Text("Rep Type")
                                     .font(.custom("Inter", size: 16).weight(.bold))
                                     .foregroundColor(.black)
-                                // You can keep your RepType picker as is, or use a Picker if you want to simplify
                                 Picker("Rep Type", selection: $viewModel.profileInfo.type) {
                                     ForEach(RepTypeModel.allCases, id: \.self) { role in
                                         Text(role.rawValue).tag(role)
@@ -94,7 +107,6 @@ struct EditProfileView: View {
                             if viewModel.availableSkills.isEmpty {
                                 ProgressView("Loading skills...")
                             } else {
-                                // Simple multi-select using a List
                                 List {
                                     ForEach(viewModel.availableSkills, id: \.self) { skill in
                                         MultipleSelectionRow(
@@ -103,13 +115,13 @@ struct EditProfileView: View {
                                         ) {
                                             if viewModel.profileInfo.skills.contains(skill) {
                                                 viewModel.profileInfo.skills.remove(skill)
-                                            } else if viewModel.profileInfo.skills.count < 3 { // max 3
+                                            } else if viewModel.profileInfo.skills.count < 3 {
                                                 viewModel.profileInfo.skills.insert(skill)
                                             }
                                         }
                                     }
                                 }
-                                .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44)) // Adjust height as needed
+                                .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44))
                                 .listStyle(.plain)
                                 Text("\(viewModel.profileInfo.skills.count) of 3 selected")
                                     .font(.caption)
@@ -132,7 +144,6 @@ struct EditProfileView: View {
                     }
                     .padding(.top, 16)
                     Spacer()
-                    // Insert new writing section (example, can be replaced)
                     VStack(spacing: 8) {
                         Text("+ Insert new writing section\n\nInsert body text, or copy paste in.")
                             .font(.custom("Inter", size: 16).weight(.bold))
@@ -199,7 +210,6 @@ struct MultipleSelectionRow: View {
         }
     }
 }
-
 
 // MARK: - Top Navigation Header (matches ProfileView)
 struct EditProfileHeaderView: View {
@@ -322,8 +332,27 @@ class ProfileInfoViewModel: ObservableObject {
 
     func fetchAvailableSkills() {
         fetchSkills(jwtToken: jwtToken) { [weak self] skills in
-            self?.availableSkills = skills
+            DispatchQueue.main.async {
+                self?.availableSkills = skills
+                // Patch: If editing, update selected skills and otherSkill if needed
+                if self?.mode == .edit {
+                    self?.patchSkillsForEdit()
+                }
+            }
         }
+    }
+
+    // Patch: Pre-fill selected skills and otherSkill for Edit mode
+    private func patchSkillsForEdit() {
+        let userSkills = self.profileInfo.skills.map { $0.title }
+        let matchedSkills = userSkills.compactMap { skillName in
+            self.availableSkills.first(where: { $0.title == skillName })
+        }
+        let otherSkill = userSkills.first(where: { skillName in
+            !self.availableSkills.contains(where: { $0.title == skillName })
+        }) ?? ""
+        self.profileInfo.skills = Set(matchedSkills)
+        self.profileInfo.otherSkill = otherSkill
     }
 
     func cancel() {
@@ -358,11 +387,8 @@ class ProfileInfoViewModel: ObservableObject {
         if !profileInfo.about.isEmpty { appendFormField("about", profileInfo.about) }
         if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
         if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
-        // Add type as rawValue
         appendFormField("users_types_id", profileInfo.type.rawValue)
-        // Add city name if provided (use manual_city for backend compatibility)
         if !profileInfo.cityName.isEmpty { appendFormField("manual_city", profileInfo.cityName) }
-        // Add skills as comma-separated IDs
         if !profileInfo.skills.isEmpty {
             let skillIds = profileInfo.skills.map { String($0.id) }.joined(separator: ",")
             appendFormField("aSkills", skillIds)

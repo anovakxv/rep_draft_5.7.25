@@ -140,6 +140,10 @@ struct PortalPageContent: View {
     @State private var chatUserName: String = ""
     @State private var chatUserPhotoURL: URL? = nil
 
+    // Fullscreen image viewer state
+    @State private var showFullscreen = false
+    @State private var fullscreenIndex = 0
+
     enum PortalActionSheetAction {
         case joinTeam
         case sharePortal
@@ -174,32 +178,65 @@ struct PortalPageContent: View {
                 EmptyView()
             }
         }
-    }   
+    }
 
-    var body: some View {
+    // Sticky header as a computed property to help the compiler
+    private var stickyHeader: some View {
         VStack(spacing: 0) {
-            PortalHeader(portal: portal, dismiss: dismiss)
-            GeometryReader { geometry in
-                let width = geometry.size.width
-                ImageTabView(sections: portal.aSections ?? [])
-                    .frame(width: width, height: imageTabHeight)
-                    .clipped()
-            }
-            .frame(height: imageTabHeight)
+            Spacer().frame(height: 4)
+            Rectangle()
+                .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
+                .frame(height: 1)
+                .padding(.horizontal, 0)
             PortalSegmentedPicker(
                 segments: ["Story", "Offering", "Results"],
                 selectedIndex: $viewModel.section
             )
             .padding(.horizontal)
+            .background(Color.white)
+        }
+    }
 
-            PortalSectionContent(
-                portal: portal,
-                section: viewModel.section,
-                selectedGoalId: $selectedGoalId
-            )
-            .padding(.horizontal)
-            .padding(.top, 8)
+    var body: some View {
+        VStack(spacing: 0) {
+            PortalHeader(portal: portal, dismiss: dismiss)
+            ScrollView {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    GeometryReader { geometry in
+                        let width = geometry.size.width
+                        let images = (portal.aSections ?? []).flatMap { $0.aFiles }
+                        ImageTabView(sections: portal.aSections ?? [])
+                            .frame(width: width, height: imageTabHeight)
+                            .clipped()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                showFullscreen = true
+                                fullscreenIndex = 0
+                            }
+                    }
+                    .frame(height: imageTabHeight)
+                    .fullScreenCover(isPresented: $showFullscreen) {
+                        let images = (portal.aSections ?? []).flatMap { $0.aFiles }
+                        FullscreenImageViewer(
+                            images: images,
+                            startIndex: fullscreenIndex,
+                            onDismiss: { showFullscreen = false }
+                        )
+                        .ignoresSafeArea()
+                    }
 
+                    // Sticky segmented picker
+                    Section(header: stickyHeader) {
+                        PortalSectionContent(
+                            portal: portal,
+                            section: viewModel.section,
+                            selectedGoalId: $selectedGoalId
+                        )
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    }
+                }
+            }
             Spacer()
             BottomBarView(
                 onAdd: { showPortalActionSheet = true },
@@ -349,6 +386,78 @@ struct PortalPageContent: View {
     }
 }
 
+// MARK: - Fullscreen Image Viewer
+
+struct FullscreenImageViewer: View {
+    let images: [PortalFile]
+    let startIndex: Int
+    let onDismiss: () -> Void
+
+    @State private var selectedIndex: Int
+
+    init(images: [PortalFile], startIndex: Int, onDismiss: @escaping () -> Void) {
+        self.images = images
+        self.startIndex = startIndex
+        self.onDismiss = onDismiss
+        _selectedIndex = State(initialValue: startIndex)
+    }
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            TabView(selection: $selectedIndex) {
+                ForEach(Array(images.enumerated()), id: \.offset) { idx, file in
+                    if let urlString = file.url, let url = URL(string: urlString) {
+                        AsyncImage(url: url) { phase in
+                            if let image = phase.image {
+                                image
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    .background(Color.black)
+                                    .tag(idx)
+                                    .gesture(
+                                        DragGesture(minimumDistance: 30, coordinateSpace: .local)
+                                            .onEnded { value in
+                                                if value.translation.height < -80 {
+                                                    onDismiss()
+                                                }
+                                            }
+                                    )
+                            } else if phase.error != nil {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .overlay(Text("Image Error").foregroundColor(.secondary))
+                                    .tag(idx)
+                            } else {
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .overlay(Text("Loading...").foregroundColor(.secondary))
+                                    .tag(idx)
+                            }
+                        }
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .overlay(Text("No Image").foregroundColor(.secondary))
+                            .tag(idx)
+                    }
+                }
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
+            .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
+            .ignoresSafeArea()
+            Button(action: { onDismiss() }) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 36))
+                    .foregroundColor(.white)
+                    .padding()
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+}
+
 // MARK: - PortalHeader
 
 struct PortalHeader: View {
@@ -406,6 +515,7 @@ struct ImageTabView: View {
     let sections: [PortalSection]
 
     var body: some View {
+        // Show all images in all sections as swipeable
         TabView {
             ForEach(sections.flatMap { $0.aFiles }) { file in
                 if let urlString = file.url, let url = URL(string: urlString) {
@@ -433,6 +543,7 @@ struct ImageTabView: View {
             }
         }
         .tabViewStyle(PageTabViewStyle())
+        .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
     }
 }
 
@@ -501,7 +612,7 @@ struct PortalStorySection: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let title = block.title, !title.isEmpty {
                         Text(title)
-                            .font(.title2)
+                            .font(.title3)
                             .fontWeight(.medium)
                     }
                     if let text = block.text, !text.isEmpty {

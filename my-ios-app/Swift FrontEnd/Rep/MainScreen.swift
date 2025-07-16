@@ -57,7 +57,6 @@ class PortalsViewModel: ObservableObject {
         case 2: tab = "all"
         default: tab = "open"
         }
-        // Updated API URL root to match Flask blueprint registration
         let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
@@ -229,8 +228,6 @@ extension MainScreen {
     }
     enum MainActionSheetAction {
         case addPurpose
-        case editProfile
-        case newChat
     }
 }
 
@@ -244,13 +241,12 @@ struct MainScreen: View {
     // Action Sheet State
     @State private var showActionSheet = false
     @State private var pendingAction: MainActionSheetAction?
-    @State private var showEditProfile = false
     @State private var showAddPurpose = false
+    @State private var showSearch = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Main content
                 switch page {
                 case .people:
                     if peopleVM.isLoading {
@@ -369,20 +365,10 @@ struct MainScreen: View {
                         .padding(.vertical, 12)
                 }
                 Button(action: {
-                    pendingAction = .editProfile
                     showActionSheet = false
+                    showSearch = true
                 }) {
-                    Text("Edit Profile")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 12)
-                }
-                Button(action: {
-                    pendingAction = .newChat
-                    showActionSheet = false
-                }) {
-                    Text("New Chat")
+                    Text("Search")
                         .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                         .font(.title2)
                         .fontWeight(.bold)
@@ -402,11 +388,6 @@ struct MainScreen: View {
             switch action {
             case .addPurpose:
                 showAddPurpose = true
-            case .editProfile:
-                showEditProfile = true
-            case .newChat:
-                // TODO: Present Group Chat page
-                break
             }
             pendingAction = nil
         }
@@ -432,23 +413,11 @@ struct MainScreen: View {
                 userId: userId
             )
         }
-        .sheet(isPresented: $showEditProfile) {
-            EditProfileView(
-                viewModel: ProfileInfoViewModel(
-                    profileInfo: ProfileInfo(
-                        firstName: "",
-                        lastName: "",
-                        skills: [],
-                        type: .lead,
-                        cityName: "",
-                        image: nil,
-                        about: "",
-                        broadcast: "",
-                        otherSkill: ""
-                    ),
-                    mode: .edit
-                )
-            )
+        .sheet(isPresented: $showSearch) {
+            // Replace with your actual SearchView
+            Text("Search View Placeholder")
+                .font(.title)
+                .padding()
         }
         .onAppear {
             if page == .portals {

@@ -17,27 +17,25 @@ struct GoalListItem: View {
             VStack(spacing: 2) {
                 HStack(alignment: .bottom, spacing: 6) {
                     ForEach(goal.chartData) { bar in
-                        Rectangle()
-                            .fill(Color.repGreen)
-                            .frame(
-                                width: 24,
-                                height: {
-                                    let maxValue = goal.chartData.map { $0.value }.max() ?? 1
-                                    return max(0, CGFloat(bar.value / maxValue) * 56)
-                                }()
-                            )
-                            .cornerRadius(3)
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            Rectangle()
+                                .fill(Color.repGreen)
+                                .frame(
+                                    width: 24,
+                                    height: {
+                                        let quota = goal.quota > 0 ? goal.quota : 1
+                                        return max(0, CGFloat(bar.value / quota) * 56)
+                                    }()
+                                )
+                                .cornerRadius(3)
+                            Text(bar.valueLabel)
+                                .font(.caption2)
+                                .foregroundColor(.black)
+                        }
+                        .frame(height: 56 + 16) // 56 for bar, 16 for label
                     }
-                    Spacer() 
-                }
-                HStack(spacing: 6) {
-                    ForEach(goal.chartData) { bar in
-                        Text(bar.bottomLabel)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .frame(width: 24)
-                    }
-                    Spacer() 
+                    Spacer()
                 }
             }
             .frame(width: 144, height: 81)

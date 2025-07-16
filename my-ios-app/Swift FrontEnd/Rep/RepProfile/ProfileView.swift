@@ -10,7 +10,7 @@ import SwiftUI
 
 struct User: Identifiable, Codable {
     let id: Int
-    let fullName: String?         // Make optional
+    let fullName: String?
     let fname: String?
     let lname: String?
     let username: String?
@@ -65,6 +65,75 @@ struct User: Identifiable, Codable {
         case lastMessage = "last_message"
         case lastMessageDate = "last_message_date"
         case imageName
+    }
+    init(
+        id: Int,
+        fullName: String?,
+        fname: String?,
+        lname: String?,
+        username: String?,
+        about: String?,
+        broadcast: String?,
+        profilePictureURL: URL?,
+        imageName: String?,
+        userType: String?,
+        city: String?,
+        skills: [String]?,
+        lastLogin: String?,
+        createdAt: String?,
+        updatedAt: String?,
+        lastMessage: String?,
+        lastMessageDate: String?
+    ) {
+        self.id = id
+        self.fullName = fullName
+        self.fname = fname
+        self.lname = lname
+        self.username = username
+        self.about = about
+        self.broadcast = broadcast
+        self.profilePictureURL = profilePictureURL
+        self.imageName = imageName
+        self.userType = userType
+        self.city = city
+        self.skills = skills
+        self.lastLogin = lastLogin
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.lastMessage = lastMessage
+        self.lastMessageDate = lastMessageDate
+    }
+    // Custom decoding to patch profile_picture_url if needed
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(Int.self, forKey: .id)
+        fullName = try container.decodeIfPresent(String.self, forKey: .fullName)
+        fname = try container.decodeIfPresent(String.self, forKey: .fname)
+        lname = try container.decodeIfPresent(String.self, forKey: .lname)
+        username = try container.decodeIfPresent(String.self, forKey: .username)
+        about = try container.decodeIfPresent(String.self, forKey: .about)
+        broadcast = try container.decodeIfPresent(String.self, forKey: .broadcast)
+        imageName = try container.decodeIfPresent(String.self, forKey: .imageName)
+        userType = try container.decodeIfPresent(String.self, forKey: .userType)
+        city = try container.decodeIfPresent(String.self, forKey: .city)
+        skills = try container.decodeIfPresent([String].self, forKey: .skills)
+        lastLogin = try container.decodeIfPresent(String.self, forKey: .lastLogin)
+        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
+        lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
+        lastMessageDate = try container.decodeIfPresent(String.self, forKey: .lastMessageDate)
+
+        // Patch profile_picture_url to always be a full URL or nil
+        let urlString = try container.decodeIfPresent(String.self, forKey: .profilePictureURL)
+        if let urlString, !urlString.isEmpty {
+            if urlString.starts(with: "http") {
+                profilePictureURL = URL(string: urlString)
+            } else {
+                profilePictureURL = URL(string: "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/\(urlString)")
+            }
+        } else {
+            profilePictureURL = nil
+        }
     }
 
     static let placeholder = User(
@@ -364,17 +433,18 @@ struct ProfileView: View {
     @State private var showAddGoal = false
     @State private var showEditProfile = false
     @State private var showActionSheet = false
-    @State private var showProfileActionMenu = false // <-- NEW
+    @State private var showProfileActionMenu = false
     @State private var showNetworkResultAlert = false
     @State private var networkResultMessage = ""
     @Environment(\.dismiss) private var dismiss
 
-    // For custom action sheet navigation
     @State private var pendingAction: PendingAction? = nil
 
-    // --- Reporting Increments State ---
     @State private var reportingIncrements: [ReportingIncrement] = []
     @State private var isLoadingIncrements = false
+
+    // For navigation to GoalsDetailView
+    @State private var selectedGoal: Goal? = nil
 
     enum PendingAction {
         case editProfile
@@ -387,69 +457,82 @@ struct ProfileView: View {
         _viewModel = StateObject(wrappedValue: ProfileViewModel(userId: userId))
     }
 
+    private var stickyHeader: some View {
+        ProfileSegmentedPicker(
+            segments: ["Rep", "Goals", "Write"],
+            selectedIndex: $selectedTab
+        )
+        .padding(.horizontal)
+        .background(Color.white)
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Top bar: white background, bottom divider, matches PortalPage
                 NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
-                ProfileInfoView(
-                    photoURL: viewModel.user.profilePictureURL,
-                    repTypeAndCity: viewModel.user.repTypeAndCity,
-                    skills: mappedSkillTitles
-                )
-                VStack(alignment: .leading, spacing: 8) {
-                    if let about = viewModel.user.about, !about.isEmpty {
-                        Text(about)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-                    if let broadcast = viewModel.user.broadcast, !broadcast.isEmpty {
-                        Text(broadcast)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-                ProfileSegmentedPicker(
-                    segments: ["Rep", "Goals", "Write"],
-                    selectedIndex: $selectedTab
-                )
-                .padding(.horizontal)
-                
-                ZStack {
-                    switch selectedTab {
-                    case 0:
-                        ScrollView {
-                            ProfileRepSection(
-                                portals: viewModel.portals,
-                                isCurrentUser: viewModel.isCurrentUser,
-                                showAddPartner: viewModel.showAddPartner,
-                                addPartnerAction: viewModel.addPartner,
-                                userId: viewModel.user.id
-                            )
-                            .padding(.top, 8)
-                            .background(Color.white)
-                        }
-                    case 1:
-                        // FIX: Remove ScrollView wrapping the List
-                        GoalsListSection(
-                            goals: viewModel.goals,
-                            isCurrentUser: viewModel.isCurrentUser,
-                            showAddGoal: .constant(false)
+
+                ScrollView {
+                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                        // Profile info (now starts below the fixed header)
+                        ProfileInfoView(
+                            photoURL: viewModel.user.profilePictureURL,
+                            repTypeAndCity: viewModel.user.repTypeAndCity,
+                            skills: mappedSkillTitles
                         )
-                        .padding(.top, 8)
-                        .background(Color.white)
-                    case 2:
-                        ScrollView {
-                            WriteContentView(
-                                viewModel: viewModel,
-                                isCurrentUser: viewModel.isCurrentUser
-                            )
-                            .padding(.top, 8)
-                            .background(Color.white)
+                        VStack(alignment: .leading, spacing: 8) {
+                            if let about = viewModel.user.about, !about.isEmpty {
+                                Text(about)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
+                            if let broadcast = viewModel.user.broadcast, !broadcast.isEmpty {
+                                Text(broadcast)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
                         }
-                    default:
-                        EmptyView()
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+
+                        // Sticky segmented picker and tab content
+                        Section(header: stickyHeader) {
+                            ZStack {
+                                switch selectedTab {
+                                case 0:
+                                    ProfileRepSection(
+                                        portals: viewModel.portals,
+                                        isCurrentUser: viewModel.isCurrentUser,
+                                        showAddPartner: viewModel.showAddPartner,
+                                        addPartnerAction: viewModel.addPartner,
+                                        userId: viewModel.user.id
+                                    )
+                                    .padding(.top, 8)
+                                    .background(Color.white)
+                                case 1:
+                                    GoalsListSection(
+                                        goals: viewModel.goals,
+                                        isCurrentUser: viewModel.isCurrentUser,
+                                        showAddGoal: .constant(false),
+                                        onGoalTap: { goal in
+                                            selectedGoal = goal
+                                        }
+                                    )
+                                    .padding(.top, 8)
+                                    .background(Color.white)
+                                case 2:
+                                    WriteContentView(
+                                        viewModel: viewModel,
+                                        isCurrentUser: viewModel.isCurrentUser
+                                    )
+                                    .padding(.top, 8)
+                                    .background(Color.white)
+                                default:
+                                    EmptyView()
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .top)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -496,7 +579,6 @@ struct ProfileView: View {
                     }
                 }
             }
-            // Custom Action Sheet
             .sheet(isPresented: $showActionSheet) {
                 VStack(spacing: 24) {
                     if viewModel.isCurrentUser {
@@ -549,7 +631,6 @@ struct ProfileView: View {
                 .padding()
                 .presentationDetents([.medium])
             }
-            // Profile "+" Action Menu Sheet
             .sheet(isPresented: $showProfileActionMenu) {
                 VStack(spacing: 24) {
                     Button(action: {
@@ -557,7 +638,6 @@ struct ProfileView: View {
                             DispatchQueue.main.async {
                                 networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
                                 showProfileActionMenu = false
-                                // Delay alert until after sheet is dismissed
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                                     showNetworkResultAlert = true
                                 }
@@ -644,10 +724,13 @@ struct ProfileView: View {
             }
             .onChange(of: showAddGoal) { isPresented in
                 if !isPresented {
-                    viewModel.fetchGoals() // Refresh goals after sheet closes
+                    viewModel.fetchGoals()
                 }
             }
-            .sheet(isPresented: $showEditProfile) {
+            // PATCH: Reload user after edit profile sheet is dismissed
+            .sheet(isPresented: $showEditProfile, onDismiss: {
+                viewModel.fetchUser()
+            }) {
                 EditProfileView(
                     viewModel: ProfileInfoViewModel(
                         profileInfo: ProfileInfo(
@@ -669,6 +752,18 @@ struct ProfileView: View {
                     )
                 )
             }
+            // Navigation to GoalsDetailView when a goal is tapped
+            .background(
+                NavigationLink(
+                    destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
+                    isActive: Binding(
+                        get: { selectedGoal != nil },
+                        set: { isActive in if !isActive { selectedGoal = nil } }
+                    ),
+                    label: { EmptyView() }
+                )
+                .hidden()
+            )
         }
     }
 
@@ -750,23 +845,29 @@ struct ProfileRepSection: View {
 struct GoalsListSection: View {
     let goals: [Goal]
     let isCurrentUser: Bool
-    @Binding var showAddGoal: Bool // not used anymore
+    @Binding var showAddGoal: Bool
+    var onGoalTap: (Goal) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            List {
-                ForEach(goals) { goal in
-                    NavigationLink(destination: GoalsDetailView(initialGoal: goal)) {
-                        GoalListItem(goal: goal)
-                    }
+            ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
+                Button(action: {
+                    onGoalTap(goal)
+                }) {
+                    GoalListItem(goal: goal)
+                        .contentShape(Rectangle())
                 }
-                if goals.isEmpty {
-                    Text("No goals yet.")
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal)
+                .buttonStyle(PlainButtonStyle())
+                if index < goals.count - 1 {
+                    Divider()
+                        .background(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
                 }
             }
-            .listStyle(PlainListStyle())
+            if goals.isEmpty {
+                Text("No goals yet.")
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+            }
         }
     }
 }
@@ -827,9 +928,9 @@ struct NavigationHeaderView: View {
             Spacer()
             Color.clear.frame(width: 24, height: 24)
         }
-        .frame(height: 44) // Standard navigation bar height
+        .frame(height: 44)
         .padding(.horizontal, 15)
-        .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+        .background(Color.white)
         .overlay(
             Rectangle()
                 .frame(height: 1)
@@ -877,8 +978,6 @@ struct ProfileInfoView: View {
     }
 }
 
-// ...existing code...
-
 struct WriteContentView: View {
     @ObservedObject var viewModel: ProfileViewModel
     let isCurrentUser: Bool
@@ -897,7 +996,7 @@ struct WriteContentView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         if let title = write.title, !title.isEmpty {
                             Text(title)
-                                .font(.title2)
+                                .font(.title3)
                                 .fontWeight(.medium)
                         }
                         Text(write.content)

@@ -109,7 +109,7 @@ class Goal(db.Model):
                 "id": idx,  # Add id for frontend decoding
                 "value": d["value"],
                 "valueLabel": str(d["value"]),
-                "bottomLabel": d["label"]
+                "bottomLabel": d.get("label", "")
             }
             for idx, d in enumerate(self.chart_data())
         ]

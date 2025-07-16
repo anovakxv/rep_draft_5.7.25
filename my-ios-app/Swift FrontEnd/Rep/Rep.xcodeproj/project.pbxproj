@@ -28,7 +28,6 @@
 		005B63852E16F88600A1F0C1 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 005B63692E16F88600A1F0C1 /* README.md */; };
 		005B63862E16F88600A1F0C1 /* REPLogo.png in Resources */ = {isa = PBXBuildFile; fileRef = 005B635C2E16F88600A1F0C1 /* REPLogo.png */; };
 		005B63872E16F88600A1F0C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 005B635E2E16F88600A1F0C1 /* Assets.xcassets */; };
-		00D80A5F2E1B6AF7003C926D /* SkillModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D80A5E2E1B6AF7003C926D /* SkillModel.swift */; };
 		00D80A612E1B6B0C003C926D /* SkillAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D80A602E1B6B0C003C926D /* SkillAPI.swift */; };
 		00E10AAD2E21951E00BC7392 /* Edit_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */; };
 		00E10AAF2E21953000BC7392 /* Update_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAE2E21953000BC7392 /* Update_Goal.swift */; };
@@ -78,7 +77,6 @@
 		005B636F2E16F88600A1F0C1 /* RepSkillsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepSkillsModel.swift; sourceTree = "<group>"; };
 		005B63702E16F88600A1F0C1 /* RepTypeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepTypeModel.swift; sourceTree = "<group>"; };
 		005B63712E16F88600A1F0C1 /* SupportingTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportingTypes.swift; sourceTree = "<group>"; };
-		00D80A5E2E1B6AF7003C926D /* SkillModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillModel.swift; sourceTree = "<group>"; };
 		00D80A602E1B6B0C003C926D /* SkillAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillAPI.swift; sourceTree = "<group>"; };
 		00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Edit_Goal.swift; sourceTree = "<group>"; };
 		00E10AAE2E21953000BC7392 /* Update_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Update_Goal.swift; sourceTree = "<group>"; };
@@ -181,7 +179,6 @@
 			children = (
 				005B636B2E16F88600A1F0C1 /* EditProfile.swift */,
 				005B636D2E16F88600A1F0C1 /* ProfileView.swift */,
-				00D80A5E2E1B6AF7003C926D /* SkillModel.swift */,
 				005B636E2E16F88600A1F0C1 /* RegisterNewProfile.swift */,
 				00D80A602E1B6B0C003C926D /* SkillAPI.swift */,
 				005B636F2E16F88600A1F0C1 /* RepSkillsModel.swift */,
@@ -343,7 +340,6 @@
 				005B63732E16F88600A1F0C1 /* EditProfile.swift in Sources */,
 				005B63742E16F88600A1F0C1 /* Edit_Portal.swift in Sources */,
 				005B63752E16F88600A1F0C1 /* RepApp.swift in Sources */,
-				00D80A5F2E1B6AF7003C926D /* SkillModel.swift in Sources */,
 				005B63762E16F88600A1F0C1 /* MainScreen.swift in Sources */,
 				005B63772E16F88600A1F0C1 /* ActivityIndicator.swift in Sources */,
 				005B63782E16F88600A1F0C1 /* SupportingTypes.swift in Sources */,

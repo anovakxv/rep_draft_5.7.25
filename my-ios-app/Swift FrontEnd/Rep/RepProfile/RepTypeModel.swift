@@ -1,4 +1,4 @@
-//  RepRoleModel.swift
+//  RepTypeModel.swift
 //  Rep
 //
 //  Created by Dmytro Holovko on 10.12.2023.
@@ -21,5 +21,12 @@ enum RepTypeModel: String, CaseIterable, Identifiable, Codable {
         case .team: return "Team"
         }
     }
-}
 
+    // Add this:
+    var dbID: Int {
+        switch self {
+        case .lead: return 1 // <-- Use the actual ID from your user_types table
+        case .team: return 2 // <-- Use the actual ID from your user_types table
+        }
+    }
+}

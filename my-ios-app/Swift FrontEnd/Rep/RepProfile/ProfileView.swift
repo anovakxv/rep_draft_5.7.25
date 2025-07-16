@@ -286,7 +286,6 @@ class ProfileViewModel: ObservableObject {
             guard let data = data else { return }
             do {
                 let apiResponse = try JSONDecoder().decode(GoalsAPIResponse.self, from: data)
-                print("Fetched goals:", apiResponse.aGoals)
                 DispatchQueue.main.async {
                     self.goals = apiResponse.aGoals
                 }
@@ -975,6 +974,9 @@ struct ProfileInfoView: View {
             Spacer()
         }
         .padding(15)
+        .onAppear {
+            print("Profile pic URL:", photoURL as Any)
+        }
     }
 }
 

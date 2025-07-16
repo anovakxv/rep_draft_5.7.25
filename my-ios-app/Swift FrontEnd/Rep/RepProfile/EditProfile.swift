@@ -7,6 +7,7 @@
 import SwiftUI
 import Combine
 import PhotosUI
+import Foundation
 
 // MARK: - SkillModel
 
@@ -144,25 +145,7 @@ struct EditProfileView: View {
                     }
                     .padding(.top, 16)
                     Spacer()
-                    VStack(spacing: 8) {
-                        Text("+ Insert new writing section\n\nInsert body text, or copy paste in.")
-                            .font(.custom("Inter", size: 16).weight(.bold))
-                            .foregroundColor(Color(red: 0.48, green: 0.75, blue: 0.29))
-                            .multilineTextAlignment(.center)
-                            .padding(.vertical, 16)
-                        Button(action: {
-                            // Add writing section action
-                        }) {
-                            Text("+")
-                                .font(.custom("Inter", size: 16).weight(.bold))
-                                .foregroundColor(.black)
-                                .frame(width: 291, height: 41)
-                                .background(Color(red: 0.48, green: 0.75, blue: 0.29))
-                                .cornerRadius(6)
-                                .shadow(color: Color(red: 0.48, green: 0.75, blue: 0.29, opacity: 0.10), radius: 3, x: 1, y: 4)
-                        }
-                    }
-                    .padding(.bottom, 32)
+                    // Removed writing section and "+" button here
                 }
                 .background(Color.white)
                 .onChange(of: selectedPhoto) { newItem in
@@ -387,7 +370,7 @@ class ProfileInfoViewModel: ObservableObject {
         if !profileInfo.about.isEmpty { appendFormField("about", profileInfo.about) }
         if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
         if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
-        appendFormField("users_types_id", profileInfo.type.rawValue)
+        appendFormField("users_types_id", String(profileInfo.type.dbID))
         if !profileInfo.cityName.isEmpty { appendFormField("manual_city", profileInfo.cityName) }
         if !profileInfo.skills.isEmpty {
             let skillIds = profileInfo.skills.map { String($0.id) }.joined(separator: ",")

@@ -172,7 +172,7 @@ class EditPortalViewModel: ObservableObject {
         if !isNew {
             appendFormField("portal_id", "\(portalId)")
         }
-        appendFormField("user_id", "\(userId)")
+        appendFormField("users_id", "\(userId)") 
         appendFormField("name", name)
         appendFormField("subtitle", subtitle)
         appendFormField("about", about)

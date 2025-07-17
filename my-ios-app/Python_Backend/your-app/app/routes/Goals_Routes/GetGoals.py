@@ -4,7 +4,9 @@
 
 from flask import Blueprint, request, jsonify, g
 from app.models.ValueMetric_Models.Goal import Goal
+from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.utils.auth import jwt_required
+from app import db
 
 goals_bp = Blueprint('get_user_goals', __name__)
 
@@ -16,7 +18,17 @@ def get_goals_by_user():
     if not users_id:
         return jsonify({"error": "users_id required"}), 400
 
-    goals = Goal.query.filter_by(users_id=users_id).all()
+    # Return goals where user is creator OR confirmed team member
+    goals = (
+        db.session.query(Goal)
+        .outerjoin(GoalTeam, Goal.id == GoalTeam.goals_id)
+        .filter(
+            (Goal.users_id == users_id) |
+            ((GoalTeam.users_id2 == users_id) & (GoalTeam.confirmed == 1))
+        )
+        .distinct()
+        .all()
+    )
 
     aGoals = [goal.as_dict() for goal in goals]
 

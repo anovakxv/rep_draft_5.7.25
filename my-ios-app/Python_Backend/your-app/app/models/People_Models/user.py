@@ -64,7 +64,7 @@ class User(UserMixin, db.Model):
             "broadcast": self.broadcast or "",
             "profile_picture_url": self.profile_picture_url or "",
             "user_type": self.user_type.title if self.user_type else "",
-            "city": "",  # or self.manual_city or "",
+            "city": self.manual_city or "",
             "skills": self.get_skills(),
             "last_login": self.last_login.isoformat() if self.last_login else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,

@@ -446,6 +446,22 @@ struct ProfileView: View {
     // For navigation to GoalsDetailView
     @State private var selectedGoal: Goal? = nil
 
+    // --- FIX: Use a persistent edit profile view model ---
+    @StateObject private var editProfileVM = ProfileInfoViewModel(
+        profileInfo: ProfileInfo(
+            firstName: "",
+            lastName: "",
+            skills: [],
+            type: .lead,
+            cityName: "",
+            image: nil,
+            about: "",
+            broadcast: "",
+            otherSkill: ""
+        ),
+        mode: .edit
+    )
+
     enum PendingAction {
         case editProfile
         case addPurpose
@@ -467,258 +483,286 @@ struct ProfileView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
-                ScrollView {
-                    LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        ProfileInfoView(
-                            photoURL: viewModel.user.profilePictureURL,
-                            city: viewModel.user.city,
-                            skills: mappedSkillTitles
-                        )
-                        ProfileBroadcastView(broadcast: viewModel.user.broadcast)
-                        Section(header: stickyHeader) {
-                            ProfileTabContent(
-                                selectedTab: selectedTab,
-                                viewModel: viewModel,
-                                selectedGoal: $selectedGoal
-                            )
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                BottomBarView(
-                    onAdd: {
-                        if viewModel.isCurrentUser {
-                            showActionSheet = true
-                        } else {
-                            showProfileActionMenu = true
-                        }
-                    },
-                    onMessage: { showMessageSheet = true }
+    NavigationStack {
+        VStack(spacing: 0) {
+            NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
+            ScrollView {
+                ProfileMainContent(
+                    viewModel: viewModel,
+                    selectedTab: $selectedTab,
+                    selectedGoal: $selectedGoal,
+                    mappedSkillTitles: mappedSkillTitles,
+                    stickyHeader: { AnyView(stickyHeader) }
                 )
-                NavigationLink(
-                    destination: EditProfileView(
-                        viewModel: ProfileInfoViewModel(
-                            profileInfo: ProfileInfo(
-                                firstName: viewModel.user.fname ?? "",
-                                lastName: viewModel.user.lname ?? "",
-                                skills: Set(
-                                    (viewModel.user.skills ?? []).compactMap { skillName in
-                                        viewModel.availableSkills.first(where: { $0.title == skillName })
-                                    }
-                                ),
-                                type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
-                                cityName: viewModel.user.city ?? "",
-                                image: nil,
-                                about: viewModel.user.about ?? "",
-                                broadcast: viewModel.user.broadcast ?? "",
-                                otherSkill: ""
-                            ),
-                            mode: .edit
-                        )
-                    ),
-                    isActive: $showEditProfile
-                ) {
-                    EmptyView()
-                }
-                .hidden()
             }
-            .navigationBarHidden(true)
-            .onAppear {
-                viewModel.loadProfile()
-                loadReportingIncrements()
-            }
-            .background(Color.white.edgesIgnoringSafeArea(.all))
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        if viewModel.isCurrentUser {
-                            Button("Edit Profile") {
-                                showEditProfile = true
-                            }
-                        }
-                        ForEach(viewModel.actions, id: \.self) { action in
-                            Button(action) {
-                                viewModel.handleAction(action, editProfile: {
-                                    showEditProfile = true
-                                })
-                            }
-                        }
-                        if viewModel.isCurrentUser {
-                            Button("Logout") {
-                                pendingAction = .logout
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                    }
-                }
-            }
-            .sheet(isPresented: $showActionSheet) {
-                VStack(spacing: 24) {
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            BottomBarView(
+                onAdd: {
                     if viewModel.isCurrentUser {
-                        Button(action: {
-                            pendingAction = .addPurpose
-                            showActionSheet = false
-                        }) {
-                            Text("Add Purpose")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                        Button(action: {
-                            pendingAction = .addGoal
-                            showActionSheet = false
-                        }) {
-                            Text("Add Goal")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                        Button(action: {
-                            pendingAction = .editProfile
-                            showActionSheet = false
-                        }) {
-                            Text("Edit Profile")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                        Button(action: {
-                            pendingAction = .logout
-                            showActionSheet = false
-                        }) {
-                            Text("Logout")
-                                .foregroundColor(.red)
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
+                        showActionSheet = true
+                    } else {
+                        showProfileActionMenu = true
                     }
-                    Button(action: { showActionSheet = false }) {
-                        Text("Cancel")
-                            .foregroundColor(.secondary)
+                },
+                onMessage: { showMessageSheet = true }
+            )
+            NavigationLink(
+                destination: EditProfileView(
+                    viewModel: editProfileVM,
+                    onSave: {
+                        viewModel.loadProfile()
                     }
-                }
-                .padding()
-                .presentationDetents([.medium])
+                ),
+                isActive: $showEditProfile
+            ) {
+                EmptyView()
             }
-            .sheet(isPresented: $showProfileActionMenu) {
-                VStack(spacing: 24) {
-                    Button(action: {
-                        viewModel.addToNetwork { success, message in
-                            DispatchQueue.main.async {
-                                networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
-                                showProfileActionMenu = false
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                    showNetworkResultAlert = true
-                                }
-                            }
+            .hidden()
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            viewModel.loadProfile()
+            loadReportingIncrements()
+        }
+        .background(Color.white.edgesIgnoringSafeArea(.all))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    if viewModel.isCurrentUser {
+                        Button("Edit Profile") {
+                            updateEditProfileVM()
+                            showEditProfile = true
                         }
+                    }
+                    ForEach(viewModel.actions, id: \.self) { action in
+                        Button(action) {
+                            viewModel.handleAction(action, editProfile: {
+                                updateEditProfileVM()
+                                showEditProfile = true
+                            })
+                        }
+                    }
+                    if viewModel.isCurrentUser {
+                        Button("Logout") {
+                            pendingAction = .logout
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .sheet(isPresented: $showActionSheet) {
+            VStack(spacing: 24) {
+                if viewModel.isCurrentUser {
+                    Button(action: {
+                        pendingAction = .addPurpose
+                        showActionSheet = false
                     }) {
-                        Text("+ to NTWK")
+                        Text("Add Purpose")
                             .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                             .font(.title2)
                             .fontWeight(.bold)
                             .padding(.vertical, 5)
                     }
-                    Button(action: { showProfileActionMenu = false }) {
-                        Text("Cancel")
-                            .foregroundColor(.secondary)
+                    Button(action: {
+                        pendingAction = .addGoal
+                        showActionSheet = false
+                    }) {
+                        Text("Add Goal")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    Button(action: {
+                        pendingAction = .editProfile
+                        showActionSheet = false
+                    }) {
+                        Text("Edit Profile")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    Button(action: {
+                        pendingAction = .logout
+                        showActionSheet = false
+                    }) {
+                        Text("Logout")
+                            .foregroundColor(.red)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
                     }
                 }
-                .padding()
-                .presentationDetents([.medium])
-            }
-            .alert(isPresented: $showNetworkResultAlert) {
-                Alert(title: Text(networkResultMessage))
-            }
-            .onChange(of: pendingAction) { action in
-                guard let action = action else { return }
-                switch action {
-                case .editProfile:
-                    showEditProfile = true
-                case .addPurpose:
-                    showAddPurpose = true
-                case .addGoal:
-                    showAddGoal = true
-                case .logout:
-                    logoutAndClearSession()
-                }
-                pendingAction = nil
-            }
-            .sheet(isPresented: $showAddPurpose) {
-                EditPortalView(
-                    portal: PortalDetail(
-                        id: 0,
-                        name: "",
-                        subtitle: "",
-                        about: "",
-                        categories_id: nil,
-                        cities_id: nil,
-                        lead_id: nil,
-                        users_id: viewModel.user.id,
-                        _c_users_count: nil,
-                        mainImageUrl: nil,
-                        aGoals: [],
-                        aPortalUsers: [],
-                        aTexts: [],
-                        aSections: [],
-                        aUsers: [],
-                        aLeads: [] // Add this if required by your PortalDetail model
-                    ),
-                    userId: viewModel.user.id
-                )
-            }
-            .sheet(isPresented: $showAddGoal) {
-                EditGoalPage(
-                    existingGoal: nil,
-                    portalId: nil,
-                    userId: viewModel.user.id,
-                    reportingIncrements: reportingIncrements.isEmpty
-                        ? [
-                            ReportingIncrement(id: 1, title: "Monthly"),
-                            ReportingIncrement(id: 2, title: "Weekly"),
-                            ReportingIncrement(id: 3, title: "Daily")
-                        ]
-                        : reportingIncrements,
-                    associatedPortalName: nil
-                )
-            }
-            .sheet(isPresented: $showMessageSheet) {
-                MessageView(
-                    viewModel: MessageViewModel(
-                        currentUserId: viewModel.loggedInUserId,
-                        otherUserId: viewModel.user.id,
-                        otherUserName: viewModel.user.fullName ?? "",
-                        otherUserPhotoURL: viewModel.user.profilePictureURL
-                    )
-                )
-            }
-            .onChange(of: showAddGoal) { isPresented in
-                if !isPresented {
-                    viewModel.fetchGoals()
+                Button(action: { showActionSheet = false }) {
+                    Text("Cancel")
+                        .foregroundColor(.secondary)
                 }
             }
-            .background(
-                NavigationLink(
-                    destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
-                    isActive: Binding(
-                        get: { selectedGoal != nil },
-                        set: { isActive in if !isActive { selectedGoal = nil } }
-                    ),
-                    label: { EmptyView() }
-                )
-                .hidden()
+            .padding()
+            .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showProfileActionMenu) {
+            VStack(spacing: 24) {
+                Button(action: {
+                    viewModel.addToNetwork { success, message in
+                        DispatchQueue.main.async {
+                            networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
+                            showProfileActionMenu = false
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                showNetworkResultAlert = true
+                            }
+                        }
+                    }
+                }) {
+                    Text("+ to NTWK")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
+                }
+                Button(action: { showProfileActionMenu = false }) {
+                    Text("Cancel")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            .presentationDetents([.medium])
+        }
+        .alert(isPresented: $showNetworkResultAlert) {
+            Alert(title: Text(networkResultMessage))
+        }
+        .onChange(of: pendingAction) { action in
+            guard let action = action else { return }
+            switch action {
+            case .editProfile:
+                updateEditProfileVM()
+                showEditProfile = true
+            case .addPurpose:
+                showAddPurpose = true
+            case .addGoal:
+                showAddGoal = true
+            case .logout:
+                logoutAndClearSession()
+            }
+            pendingAction = nil
+        }
+        .sheet(isPresented: $showAddPurpose) {
+            EditPortalView(
+                portal: PortalDetail(
+                    id: 0,
+                    name: "",
+                    subtitle: "",
+                    about: "",
+                    categories_id: nil,
+                    cities_id: nil,
+                    lead_id: nil,
+                    users_id: viewModel.user.id,
+                    _c_users_count: nil,
+                    mainImageUrl: nil,
+                    aGoals: [],
+                    aPortalUsers: [],
+                    aTexts: [],
+                    aSections: [],
+                    aUsers: [],
+                    aLeads: []
+                ),
+                userId: viewModel.user.id
             )
         }
+        .sheet(isPresented: $showAddGoal) {
+            EditGoalPage(
+                existingGoal: nil,
+                portalId: nil,
+                userId: viewModel.user.id,
+                reportingIncrements: reportingIncrements.isEmpty
+                    ? [
+                        ReportingIncrement(id: 1, title: "Monthly"),
+                        ReportingIncrement(id: 2, title: "Weekly"),
+                        ReportingIncrement(id: 3, title: "Daily")
+                    ]
+                    : reportingIncrements,
+                associatedPortalName: nil
+            )
+        }
+        .sheet(isPresented: $showMessageSheet) {
+            MessageView(
+                viewModel: MessageViewModel(
+                    currentUserId: viewModel.loggedInUserId,
+                    otherUserId: viewModel.user.id,
+                    otherUserName: viewModel.user.fullName ?? "",
+                    otherUserPhotoURL: viewModel.user.profilePictureURL
+                )
+            )
+        }
+        .onChange(of: showAddGoal) { isPresented in
+            if !isPresented {
+                viewModel.fetchGoals()
+            }
+        }
+        .background(
+            NavigationLink(
+                destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
+                isActive: Binding(
+                    get: { selectedGoal != nil },
+                    set: { isActive in if !isActive { selectedGoal = nil } }
+                ),
+                label: { EmptyView() }
+            )
+            .hidden()
+        )
+    }
+}
+
+// Helper subview to reduce type-checking complexity
+struct ProfileMainContent: View {
+    @ObservedObject var viewModel: ProfileViewModel
+    @Binding var selectedTab: Int
+    @Binding var selectedGoal: Goal?
+    let mappedSkillTitles: [String]
+    let stickyHeader: () -> AnyView  // <-- Change here
+
+    var body: some View {
+        LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+            ProfileInfoView(
+                photoURL: viewModel.user.profilePictureURL,
+                city: viewModel.user.city,
+                skills: mappedSkillTitles
+            )
+            ProfileBroadcastView(broadcast: viewModel.user.broadcast)
+            Section(header: stickyHeader()) { // <-- Call as closure
+                ProfileTabContent(
+                    selectedTab: selectedTab,
+                    viewModel: viewModel,
+                    selectedGoal: $selectedGoal
+                )
+            }
+        }
+    }
+}
+
+    // --- FIX: Helper to update the edit profile view model before showing the sheet ---
+    private func updateEditProfileVM() {
+        editProfileVM.profileInfo = ProfileInfo(
+            firstName: viewModel.user.fname ?? "",
+            lastName: viewModel.user.lname ?? "",
+            skills: Set(
+                (viewModel.user.skills ?? []).compactMap { skillName in
+                    viewModel.availableSkills.first(where: { $0.title == skillName })
+                }
+            ),
+            type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
+            cityName: viewModel.user.city ?? "",
+            image: nil,
+            about: viewModel.user.about ?? "",
+            broadcast: viewModel.user.broadcast ?? "",
+            otherSkill: ""
+        )
     }
 
+    // ...rest of the file unchanged...
     private func loadReportingIncrements() {
         guard !isLoadingIncrements else { return }
         isLoadingIncrements = true
@@ -863,7 +907,7 @@ struct GoalsListSection: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ForEach(Array(goals.enumerated()), id: \.element.id) { index, goal in
+            ForEach(goals) { goal in
                 Button(action: {
                     onGoalTap(goal)
                 }) {
@@ -871,7 +915,7 @@ struct GoalsListSection: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
-                if index < goals.count - 1 {
+                if goal.id != goals.last?.id {
                     Divider()
                         .background(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
                 }

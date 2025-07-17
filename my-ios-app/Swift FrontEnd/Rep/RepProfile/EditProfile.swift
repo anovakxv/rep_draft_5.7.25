@@ -41,9 +41,15 @@ struct ProfileInfo {
 
 struct EditProfileView: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
+    var onSave: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
-    @State private var navigateToMainScreen = false
     @State private var selectedPhoto: PhotosPickerItem? = nil
+
+    // Custom initializer to support @ObservedObject and onSave
+    init(viewModel: ProfileInfoViewModel, onSave: (() -> Void)? = nil) {
+        self._viewModel = ObservedObject(wrappedValue: viewModel)
+        self.onSave = onSave
+    }
 
     var body: some View {
         NavigationStack {
@@ -52,7 +58,8 @@ struct EditProfileView: View {
                     onCancel: { viewModel.cancel(); dismiss() },
                     onSave: {
                         viewModel.done {
-                            navigateToMainScreen = true
+                            onSave?()
+                            dismiss()
                         }
                     }
                 )
@@ -107,22 +114,24 @@ struct EditProfileView: View {
                         if viewModel.availableSkills.isEmpty {
                             ProgressView("Loading skills...")
                         } else {
-                            List {
-                                ForEach(viewModel.availableSkills, id: \.self) { skill in
-                                    MultipleSelectionRow(
-                                        skill: skill,
-                                        isSelected: viewModel.profileInfo.skills.contains(skill)
-                                    ) {
-                                        if viewModel.profileInfo.skills.contains(skill) {
-                                            viewModel.profileInfo.skills.remove(skill)
-                                        } else if viewModel.profileInfo.skills.count < 3 {
-                                            viewModel.profileInfo.skills.insert(skill)
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    ForEach(viewModel.availableSkills, id: \.self) { skill in
+                                        MultipleSelectionRow(
+                                            skill: skill,
+                                            isSelected: viewModel.profileInfo.skills.contains(skill)
+                                        ) {
+                                            if viewModel.profileInfo.skills.contains(skill) {
+                                                viewModel.profileInfo.skills.remove(skill)
+                                            } else if viewModel.profileInfo.skills.count < 3 {
+                                                viewModel.profileInfo.skills.insert(skill)
+                                            }
                                         }
+                                        Divider()
                                     }
                                 }
                             }
                             .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44))
-                            .listStyle(.plain)
                             Text("\(viewModel.profileInfo.skills.count) of 3 selected")
                                 .font(.caption)
                                 .foregroundColor(.gray)
@@ -138,14 +147,8 @@ struct EditProfileView: View {
                 .padding(.bottom, 8)
                 Divider()
                 Spacer()
-                NavigationLink(
-                    destination: MainScreen(),
-                    isActive: $navigateToMainScreen
-                ) {
-                    EmptyView()
-                }
             }
-            .background(Color.white.edgesIgnoringSafeArea(.all))
+            .background(Color.white)
             .navigationBarHidden(true)
             .onAppear {
                 viewModel.fetchAvailableSkills()
@@ -174,6 +177,8 @@ struct MultipleSelectionRow: View {
         Button(action: action) {
             HStack {
                 Text(skill.title)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) // repGreen
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark")
@@ -190,31 +195,40 @@ struct EditProfileHeaderView: View {
     let onSave: () -> Void
 
     var body: some View {
-        HStack {
-            Button(action: onCancel) {
-                Image(systemName: "chevron.left")
-                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                    .font(.system(size: 20))
-            }
-            Spacer()
-            Text("Edit Profile")
-                .font(.system(size: 20, weight: .bold))
-            Spacer()
-            Button(action: onSave) {
-                Text("Save")
+        VStack(spacing: 0) {
+            // This color bar fills the status bar area, matching system look
+            Color.white
+                .frame(height: UIApplication.shared.connectedScenes
+                    .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.top }
+                    .first ?? 0)
+                .ignoresSafeArea()
+            HStack {
+                Button(action: onCancel) {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.system(size: 20))
+                }
+                Spacer()
+                Text("Edit Profile")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(Color(red: 0.75, green: 0.74, blue: 0.29))
+                Spacer()
+                Button(action: onSave) {
+                    Text("Save")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(Color(red: 0.75, green: 0.74, blue: 0.29))
+                }
             }
+            .frame(height: 44)
+            .padding(.horizontal, 15)
+            .background(Color.white)
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                alignment: .bottom
+            )
         }
-        .frame(height: 60)
-        .padding(.horizontal, 15)
         .background(Color.white)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-            alignment: .bottom
-        )
     }
 }
 
@@ -311,6 +325,7 @@ class ProfileInfoViewModel: ObservableObject {
                 if self?.mode == .edit {
                     self?.patchSkillsForEdit()
                 }
+                print("DEBUG: availableSkills after set:", self?.availableSkills ?? [])
             }
         }
     }

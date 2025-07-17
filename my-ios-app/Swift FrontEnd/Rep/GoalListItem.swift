@@ -13,28 +13,24 @@ struct GoalListItem: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
-            VStack(spacing: 2) {
-                HStack(alignment: .bottom, spacing: 6) {
-                    ForEach(goal.chartData) { bar in
-                        VStack(spacing: 0) {
-                            Spacer(minLength: 0)
-                            Rectangle()
-                                .fill(Color.repGreen)
-                                .frame(
-                                    width: 24,
-                                    height: {
-                                        let quota = goal.quota > 0 ? goal.quota : 1
-                                        return max(0, CGFloat(bar.value / quota) * 56)
-                                    }()
-                                )
-                                .cornerRadius(3)
-                        }
-                        .frame(height: 56) // Only the bar, no extra space for label
+            // Bar Chart
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(goal.chartData) { bar in
+                    GeometryReader { geo in
+                        let quota = goal.quota > 0 ? goal.quota : 1
+                        let barHeight = max(0, CGFloat(bar.value / quota) * geo.size.height)
+                        Rectangle()
+                            .fill(Color.repGreen)
+                            .frame(width: 24, height: barHeight)
+                            .cornerRadius(3)
+                            .position(x: geo.size.width / 2, y: geo.size.height - barHeight / 2)
                     }
-                    Spacer()
+                    .frame(width: 24, height: 81)
                 }
+                Spacer(minLength: 0)
             }
-            .frame(width: 144, height: 56) // Height matches bar only
+            .frame(width: 144, height: 81)
+            .padding(.vertical, 8) 
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.title)
                     .font(.headline)
@@ -48,7 +44,7 @@ struct GoalListItem: View {
             }
             Spacer()
         }
-        .frame(height: 56)
+        .frame(height: 81)
         .padding(.vertical, 4)
         .padding(.horizontal)
         .background(Color.white)

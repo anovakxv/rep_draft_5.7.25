@@ -39,11 +39,12 @@ def api_goal_details():
         return jsonify({'error': "the goal doesn't exist"}), 404
 
     # Patch: Fix AttributeError in as_dict's chart_data
-    def patched_chart_data(self, increment='month', num_periods=4):
+    def patched_chart_data(self, increment='day', num_periods=4):
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
-        from collections import defaultdict
-        data = defaultdict(float)
+        from collections import OrderedDict
+        running_total = 0
+        data = OrderedDict()
         for log in logs:
             if log.timestamp:
                 if increment == 'month':
@@ -54,7 +55,8 @@ def api_goal_details():
                     label = log.timestamp.strftime('%d %b')
                 else:
                     label = log.timestamp.strftime('%b')
-                data[label] += float(log.added_value or 0)
+                running_total += float(log.added_value or 0)
+                data[label] = running_total  # Each label gets the running total up to that day
         items = list(data.items())[-num_periods:]
         return [
             {

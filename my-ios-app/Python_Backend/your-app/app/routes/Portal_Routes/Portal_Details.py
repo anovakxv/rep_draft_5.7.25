@@ -150,6 +150,8 @@ def api_portal_details():
 @portal_bp.route('/', methods=['POST'])
 @jwt_required
 def api_create_portal():
+    print("POST /api/portal/ data (form):", request.form)
+    print("POST /api/portal/ data (files):", request.files)
     if request.content_type and request.content_type.startswith('multipart/form-data'):
         data = request.form
     else:

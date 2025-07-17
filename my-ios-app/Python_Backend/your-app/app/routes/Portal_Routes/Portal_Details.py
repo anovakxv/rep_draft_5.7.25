@@ -150,6 +150,8 @@ def api_portal_details():
 @portal_bp.route('/', methods=['POST'])
 @jwt_required
 def api_create_portal():
+    import traceback  # <-- Add this import at the top if not already present
+
     print("POST /api/portal/ data (form):", request.form)
     print("POST /api/portal/ data (files):", request.files)
     if request.content_type and request.content_type.startswith('multipart/form-data'):
@@ -222,6 +224,8 @@ def api_create_portal():
         db.session.commit()
     except Exception as e:
         db.session.rollback()
+        print("PORTAL CREATE ERROR:", e)
+        traceback.print_exc()  # <-- This will print the full traceback to your Render logs
         return jsonify({'error': str(e)}), 500
 
     # Return the full portal card dict for immediate frontend use

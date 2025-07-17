@@ -45,6 +45,9 @@ struct EditProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPhoto: PhotosPickerItem? = nil
 
+    // --- Onboarding Navigation State ---
+    @State private var showOnboarding = false
+
     // Custom initializer to support @ObservedObject and onSave
     init(viewModel: ProfileInfoViewModel, onSave: (() -> Void)? = nil) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
@@ -59,7 +62,7 @@ struct EditProfileView: View {
                     onSave: {
                         viewModel.done {
                             onSave?()
-                            dismiss()
+                            showOnboarding = true
                         }
                     }
                 )
@@ -147,6 +150,17 @@ struct EditProfileView: View {
                 .padding(.bottom, 8)
                 Divider()
                 Spacer()
+                // --- NavigationLink to OnboardingView ---
+                NavigationLink(
+                    destination: OnboardingView(
+                        userName: (viewModel.profileInfo.firstName + " " + viewModel.profileInfo.lastName).trimmingCharacters(in: .whitespaces),
+                        profileImage: viewModel.profileInfo.image
+                    )
+                    .navigationBarBackButtonHidden(true),
+                    isActive: $showOnboarding
+                ) {
+                    EmptyView()
+                }
             }
             .background(Color.white)
             .navigationBarHidden(true)

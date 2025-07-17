@@ -1,4 +1,3 @@
-//  Chat.swift
 //  Rep
 //
 //  Created by Adam Novak on 06.19.2025
@@ -112,6 +111,88 @@ class MessageViewModel: ObservableObject {
     }
 }
 
+// MARK: - GrowingTextEditor
+
+struct GrowingTextEditor: View {
+    @Binding var text: String
+    @State private var textViewHeight: CGFloat = 36
+
+    let minHeight: CGFloat = 36
+    let maxHeight: CGFloat = 36 * 8
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            // Placeholder
+            if text.isEmpty {
+                Text("Type a message...")
+                    .foregroundColor(.gray)
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 8)
+            }
+            UITextViewWrapper(text: $text, calculatedHeight: $textViewHeight, minHeight: minHeight, maxHeight: maxHeight)
+                .frame(minHeight: minHeight, maxHeight: maxHeight)
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(8)
+        }
+    }
+}
+
+// MARK: - UITextViewWrapper for dynamic height
+
+struct UITextViewWrapper: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var calculatedHeight: CGFloat
+
+    let minHeight: CGFloat
+    let maxHeight: CGFloat
+
+    func makeUIView(context: Context) -> UITextView {
+        let textView = UITextView()
+        textView.isScrollEnabled = false
+        textView.font = UIFont.preferredFont(forTextStyle: .body)
+        textView.backgroundColor = UIColor.clear
+        textView.delegate = context.coordinator
+        textView.textContainerInset = UIEdgeInsets(top: 12, left: 4, bottom: 12, right: 4)
+        textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        return textView
+    }
+
+    func updateUIView(_ uiView: UITextView, context: Context) {
+        if uiView.text != self.text {
+            uiView.text = self.text
+        }
+        UITextViewWrapper.recalculateHeight(view: uiView, result: $calculatedHeight, minHeight: minHeight, maxHeight: maxHeight)
+        uiView.isScrollEnabled = calculatedHeight >= maxHeight
+    }
+
+    static func recalculateHeight(view: UIView, result: Binding<CGFloat>, minHeight: CGFloat, maxHeight: CGFloat) {
+        let size = view.sizeThatFits(CGSize(width: view.bounds.width, height: CGFloat.greatestFiniteMagnitude))
+        let newHeight = min(max(size.height, minHeight), maxHeight)
+        if result.wrappedValue != newHeight {
+            DispatchQueue.main.async {
+                result.wrappedValue = newHeight
+            }
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(parent: self)
+    }
+
+    class Coordinator: NSObject, UITextViewDelegate {
+        var parent: UITextViewWrapper
+
+        init(parent: UITextViewWrapper) {
+            self.parent = parent
+        }
+
+        func textViewDidChange(_ textView: UITextView) {
+            self.parent.text = textView.text
+            UITextViewWrapper.recalculateHeight(view: textView, result: self.parent.$calculatedHeight, minHeight: parent.minHeight, maxHeight: parent.maxHeight)
+        }
+    }
+}
+
 // MARK: - Messaging View
 
 struct MessageView: View {
@@ -149,11 +230,8 @@ struct MessageView: View {
                 }
             }
             HStack(spacing: 8) {
-                TextField("Type a message...", text: $viewModel.inputText)
-                    .padding(12)
-                    .background(Color(UIColor.systemGray6))
-                    .cornerRadius(8)
-                    .font(.body)
+                GrowingTextEditor(text: $viewModel.inputText)
+                    .frame(minHeight: 36, maxHeight: 36 * 4)
                 Button(action: {
                     viewModel.sendMessage()
                 }) {
@@ -238,7 +316,6 @@ struct MessageBubble: View {
         .id(message.id)
     }
 }
-
 
 // MARK: - Preview
 

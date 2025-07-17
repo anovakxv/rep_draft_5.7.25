@@ -35,5 +35,4 @@ def api_get_skills():
 
     skills = query.offset(offset).limit(limit).all()
     result = [s.as_dict() for s in skills]
-    print("DEBUG: /get_skills result:", result)  # <-- Added print statement for testing
     return jsonify({'result': result})

@@ -469,69 +469,25 @@ struct ProfileView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Top bar: white background, bottom divider, matches PortalPage
                 NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
-
                 ScrollView {
                     LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                        // Profile info (now starts below the fixed header)
                         ProfileInfoView(
                             photoURL: viewModel.user.profilePictureURL,
                             city: viewModel.user.city,
                             skills: mappedSkillTitles
                         )
-                        VStack(alignment: .leading, spacing: 8) {
-                            if let broadcast = viewModel.user.broadcast, !broadcast.isEmpty {
-                                Text(broadcast)
-                                    .font(.body)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 8)
-
-                        // Sticky segmented picker and tab content
+                        ProfileBroadcastView(broadcast: viewModel.user.broadcast)
                         Section(header: stickyHeader) {
-                            ZStack {
-                                switch selectedTab {
-                                case 0:
-                                    ProfileRepSection(
-                                        portals: viewModel.portals,
-                                        isCurrentUser: viewModel.isCurrentUser,
-                                        showAddPartner: viewModel.showAddPartner,
-                                        addPartnerAction: viewModel.addPartner,
-                                        userId: viewModel.user.id
-                                    )
-                                    .padding(.top, 8)
-                                    .background(Color.white)
-                                case 1:
-                                    GoalsListSection(
-                                        goals: viewModel.goals,
-                                        isCurrentUser: viewModel.isCurrentUser,
-                                        showAddGoal: .constant(false),
-                                        onGoalTap: { goal in
-                                            selectedGoal = goal
-                                        }
-                                    )
-                                    .padding(.top, 8)
-                                    .background(Color.white)
-                                case 2:
-                                    WriteContentView(
-                                        viewModel: viewModel,
-                                        isCurrentUser: viewModel.isCurrentUser
-                                    )
-                                    .padding(.top, 8)
-                                    .background(Color.white)
-                                default:
-                                    EmptyView()
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .top)
+                            ProfileTabContent(
+                                selectedTab: selectedTab,
+                                viewModel: viewModel,
+                                selectedGoal: $selectedGoal
+                            )
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-
                 BottomBarView(
                     onAdd: {
                         if viewModel.isCurrentUser {
@@ -542,7 +498,6 @@ struct ProfileView: View {
                     },
                     onMessage: { showMessageSheet = true }
                 )
-                // --- NavigationLink for EditProfileView (fullscreen push) ---
                 NavigationLink(
                     destination: EditProfileView(
                         viewModel: ProfileInfoViewModel(
@@ -714,7 +669,8 @@ struct ProfileView: View {
                         aPortalUsers: [],
                         aTexts: [],
                         aSections: [],
-                        aUsers: []
+                        aUsers: [],
+                        aLeads: [] // Add this if required by your PortalDetail model
                     ),
                     userId: viewModel.user.id
                 )
@@ -749,8 +705,6 @@ struct ProfileView: View {
                     viewModel.fetchGoals()
                 }
             }
-            // --- Remove .sheet for EditProfileView ---
-            // Navigation to GoalsDetailView when a goal is tapped
             .background(
                 NavigationLink(
                     destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
@@ -809,6 +763,67 @@ struct ProfileView: View {
         return userSkills.map { skillName in
             viewModel.availableSkills.first(where: { $0.title == skillName })?.title ?? skillName
         }
+    }
+}
+
+// MARK: - Subviews for breaking up complexity
+
+struct ProfileBroadcastView: View {
+    let broadcast: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let broadcast = broadcast, !broadcast.isEmpty {
+                Text(broadcast)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+}
+
+struct ProfileTabContent: View {
+    let selectedTab: Int
+    @ObservedObject var viewModel: ProfileViewModel
+    @Binding var selectedGoal: Goal?
+
+    var body: some View {
+        ZStack {
+            switch selectedTab {
+            case 0:
+                ProfileRepSection(
+                    portals: viewModel.portals,
+                    isCurrentUser: viewModel.isCurrentUser,
+                    showAddPartner: viewModel.showAddPartner,
+                    addPartnerAction: viewModel.addPartner,
+                    userId: viewModel.user.id
+                )
+                .padding(.top, 8)
+                .background(Color.white)
+            case 1:
+                GoalsListSection(
+                    goals: viewModel.goals,
+                    isCurrentUser: viewModel.isCurrentUser,
+                    showAddGoal: .constant(false),
+                    onGoalTap: { goal in
+                        selectedGoal = goal
+                    }
+                )
+                .padding(.top, 8)
+                .background(Color.white)
+            case 2:
+                WriteContentView(
+                    viewModel: viewModel,
+                    isCurrentUser: viewModel.isCurrentUser
+                )
+                .padding(.top, 8)
+                .background(Color.white)
+            default:
+                EmptyView()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .top)
     }
 }
 

@@ -28,17 +28,13 @@ struct GoalListItem: View {
                                     }()
                                 )
                                 .cornerRadius(3)
-                            // Show value as Int (no decimal)
-                            Text("\(Int(bar.value))")
-                                .font(.caption2)
-                                .foregroundColor(.black)
                         }
-                        .frame(height: 56 + 16) // 56 for bar, 16 for label
+                        .frame(height: 56) // Only the bar, no extra space for label
                     }
                     Spacer()
                 }
             }
-            .frame(width: 144, height: 81)
+            .frame(width: 144, height: 56) // Height matches bar only
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.title)
                     .font(.headline)
@@ -47,12 +43,12 @@ struct GoalListItem: View {
                         .font(.subheadline)
                 }
                 Text("\(Int(goal.progressPercent))% [\(goal.typeName)]")
-                    .font(.callout) // Slightly larger than caption2
-                    .foregroundColor(.black) // Make text black
+                    .font(.callout)
+                    .foregroundColor(.black)
             }
             Spacer()
         }
-        .frame(height: 81)
+        .frame(height: 56)
         .padding(.vertical, 4)
         .padding(.horizontal)
         .background(Color.white)

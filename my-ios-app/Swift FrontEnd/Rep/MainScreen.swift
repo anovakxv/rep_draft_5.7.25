@@ -367,224 +367,36 @@ struct MainScreen: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                switch page {
-                case .people:
-                    if peopleVM.isLoading {
-                        ProgressView("Loading people...")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if let error = peopleVM.errorMessage {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if section == 0 {
-                        if filteredActiveChats.isEmpty {
-                            Text("No chats found.")
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            ActiveChatList(chats: filteredActiveChats)
-                        }
-                    } else {
-                        if filteredUsers.isEmpty {
-                            Text("No people found.")
-                                .foregroundColor(.secondary)
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            ChatList(users: filteredUsers)
-                        }
-                    }
-                case .portals:
-                    if portalsVM.isLoading {
-                        ProgressView("Loading portals...")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if let error = portalsVM.errorMessage {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if filteredPortals.isEmpty {
-                        Text("No portals found.")
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        PortalList(portals: filteredPortals)
-                    }
-                }
-            }
+            MainScreenContent(
+                page: $page,
+                section: $section,
+                portalsVM: portalsVM,
+                peopleVM: peopleVM,
+                userId: userId,
+                currentUser: currentUser,
+                showActionSheet: $showActionSheet,
+                showAddPurpose: $showAddPurpose,
+                showSearch: $showSearch,
+                searchText: $searchText,
+                searchDebounceTimer: $searchDebounceTimer,
+                pendingAction: $pendingAction,
+                performSearch: performSearch,
+                filteredUsers: filteredUsers,
+                filteredActiveChats: filteredActiveChats,
+                filteredPortals: filteredPortals,
+                fetchCurrentUser: fetchCurrentUser
+            )
+            .modifier(MainScreenToolbar(
+                section: $section,
+                page: $page,
+                portalsVM: portalsVM,
+                peopleVM: peopleVM,
+                userId: userId,
+                currentUser: currentUser,
+                showActionSheet: $showActionSheet
+            ))
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    MainSegmentedPicker(
-                        segments: ["OPEN", "NTWK", "ALL"],
-                        selectedIndex: $section
-                    )
-                    .onChange(of: section) { newSection in
-                        if page == .portals {
-                            portalsVM.fetchPortals(userId: userId, section: newSection)
-                        } else {
-                            peopleVM.fetchPeople(userId: userId, section: newSection)
-                        }
-                        // Clear search when switching tabs
-                        searchText = ""
-                        portalsVM.clearSearch()
-                        peopleVM.clearSearch()
-                    }
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink(destination: ProfileView(userId: userId)) {
-                        if let url = currentUser?.profilePictureURL {
-                            AsyncImage(url: url) { image in
-                                image.resizable().scaledToFill()
-                            } placeholder: {
-                                Circle().fill(Color.gray.opacity(0.3))
-                            }
-                            .frame(width: Constants.imageSize, height: Constants.imageSize)
-                            .clipShape(Circle())
-                        } else {
-                            Image(systemName: "person.crop.circle")
-                                .resizable()
-                                .frame(width: Constants.imageSize, height: Constants.imageSize)
-                                .clipShape(Circle())
-                        }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        action: { showActionSheet = true },
-                        label: {
-                            Image(systemName: "plus")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(
-                                    width: Constants.imageSize/1.5,
-                                    height: Constants.imageSize/1.5
-                                )
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        }
-                    )
-                }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                Button(
-                    action: {
-                        page = page == .people ? .portals : .people
-                        if page == .portals {
-                            portalsVM.fetchPortals(userId: userId, section: section)
-                        } else {
-                            peopleVM.fetchPeople(userId: userId, section: section)
-                        }
-                        // Clear search when switching pages
-                        searchText = ""
-                        portalsVM.clearSearch()
-                        peopleVM.clearSearch()
-                    },
-                    label: {
-                        Image("REPLogo")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 36.0, height: 36.0)
-                    }
-                )
-                .padding(.trailing, 36)
-                .padding(.bottom, 12)
-            }
-            .navigationBarBackButtonHidden()
-            // --- Search Bar Overlay ---
-            .overlay(
-                Group {
-                    if showSearch {
-                        VStack {
-                            Spacer()
-                            HStack {
-                                TextField("Search...", text: $searchText)
-                                    .padding(10)
-                                    .background(Color(.systemGray6))
-                                    .cornerRadius(8)
-                                    .padding(.horizontal)
-                                    .onChange(of: searchText) { newValue in
-                                        searchDebounceTimer?.invalidate()
-                                        // Debounce to avoid spamming API
-                                        searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
-                                            performSearch(query: newValue)
-                                        }
-                                    }
-                                Button("Cancel") {
-                                    showSearch = false
-                                    searchText = ""
-                                    portalsVM.clearSearch()
-                                    peopleVM.clearSearch()
-                                }
-                                .padding(.trailing)
-                            }
-                            .padding(.bottom, 8)
-                        }
-                        .transition(.move(edge: .bottom))
-                        .animation(.easeInOut, value: showSearch)
-                    }
-                }, alignment: .bottom
-            )
-        }
-        .sheet(isPresented: $showActionSheet) {
-            VStack(spacing: 0) {
-                Button(action: {
-                    pendingAction = .addPurpose
-                    showActionSheet = false
-                }) {
-                    Text("Add Purpose")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 12)
-                }
-                Button(action: {
-                    showActionSheet = false
-                    showSearch = true
-                }) {
-                    Text("Search")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 12)
-                }
-                Button(action: { showActionSheet = false }) {
-                    Text("Cancel")
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 12)
-                }
-            }
-            .padding()
-            .presentationDetents([.medium])
-        }
-        .onChange(of: pendingAction) { action in
-            guard let action = action else { return }
-            switch action {
-            case .addPurpose:
-                showAddPurpose = true
-            }
-            pendingAction = nil
-        }
-        .sheet(isPresented: $showAddPurpose) {
-            EditPortalView(
-                portal: PortalDetail(
-                    id: 0,
-                    name: "",
-                    subtitle: "",
-                    about: "",
-                    categories_id: nil,
-                    cities_id: nil,
-                    lead_id: nil,
-                    users_id: userId,
-                    _c_users_count: nil,
-                    mainImageUrl: nil,
-                    aGoals: [],
-                    aPortalUsers: [],
-                    aTexts: [],
-                    aSections: [],
-                    aUsers: []
-                ),
-                userId: userId
-            )
         }
         .onAppear {
             if page == .portals {
@@ -656,6 +468,261 @@ struct MainScreen: View {
         }.resume()
     }
 }
+
+// MARK: - MainScreenContent
+
+struct MainScreenContent: View {
+    @Binding var page: MainScreen.Page
+    @Binding var section: Int
+    @ObservedObject var portalsVM: PortalsViewModel
+    @ObservedObject var peopleVM: PeopleViewModel
+    var userId: Int
+    var currentUser: User?
+    @Binding var showActionSheet: Bool
+    @Binding var showAddPurpose: Bool
+    @Binding var showSearch: Bool
+    @Binding var searchText: String
+    @Binding var searchDebounceTimer: Timer?
+    @Binding var pendingAction: MainScreen.MainActionSheetAction?
+    var performSearch: (String) -> Void
+    var filteredUsers: [User]
+    var filteredActiveChats: [ActiveChat]
+    var filteredPortals: [Portal]
+    var fetchCurrentUser: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            switch page {
+            case .people:
+                if peopleVM.isLoading {
+                    ProgressView("Loading people...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = peopleVM.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if section == 0 {
+                    if filteredActiveChats.isEmpty {
+                        Text("No chats found.")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ActiveChatList(chats: filteredActiveChats)
+                    }
+                } else {
+                    if filteredUsers.isEmpty {
+                        Text("No people found.")
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        ChatList(users: filteredUsers)
+                    }
+                }
+            case .portals:
+                if portalsVM.isLoading {
+                    ProgressView("Loading portals...")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let error = portalsVM.errorMessage {
+                    Text(error)
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if filteredPortals.isEmpty {
+                    Text("No portals found.")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    PortalList(portals: filteredPortals)
+                }
+            }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            Button(
+                action: {
+                    page = page == .people ? .portals : .people
+                    if page == .portals {
+                        portalsVM.fetchPortals(userId: userId, section: section)
+                    } else {
+                        peopleVM.fetchPeople(userId: userId, section: section)
+                    }
+                    // Clear search when switching pages
+                    searchText = ""
+                    portalsVM.clearSearch()
+                    peopleVM.clearSearch()
+                },
+                label: {
+                    Image("REPLogo")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 36.0, height: 36.0)
+                }
+            )
+            .padding(.trailing, 36)
+            .padding(.bottom, 12)
+        }
+        .navigationBarBackButtonHidden()
+        // --- Search Bar Overlay ---
+        .overlay(
+            Group {
+                if showSearch {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            TextField("Search...", text: $searchText)
+                                .padding(10)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .padding(.horizontal)
+                                .onChange(of: searchText) { newValue in
+                                    searchDebounceTimer?.invalidate()
+                                    // Debounce to avoid spamming API
+                                    searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
+                                        performSearch(newValue)
+                                    }
+                                }
+                            Button("Cancel") {
+                                showSearch = false
+                                searchText = ""
+                                portalsVM.clearSearch()
+                                peopleVM.clearSearch()
+                            }
+                            .padding(.trailing)
+                        }
+                        .padding(.bottom, 8)
+                    }
+                    .transition(.move(edge: .bottom))
+                    .animation(.easeInOut, value: showSearch)
+                }
+            }, alignment: .bottom
+        )
+        .sheet(isPresented: $showActionSheet) {
+            VStack(spacing: 0) {
+                Button(action: {
+                    pendingAction = .addPurpose
+                    showActionSheet = false
+                }) {
+                    Text("Add Purpose")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 12)
+                }
+                Button(action: {
+                    showActionSheet = false
+                    showSearch = true
+                }) {
+                    Text("Search")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 12)
+                }
+                Button(action: { showActionSheet = false }) {
+                    Text("Cancel")
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 12)
+                }
+            }
+            .padding()
+            .presentationDetents([.medium])
+        }
+        .onChange(of: pendingAction) { action in
+            guard let action = action else { return }
+            switch action {
+            case .addPurpose:
+                showAddPurpose = true
+            }
+            pendingAction = nil
+        }
+        .sheet(isPresented: $showAddPurpose) {
+            EditPortalView(
+                portal: PortalDetail(
+                    id: 0,
+                    name: "",
+                    subtitle: "",
+                    about: "",
+                    categories_id: nil,
+                    cities_id: nil,
+                    lead_id: nil,
+                    users_id: userId,
+                    _c_users_count: nil,
+                    mainImageUrl: nil,
+                    aGoals: [],
+                    aPortalUsers: [],
+                    aTexts: [],
+                    aSections: [],
+                    aUsers: [],
+                    aLeads: []
+                ),
+                userId: userId
+            )
+        }
+    }
+}
+
+// MARK: - MainScreenToolbar
+
+struct MainScreenToolbar: ViewModifier {
+    @Binding var section: Int
+    @Binding var page: MainScreen.Page
+    var portalsVM: PortalsViewModel
+    var peopleVM: PeopleViewModel
+    var userId: Int
+    var currentUser: User?
+    @Binding var showActionSheet: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    MainSegmentedPicker(
+                        segments: ["OPEN", "NTWK", "ALL"],
+                        selectedIndex: $section
+                    )
+                    .onChange(of: section) { newSection in
+                        if page == .portals {
+                            portalsVM.fetchPortals(userId: userId, section: newSection)
+                        } else {
+                            peopleVM.fetchPeople(userId: userId, section: newSection)
+                        }
+                    }
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(destination: ProfileView(userId: userId)) {
+                        if let url = currentUser?.profilePictureURL {
+                            AsyncImage(url: url) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                Circle().fill(Color.gray.opacity(0.3))
+                            }
+                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                            .clipShape(Circle())
+                        } else {
+                            Image(systemName: "person.crop.circle")
+                                .resizable()
+                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                .clipShape(Circle())
+                        }
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(
+                        action: { showActionSheet = true },
+                        label: {
+                            Image(systemName: "plus")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(
+                                    width: MainScreen.Constants.imageSize/1.5,
+                                    height: MainScreen.Constants.imageSize/1.5
+                                )
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        }
+                    )
+                }
+            }
+    }
+}
+
 // MARK: - Portal List
 
 struct PortalList: View {

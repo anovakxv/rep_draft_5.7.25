@@ -42,15 +42,17 @@ struct ProfileInfo {
 struct EditProfileView: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
     var onSave: (() -> Void)? = nil
+    let showOnboardingAfterSave: Bool // <-- Add this flag
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPhoto: PhotosPickerItem? = nil
 
     // --- Onboarding Navigation State ---
     @State private var showOnboarding = false
 
-    // Custom initializer to support @ObservedObject and onSave
-    init(viewModel: ProfileInfoViewModel, onSave: (() -> Void)? = nil) {
+    // Custom initializer to support @ObservedObject, onboarding flag, and onSave
+    init(viewModel: ProfileInfoViewModel, showOnboardingAfterSave: Bool = false, onSave: (() -> Void)? = nil) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
+        self.showOnboardingAfterSave = showOnboardingAfterSave
         self.onSave = onSave
     }
 
@@ -62,7 +64,11 @@ struct EditProfileView: View {
                     onSave: {
                         viewModel.done {
                             onSave?()
-                            showOnboarding = true
+                            if showOnboardingAfterSave {
+                                showOnboarding = true
+                            } else {
+                                dismiss()
+                            }
                         }
                     }
                 )

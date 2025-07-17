@@ -1,8 +1,9 @@
-//  OnboardingView.swift
 //  Rep
 //
-//  Created by Adam Novak on 06.23.2025
+//  Created by Adam Novak: July 2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+//
+
 
 import SwiftUI
 
@@ -11,6 +12,10 @@ struct OnboardingView: View {
     let profileImage: UIImage?
     
     @State private var navigateToMainScreen = false
+    @AppStorage("isRegistered") var isRegistered: Bool = false
+    @AppStorage("onboardingComplete") var onboardingComplete: Bool = false
+    @AppStorage("pendingUserId") var pendingUserId: Int = 0
+    @AppStorage("userId") var userId: Int = 0
 
     var body: some View {
         NavigationStack {
@@ -83,6 +88,10 @@ struct OnboardingView: View {
 
                     // --- Action Button ---
                     Button(action: {
+                        userId = pendingUserId      // <-- Set the real userId here
+                        pendingUserId = 0           // <-- Optionally clear pendingUserId
+                        isRegistered = true
+                        onboardingComplete = true
                         navigateToMainScreen = true
                     }) {
                         Text("Find Goal Team to Join")

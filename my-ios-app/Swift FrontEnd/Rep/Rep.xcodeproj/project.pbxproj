@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		001258932E1C220400D4B1FC /* APIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001258922E1C220400D4B1FC /* APIConfig.swift */; };
+		0042DA0A2E29AA24001D8E88 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0042DA092E29AA24001D8E88 /* OnboardingView.swift */; };
 		005B63732E16F88600A1F0C1 /* EditProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B636B2E16F88600A1F0C1 /* EditProfile.swift */; };
 		005B63742E16F88600A1F0C1 /* Edit_Portal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B63612E16F88600A1F0C1 /* Edit_Portal.swift */; };
 		005B63752E16F88600A1F0C1 /* RepApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B636A2E16F88600A1F0C1 /* RepApp.swift */; };
@@ -53,6 +54,7 @@
 
 /* Begin PBXFileReference section */
 		001258922E1C220400D4B1FC /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
+		0042DA092E29AA24001D8E88 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		005B632D2E16F83200A1F0C1 /* Rep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		005B633E2E16F83300A1F0C1 /* RepTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		005B63482E16F83300A1F0C1 /* RepUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RepUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -179,6 +181,7 @@
 			children = (
 				005B636B2E16F88600A1F0C1 /* EditProfile.swift */,
 				005B636D2E16F88600A1F0C1 /* ProfileView.swift */,
+				0042DA092E29AA24001D8E88 /* OnboardingView.swift */,
 				005B636E2E16F88600A1F0C1 /* RegisterNewProfile.swift */,
 				00D80A602E1B6B0C003C926D /* SkillAPI.swift */,
 				005B636F2E16F88600A1F0C1 /* RepSkillsModel.swift */,
@@ -356,6 +359,7 @@
 				00E10AAF2E21953000BC7392 /* Update_Goal.swift in Sources */,
 				005B63832E16F88600A1F0C1 /* ProfileView.swift in Sources */,
 				005B63842E16F88600A1F0C1 /* LoginView.swift in Sources */,
+				0042DA0A2E29AA24001D8E88 /* OnboardingView.swift in Sources */,
 				001258932E1C220400D4B1FC /* APIConfig.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

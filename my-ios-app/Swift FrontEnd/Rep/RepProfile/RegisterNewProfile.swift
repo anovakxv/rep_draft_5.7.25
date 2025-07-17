@@ -33,6 +33,7 @@ struct RegisterNewProfileView: View {
     @AppStorage("isRegistered") var isRegistered: Bool = false
     @AppStorage("userId") var userId: Int = 0
     @AppStorage("jwtToken") var jwtToken: String = ""
+    @AppStorage("pendingUserId") var pendingUserId: Int = 0 // <-- Add this
 
     var body: some View {
         ZStack {
@@ -142,7 +143,8 @@ struct RegisterNewProfileView: View {
                         viewModel: ProfileInfoViewModel(
                             profileInfo: registeredUser,
                             mode: .edit
-                        )
+                        ),
+                        showOnboardingAfterSave: true
                     ),
                     isActive: $navigateToEditProfile
                 ) {
@@ -258,17 +260,22 @@ struct RegisterNewProfileView: View {
                 }
                 // Registration successful
                 // Parse userId and token from response
+                var newUserId: Int?
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let user = json["user"] as? [String: Any],
-                   let newUserId = user["id"] as? Int {
-                    userId = newUserId
+                    let user = json["user"] as? [String: Any],
+                    let id = user["id"] as? Int {
+                        newUserId = id
                 }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let token = json["token"] as? String {
-                    jwtToken = token
+                    let token = json["token"] as? String {
+                        jwtToken = token
                 }
-                isRegistered = true
 
+                // Set onboarding flags, but NOT userId yet!
+                isRegistered = true
+                if let id = newUserId {
+                    pendingUserId = id // Store for onboarding
+                }
                 registeredUser = ProfileInfo(
                     firstName: firstName,
                     lastName: lastName,

@@ -26,7 +26,6 @@ GOAL_TYPE_METRIC_MAP = {
 def check_permission(goal, user_id):
     return user_id == goal.users_id or user_id == goal.lead_id
 
-# --- GET: Goal Details ---
 @goals_bp.route('/details', methods=['GET'])
 @jwt_required
 def api_goal_details():
@@ -38,31 +37,39 @@ def api_goal_details():
     if not goal:
         return jsonify({'error': "the goal doesn't exist"}), 404
 
-    # Patch: Fix AttributeError in as_dict's chart_data
+    # --- PATCH: Determine increment from reporting increment title ---
+    increment = 'month'
+    if goal.reporting_increment and hasattr(goal.reporting_increment, "title"):
+        title = goal.reporting_increment.title.lower()
+        if "day" in title:
+            increment = "day"
+        elif "week" in title:
+            increment = "week"
+        elif "month" in title:
+            increment = "month"
+
+    # --- PATCH: Chart Data Grouping ---
     def patched_chart_data(self, increment='day', num_periods=4):
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
         from collections import OrderedDict
-        from datetime import datetime
-
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
         running_total = 0
         data = OrderedDict()
         for log in logs:
             if log.timestamp:
                 if increment == 'month':
-                    label = log.timestamp.strftime('%Y-%m')  # e.g. "2025-07"
+                    label = log.timestamp.strftime('%Y-%m')
                     display_label = log.timestamp.strftime('%b')
                 elif increment == 'week':
                     label = f"{log.timestamp.year}-W{log.timestamp.isocalendar()[1]}"
                     display_label = f"W{log.timestamp.isocalendar()[1]}"
                 elif increment == 'day':
-                    label = log.timestamp.strftime('%Y-%m-%d')  # e.g. "2025-07-18"
+                    label = log.timestamp.strftime('%Y-%m-%d')
                     display_label = log.timestamp.strftime('%d %b')
                 else:
                     label = log.timestamp.strftime('%Y-%m')
                     display_label = log.timestamp.strftime('%b')
                 running_total += float(log.added_value or 0)
-                # Always keep the running total as of the last log for each label
                 data[label] = (running_total, display_label)
         items = list(data.items())[-num_periods:]
         return [
@@ -75,9 +82,9 @@ def api_goal_details():
             for idx, (label, (value, display_label)) in enumerate(items)
         ]
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
+    chart_data = goal.chart_data(increment=increment, num_periods=4)
 
     # --- PATCH: Add team and feed info ---
-    # Team: creator + all confirmed team members (no duplicates)
     team_members = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).all()
     team_user_ids = set([goal.users_id] + [tm.users_id2 for tm in team_members])
     users = User.query.filter(User.id.in_(team_user_ids)).all()
@@ -90,7 +97,6 @@ def api_goal_details():
         for u in users
     ]
 
-    # Feed: latest 4 progress logs (for non-Recruiting, or for Recruiting: show team join logs)
     logs = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).limit(4).all()
     a_latest_progress = [
         {
@@ -112,13 +118,13 @@ def api_goal_details():
     else:
         latest_log = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).first()
         result["filled_quota"] = latest_log.value if latest_log else 0
-        # Optionally update progress and progress_percent for non-Recruiting
         result["progress"] = round(result["filled_quota"] / result["quota"], 2) if result.get("quota") else 0
         result["progress_percent"] = round(100 * result["filled_quota"] / result["quota"]) if result.get("quota") else 0
         result["valueString"] = str(int(result["filled_quota"]))
 
     result["team"] = team
     result["aLatestProgress"] = a_latest_progress
+    result["chartData"] = chart_data  # <-- PATCH: Use correct chart data
 
     return jsonify({'result': result})
 

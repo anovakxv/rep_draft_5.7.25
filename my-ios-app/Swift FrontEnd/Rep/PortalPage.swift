@@ -7,6 +7,24 @@
 
 import SwiftUI
 import _PhotosUI_SwiftUI
+import Combine
+
+// MARK: - Orientation Observer
+
+class OrientationObserver: ObservableObject {
+    @Published var isLandscape: Bool = UIDevice.current.orientation.isLandscape
+
+    private var cancellable: AnyCancellable?
+
+    init() {
+        let notification = UIDevice.orientationDidChangeNotification
+        cancellable = NotificationCenter.default.publisher(for: notification)
+            .sink { _ in
+                let orientation = UIDevice.current.orientation
+                self.isLandscape = orientation == .landscapeLeft || orientation == .landscapeRight
+            }
+    }
+}
 
 // MARK: - Portal ViewModel
 
@@ -144,6 +162,8 @@ struct PortalPageContent: View {
     @State private var showFullscreen = false
     @State private var fullscreenIndex = 0
 
+    @StateObject private var orientationObserver = OrientationObserver()
+
     enum PortalActionSheetAction {
         case joinTeam
         case sharePortal
@@ -223,6 +243,18 @@ struct PortalPageContent: View {
                             onDismiss: { showFullscreen = false }
                         )
                         .ignoresSafeArea()
+                    }
+                    .onAppear {
+                        UIDevice.current.beginGeneratingDeviceOrientationNotifications()
+                    }
+                    .onDisappear {
+                        UIDevice.current.endGeneratingDeviceOrientationNotifications()
+                    }
+                    .onChange(of: orientationObserver.isLandscape) { isLandscape in
+                        if isLandscape && !showFullscreen {
+                            showFullscreen = true
+                            fullscreenIndex = 0
+                        }
                     }
 
                     // --- DEBUG: Print aLeads on load ---
@@ -390,6 +422,7 @@ struct PortalPageContent: View {
         )
     }
 }
+
 
 // MARK: - Fullscreen Image Viewer
 

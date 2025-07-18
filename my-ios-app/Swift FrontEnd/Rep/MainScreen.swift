@@ -337,7 +337,7 @@ extension MainScreen {
         case people
     }
     enum Constants {
-        static let imageSize: CGFloat = 24.0
+        static let imageSize: CGFloat = 28.0
     }
     enum MainActionSheetAction {
         case addPurpose
@@ -738,7 +738,6 @@ struct PortalList: View {
                     } label: {
                         PortalItem(portal: portal)
                     }
-                    Divider()
                 }
                 .listRowSeparator(.hidden)
                 .listRowInsets(EdgeInsets())

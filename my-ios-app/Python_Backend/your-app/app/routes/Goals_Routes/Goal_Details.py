@@ -41,31 +41,38 @@ def api_goal_details():
     # Patch: Fix AttributeError in as_dict's chart_data
     def patched_chart_data(self, increment='day', num_periods=4):
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
-        logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
         from collections import OrderedDict
+        from datetime import datetime
+
+        logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
         running_total = 0
         data = OrderedDict()
         for log in logs:
             if log.timestamp:
                 if increment == 'month':
-                    label = log.timestamp.strftime('%b')
+                    label = log.timestamp.strftime('%Y-%m')  # e.g. "2025-07"
+                    display_label = log.timestamp.strftime('%b')
                 elif increment == 'week':
-                    label = f"W{log.timestamp.isocalendar()[1]}"
+                    label = f"{log.timestamp.year}-W{log.timestamp.isocalendar()[1]}"
+                    display_label = f"W{log.timestamp.isocalendar()[1]}"
                 elif increment == 'day':
-                    label = log.timestamp.strftime('%d %b')
+                    label = log.timestamp.strftime('%Y-%m-%d')  # e.g. "2025-07-18"
+                    display_label = log.timestamp.strftime('%d %b')
                 else:
-                    label = log.timestamp.strftime('%b')
+                    label = log.timestamp.strftime('%Y-%m')
+                    display_label = log.timestamp.strftime('%b')
                 running_total += float(log.added_value or 0)
-                data[label] = running_total  # Each label gets the running total up to that day
+                # Always keep the running total as of the last log for each label
+                data[label] = (running_total, display_label)
         items = list(data.items())[-num_periods:]
         return [
             {
                 "id": idx + 1,
                 "value": value,
                 "valueLabel": str(value),
-                "bottomLabel": label
+                "bottomLabel": display_label
             }
-            for idx, (label, value) in enumerate(items)
+            for idx, (label, (value, display_label)) in enumerate(items)
         ]
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
 

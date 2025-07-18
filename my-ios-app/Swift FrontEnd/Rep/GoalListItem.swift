@@ -19,23 +19,23 @@ struct GoalListItem: View {
                     ForEach(goal.chartData) { bar in
                         let quota = goal.quota > 0 ? goal.quota : 1
                         let barHeight = max(0, CGFloat(bar.value / quota) * geo.size.height)
-                        VStack {
+                        VStack(spacing: 0) {
                             Spacer(minLength: 0)
                             Rectangle()
                                 .fill(Color.repGreen)
                                 .frame(width: 24, height: barHeight)
                                 .cornerRadius(3)
-                            Text(bar.bottomLabel)
-                                .font(.caption2)
-                                .frame(width: 24)
-                                .lineLimit(1)
+                            // Text(bar.bottomLabel)
+                            //    .font(.caption2)
+                            //    .frame(width: 24)
+                            //    .lineLimit(1)
                         }
                     }
                     Spacer(minLength: 0)
                 }
             }
             .frame(width: 144, height: 81)
-            .padding(.vertical, 8)
+            .padding(.vertical, 4)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.title)

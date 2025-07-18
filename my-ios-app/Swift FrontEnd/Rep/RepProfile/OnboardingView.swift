@@ -4,7 +4,6 @@
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 //
 
-
 import SwiftUI
 
 struct OnboardingView: View {
@@ -17,6 +16,10 @@ struct OnboardingView: View {
     @AppStorage("pendingUserId") var pendingUserId: Int = 0
     @AppStorage("userId") var userId: Int = 0
 
+    // --- For fetching latest profile info ---
+    @State private var profilePictureURL: URL? = nil
+    @State private var fetchedUserName: String? = nil
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -26,7 +29,7 @@ struct OnboardingView: View {
                     // --- Top Bar (matches ProfileView) ---
                     HStack {
                         Spacer()
-                        Text(userName)
+                        Text(fetchedUserName ?? userName)
                             .font(.system(size: 20, weight: .bold))
                             .foregroundColor(.black)
                         Spacer()
@@ -44,7 +47,16 @@ struct OnboardingView: View {
 
                     // --- Profile Picture (matches ProfileInfoView) ---
                     ZStack {
-                        if let image = profileImage {
+                        if let url = profilePictureURL {
+                            AsyncImage(url: url) { image in
+                                image.resizable()
+                                    .aspectRatio(contentMode: .fill)
+                            } placeholder: {
+                                Circle().fill(Color.gray.opacity(0.3))
+                            }
+                            .frame(width: 108, height: 108)
+                            .clipShape(Circle())
+                        } else if let image = profileImage {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
@@ -67,7 +79,7 @@ struct OnboardingView: View {
                     .padding(.bottom, 16)
 
                     // --- Welcome Message ---
-                    Text("Hi, \(userName)!\n\nWe’re here to help you become your best self.\n\nWe do this by leveraging the people in your life who care about you, +AI.\n\nStart by viewing the list of “Purposes” and joining a Team.\n\nOr, search for someone you know and see what Goal Teams they’re on!")
+                    Text("Hi, \(fetchedUserName ?? userName)!\n\nWe’re here to help you become your best self.\n\nWe do this by leveraging the people in your life who care about you, +AI.\n\nStart by viewing the list of “Purposes” and joining a Team.\n\nOr, search for someone you know and see what Goal Teams they’re on!")
                         .font(.custom("Inter", size: 20))
                         .foregroundColor(.black)
                         .multilineTextAlignment(.leading)
@@ -94,8 +106,8 @@ struct OnboardingView: View {
                         onboardingComplete = true
                         navigateToMainScreen = true
                     }) {
-                        Text("Find Goal Team to Join")
-                            .font(.custom("Inter", size: 24).weight(.semibold))
+                        Text("find Goal Team to join")
+                            .font(.custom("Inter", size: 24).weight(.bold))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 100)
@@ -108,7 +120,34 @@ struct OnboardingView: View {
                 }
             }
             .navigationBarBackButtonHidden(true)
+            .onAppear {
+                fetchUserProfile()
+            }
         }
+    }
+
+    // --- Fetch latest user profile to get profile picture URL and name ---
+    private func fetchUserProfile() {
+        // Use pendingUserId if set, otherwise fallback to userId
+        let idToFetch = pendingUserId != 0 ? pendingUserId : userId
+        guard idToFetch != 0,
+              let url = URL(string: "\(APIConfig.baseURL)/api/user/profile?users_id=\(idToFetch)"),
+              let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data = data,
+                  let apiResponse = try? JSONDecoder().decode(UserProfileAPIResponse.self, from: data) else { return }
+            DispatchQueue.main.async {
+                self.profilePictureURL = apiResponse.result.profilePictureURL
+                // Prefer fullName, fallback to fname/lname, fallback to passed-in userName
+                if let fullName = apiResponse.result.fullName, !fullName.isEmpty {
+                    self.fetchedUserName = fullName
+                } else if let fname = apiResponse.result.fname, let lname = apiResponse.result.lname {
+                    self.fetchedUserName = "\(fname) \(lname)".trimmingCharacters(in: .whitespaces)
+                }
+            }
+        }.resume()
     }
 }
 

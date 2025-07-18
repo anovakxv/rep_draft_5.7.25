@@ -113,19 +113,25 @@ class EditPortalViewModel: ObservableObject {
         let currentCount = selectedImages.count
         let availableSlots = maxImages - currentCount
         let itemsToLoad = Array(items.prefix(availableSlots))
-        for item in itemsToLoad {
+        var imagesToAdd = Array<UIImage?>(repeating: nil, count: itemsToLoad.count)
+        let group = DispatchGroup()
+        for (idx, item) in itemsToLoad.enumerated() {
+            group.enter()
             item.loadTransferable(type: Data.self) { result in
+                defer { group.leave() }
                 switch result {
                 case .success(let data):
                     if let data, let image = UIImage(data: data) {
-                        DispatchQueue.main.async {
-                            self.selectedImages.append(image)
-                        }
+                        imagesToAdd[idx] = image
                     }
                 case .failure(let error):
                     print("Failed to load image: \(error)")
                 }
             }
+        }
+        group.notify(queue: .main) {
+            // Only append non-nil images, in order
+            self.selectedImages.append(contentsOf: imagesToAdd.compactMap { $0 })
         }
     }
 

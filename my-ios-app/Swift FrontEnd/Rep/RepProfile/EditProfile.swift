@@ -157,6 +157,7 @@ struct EditProfileView: View {
                         Divider()
                         // Removed Spacer() here to keep content visible
                     }
+                    .padding(.bottom, 400) 
                 }
                 // Sticky debug button at the bottom
                 VStack {

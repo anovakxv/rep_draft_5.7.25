@@ -31,8 +31,7 @@ def get_user_response(user, session_user_id=None):
     user_row = manage_user_row(user_row, user.id, level=level)
     # Add skills (as list of titles for frontend compatibility)
     user_skills = Skill.query.join(UserSkill, Skill.id == UserSkill.skills_id).filter(UserSkill.users_id == user.id).all()
-    user_row['skills'] = [skill.title for skill in user_skills]
-    # Add relationships (self = always False except for self)
+    user_row['skills'] = [skill.title for skill in user_skills]    # Add relationships (self = always False except for self)
     user_row['relationships'] = {
         "i_follow": False,
         "i_am_followed_by": False,

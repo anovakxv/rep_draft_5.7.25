@@ -10,6 +10,18 @@ from app import db
 
 goals_bp = Blueprint('get_user_goals', __name__)
 
+def get_increment(goal):
+    # Use the goal's reporting increment title if available
+    if hasattr(goal, "reporting_increment") and goal.reporting_increment and hasattr(goal.reporting_increment, "title"):
+        title = goal.reporting_increment.title.lower()
+        if "day" in title:
+            return "day"
+        elif "week" in title:
+            return "week"
+        elif "month" in title:
+            return "month"
+    return "month"  # Default fallback
+
 # GET /api/goals/list?users_id=1
 @goals_bp.route('/list', methods=['GET'])
 @jwt_required
@@ -30,7 +42,11 @@ def get_goals_by_user():
         .all()
     )
 
-    aGoals = [goal.as_dict() for goal in goals]
+    # Use correct increment for chartData
+    aGoals = []
+    for goal in goals:
+        increment = get_increment(goal)
+        aGoals.append(goal.as_dict(increment=increment))
 
     return jsonify({"aGoals": aGoals})
 
@@ -44,6 +60,10 @@ def get_goals_by_portal():
 
     goals = Goal.query.filter_by(portals_id=portals_id).all()
 
-    aGoals = [goal.as_dict() for goal in goals]
+    # Use correct increment for chartData
+    aGoals = []
+    for goal in goals:
+        increment = get_increment(goal)
+        aGoals.append(goal.as_dict(increment=increment))
 
     return jsonify({"aGoals": aGoals})

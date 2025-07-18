@@ -57,6 +57,20 @@ struct OnboardingFlowEntryView: View {
         broadcast: "",
         otherSkill: ""
     )
+    @StateObject private var onboardingProfileVM = ProfileInfoViewModel(
+        profileInfo: ProfileInfo(
+            firstName: "",
+            lastName: "",
+            skills: [],
+            type: .lead,
+            cityName: "",
+            image: nil,
+            about: "",
+            broadcast: "",
+            otherSkill: ""
+        ),
+        mode: .edit
+    )
 
     var onboardingProfileImage: UIImage? {
         if let data = onboardingProfileImageData {
@@ -67,14 +81,12 @@ struct OnboardingFlowEntryView: View {
 
     var body: some View {
         NavigationStack {
-            // EditProfileView for onboarding
             EditProfileView(
-                viewModel: ProfileInfoViewModel(profileInfo: profileInfo, mode: .edit),
+                viewModel: onboardingProfileVM,
                 showOnboardingAfterSave: true,
-                onSave: {
-                    // Save name and image for onboarding
-                    onboardingUserName = (profileInfo.firstName + " " + profileInfo.lastName).trimmingCharacters(in: .whitespaces)
-                    if let image = profileInfo.image, let data = image.jpegData(compressionQuality: 0.8) {
+                onSave: { _ in
+                    onboardingUserName = (onboardingProfileVM.profileInfo.firstName + " " + onboardingProfileVM.profileInfo.lastName).trimmingCharacters(in: .whitespaces)
+                    if let image = onboardingProfileVM.profileInfo.image, let data = image.jpegData(compressionQuality: 0.8) {
                         onboardingProfileImageData = data
                     }
                     showOnboarding = true

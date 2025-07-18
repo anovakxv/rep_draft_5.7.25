@@ -41,16 +41,14 @@ struct ProfileInfo {
 
 struct EditProfileView: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
-    var onSave: (() -> Void)? = nil
-    let showOnboardingAfterSave: Bool // <-- Add this flag
+    var onSave: ((_ updatedUser: User?) -> Void)? = nil // PATCH: Pass updated user
+    let showOnboardingAfterSave: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPhoto: PhotosPickerItem? = nil
 
-    // --- Onboarding Navigation State ---
     @State private var showOnboarding = false
 
-    // Custom initializer to support @ObservedObject, onboarding flag, and onSave
-    init(viewModel: ProfileInfoViewModel, showOnboardingAfterSave: Bool = false, onSave: (() -> Void)? = nil) {
+    init(viewModel: ProfileInfoViewModel, showOnboardingAfterSave: Bool = false, onSave: ((_ updatedUser: User?) -> Void)? = nil) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
         self.showOnboardingAfterSave = showOnboardingAfterSave
         self.onSave = onSave
@@ -58,109 +56,121 @@ struct EditProfileView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                EditProfileHeaderView(
-                    onCancel: { viewModel.cancel(); dismiss() },
-                    onSave: {
-                        viewModel.done {
-                            onSave?()
-                            if showOnboardingAfterSave {
-                                showOnboarding = true
-                            } else {
-                                dismiss()
-                            }
-                        }
-                    }
-                )
-                EditProfileInfoSection(viewModel: viewModel, selectedPhoto: $selectedPhoto)
-                VStack(alignment: .leading, spacing: 16) {
-                    // Name fields (first editable fields)
-                    HStack(spacing: 12) {
-                        TextField("First Name", text: $viewModel.profileInfo.firstName)
-                            .padding()
-                            .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                            .cornerRadius(6)
-                        TextField("Last Name", text: $viewModel.profileInfo.lastName)
-                            .padding()
-                            .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                            .cornerRadius(6)
-                    }
-                    // Broadcast
-                    TextField("Broadcast (optional)", text: $viewModel.profileInfo.broadcast)
-                        .padding()
-                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                        .cornerRadius(6)
-                    // Rep Type (own line)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Rep Type")
-                            .font(.custom("Inter", size: 16).weight(.bold))
-                            .foregroundColor(.black)
-                        Picker("Rep Type", selection: $viewModel.profileInfo.type) {
-                            ForEach(RepTypeModel.allCases, id: \.self) { role in
-                                Text(role.rawValue).tag(role)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .frame(maxWidth: .infinity)
-                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                        .cornerRadius(6)
-                    }
-                    // City (own line)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("City")
-                            .font(.custom("Inter", size: 16).weight(.bold))
-                            .foregroundColor(.black)
-                        TextField("Enter City (optional)", text: $viewModel.profileInfo.cityName)
-                            .padding()
-                            .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                            .cornerRadius(6)
-                    }
-                    // Skills selector (dropdown, up to 3)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Select up to 3 Skills")
-                            .font(.custom("Inter", size: 16).weight(.bold))
-                            .foregroundColor(.black)
-                        if viewModel.availableSkills.isEmpty {
-                            ProgressView("Loading skills...")
-                        } else {
-                            ScrollView {
-                                VStack(alignment: .leading, spacing: 0) {
-                                    ForEach(viewModel.availableSkills, id: \.self) { skill in
-                                        MultipleSelectionRow(
-                                            skill: skill,
-                                            isSelected: viewModel.profileInfo.skills.contains(skill)
-                                        ) {
-                                            if viewModel.profileInfo.skills.contains(skill) {
-                                                viewModel.profileInfo.skills.remove(skill)
-                                            } else if viewModel.profileInfo.skills.count < 3 {
-                                                viewModel.profileInfo.skills.insert(skill)
-                                            }
+            ZStack {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        EditProfileHeaderView(
+                            onCancel: { viewModel.cancel(); dismiss() },
+                            onSave: {
+                                viewModel.done { updatedUser in
+                                    print("DEBUG: Save completion called")
+                                    onSave?(updatedUser)
+                                    if showOnboardingAfterSave {
+                                        DispatchQueue.main.async {
+                                            showOnboarding = true
                                         }
-                                        Divider()
+                                    } else {
+                                        DispatchQueue.main.async {
+                                            dismiss()
+                                        }
                                     }
                                 }
                             }
-                            .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44))
-                            Text("\(viewModel.profileInfo.skills.count) of 3 selected")
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                        )
+
+                        EditProfileInfoSection(viewModel: viewModel, selectedPhoto: $selectedPhoto)
+                        VStack(alignment: .leading, spacing: 16) {
+                            HStack(spacing: 12) {
+                                TextField("First Name", text: $viewModel.profileInfo.firstName)
+                                    .padding()
+                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                    .cornerRadius(6)
+                                TextField("Last Name", text: $viewModel.profileInfo.lastName)
+                                    .padding()
+                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                    .cornerRadius(6)
+                            }
+                            TextField("Broadcast (optional)", text: $viewModel.profileInfo.broadcast)
+                                .padding()
+                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                .cornerRadius(6)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Rep Type")
+                                    .font(.custom("Inter", size: 16).weight(.bold))
+                                    .foregroundColor(.black)
+                                Picker("Rep Type", selection: $viewModel.profileInfo.type) {
+                                    ForEach(RepTypeModel.allCases, id: \.self) { role in
+                                        Text(role.rawValue).tag(role)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .frame(maxWidth: .infinity)
+                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                .cornerRadius(6)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("City")
+                                    .font(.custom("Inter", size: 16).weight(.bold))
+                                    .foregroundColor(.black)
+                                TextField("Enter City (optional)", text: $viewModel.profileInfo.cityName)
+                                    .padding()
+                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                    .cornerRadius(6)
+                            }
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Select up to 3 Skills")
+                                    .font(.custom("Inter", size: 16).weight(.bold))
+                                    .foregroundColor(.black)
+                                if viewModel.availableSkills.isEmpty {
+                                    ProgressView("Loading skills...")
+                                } else {
+                                    ScrollView {
+                                        VStack(alignment: .leading, spacing: 0) {
+                                            ForEach(viewModel.availableSkills, id: \.self) { skill in
+                                                MultipleSelectionRow(
+                                                    skill: skill,
+                                                    isSelected: viewModel.profileInfo.skills.contains(skill)
+                                                ) {
+                                                    if viewModel.profileInfo.skills.contains(skill) {
+                                                        viewModel.profileInfo.skills.remove(skill)
+                                                    } else if viewModel.profileInfo.skills.count < 3 {
+                                                        viewModel.profileInfo.skills.insert(skill)
+                                                    }
+                                                }
+                                                Divider()
+                                            }
+                                        }
+                                    }
+                                    .frame(height: min(200, CGFloat(viewModel.availableSkills.count) * 44))
+                                    Text("\(viewModel.profileInfo.skills.count) of 3 selected")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                            }
+                            TextField("Other Skill (optional)", text: $viewModel.profileInfo.otherSkill)
+                                .padding()
+                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+                                .cornerRadius(6)
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                        Divider()
+                        // Removed Spacer() here to keep content visible
                     }
-                    // Other Skill
-                    TextField("Other Skill (optional)", text: $viewModel.profileInfo.otherSkill)
-                        .padding()
-                        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                        .cornerRadius(6)
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-                Divider()
-                Spacer()
-                // --- NavigationLink to OnboardingView ---
+                // Sticky debug button at the bottom
+                VStack {
+                    Spacer()
+                    // Button("Go to Onboarding (Debug)") {
+                    //     showOnboarding = true
+                    // //}
+                    //.padding(.bottom, 32)
+                }
+                // NavigationLink at the top level
                 NavigationLink(
                     destination: OnboardingView(
-                        userName: (viewModel.profileInfo.firstName + " " + viewModel.profileInfo.lastName).trimmingCharacters(in: .whitespaces),
-                        profileImage: viewModel.profileInfo.image
+                        userName: "Test User",
+                        profileImage: nil
                     )
                     .navigationBarBackButtonHidden(true),
                     isActive: $showOnboarding
@@ -169,6 +179,7 @@ struct EditProfileView: View {
                 }
             }
             .background(Color.white)
+            .edgesIgnoringSafeArea(.bottom)
             .navigationBarHidden(true)
             .onAppear {
                 viewModel.fetchAvailableSkills()
@@ -176,9 +187,13 @@ struct EditProfileView: View {
             .onChange(of: selectedPhoto) { newItem in
                 if let newItem {
                     Task {
-                        if let data = try? await newItem.loadTransferable(type: Data.self),
-                           let image = UIImage(data: data) {
-                            viewModel.profileInfo.image = image
+                        do {
+                            if let data = try await newItem.loadTransferable(type: Data.self),
+                            let image = UIImage(data: data) {
+                                viewModel.profileInfo.image = image
+                            }
+                        } catch {
+                            print("DEBUG: Failed to load image from PhotosPicker:", error)
                         }
                     }
                 }
@@ -215,40 +230,31 @@ struct EditProfileHeaderView: View {
     let onSave: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            // This color bar fills the status bar area, matching system look
-            Color.white
-                .frame(height: UIApplication.shared.connectedScenes
-                    .compactMap { ($0 as? UIWindowScene)?.keyWindow?.safeAreaInsets.top }
-                    .first ?? 0)
-                .ignoresSafeArea()
-            HStack {
-                Button(action: onCancel) {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.system(size: 20))
-                }
-                Spacer()
-                Text("Edit Profile")
-                    .font(.system(size: 20, weight: .bold))
-                Spacer()
-                Button(action: onSave) {
-                    Text("Save")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(Color(red: 0.75, green: 0.74, blue: 0.29))
-                }
+        HStack {
+            Button(action: onCancel) {
+                Image(systemName: "chevron.left")
+                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    .font(.system(size: 20))
             }
-            .frame(height: 44)
-            .padding(.horizontal, 15)
-            .background(Color.white)
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                alignment: .bottom
-            )
+            Spacer()
+            Text("Edit Profile")
+                .font(.system(size: 20, weight: .bold))
+            Spacer()
+            Button(action: onSave) {
+                Text("Save")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(Color(red: 0.75, green: 0.74, blue: 0.29))
+            }
         }
+        .frame(height: 44)
+        .padding(.horizontal, 15)
         .background(Color.white)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+            alignment: .bottom
+        )
     }
 }
 
@@ -338,19 +344,19 @@ class ProfileInfoViewModel: ObservableObject {
     }
 
     func fetchAvailableSkills() {
+        print("DEBUG: Fetching skills with JWT:", jwtToken)
         fetchSkills(jwtToken: jwtToken) { [weak self] skills in
             DispatchQueue.main.async {
+                print("DEBUG: Skills loaded:", skills)
                 self?.availableSkills = skills
-                // Patch: If editing, update selected skills and otherSkill if needed
                 if self?.mode == .edit {
                     self?.patchSkillsForEdit()
                 }
-                print("DEBUG: availableSkills after set:", self?.availableSkills ?? [])
+                print("DEBUG: profileInfo.skills after patch:", self?.profileInfo.skills ?? [])
             }
         }
     }
 
-    // Patch: Pre-fill selected skills and otherSkill for Edit mode
     private func patchSkillsForEdit() {
         let userSkills = self.profileInfo.skills.map { $0.title }
         let matchedSkills = userSkills.compactMap { skillName in
@@ -371,8 +377,8 @@ class ProfileInfoViewModel: ObservableObject {
         isAddingPhoto = true
     }
 
-    func done(completion: @escaping () -> Void) {
-        // Prepare multipart/form-data body
+    // PATCH: Accept completion with updated user
+    func done(completion: @escaping (_ updatedUser: User?) -> Void) {
         let boundary = UUID().uuidString
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/edit") else { return }
         var request = URLRequest(url: url)
@@ -389,10 +395,8 @@ class ProfileInfoViewModel: ObservableObject {
             body.append("\(value)\r\n".data(using: .utf8)!)
         }
 
-        // Add all fields (only add if not empty)
         if !profileInfo.firstName.isEmpty { appendFormField("fname", profileInfo.firstName) }
         if !profileInfo.lastName.isEmpty { appendFormField("lname", profileInfo.lastName) }
-        // "about" field removed from request
         if !profileInfo.broadcast.isEmpty { appendFormField("broadcast", profileInfo.broadcast) }
         if !profileInfo.otherSkill.isEmpty { appendFormField("other_skill", profileInfo.otherSkill) }
         appendFormField("users_types_id", String(profileInfo.type.dbID))
@@ -402,7 +406,6 @@ class ProfileInfoViewModel: ObservableObject {
             appendFormField("aSkills", skillIds)
         }
 
-        // Add profile picture if changed
         if let image = profileInfo.image, let imageData = image.jpegData(compressionQuality: 0.8) {
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"profile_picture\"; filename=\"profile.jpg\"\r\n".data(using: .utf8)!)
@@ -415,9 +418,15 @@ class ProfileInfoViewModel: ObservableObject {
         request.httpBody = body
 
         URLSession.shared.dataTask(with: request) { data, response, error in
+            var updatedUser: User? = nil
+            if let data = data {
+                // PATCH: Parse updated user from backend response
+                if let apiResponse = try? JSONDecoder().decode(UserProfileAPIResponse.self, from: data) {
+                    updatedUser = apiResponse.result
+                }
+            }
             DispatchQueue.main.async {
-                // Handle response, update UI, show error/success, etc.
-                completion()
+                completion(updatedUser)
             }
         }.resume()
     }

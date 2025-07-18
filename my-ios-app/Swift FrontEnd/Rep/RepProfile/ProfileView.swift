@@ -509,8 +509,12 @@ struct ProfileView: View {
             NavigationLink(
                 destination: EditProfileView(
                     viewModel: editProfileVM,
-                    onSave: {
-                        viewModel.loadProfile()
+                    onSave: { updatedUser in
+                        if let updatedUser = updatedUser {
+                            viewModel.user = updatedUser // <-- PATCH: update user directly
+                        } else {
+                            viewModel.loadProfile() // fallback: reload from backend
+                        }
                     }
                 ),
                 isActive: $showEditProfile

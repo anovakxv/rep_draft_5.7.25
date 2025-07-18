@@ -14,23 +14,29 @@ struct GoalListItem: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             // Bar Chart
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(goal.chartData) { bar in
-                    GeometryReader { geo in
+            GeometryReader { geo in
+                HStack(alignment: .bottom, spacing: 6) {
+                    ForEach(goal.chartData) { bar in
                         let quota = goal.quota > 0 ? goal.quota : 1
                         let barHeight = max(0, CGFloat(bar.value / quota) * geo.size.height)
-                        Rectangle()
-                            .fill(Color.repGreen)
-                            .frame(width: 24, height: barHeight)
-                            .cornerRadius(3)
-                            .position(x: geo.size.width / 2, y: geo.size.height - barHeight / 2)
+                        VStack {
+                            Spacer(minLength: 0)
+                            Rectangle()
+                                .fill(Color.repGreen)
+                                .frame(width: 24, height: barHeight)
+                                .cornerRadius(3)
+                            Text(bar.bottomLabel)
+                                .font(.caption2)
+                                .frame(width: 24)
+                                .lineLimit(1)
+                        }
                     }
-                    .frame(width: 24, height: 81)
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
             }
             .frame(width: 144, height: 81)
-            .padding(.vertical, 8) 
+            .padding(.vertical, 8)
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(goal.title)
                     .font(.headline)

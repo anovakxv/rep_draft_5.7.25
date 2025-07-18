@@ -17,23 +17,28 @@ struct RegisterNewProfileView: View {
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
     @State private var navigateToEditProfile: Bool = false
-    @State private var registeredUser: ProfileInfo = ProfileInfo(
-        firstName: "",
-        lastName: "",
-        skills: [],
-        type: .lead,
-        cityName: "",
-        image: nil,
-        about: "",
-        broadcast: "",
-        otherSkill: ""
-    )
 
     // AppStorage for registration state and userId
     @AppStorage("isRegistered") var isRegistered: Bool = false
     @AppStorage("userId") var userId: Int = 0
     @AppStorage("jwtToken") var jwtToken: String = ""
-    @AppStorage("pendingUserId") var pendingUserId: Int = 0 // <-- Add this
+    @AppStorage("pendingUserId") var pendingUserId: Int = 0
+
+    // Use a persistent onboarding profile view model
+    @StateObject private var onboardingProfileVM = ProfileInfoViewModel(
+        profileInfo: ProfileInfo(
+            firstName: "",
+            lastName: "",
+            skills: [],
+            type: .lead,
+            cityName: "",
+            image: nil,
+            about: "",
+            broadcast: "",
+            otherSkill: ""
+        ),
+        mode: .edit
+    )
 
     var body: some View {
         ZStack {
@@ -140,10 +145,7 @@ struct RegisterNewProfileView: View {
 
                 NavigationLink(
                     destination: EditProfileView(
-                        viewModel: ProfileInfoViewModel(
-                            profileInfo: registeredUser,
-                            mode: .edit
-                        ),
+                        viewModel: onboardingProfileVM,
                         showOnboardingAfterSave: true
                     ),
                     isActive: $navigateToEditProfile
@@ -262,13 +264,13 @@ struct RegisterNewProfileView: View {
                 // Parse userId and token from response
                 var newUserId: Int?
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                    let user = json["user"] as? [String: Any],
-                    let id = user["id"] as? Int {
-                        newUserId = id
+                   let user = json["user"] as? [String: Any],
+                   let id = user["id"] as? Int {
+                    newUserId = id
                 }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                    let token = json["token"] as? String {
-                        jwtToken = token
+                   let token = json["token"] as? String {
+                    jwtToken = token
                 }
 
                 // Set onboarding flags, but NOT userId yet!
@@ -276,17 +278,18 @@ struct RegisterNewProfileView: View {
                 if let id = newUserId {
                     pendingUserId = id // Store for onboarding
                 }
-                registeredUser = ProfileInfo(
-                    firstName: firstName,
-                    lastName: lastName,
-                    skills: [],
-                    type: .lead,
-                    cityName: "",
-                    image: nil,
-                    about: "",
-                    broadcast: "",
-                    otherSkill: ""
-                )
+
+                // Update the onboardingProfileVM with the new user's info
+                onboardingProfileVM.profileInfo.firstName = firstName
+                onboardingProfileVM.profileInfo.lastName = lastName
+                onboardingProfileVM.profileInfo.type = .lead
+                onboardingProfileVM.profileInfo.cityName = ""
+                onboardingProfileVM.profileInfo.image = nil
+                onboardingProfileVM.profileInfo.about = ""
+                onboardingProfileVM.profileInfo.broadcast = ""
+                onboardingProfileVM.profileInfo.otherSkill = ""
+                onboardingProfileVM.profileInfo.skills = []
+
                 navigateToEditProfile = true
             }
         }.resume()

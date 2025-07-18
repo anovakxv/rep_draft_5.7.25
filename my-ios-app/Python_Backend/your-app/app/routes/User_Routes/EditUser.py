@@ -48,8 +48,7 @@ def get_user_response(user, session_user_id=None):
     user_row = manage_user_row(user_row, user.id, level=level)
     # Add skills
     user_skills = Skill.query.join(UserSkill, Skill.id == UserSkill.skills_id).filter(UserSkill.users_id == user.id).all()
-    user_row['skills'] = [skill.as_dict() for skill in user_skills]
-    # Add relationships if session user
+    user_row['skills'] = [skill.title for skill in user_skills]    # Add relationships if session user
     if session_user_id:
         user_row['relationships'] = {
             "i_follow": UserFollower.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,

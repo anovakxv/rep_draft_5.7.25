@@ -45,31 +45,24 @@ class Goal(db.Model):
     @property
     def progress(self):
         """Returns progress as a float between 0 and 1."""
-        # For Recruiting goals, progress is based on team size
         if self.goal_type == "Recruiting":
             filled_quota = self.team_members.filter_by(confirmed=1).count()
             return round(filled_quota / self.quota, 2) if self.quota else 0
-        # For non-Recruiting, use latest progress log value if available
         latest_log = self.progress_logs.order_by(db.desc('timestamp')).first()
         filled_quota = latest_log.value if latest_log else 0
         return round(filled_quota / self.quota, 2) if self.quota else 0
 
     def is_quota_reached(self):
         """Returns True if the goal's quota has been reached or exceeded."""
-        # For Recruiting goals, check team size
         if self.goal_type == "Recruiting":
             filled_quota = self.team_members.filter_by(confirmed=1).count()
             return filled_quota >= self.quota if self.quota else False
-        # For non-Recruiting, use latest progress log value if available
         latest_log = self.progress_logs.order_by(db.desc('timestamp')).first()
         filled_quota = latest_log.value if latest_log else 0
         return filled_quota >= self.quota if self.quota else False
 
     def can_user_edit(self, user_id):
-        """
-        Returns True if the given user_id is allowed to edit this goal.
-        Owner or lead can edit.
-        """
+        """Returns True if the given user_id is allowed to edit this goal."""
         return user_id == self.users_id or user_id == self.lead_id
 
     def chart_data(self, increment='month', num_periods=4):
@@ -92,54 +85,62 @@ class Goal(db.Model):
                 else:
                     label = log.timestamp.strftime('%b')
                 data[label] += float(log.added_value or 0)
-        # Only keep the last num_periods
         items = list(data.items())[-num_periods:]
         return [
             {"value": value, "label": label, "color": "#00FF00"}
             for label, value in items
         ]
 
-    def as_dict(self, include_team=False, include_progress_logs=False):
+    def as_dict(self, include_team=False, include_progress_logs=False, increment=None):
         """
         Returns a dict representation of the Goal, suitable for both list and detail views.
         Set include_team/progress_logs True to include team or feed data for detail pages.
+        increment: pass 'day', 'week', or 'month' to control chartData grouping.
         """
-        # --- PATCH: For Recruiting goals, filled_quota = confirmed team members ---
         if self.goal_type == "Recruiting":
             filled_quota = self.team_members.filter_by(confirmed=1).count()
         else:
-            # For non-Recruiting, use latest progress log value if available
             latest_log = self.progress_logs.order_by(db.desc('timestamp')).first()
             filled_quota = latest_log.value if latest_log else 0
 
-        # Format chart data for Swift, add id to each chartData item
+        # Use passed increment, or default to reporting_increment.title or "month"
+        chart_increment = increment
+        if not chart_increment:
+            if self.reporting_increment and hasattr(self.reporting_increment, "title"):
+                title = self.reporting_increment.title.lower()
+                if "day" in title:
+                    chart_increment = "day"
+                elif "week" in title:
+                    chart_increment = "week"
+                elif "month" in title:
+                    chart_increment = "month"
+            else:
+                chart_increment = "month"
+
         chart_data = [
             {
-                "id": idx,  # Add id for frontend decoding
+                "id": idx,
                 "value": d["value"],
                 "valueLabel": str(d["value"]),
                 "bottomLabel": d.get("label", "")
             }
-            for idx, d in enumerate(self.chart_data())
+            for idx, d in enumerate(self.chart_data(increment=chart_increment))
         ]
 
-        # Format quota and value strings for display
         quota_string = str(self.quota)
         value_string = str(filled_quota)
 
-        # Team info (for detail view)
         team = None
         if include_team:
             team = [
                 {
                     "id": tm.member.id,
                     "name": f"{tm.member.fname or ''} {tm.member.lname or ''}".strip(),
-                    "imageName": "profile_placeholder"  # Replace with actual image logic if available
+                    "imageName": "profile_placeholder"
                 }
                 for tm in self.team_members if tm.confirmed == 1 and tm.member
             ]
 
-        # Latest progress logs (for feed in detail view)
         a_latest_progress = None
         if include_progress_logs:
             from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
@@ -158,7 +159,7 @@ class Goal(db.Model):
 
         return {
             "id": self.id,
-            "creatorId": self.users_id,     
+            "creatorId": self.users_id,
             "portalId": self.portals_id,
             "title": self.title,
             "subtitle": self.subtitle or "",
@@ -175,5 +176,4 @@ class Goal(db.Model):
             "chartData": chart_data,
             "aLatestProgress": a_latest_progress,
             "team": team,
-            # Add more fields as needed
         }

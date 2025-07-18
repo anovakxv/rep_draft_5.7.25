@@ -37,7 +37,7 @@ def batch_get_skills(user_ids):
     )
     skills_map = {}
     for uid, skill in skills:
-        skills_map.setdefault(uid, []).append(skill.as_dict())
+        skills_map.setdefault(uid, []).append(skill.title)
     return skills_map
 
 def batch_get_relationships(session_user_id, user_ids):

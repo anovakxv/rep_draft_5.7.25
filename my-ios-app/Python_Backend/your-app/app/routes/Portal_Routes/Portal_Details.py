@@ -196,14 +196,13 @@ def api_create_portal():
             for img in images:
                 filename = secure_filename(img.filename)
                 img.seek(0)
-                # Upload to S3
+                file_data = img.read()
+                file_size = len(file_data)
+                # Rewind again before upload, in case S3 expects to read from start
+                img.seek(0)
                 s3.upload_fileobj(img, S3_BUCKET, filename)
                 s3_url = f"{S3_BASE_URL}{filename}"
                 gr_hash = f"{uuid.uuid4().hex}_{filename}"
-                img.seek(0)
-                file_data = img.read()
-                file_size = len(file_data)
-                img.seek(0)
                 s3_content = S3Content(
                     gr_hash=gr_hash,
                     tbl_id=main_section.id,

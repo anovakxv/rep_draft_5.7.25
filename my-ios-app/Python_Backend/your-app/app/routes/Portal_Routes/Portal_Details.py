@@ -203,23 +203,20 @@ def api_create_portal():
             for f in old_files:
                 db.session.delete(f)
             for img in images:
-                filename = secure_filename(img.filename)
+                unique_filename = f"{portal.id}_{uuid.uuid4().hex}_{secure_filename(img.filename)}"
                 img.seek(0)
-                s3.upload_fileobj(img, S3_BUCKET, filename)
-                s3_url = f"{S3_BASE_URL}{filename}"
-                gr_hash = f"{uuid.uuid4().hex}_{filename}"
-                img.seek(0)
-                file_data = img.read()
-                file_size = len(file_data)
-                img.seek(0)
+                s3.upload_fileobj(img, S3_BUCKET, unique_filename)
+                s3_url = f"{S3_BASE_URL}{unique_filename}"
+                gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
+                # --- FIX: Remove all img.read() and extra seek() ---
                 s3_content = S3Content(
                     gr_hash=gr_hash,
                     tbl_id=main_section.id,
                     tbl_index=6,
-                    key=filename,
+                    key=unique_filename,
                     url=s3_url,
                     file_type=img.mimetype,
-                    file_size=file_size
+                    file_size=None  # Or remove if not required
                 )
                 db.session.add(s3_content)
                 db.session.flush()
@@ -243,6 +240,8 @@ def api_create_portal():
 @portal_bp.route('/edit', methods=['POST'])
 @jwt_required
 def api_edit_portal():
+    import json
+
     if request.content_type and request.content_type.startswith('multipart/form-data'):
         data = request.form
     else:
@@ -282,7 +281,6 @@ def api_edit_portal():
         try:
             texts = data.get('aTexts')
             if isinstance(texts, str):
-                import json
                 texts = json.loads(texts)
             PortalText.query.filter_by(portal_id=portal_id).delete(synchronize_session=False)
             for text_obj in texts:
@@ -296,9 +294,19 @@ def api_edit_portal():
             db.session.rollback()
             return jsonify({'error': f'Invalid aTexts: {str(e)}'}), 400
 
-    # Handle leads/users (add new leads, keep existing)
-    if isinstance(data.get('aLeadsIDs'), list):
-        leads_ids = set(int(i) for i in data['aLeadsIDs'] if str(i).strip().isdigit())
+    # --- FIX: Handle leads/users (add new leads, keep existing) robustly ---
+    aLeadsIDs = data.get('aLeadsIDs')
+    leads_ids = set()
+    if aLeadsIDs:
+        try:
+            # Accept both JSON string and list
+            if isinstance(aLeadsIDs, str):
+                leads_ids = set(int(i) for i in json.loads(aLeadsIDs) if str(i).strip().isdigit())
+            elif isinstance(aLeadsIDs, list):
+                leads_ids = set(int(i) for i in aLeadsIDs if str(i).strip().isdigit())
+        except Exception:
+            leads_ids = set()
+    if leads_ids:
         # Find existing lead user_ids for this portal
         existing_leads = set(
             pu.user_id for pu in PortalUser.query.filter_by(portal_id=portal_id, role='lead').all()
@@ -324,23 +332,19 @@ def api_edit_portal():
         for f in old_files:
             db.session.delete(f)
         for img in images:
-            filename = secure_filename(img.filename)
+            unique_filename = f"{portal_id}_{uuid.uuid4().hex}_{secure_filename(img.filename)}"
             img.seek(0)
-            s3.upload_fileobj(img, S3_BUCKET, filename)
-            s3_url = f"{S3_BASE_URL}{filename}"
-            gr_hash = f"{uuid.uuid4().hex}_{filename}"
-            img.seek(0)
-            file_data = img.read()
-            file_size = len(file_data)
-            img.seek(0)
+            s3.upload_fileobj(img, S3_BUCKET, unique_filename)
+            s3_url = f"{S3_BASE_URL}{unique_filename}"
+            gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
             s3_content = S3Content(
                 gr_hash=gr_hash,
                 tbl_id=main_section.id,
                 tbl_index=6,
-                key=filename,
+                key=unique_filename,
                 url=s3_url,
                 file_type=img.mimetype,
-                file_size=file_size
+                file_size=None  # Or remove if not required
             )
             db.session.add(s3_content)
             db.session.flush()

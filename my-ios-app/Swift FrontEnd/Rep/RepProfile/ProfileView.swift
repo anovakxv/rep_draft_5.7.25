@@ -20,7 +20,7 @@ struct User: Identifiable, Codable {
     let imageName: String?
     let userType: String?
     let city: String?
-    let skills: [String]?
+    let skills: [SkillModel]?
     let lastLogin: String?
     let createdAt: String?
     let updatedAt: String?
@@ -66,6 +66,7 @@ struct User: Identifiable, Codable {
         case lastMessageDate = "last_message_date"
         case imageName
     }
+
     init(
         id: Int,
         fullName: String?,
@@ -78,7 +79,7 @@ struct User: Identifiable, Codable {
         imageName: String?,
         userType: String?,
         city: String?,
-        skills: [String]?,
+        skills: [SkillModel]?,
         lastLogin: String?,
         createdAt: String?,
         updatedAt: String?,
@@ -103,7 +104,8 @@ struct User: Identifiable, Codable {
         self.lastMessage = lastMessage
         self.lastMessageDate = lastMessageDate
     }
-    // Custom decoding to patch profile_picture_url if needed
+
+    // Flexible decoding for skills ([SkillModel] or [String])
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(Int.self, forKey: .id)
@@ -116,12 +118,20 @@ struct User: Identifiable, Codable {
         imageName = try container.decodeIfPresent(String.self, forKey: .imageName)
         userType = try container.decodeIfPresent(String.self, forKey: .userType)
         city = try container.decodeIfPresent(String.self, forKey: .city)
-        skills = try container.decodeIfPresent([String].self, forKey: .skills)
         lastLogin = try container.decodeIfPresent(String.self, forKey: .lastLogin)
         createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
         lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
         lastMessageDate = try container.decodeIfPresent(String.self, forKey: .lastMessageDate)
+
+        // Flexible skills decoding
+        if let skillModels = try? container.decode([SkillModel].self, forKey: .skills) {
+            skills = skillModels
+        } else if let skillStrings = try? container.decode([String].self, forKey: .skills) {
+            skills = skillStrings.enumerated().map { SkillModel(id: $0.offset, title: $0.element) }
+        } else {
+            skills = nil
+        }
 
         // Patch profile_picture_url to always be a full URL or nil
         let urlString = try container.decodeIfPresent(String.self, forKey: .profilePictureURL)
@@ -148,7 +158,11 @@ struct User: Identifiable, Codable {
         imageName: "profile_placeholder",
         userType: "Lead",
         city: "New York",
-        skills: ["Leadership", "Marketing", "Fundraising"],
+        skills: [
+            SkillModel(id: 1, title: "Leadership"),
+            SkillModel(id: 2, title: "Marketing"),
+            SkillModel(id: 3, title: "Fundraising")
+        ],
         lastLogin: nil,
         createdAt: nil,
         updatedAt: nil,
@@ -201,6 +215,7 @@ struct WriteBlock: Identifiable, Codable {
 
 class ProfileViewModel: ObservableObject {
     @Published var user: User = .placeholder
+    @Published var isLoaded: Bool = false // <-- Add this line
     @Published var portals: [Portal] = []
     @Published var goals: [Goal] = []
     @Published var actions: [String] = []
@@ -223,6 +238,7 @@ class ProfileViewModel: ObservableObject {
     }
 
     func loadProfile() {
+        isLoaded = false // <-- Reset loading state
         fetchUser()
         fetchPortals()
         fetchGoals()
@@ -245,14 +261,23 @@ class ProfileViewModel: ObservableObject {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
         URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data else { return }
+            if let error = error {
+                print("User fetch error:", error)
+            }
+            guard let data = data else {
+                DispatchQueue.main.async { self.isLoaded = true }
+                return
+            }
+            print("User fetch data:", String(data: data, encoding: .utf8) ?? "nil")
             do {
                 let apiResponse = try JSONDecoder().decode(UserProfileAPIResponse.self, from: data)
                 DispatchQueue.main.async {
                     self.user = apiResponse.result
+                    self.isLoaded = true
                 }
             } catch {
                 print("User decode error:", error)
+                DispatchQueue.main.async { self.isLoaded = true }
             }
         }.resume()
     }
@@ -483,52 +508,66 @@ struct ProfileView: View {
     }
 
     var body: some View {
-    NavigationStack {
-        VStack(spacing: 0) {
-            NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
-            ScrollView {
-                ProfileMainContent(
-                    viewModel: viewModel,
-                    selectedTab: $selectedTab,
-                    selectedGoal: $selectedGoal,
-                    mappedSkillTitles: mappedSkillTitles,
-                    stickyHeader: { AnyView(stickyHeader) }
-                )
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            BottomBarView(
-                onAdd: {
-                    if viewModel.isCurrentUser {
-                        showActionSheet = true
-                    } else {
-                        showProfileActionMenu = true
+        NavigationStack {
+            VStack(spacing: 0) {
+                NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
+                if viewModel.isLoaded && viewModel.user.id != 0 {
+                    ScrollView {
+                        ProfileMainContent(
+                            viewModel: viewModel,
+                            selectedTab: $selectedTab,
+                            selectedGoal: $selectedGoal,
+                            mappedSkillTitles: mappedSkillTitles,
+                            stickyHeader: { AnyView(stickyHeader) }
+                        )
                     }
-                },
-                onMessage: { showMessageSheet = true }
-            )
-            NavigationLink(
-                destination: EditProfileView(
-                    viewModel: editProfileVM,
-                    onSave: { updatedUser in
-                        if let updatedUser = updatedUser {
-                            viewModel.user = updatedUser // <-- PATCH: update user directly
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if !viewModel.isLoaded {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    // Optionally show an error or "User not found" if id == 0 and loaded
+                    VStack {
+                        Spacer()
+                        Text("User not found.")
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                }
+                BottomBarView(
+                    onAdd: {
+                        if viewModel.isCurrentUser {
+                            showActionSheet = true
                         } else {
-                            viewModel.loadProfile() // fallback: reload from backend
+                            showProfileActionMenu = true
                         }
-                    }
-                ),
-                isActive: $showEditProfile
-            ) {
-                EmptyView()
+                    },
+                    onMessage: { showMessageSheet = true }
+                )
+                NavigationLink(
+                    destination: EditProfileView(
+                        viewModel: editProfileVM,
+                        onSave: { updatedUser in
+                            if let updatedUser = updatedUser {
+                                viewModel.user = updatedUser
+                                viewModel.isLoaded = true // <-- Ensure loaded after edit
+                            } else {
+                                viewModel.loadProfile()
+                            }
+                        }
+                    ),
+                    isActive: $showEditProfile
+                ) {
+                    EmptyView()
+                }
+                .hidden()
             }
-            .hidden()
-        }
-        .navigationBarHidden(true)
-        .onAppear {
-            viewModel.loadProfile()
-            loadReportingIncrements()
-        }
-        .background(Color.white.edgesIgnoringSafeArea(.all))
+            .navigationBarHidden(true)
+            .onAppear {
+                viewModel.loadProfile()
+                loadReportingIncrements()
+            }
+            .background(Color.white.edgesIgnoringSafeArea(.all))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
@@ -752,11 +791,7 @@ struct ProfileMainContent: View {
         editProfileVM.profileInfo = ProfileInfo(
             firstName: viewModel.user.fname ?? "",
             lastName: viewModel.user.lname ?? "",
-            skills: Set(
-                (viewModel.user.skills ?? []).compactMap { skillName in
-                    viewModel.availableSkills.first(where: { $0.title == skillName })
-                }
-            ),
+            skills: Set(viewModel.user.skills ?? []),
             type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
             cityName: viewModel.user.city ?? "",
             image: nil,
@@ -808,9 +843,7 @@ struct ProfileMainContent: View {
 
     private var mappedSkillTitles: [String] {
         guard let userSkills = viewModel.user.skills else { return [] }
-        return userSkills.map { skillName in
-            viewModel.availableSkills.first(where: { $0.title == skillName })?.title ?? skillName
-        }
+        return userSkills.map { $0.title }
     }
 }
 

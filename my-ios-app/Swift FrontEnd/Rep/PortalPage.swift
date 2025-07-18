@@ -225,6 +225,11 @@ struct PortalPageContent: View {
                         .ignoresSafeArea()
                     }
 
+                    // --- DEBUG: Print aLeads on load ---
+                    .onAppear {
+                        print("Portal aLeads:", portal.aLeads?.map { $0.id } ?? [])
+                    }
+
                     // Sticky segmented picker
                     Section(header: stickyHeader) {
                         PortalSectionContent(

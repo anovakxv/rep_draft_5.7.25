@@ -150,7 +150,7 @@ def api_portal_details():
 @portal_bp.route('/', methods=['POST'])
 @jwt_required
 def api_create_portal():
-    import traceback  # <-- Add this import at the top if not already present
+    import traceback
 
     print("POST /api/portal/ data (form):", request.form)
     print("POST /api/portal/ data (files):", request.files)
@@ -190,19 +190,28 @@ def api_create_portal():
         # Handle images (uploaded files)
         images = request.files.getlist('images')
         if images:
-            main_section = PortalGraphicSection(portals_id=portal.id, title="Main Section", position=1)
-            db.session.add(main_section)
-            db.session.flush()
+            # Find or create the main graphic section for this portal
+            main_section = PortalGraphicSection.query.filter_by(portals_id=portal.id, title="Main Section").first()
+            if not main_section:
+                main_section = PortalGraphicSection(portals_id=portal.id, title="Main Section", position=1)
+                db.session.add(main_section)
+                db.session.flush()
+            # Remove existing links (should be none for new portal, but safe)
+            PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=main_section.id).delete(synchronize_session=False)
+            # Delete old S3Content files for this section (should be none for new portal)
+            old_files = S3Content.query.filter_by(tbl_id=main_section.id, tbl_index=6).all()
+            for f in old_files:
+                db.session.delete(f)
             for img in images:
                 filename = secure_filename(img.filename)
-                img.seek(0)
-                file_data = img.read()
-                file_size = len(file_data)
-                # Rewind again before upload, in case S3 expects to read from start
                 img.seek(0)
                 s3.upload_fileobj(img, S3_BUCKET, filename)
                 s3_url = f"{S3_BASE_URL}{filename}"
                 gr_hash = f"{uuid.uuid4().hex}_{filename}"
+                img.seek(0)
+                file_data = img.read()
+                file_size = len(file_data)
+                img.seek(0)
                 s3_content = S3Content(
                     gr_hash=gr_hash,
                     tbl_id=main_section.id,
@@ -224,7 +233,7 @@ def api_create_portal():
     except Exception as e:
         db.session.rollback()
         print("PORTAL CREATE ERROR:", e)
-        traceback.print_exc()  # <-- This will print the full traceback to your Render logs
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
     # Return the full portal card dict for immediate frontend use
@@ -287,19 +296,17 @@ def api_edit_portal():
             db.session.rollback()
             return jsonify({'error': f'Invalid aTexts: {str(e)}'}), 400
 
-    # Handle leads/users (if you use roles, update accordingly)
-    if isinstance(data.get('aLeadsIDs'), list) and data['aLeadsIDs']:
-        leads_ids = list(set([int(i) for i in data['aLeadsIDs'] if str(i).strip().isdigit()]))
-        if leads_ids:
-            # Remove old leads for this portal
-            PortalUser.query.filter(
-                PortalUser.portal_id == portal_id,
-                PortalUser.user_id.in_(leads_ids),
-                PortalUser.role == 'lead'
-            ).delete(synchronize_session=False)
-            # Add new leads
-            for lead_id in leads_ids:
-                db.session.add(PortalUser(user_id=lead_id, portal_id=portal_id, role='lead'))
+    # Handle leads/users (add new leads, keep existing)
+    if isinstance(data.get('aLeadsIDs'), list):
+        leads_ids = set(int(i) for i in data['aLeadsIDs'] if str(i).strip().isdigit())
+        # Find existing lead user_ids for this portal
+        existing_leads = set(
+            pu.user_id for pu in PortalUser.query.filter_by(portal_id=portal_id, role='lead').all()
+        )
+        # Only add new leads that aren't already present
+        new_leads = leads_ids - existing_leads
+        for lead_id in new_leads:
+            db.session.add(PortalUser(user_id=lead_id, portal_id=portal_id, role='lead'))
 
     # Handle images (uploaded files)
     images = request.files.getlist('images')
@@ -312,10 +319,13 @@ def api_edit_portal():
             db.session.flush()
         # Remove existing links
         PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=main_section.id).delete(synchronize_session=False)
+        # Delete old S3Content files for this section
+        old_files = S3Content.query.filter_by(tbl_id=main_section.id, tbl_index=6).all()
+        for f in old_files:
+            db.session.delete(f)
         for img in images:
             filename = secure_filename(img.filename)
             img.seek(0)
-            # Upload to S3
             s3.upload_fileobj(img, S3_BUCKET, filename)
             s3_url = f"{S3_BASE_URL}{filename}"
             gr_hash = f"{uuid.uuid4().hex}_{filename}"

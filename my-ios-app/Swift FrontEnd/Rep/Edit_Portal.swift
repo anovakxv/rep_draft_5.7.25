@@ -172,7 +172,7 @@ class EditPortalViewModel: ObservableObject {
         if !isNew {
             appendFormField("portal_id", "\(portalId)")
         }
-        appendFormField("users_id", "\(userId)") 
+        appendFormField("users_id", "\(userId)")
         appendFormField("name", name)
         appendFormField("subtitle", subtitle)
         appendFormField("about", about)
@@ -191,11 +191,14 @@ class EditPortalViewModel: ObservableObject {
             appendFormField("aTexts", String(data: textsData, encoding: .utf8) ?? "")
         }
 
-        // --- FIX: Send aLeadsIDs as JSON array ---
+        // --- DEBUG: Print selectedLeads and aLeadsIDs JSON before sending ---
+        print("Selected Leads:", selectedLeads.map { $0.id })
         if !selectedLeads.isEmpty {
             let leadIdsArray = selectedLeads.map { $0.id }
             if let data = try? JSONSerialization.data(withJSONObject: leadIdsArray) {
-                appendFormField("aLeadsIDs", String(data: data, encoding: .utf8) ?? "")
+                let jsonString = String(data: data, encoding: .utf8) ?? ""
+                print("aLeadsIDs JSON:", jsonString)
+                appendFormField("aLeadsIDs", jsonString)
             }
         }
 

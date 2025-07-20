@@ -43,14 +43,22 @@ def api_goal_details():
     reporting_increment_title = None
     if goal.reporting_increment and hasattr(goal.reporting_increment, "title"):
         reporting_increment_title = goal.reporting_increment.title
-        print(f"[DEBUG] Goal reporting_increment.title: '{reporting_increment_title}'")
         title = reporting_increment_title.lower().strip()
-        if "day" in title:
+        print(f"[DEBUG] Normalized reporting_increment.title: '{title}'")
+        if title == "daily":
+            increment = "day"
+        elif title == "weekly":
+            increment = "week"
+        elif title == "monthly":
+            increment = "month"
+        elif "day" in title:
             increment = "day"
         elif "week" in title:
             increment = "week"
         elif "month" in title:
             increment = "month"
+        else:
+            print(f"[DEBUG] Unknown increment title: '{title}', defaulting to 'month'")
     print(f"[DEBUG] Chart increment selected: {increment}")
 
     # --- PATCH: Chart Data Grouping ---

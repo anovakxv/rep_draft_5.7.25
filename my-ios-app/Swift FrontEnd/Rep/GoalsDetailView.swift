@@ -607,9 +607,14 @@ struct LargeBarChartView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            HStack(alignment: .bottom, spacing: 8) {
+            HStack(alignment: .bottom, spacing: 16) { // <-- Increased spacing from 8 to 16
                 ForEach(data) { item in
                     VStack(spacing: 0) {
+                        // Qty label on top
+                        Text(item.valueLabel)
+                            .font(.caption2)
+                            .foregroundColor(.black)
+                            .padding(.bottom, 2)
                         Spacer(minLength: 0)
                         Rectangle()
                             .fill(Color.repGreen)
@@ -621,21 +626,20 @@ struct LargeBarChartView: View {
                                 }()
                             )
                             .cornerRadius(3)
-                        Text(item.valueLabel)
-                            .font(.caption2)
-                            .foregroundColor(.black)
+                        // Time increment label on bottom
                         Text(item.bottomLabel)
                             .font(.caption2)
                             .foregroundColor(.black)
                             .frame(width: 32)
                             .lineLimit(1)
+                            .padding(.top, 2)
                     }
                 }
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
-        .frame(height: 180)
+        .frame(height: 260)
         .padding()
         .background(Color.white)
     }

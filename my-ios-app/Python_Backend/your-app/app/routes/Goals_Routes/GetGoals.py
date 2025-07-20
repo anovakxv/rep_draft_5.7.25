@@ -42,11 +42,11 @@ def get_goals_by_user():
         .all()
     )
 
-    # Use correct increment for chartData
+    # Use correct increment for chartData, always return 4 bars for GoalListItem
     aGoals = []
     for goal in goals:
         increment = get_increment(goal)
-        aGoals.append(goal.as_dict(increment=increment))
+        aGoals.append(goal.as_dict(increment=increment, num_periods=4))
 
     return jsonify({"aGoals": aGoals})
 
@@ -60,10 +60,10 @@ def get_goals_by_portal():
 
     goals = Goal.query.filter_by(portals_id=portals_id).all()
 
-    # Use correct increment for chartData
+    # Use correct increment for chartData, always return 4 bars for GoalListItem
     aGoals = []
     for goal in goals:
         increment = get_increment(goal)
-        aGoals.append(goal.as_dict(increment=increment))
+        aGoals.append(goal.as_dict(increment=increment, num_periods=4))
 
     return jsonify({"aGoals": aGoals})

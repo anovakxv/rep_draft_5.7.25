@@ -91,11 +91,12 @@ class Goal(db.Model):
             for label, value in items
         ]
 
-    def as_dict(self, include_team=False, include_progress_logs=False, increment=None):
+    def as_dict(self, include_team=False, include_progress_logs=False, increment=None, num_periods=4):
         """
         Returns a dict representation of the Goal, suitable for both list and detail views.
         Set include_team/progress_logs True to include team or feed data for detail pages.
         increment: pass 'day', 'week', or 'month' to control chartData grouping.
+        num_periods: how many periods to include in chartData (default 4 for list, can override for detail)
         """
         if self.goal_type == "Recruiting":
             filled_quota = self.team_members.filter_by(confirmed=1).count()
@@ -124,7 +125,7 @@ class Goal(db.Model):
                 "valueLabel": str(d["value"]),
                 "bottomLabel": d.get("label", "")
             }
-            for idx, d in enumerate(self.chart_data(increment=chart_increment))
+            for idx, d in enumerate(self.chart_data(increment=chart_increment, num_periods=num_periods))
         ]
 
         quota_string = str(self.quota)

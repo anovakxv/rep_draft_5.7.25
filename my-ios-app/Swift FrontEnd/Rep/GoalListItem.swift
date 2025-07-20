@@ -31,7 +31,6 @@ struct GoalListItem: View {
                             //    .lineLimit(1)
                         }
                     }
-                    Spacer(minLength: 0)
                 }
             }
             .frame(width: 144, height: 81)

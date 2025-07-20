@@ -100,7 +100,8 @@ class Goal(db.Model):
         for key, label in zip(period_keys, period_labels):
             data[key] = {"value": 0, "label": label}
 
-        # Sum logs into periods
+        # Cumulative sum
+        cumulative = 0
         for log in logs:
             if log.timestamp:
                 if increment == 'day':
@@ -111,17 +112,17 @@ class Goal(db.Model):
                 else:
                     key = log.timestamp.strftime('%Y-%m')
                 if key in data:
-                    data[key]["value"] += float(log.added_value or 0)
-        print("chart_data output:", [
-                    {
-                        "id": idx + 1,
-                        "value": d["value"],
-                        "valueLabel": str(d["value"]),
-                        "bottomLabel": d["label"]
-                    }
-                    for idx, d in enumerate(data.values())
-                ])
-        # Return the bars in order
+                    cumulative += float(log.added_value or 0)
+                    data[key]["value"] = cumulative
+
+        # Fill in previous cumulative for periods with no logs
+        last_value = 0
+        for key in data:
+            if data[key]["value"] == 0:
+                data[key]["value"] = last_value
+            else:
+                last_value = data[key]["value"]
+
         return [
             {
                 "id": idx + 1,

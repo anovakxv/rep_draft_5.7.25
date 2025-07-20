@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from app import db
-from collections import defaultdict
+from collections import OrderedDict
 from datetime import datetime
 
 class Goal(db.Model):
@@ -69,32 +69,36 @@ class Goal(db.Model):
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
-        data = []
-        last_value = None
         cumulative = 0
+        grouped = OrderedDict()
 
         for log in logs:
             if log.timestamp:
                 if increment == 'day':
+                    label = log.timestamp.strftime('%Y-%m-%d')
                     display_label = log.timestamp.strftime('%d %b')
                 elif increment == 'week':
-                    week = log.timestamp.isocalendar()[1]
-                    display_label = f"W{week}"
+                    label = f"{log.timestamp.year}-W{log.timestamp.isocalendar()[1]}"
+                    display_label = f"W{log.timestamp.isocalendar()[1]}"
                 else:
+                    label = log.timestamp.strftime('%Y-%m')
                     display_label = log.timestamp.strftime('%b')
                 cumulative += float(log.added_value or 0)
-                # Only add a bar if value changed
-                if last_value is None or cumulative != last_value:
-                    data.append({
-                        "id": len(data) + 1,
-                        "value": cumulative,
-                        "valueLabel": str(cumulative),
-                        "bottomLabel": display_label
-                    })
-                    last_value = cumulative
+                # Always keep the latest cumulative value for each increment
+                grouped[label] = (cumulative, display_label)
 
-        # Only keep the last num_periods bars
-        return data[-num_periods:]
+        # Only keep the last num_periods increments
+        items = list(grouped.items())[-num_periods:]
+        chart_data = [
+            {
+                "id": idx + 1,
+                "value": value,
+                "valueLabel": str(value),
+                "bottomLabel": display_label
+            }
+            for idx, (label, (value, display_label)) in enumerate(items)
+        ]
+        return chart_data
 
     def as_dict(self, include_team=False, include_progress_logs=False, increment=None, num_periods=4):
         """

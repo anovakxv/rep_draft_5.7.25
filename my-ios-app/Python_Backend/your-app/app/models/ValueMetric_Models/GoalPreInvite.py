@@ -9,8 +9,8 @@ class GoalPreInvite(db.Model):
     __tablename__ = 'goals_pre_invites'
 
     id = db.Column(db.Integer, primary_key=True)
-    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    goals_id = db.Column(db.Integer, db.ForeignKey('goals.id'), nullable=False)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+    goals_id = db.Column(db.Integer, db.ForeignKey('goals.id', ondelete="CASCADE"), nullable=False)
     type = db.Column(db.String(20), nullable=False)  # 'email', 'phone', 'fb'
     identifier = db.Column(db.String(255), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)

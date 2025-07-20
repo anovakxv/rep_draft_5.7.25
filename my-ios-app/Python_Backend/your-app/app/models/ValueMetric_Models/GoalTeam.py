@@ -10,7 +10,7 @@ class GoalTeam(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     users_id1 = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
     users_id2 = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
-    goals_id = db.Column(db.Integer, db.ForeignKey('goals.id'), nullable=False)
+    goals_id = db.Column(db.Integer, db.ForeignKey('goals.id', ondelete="CASCADE"), nullable=False)
     confirmed = db.Column(db.Integer, default=0)  # 1=accepted, 0=pending, -1=declined
     read1 = db.Column(db.Boolean, default=False)
     read2 = db.Column(db.Boolean, default=False)

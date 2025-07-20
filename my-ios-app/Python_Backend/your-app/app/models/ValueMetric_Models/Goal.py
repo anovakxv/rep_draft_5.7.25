@@ -15,9 +15,9 @@ class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)  # Goal title
     subtitle = db.Column(db.String(255))  # Optional subtitle
-    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)  # Creator/owner
-    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=True, index=True)  # Portal/group, now optional
-    lead_id = db.Column(db.Integer, db.ForeignKey('users.id'))  # Team lead (optional)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id', ondelete="CASCADE"), nullable=True, index=True)  # Portal/group, now optional
+    lead_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"))
     description = db.Column(db.Text, nullable=False)  # Goal description
     quota = db.Column(db.Float, default=100)  # Target value (float for decimals)
     filled_quota = db.Column(db.Float, default=0)  # Current progress (float for decimals)

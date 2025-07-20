@@ -9,8 +9,8 @@ class UserNetwork(db.Model):
     __tablename__ = 'users_network'
 
     id = db.Column(db.Integer, primary_key=True)
-    users_id1 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    users_id2 = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    users_id1 = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+    users_id2 = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     status = db.Column(db.String(20), default='pending')  # e.g., 'pending', 'accepted', 'blocked'
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

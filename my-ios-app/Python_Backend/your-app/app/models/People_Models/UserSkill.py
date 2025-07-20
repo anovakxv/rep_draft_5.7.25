@@ -9,8 +9,8 @@ class UserSkill(db.Model):
     __tablename__ = 'users_skills'
 
     id = db.Column(db.Integer, primary_key=True)
-    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    skills_id = db.Column(db.Integer, db.ForeignKey('skills.id'), nullable=False)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+    skills_id = db.Column(db.Integer, db.ForeignKey('skills.id', ondelete="CASCADE"), nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)  # Optional
 
     __table_args__ = (

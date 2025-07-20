@@ -9,8 +9,8 @@ class PortalUser(db.Model):
     __tablename__ = 'portal_users'
 
     id = db.Column(db.Integer, primary_key=True)
-    portal_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False, index=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    portal_id = db.Column(db.Integer, db.ForeignKey('portals.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     role = db.Column(db.String(32), nullable=False, index=True, default='member')  # 'member', 'lead', 'admin', etc.
     joined_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -9,7 +9,7 @@ class PortalGraphicSection(db.Model):
     __tablename__ = 'portals_graphic_sections'
 
     id = db.Column(db.Integer, primary_key=True)
-    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False, index=True)
+    portals_id = db.Column(db.Integer, db.ForeignKey('portals.id', ondelete="CASCADE"), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=False)
     position = db.Column(db.Integer, nullable=True)  # Optional: for ordering
     content = db.Column(db.Text, nullable=True)      # Optional: for section content

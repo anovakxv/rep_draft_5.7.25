@@ -12,12 +12,12 @@ class Portal(db.Model):
     __tablename__ = 'portals'
 
     id = db.Column(db.Integer, primary_key=True)
-    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    lead_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=True, index=True)
     name = db.Column(db.String(255), nullable=False, unique=True, index=True)
     subtitle = db.Column(db.String(255), nullable=True)
-    categories_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True, index=True)
-    cities_id = db.Column(db.Integer, db.ForeignKey('cities.id'), nullable=True, index=True)
+    categories_id = db.Column(db.Integer, db.ForeignKey('categories.id', ondelete="SET NULL"), nullable=True, index=True)
+    cities_id = db.Column(db.Integer, db.ForeignKey('cities.id', ondelete="SET NULL"), nullable=True, index=True)
     about = db.Column(db.Text, nullable=True)
     visible = db.Column(db.Boolean, default=True)
     status = db.Column(db.String(32), default='active', index=True)

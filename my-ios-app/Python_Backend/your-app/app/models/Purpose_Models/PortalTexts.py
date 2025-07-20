@@ -9,7 +9,7 @@ class PortalText(db.Model):
     __tablename__ = 'portals_texts'
 
     id = db.Column(db.Integer, primary_key=True)
-    portal_id = db.Column(db.Integer, db.ForeignKey('portals.id'), nullable=False, index=True)
+    portal_id = db.Column(db.Integer, db.ForeignKey('portals.id', ondelete="CASCADE"), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=False)
     text = db.Column(db.Text, nullable=True)
     section = db.Column(db.String(64), nullable=True, index=True)  # e.g., 'about', 'mission', 'faq'

@@ -11,6 +11,7 @@ from app.models.ValueMetric_Models.ReportingIncrement import ReportingIncrement
 from app.models.People_Models.user import User
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
+import logging
 
 goals_bp = Blueprint('goal_details', __name__)
 
@@ -50,11 +51,14 @@ def api_goal_details():
 
     # --- PATCH: Chart Data Grouping ---
     def patched_chart_data(self, increment='day', num_periods=4):
-        from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
         from collections import OrderedDict
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
         running_total = 0
         data = OrderedDict()
+        logger = logging.getLogger("goal_chart_data")
+        logger.debug(f"--- Chart Data Debug for Goal ID {self.id} ---")
+        logger.debug(f"Increment: {increment}, Num Periods: {num_periods}")
+        logger.debug(f"Total logs found: {len(logs)}")
         for log in logs:
             if log.timestamp:
                 if increment == 'month':
@@ -71,8 +75,10 @@ def api_goal_details():
                     display_label = log.timestamp.strftime('%b')
                 running_total += float(log.added_value or 0)
                 data[label] = (running_total, display_label)
+                logger.debug(f"LogID: {log.id} | Timestamp: {log.timestamp} | Added: {log.added_value} | Label: {label} | RunningTotal: {running_total}")
         items = list(data.items())[-num_periods:]
-        return [
+        logger.debug(f"Final chart data items: {items}")
+        chart_data = [
             {
                 "id": idx + 1,
                 "value": value,
@@ -81,6 +87,8 @@ def api_goal_details():
             }
             for idx, (label, (value, display_label)) in enumerate(items)
         ]
+        logger.debug(f"Chart data output: {chart_data}")
+        return chart_data
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
     chart_data = goal.chart_data(increment=increment, num_periods=4)
 

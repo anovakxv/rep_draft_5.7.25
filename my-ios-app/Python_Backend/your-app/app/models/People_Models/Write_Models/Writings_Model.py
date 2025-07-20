@@ -9,7 +9,7 @@ class Write(db.Model):
     __tablename__ = 'writes'
 
     id = db.Column(db.Integer, primary_key=True)
-    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=True)  # Optional title for each write block
     content = db.Column(db.Text, nullable=False)
     order = db.Column(db.Integer, nullable=True, default=0)  # For ordering blocks in the UI

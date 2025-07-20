@@ -9,8 +9,8 @@ class GoalProgressLog(db.Model):
     __tablename__ = 'goals_progress_log'
 
     id = db.Column(db.Integer, primary_key=True)
-    users_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    goals_id = db.Column(db.Integer, db.ForeignKey('goals.id'), nullable=False, index=True)
+    users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    goals_id = db.Column(db.Integer, db.ForeignKey('goals.id', ondelete="CASCADE"), nullable=False, index=True)
     added_value = db.Column(db.Float, nullable=False)  # Changed to Float
     note = db.Column(db.Text)
     value = db.Column(db.Float, default=0)  # Changed to Float

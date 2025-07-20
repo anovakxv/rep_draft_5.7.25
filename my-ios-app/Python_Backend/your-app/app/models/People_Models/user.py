@@ -16,7 +16,11 @@ class User(UserMixin, db.Model):
     broadcast = db.Column(db.Text, nullable=True)
     phone = db.Column(db.String(50), nullable=True, index=True)
     cities_id = db.Column(db.Integer, nullable=True)
-    users_types_id = db.Column(db.Integer, db.ForeignKey('user_types.id'), nullable=True)
+    users_types_id = db.Column(
+        db.Integer,
+        db.ForeignKey('user_types.id', ondelete="SET NULL"),
+        nullable=True
+    )
     password = db.Column(db.String(255), nullable=False)
     fname = db.Column(db.String(100), nullable=True)
     lname = db.Column(db.String(100), nullable=True)
@@ -37,6 +41,14 @@ class User(UserMixin, db.Model):
     # Relationships
     # City = db.relationship('City', backref='users') 
     user_type = db.relationship('UserType', backref='users')
+
+    # Example: Add cascade delete to related models (if you want ORM-level cascade)
+    # user_skills = db.relationship('UserSkill', backref='user', cascade="all, delete-orphan")
+    # networks_initiated = db.relationship('UserNetwork', foreign_keys='UserNetwork.users_id1', backref='user1', cascade="all, delete-orphan")
+    # networks_received = db.relationship('UserNetwork', foreign_keys='UserNetwork.users_id2', backref='user2', cascade="all, delete-orphan")
+    # writes = db.relationship('Write', backref='user', cascade="all, delete-orphan")
+    # sent_direct_messages = db.relationship('DirectMessage', foreign_keys='DirectMessage.sender_id', backref='sender', cascade="all, delete-orphan")
+    # received_direct_messages = db.relationship('DirectMessage', foreign_keys='DirectMessage.recipient_id', backref='recipient', cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<User id={self.id} username={self.username}>"

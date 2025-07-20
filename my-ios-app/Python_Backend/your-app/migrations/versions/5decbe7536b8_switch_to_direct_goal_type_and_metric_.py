@@ -15,17 +15,11 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    # No-op for goal_metrics since columns don't exist
     with op.batch_alter_table('goal_metrics', schema=None) as batch_op:
         pass
 
     with op.batch_alter_table('goals', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('goal_type', sa.String(length=50), nullable=False))
-        batch_op.add_column(sa.Column('metric', sa.String(length=50), nullable=False))
-        batch_op.drop_index(batch_op.f('ix_goals_goal_metrics_id'))
-        batch_op.drop_index(batch_op.f('ix_goals_goal_types_id'))
-        batch_op.drop_column('goal_metrics_id')
-        batch_op.drop_column('goal_types_id')
+        pass
 
 def downgrade():
     with op.batch_alter_table('goals', schema=None) as batch_op:

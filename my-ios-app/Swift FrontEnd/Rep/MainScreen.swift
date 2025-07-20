@@ -58,8 +58,8 @@ class PortalsViewModel: ObservableObject {
         case 2: tab = "all"
         default: tab = "open"
         }
-        // Limit ALL tab to 100 entries for now
-        let limitParam = (tab == "all") ? "&limit=100" : ""
+        // Limit ALL tab to 50 entries for now
+        let limitParam = (tab == "all") ? "&limit=50" : ""
         let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
@@ -197,8 +197,8 @@ class PeopleViewModel: ObservableObject {
             }.resume()
         } else {
             let tab = section == 1 ? "ntwk" : "all"
-            // Limit ALL tab to 100 entries for now
-            let limitParam = (tab == "all") ? "&limit=100" : ""
+            // Limit ALL tab to 50 entries for now
+            let limitParam = (tab == "all") ? "&limit=50" : ""
             let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
             guard let url = URL(string: urlString) else {
                 errorMessage = "Invalid URL"

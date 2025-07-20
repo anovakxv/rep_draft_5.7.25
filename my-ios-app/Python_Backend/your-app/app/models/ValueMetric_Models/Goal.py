@@ -66,29 +66,63 @@ class Goal(db.Model):
         return user_id == self.users_id or user_id == self.lead_id
 
     def chart_data(self, increment='month', num_periods=4):
-        """
-        Aggregates progress logs for charting.
-        increment: 'month', 'week', or 'day'
-        num_periods: how many periods to include (e.g., last 4 months)
-        """
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+        from collections import OrderedDict
+        from datetime import datetime, timedelta
+
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
-        data = defaultdict(float)
+        data = OrderedDict()
+
+        now = datetime.utcnow()
+        # Build period keys for the last N periods
+        if increment == 'day':
+            periods = [(now.date() - timedelta(days=i)) for i in reversed(range(num_periods))]
+            period_keys = [d.strftime('%Y-%m-%d') for d in periods]
+            period_labels = [d.strftime('%d %b') for d in periods]
+        elif increment == 'week':
+            periods = []
+            for i in reversed(range(num_periods)):
+                week_date = now - timedelta(weeks=i)
+                year, week, _ = week_date.isocalendar()
+                periods.append((year, week))
+            period_keys = [f"{y}-W{w}" for y, w in periods]
+            period_labels = [f"W{w}" for y, w in periods]
+        else:  # month
+            periods = []
+            for i in reversed(range(num_periods)):
+                # Go back i months from now
+                month = (now.month - i - 1) % 12 + 1
+                year = now.year - ((now.month - i - 1) // 12)
+                periods.append(datetime(year, month, 1))
+            period_keys = [d.strftime('%Y-%m') for d in periods]
+            period_labels = [d.strftime('%b') for d in periods]
+
+        # Initialize all periods to 0
+        for key, label in zip(period_keys, period_labels):
+            data[key] = {"value": 0, "label": label}
+
+        # Sum logs into periods
         for log in logs:
             if log.timestamp:
-                if increment == 'month':
-                    label = log.timestamp.strftime('%b')
+                if increment == 'day':
+                    key = log.timestamp.strftime('%Y-%m-%d')
                 elif increment == 'week':
-                    label = f"W{log.timestamp.isocalendar()[1]}"
-                elif increment == 'day':
-                    label = log.timestamp.strftime('%d %b')
+                    year, week, _ = log.timestamp.isocalendar()
+                    key = f"{year}-W{week}"
                 else:
-                    label = log.timestamp.strftime('%b')
-                data[label] += float(log.added_value or 0)
-        items = list(data.items())[-num_periods:]
+                    key = log.timestamp.strftime('%Y-%m')
+                if key in data:
+                    data[key]["value"] += float(log.added_value or 0)
+
+        # Return the bars in order
         return [
-            {"value": value, "label": label, "color": "#00FF00"}
-            for label, value in items
+            {
+                "id": idx + 1,
+                "value": d["value"],
+                "valueLabel": str(d["value"]),
+                "bottomLabel": d["label"]
+            }
+            for idx, d in enumerate(data.values())
         ]
 
     def as_dict(self, include_team=False, include_progress_logs=False, increment=None, num_periods=4):

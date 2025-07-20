@@ -115,10 +115,10 @@ class MessageViewModel: ObservableObject {
 
 struct GrowingTextEditor: View {
     @Binding var text: String
-    @State private var textViewHeight: CGFloat = 36
+    @State private var textViewHeight: CGFloat = 36 * 2 // Start at 2 lines
 
-    let minHeight: CGFloat = 36
-    let maxHeight: CGFloat = 36 * 8
+    let minHeight: CGFloat = 36 * 2 // 2 lines high at start
+    let maxHeight: CGFloat = 36 * 4 // Can grow to 4 lines
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -231,7 +231,6 @@ struct MessageView: View {
             }
             HStack(spacing: 8) {
                 GrowingTextEditor(text: $viewModel.inputText)
-                    .frame(minHeight: 36, maxHeight: 36 * 4)
                 Button(action: {
                     viewModel.sendMessage()
                 }) {

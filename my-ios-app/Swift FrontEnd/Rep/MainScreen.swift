@@ -879,7 +879,7 @@ struct ActiveChatList: View {
                                 VStack(alignment: .leading) {
                                     HStack {
                                         Text(user.fullName ?? "")
-                                            .font(.system(size: 15, weight: .semibold))
+                                            .font(.system(size: 17, weight: .semibold))
                                         Spacer()
                                         if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
                                             Text(date.timeAgoDisplay())

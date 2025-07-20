@@ -69,10 +69,15 @@ struct EditGoalPage: View {
                     }
                     TextField("Quota", text: $quota)
                         .keyboardType(.numberPad)
-                    Picker("Reporting Increment", selection: $reportingIncrementId) {
-                        ForEach(incrementsToUse, id: \.id) { increment in
-                            Text(increment.title).tag(Optional(increment.id))
+                    if !incrementsToUse.isEmpty && reportingIncrementId != nil {
+                        Picker("Reporting Increment", selection: $reportingIncrementId) {
+                            ForEach(incrementsToUse, id: \.id) { increment in
+                                Text(increment.title).tag(Optional(increment.id))
+                            }
                         }
+                        .id(reportingIncrementId) // Force Picker to update when selection changes
+                    } else {
+                        ProgressView("Loading increments...")
                     }
                 }
                 Section(header: Text("Associated Portal")) {
@@ -112,11 +117,9 @@ struct EditGoalPage: View {
                     if let match = increments.first(where: { $0.title == goal.reportingName }) {
                         reportingIncrementId = match.id
                     }
-                } else if reportingIncrementId == nil, incrementsToUse.count >= 3 {
-                    reportingIncrementId = incrementsToUse[2].id
-                } else if reportingIncrementId == nil, let first = incrementsToUse.first {
-                    reportingIncrementId = first.id
                 }
+                // For new goals, do NOT set reportingIncrementId here.
+                // Let loadReportingIncrements() handle the default after increments are loaded.
             }
         }
     }
@@ -136,14 +139,20 @@ struct EditGoalPage: View {
                     self.loadedIncrements = decoded.reportingIncrements
                     // Set default selection if not set
                     if self.reportingIncrementId == nil {
+                        print("EditGoal: Titles in increments: \(decoded.reportingIncrements.map { $0.title })")
                         if let goal = existingGoal,
-                           let match = decoded.reportingIncrements.first(where: { $0.title == goal.reportingName }) {
+                            let match = decoded.reportingIncrements.first(where: { $0.title == goal.reportingName }) {
                             self.reportingIncrementId = match.id
-                        } else if decoded.reportingIncrements.count >= 3 {
-                            self.reportingIncrementId = decoded.reportingIncrements[2].id
+                            print("EditGoal: Matched existing goal increment: \(match.title) (\(match.id))")
+                        } else if let daily = decoded.reportingIncrements.first(where: { $0.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "daily" }) {
+                            self.reportingIncrementId = daily.id
+                            print("EditGoal: Defaulting to Daily increment: \(daily.title) (\(daily.id))")
                         } else if let first = decoded.reportingIncrements.first {
                             self.reportingIncrementId = first.id
+                            print("EditGoal: Defaulting to first increment: \(first.title) (\(first.id))")
                         }
+                        print("EditGoal: All increments loaded: \(decoded.reportingIncrements.map { "\($0.title) (\($0.id))" })")
+                        print("EditGoal: reportingIncrementId set to: \(String(describing: self.reportingIncrementId))")
                     }
                 }
             }

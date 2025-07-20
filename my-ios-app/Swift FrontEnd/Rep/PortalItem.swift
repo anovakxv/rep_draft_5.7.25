@@ -40,7 +40,7 @@ struct PortalItem: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(portal.name)
-                        .font(.system(size: 15, weight: .semibold)) // Consistent font size
+                        .font(.system(size: 17, weight: .semibold)) // Consistent font size
                         .foregroundColor(.primary)
                     Spacer()
                     // Add category if available
@@ -53,7 +53,7 @@ struct PortalItem: View {
 
                 if let subtitle = portal.subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.system(size: 15)) // Consistent font size
+                        .font(.system(size: 17)) // Consistent font size
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }

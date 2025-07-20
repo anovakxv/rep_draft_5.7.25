@@ -349,8 +349,8 @@ class ProfileViewModel: ObservableObject {
         }
         let body: [String: Any] = [
             "title": writeTitle,
-            "content": writeText,
-            "order": (writeBlocks.last?.order ?? 0) + 1
+            "content": writeText
+            // Only include "order" if you are actually changing it
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, _, error in
@@ -372,16 +372,20 @@ class ProfileViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "title": write.title ?? "",
-            "content": write.content,
-            "order": write.order ?? 0
+            "content": write.content
         ]
+        if let order = write.order {
+            body["order"] = order
+        }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, _, error in
             if let _ = data {
                 DispatchQueue.main.async {
                     self.editingWrite = nil
+                    self.writeTitle = ""      // <-- Add this
+                    self.writeText = ""       // <-- Add this
                     self.fetchWrites(for: self.viewedUserId)
                 }
             }
@@ -1146,11 +1150,13 @@ struct WriteContentView: View {
                     .padding(.horizontal)
                 Button(action: {
                     if let editing = viewModel.editingWrite {
+                        print("Editing write with id: \(editing.id)")
                         var updated = editing
                         updated.title = viewModel.writeTitle
                         updated.content = viewModel.writeText
                         viewModel.editWrite(updated)
                     } else {
+                        print("Adding new write")
                         viewModel.addWrite()
                     }
                 }) {

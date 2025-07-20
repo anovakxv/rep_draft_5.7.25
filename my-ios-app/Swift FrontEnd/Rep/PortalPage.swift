@@ -166,8 +166,6 @@ struct PortalPageContent: View {
 
     enum PortalActionSheetAction {
         case joinTeam
-        case sharePortal
-        case support
         case editPortal
     }
 
@@ -209,7 +207,7 @@ struct PortalPageContent: View {
                 .frame(height: 1)
                 .padding(.horizontal, 0)
             PortalSegmentedPicker(
-                segments: ["Story", "Offering", "Results"],
+                segments: ["Goal Teams", "Story"],
                 selectedIndex: $viewModel.section
             )
             .padding(.horizontal)
@@ -295,8 +293,6 @@ struct PortalPageContent: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button("Join Team") { showPortalActionSheet = true; pendingPortalAction = .joinTeam }
-                    Button("Share Portal") { showPortalActionSheet = true; pendingPortalAction = .sharePortal }
-                    Button("Support") { showPortalActionSheet = true; pendingPortalAction = .support }
                     Button("Edit Portal") { viewModel.isEditPresented = true }
                 } label: {
                     Image(systemName: "ellipsis.circle")
@@ -340,41 +336,24 @@ struct PortalPageContent: View {
                     pendingPortalAction = .joinTeam
                     showPortalActionSheet = false
                 }) {
-                    Text("Join Team")
+                    Text("Select Goal Team")
                         .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                         .font(.title2)
                         .fontWeight(.bold)
                         .padding(.vertical, 5)
                 }
-                Button(action: {
-                    pendingPortalAction = .sharePortal
-                    showPortalActionSheet = false
-                }) {
-                    Text("Share Portal")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 5)
-                }
-                Button(action: {
-                    pendingPortalAction = .support
-                    showPortalActionSheet = false
-                }) {
-                    Text("Support")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 5)
-                }
-                Button(action: {
-                    pendingPortalAction = .editPortal
-                    showPortalActionSheet = false
-                }) {
-                    Text("Edit Portal")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 5)
+                // Only show "Edit Purpose" if the current user is the creator
+                if portal.users_id == userId {
+                    Button(action: {
+                        pendingPortalAction = .editPortal
+                        showPortalActionSheet = false
+                    }) {
+                        Text("Edit Purpose")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
                 }
                 Button(action: { showPortalActionSheet = false }) {
                     Text("Cancel")
@@ -389,12 +368,6 @@ struct PortalPageContent: View {
             switch action {
             case .joinTeam:
                 // Implement join team logic
-                break
-            case .sharePortal:
-                // Implement share portal logic
-                break
-            case .support:
-                // Implement support logic
                 break
             case .editPortal:
                 viewModel.isEditPresented = true
@@ -423,7 +396,6 @@ struct PortalPageContent: View {
     }
 }
 
-
 // MARK: - Fullscreen Image Viewer
 
 struct FullscreenImageViewer: View {
@@ -446,34 +418,8 @@ struct FullscreenImageViewer: View {
             TabView(selection: $selectedIndex) {
                 ForEach(Array(images.enumerated()), id: \.offset) { idx, file in
                     if let urlString = file.url, let url = URL(string: urlString) {
-                        AsyncImage(url: url) { phase in
-                            if let image = phase.image {
-                                image
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                    .background(Color.black)
-                                    .tag(idx)
-                                    .gesture(
-                                        DragGesture(minimumDistance: 30, coordinateSpace: .local)
-                                            .onEnded { value in
-                                                if value.translation.height < -80 {
-                                                    onDismiss()
-                                                }
-                                            }
-                                    )
-                            } else if phase.error != nil {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .overlay(Text("Image Error").foregroundColor(.secondary))
-                                    .tag(idx)
-                            } else {
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .overlay(Text("Loading...").foregroundColor(.secondary))
-                                    .tag(idx)
-                            }
-                        }
+                        ZoomableAsyncImage(url: url)
+                            .tag(idx)
                     } else {
                         Rectangle()
                             .fill(Color.gray.opacity(0.2))
@@ -493,6 +439,85 @@ struct FullscreenImageViewer: View {
             }
         }
         .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - ZoomableAsyncImage
+
+struct ZoomableAsyncImage: View {
+    let url: URL
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+
+    var body: some View {
+        GeometryReader { geometry in
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .scaleEffect(scale)
+                        .offset(offset)
+                        .gesture(
+                            SimultaneousGesture(
+                                MagnificationGesture()
+                                    .onChanged { value in
+                                        scale = min(max(1.0, lastScale * value), 5.0)
+                                    }
+                                    .onEnded { value in
+                                        scale = min(max(1.0, lastScale * value), 5.0)
+                                        lastScale = scale
+                                    },
+                                SimultaneousGesture(
+                                    DragGesture()
+                                        .onChanged { value in
+                                            offset = CGSize(
+                                                width: lastOffset.width + value.translation.width,
+                                                height: lastOffset.height + value.translation.height
+                                            )
+                                        }
+                                        .onEnded { _ in
+                                            lastOffset = offset
+                                        },
+                                    TapGesture(count: 2)
+                                        .onEnded {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                if scale > 1.01 {
+                                                    scale = 1.0
+                                                    lastScale = 1.0
+                                                    offset = .zero
+                                                    lastOffset = .zero
+                                                } else {
+                                                    scale = 2.5
+                                                    lastScale = 2.5
+                                                }
+                                            }
+                                        }
+                                )
+                            )
+                        )
+                        .animation(.easeInOut(duration: 0.15), value: scale)
+                        .animation(.easeInOut(duration: 0.15), value: offset)
+                        .frame(
+                            width: geometry.size.width,
+                            height: geometry.size.height
+                        )
+                        .background(Color.black)
+                } else if phase.error != nil {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .overlay(Text("Image Error").foregroundColor(.secondary))
+                } else {
+                    Rectangle()
+                        .fill(Color.gray.opacity(0.2))
+                        .overlay(Text("Loading...").foregroundColor(.secondary))
+                }
+            }
+        }
+        .ignoresSafeArea()
     }
 }
 
@@ -537,11 +562,11 @@ struct PortalSectionContent: View {
     var body: some View {
         Group {
             if section == 0 {
-                PortalStorySection(portal: portal)
-            } else if section == 1 {
-                PortalOfferingSection(portal: portal)
-            } else if section == 2 {
+                // "Goal Teams" tab
                 PortalResultsSection(goals: portal.aGoals ?? [], selectedGoalId: $selectedGoalId)
+            } else if section == 1 {
+                // "Story" tab
+                PortalStorySection(portal: portal)
             }
         }
     }
@@ -671,13 +696,6 @@ struct PortalStorySection: View {
                 .padding(.vertical, 4)
             }
         }
-    }
-}
-
-struct PortalOfferingSection: View {
-    let portal: PortalDetail
-    var body: some View {
-        EmptyView()
     }
 }
 

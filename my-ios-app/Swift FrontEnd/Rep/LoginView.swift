@@ -15,14 +15,21 @@ struct GTextField: View {
     let model: Model
     @Binding var text: String
     var body: some View {
-        TextField(model == .email ? "Email" : "Password", text: $text)
-            .textContentType(model == .email ? .emailAddress : .password)
-            .keyboardType(model == .email ? .emailAddress : .default)
-            .autocapitalization(.none)
-            .disableAutocorrection(true)
-            .padding()
-            .background(Color.gray.opacity(0.1))
-            .cornerRadius(8)
+        Group {
+            if model == .password {
+                SecureField("Password", text: $text)
+                    .textContentType(.password)
+            } else {
+                TextField("Email", text: $text)
+                    .textContentType(.emailAddress)
+                    .keyboardType(.emailAddress)
+            }
+        }
+        .autocapitalization(.none)
+        .disableAutocorrection(true)
+        .padding()
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(8)
     }
 }
 

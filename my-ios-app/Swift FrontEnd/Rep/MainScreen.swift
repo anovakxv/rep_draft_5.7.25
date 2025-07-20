@@ -553,7 +553,7 @@ struct MainScreenContent: View {
                     Image("REPLogo")
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 36.0, height: 36.0)
+                        .frame(width: 40.0, height: 40.0)
                 }
             )
             .padding(.trailing, 36)
@@ -783,7 +783,7 @@ struct ChatList: View {
                             VStack(alignment: .leading) {
                                 HStack {
                                     Text(user.fullName ?? "")
-                                        .font(.system(size: 15, weight: .semibold))
+                                        .font(.system(size: 17, weight: .semibold))
                                     Spacer()
                                     if let dateString = user.lastMessageDate, let date = ISO8601DateFormatter().date(from: dateString) {
                                         Text(date.timeAgoDisplay())
@@ -791,7 +791,7 @@ struct ChatList: View {
                                     }
                                 }
                                 Text(user.lastMessage ?? "")
-                                    .font(.system(size: 15))
+                                    .font(.system(size: 17))
                             }
                             .padding(.leading, 8)
                         }
@@ -891,12 +891,12 @@ struct ActiveChatList: View {
                                        read == "0",
                                        lastMessage.id != currentUserId {
                                         Text(lastMessage.text ?? "")
-                                            .font(.system(size: 15, weight: .bold))
+                                            .font(.system(size: 17, weight: .bold))
                                             .foregroundColor(Color.repGreen)
                                             .background(Color.white)
                                     } else {
                                         Text(chat.last_message?.text ?? "")
-                                            .font(.system(size: 15))
+                                            .font(.system(size: 17))
                                             .foregroundColor(.primary)
                                     }
                                 }

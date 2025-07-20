@@ -15,21 +15,15 @@ branch_labels = None
 depends_on = None
 
 def upgrade():
-    # Only drop the old columns from goal_metrics, don't add columns that already exist
+    # No-op for goal_metrics since columns don't exist
     with op.batch_alter_table('goal_metrics', schema=None) as batch_op:
-        # batch_op.add_column(sa.Column('goal_type', sa.String(length=50), nullable=False))
-        # batch_op.add_column(sa.Column('metric', sa.String(length=50), nullable=False))
-        # batch_op.drop_constraint(None, type_='foreignkey')
-        batch_op.drop_column('title')
-        batch_op.drop_column('goal_types_id')
+        pass
 
     with op.batch_alter_table('goals', schema=None) as batch_op:
         batch_op.add_column(sa.Column('goal_type', sa.String(length=50), nullable=False))
         batch_op.add_column(sa.Column('metric', sa.String(length=50), nullable=False))
         batch_op.drop_index(batch_op.f('ix_goals_goal_metrics_id'))
         batch_op.drop_index(batch_op.f('ix_goals_goal_types_id'))
-        # batch_op.drop_constraint(None, type_='foreignkey')
-        # batch_op.drop_constraint(None, type_='foreignkey')
         batch_op.drop_column('goal_metrics_id')
         batch_op.drop_column('goal_types_id')
 

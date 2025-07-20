@@ -67,72 +67,34 @@ class Goal(db.Model):
 
     def chart_data(self, increment='month', num_periods=4):
         from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
-        from collections import OrderedDict
-        from datetime import datetime, timedelta
 
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
-        data = OrderedDict()
-
-        now = datetime.utcnow()
-        # Build period keys for the last N periods
-        if increment == 'day':
-            periods = [(now.date() - timedelta(days=i)) for i in reversed(range(num_periods))]
-            period_keys = [d.strftime('%Y-%m-%d') for d in periods]
-            period_labels = [d.strftime('%d %b') for d in periods]
-        elif increment == 'week':
-            periods = []
-            for i in reversed(range(num_periods)):
-                week_date = now - timedelta(weeks=i)
-                year, week, _ = week_date.isocalendar()
-                periods.append((year, week))
-            period_keys = [f"{y}-W{w}" for y, w in periods]
-            period_labels = [f"W{w}" for y, w in periods]
-        else:  # month
-            periods = []
-            for i in reversed(range(num_periods)):
-                month = (now.month - i - 1) % 12 + 1
-                year = now.year - ((now.month - i - 1) // 12)
-                periods.append(datetime(year, month, 1))
-            period_keys = [d.strftime('%Y-%m') for d in periods]
-            period_labels = [d.strftime('%b') for d in periods]
-
-        # Initialize all periods to 0
-        for key, label in zip(period_keys, period_labels):
-            data[key] = {"value": 0, "label": label}
-
-        # Cumulative sum
+        data = []
+        last_value = None
         cumulative = 0
+
         for log in logs:
             if log.timestamp:
                 if increment == 'day':
-                    key = log.timestamp.strftime('%Y-%m-%d')
+                    display_label = log.timestamp.strftime('%d %b')
                 elif increment == 'week':
-                    year, week, _ = log.timestamp.isocalendar()
-                    key = f"{year}-W{week}"
+                    week = log.timestamp.isocalendar()[1]
+                    display_label = f"W{week}"
                 else:
-                    key = log.timestamp.strftime('%Y-%m')
-                if key in data:
-                    cumulative += float(log.added_value or 0)
-                    data[key]["value"] = cumulative
+                    display_label = log.timestamp.strftime('%b')
+                cumulative += float(log.added_value or 0)
+                # Only add a bar if value changed
+                if last_value is None or cumulative != last_value:
+                    data.append({
+                        "id": len(data) + 1,
+                        "value": cumulative,
+                        "valueLabel": str(cumulative),
+                        "bottomLabel": display_label
+                    })
+                    last_value = cumulative
 
-        # Fill in previous cumulative for periods with no logs
-        last_value = 0
-        for key in data:
-            if data[key]["value"] == 0:
-                data[key]["value"] = last_value
-            else:
-                last_value = data[key]["value"]
-
-        return [
-            {
-                "id": idx + 1,
-                "value": d["value"],
-                "valueLabel": str(d["value"]),
-                "bottomLabel": d["label"]
-            }
-            for idx, d in enumerate(data.values())
-        ]
-
+        # Only keep the last num_periods bars
+        return data[-num_periods:]
 
     def as_dict(self, include_team=False, include_progress_logs=False, increment=None, num_periods=4):
         """
@@ -166,7 +128,7 @@ class Goal(db.Model):
                 "id": idx,
                 "value": d["value"],
                 "valueLabel": str(d["value"]),
-                "bottomLabel": d.get("label", "")
+                "bottomLabel": d.get("bottomLabel", "")
             }
             for idx, d in enumerate(self.chart_data(increment=chart_increment, num_periods=num_periods))
         ]

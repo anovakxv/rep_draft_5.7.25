@@ -25,13 +25,11 @@ struct GoalListItem: View {
                                 .fill(Color.repGreen)
                                 .frame(width: 24, height: barHeight)
                                 .cornerRadius(3)
-                            // Text(bar.bottomLabel)
-                            //    .font(.caption2)
-                            //    .frame(width: 24)
-                            //    .lineLimit(1)
                         }
                     }
+                    // REMOVE Spacer() here!
                 }
+                .frame(width: geo.size.width, alignment: .leading) // This forces left alignment
             }
             .frame(width: 144, height: 81)
             .padding(.vertical, 4)

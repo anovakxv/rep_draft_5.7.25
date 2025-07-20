@@ -90,7 +90,6 @@ class Goal(db.Model):
         else:  # month
             periods = []
             for i in reversed(range(num_periods)):
-                # Go back i months from now
                 month = (now.month - i - 1) % 12 + 1
                 year = now.year - ((now.month - i - 1) // 12)
                 periods.append(datetime(year, month, 1))
@@ -113,7 +112,15 @@ class Goal(db.Model):
                     key = log.timestamp.strftime('%Y-%m')
                 if key in data:
                     data[key]["value"] += float(log.added_value or 0)
-
+        print("chart_data output:", [
+                    {
+                        "id": idx + 1,
+                        "value": d["value"],
+                        "valueLabel": str(d["value"]),
+                        "bottomLabel": d["label"]
+                    }
+                    for idx, d in enumerate(data.values())
+                ])
         # Return the bars in order
         return [
             {
@@ -124,6 +131,7 @@ class Goal(db.Model):
             }
             for idx, d in enumerate(data.values())
         ]
+
 
     def as_dict(self, include_team=False, include_progress_logs=False, increment=None, num_periods=4):
         """

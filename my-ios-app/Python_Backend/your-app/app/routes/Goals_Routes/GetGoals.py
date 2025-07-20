@@ -11,16 +11,28 @@ from app import db
 goals_bp = Blueprint('get_user_goals', __name__)
 
 def get_increment(goal):
-    # Use the goal's reporting increment title if available
+    # Robustly determine increment from reporting increment title
+    increment = "month"
     if hasattr(goal, "reporting_increment") and goal.reporting_increment and hasattr(goal.reporting_increment, "title"):
-        title = goal.reporting_increment.title.lower()
-        if "day" in title:
-            return "day"
+        reporting_increment_title = goal.reporting_increment.title
+        title = reporting_increment_title.lower().strip()
+        print(f"[DEBUG] Normalized reporting_increment.title: '{title}'")
+        if title == "daily":
+            increment = "day"
+        elif title == "weekly":
+            increment = "week"
+        elif title == "monthly":
+            increment = "month"
+        elif "day" in title:
+            increment = "day"
         elif "week" in title:
-            return "week"
+            increment = "week"
         elif "month" in title:
-            return "month"
-    return "month"  # Default fallback
+            increment = "month"
+        else:
+            print(f"[DEBUG] Unknown increment title: '{title}', defaulting to 'month'")
+    print(f"[DEBUG] Chart increment selected: {increment}")
+    return increment
 
 # GET /api/goals/list?users_id=1
 @goals_bp.route('/list', methods=['GET'])

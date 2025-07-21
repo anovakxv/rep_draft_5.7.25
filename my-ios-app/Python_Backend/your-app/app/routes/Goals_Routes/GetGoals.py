@@ -71,9 +71,13 @@ def get_goals_by_portal():
     if not portals_id:
         return jsonify({"error": "portals_id required"}), 400
 
-    goals = Goal.query.filter_by(portals_id=portals_id).all()
+    # Eager-load reporting_increment so get_increment works!
+    goals = (
+        Goal.query.options(joinedload(Goal.reporting_increment))
+        .filter_by(portals_id=portals_id)
+        .all()
+    )
 
-    # Use correct increment for chartData, always return 4 bars for GoalListItem
     aGoals = []
     for goal in goals:
         increment = get_increment(goal)

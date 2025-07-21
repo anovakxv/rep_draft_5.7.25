@@ -8,6 +8,7 @@
 import SwiftUI
 import _PhotosUI_SwiftUI
 import Combine
+import Kingfisher
 
 // MARK: - Orientation Observer
 
@@ -489,42 +490,45 @@ struct ZoomableAsyncImage: View {
                         .scaleEffect(scale)
                         .offset(offset)
                         .gesture(
-                            SimultaneousGesture(
-                                MagnificationGesture()
+                            MagnificationGesture()
+                                .onChanged { value in
+                                    scale = min(max(1.0, lastScale * value), 5.0)
+                                }
+                                .onEnded { value in
+                                    scale = min(max(1.0, lastScale * value), 5.0)
+                                    lastScale = scale
+                                }
+                        )
+                        // Only enable drag/pan when zoomed in
+                        .gesture(
+                            scale > 1.01 ?
+                                DragGesture()
                                     .onChanged { value in
-                                        scale = min(max(1.0, lastScale * value), 5.0)
+                                        offset = CGSize(
+                                            width: lastOffset.width + value.translation.width,
+                                            height: lastOffset.height + value.translation.height
+                                        )
                                     }
-                                    .onEnded { value in
-                                        scale = min(max(1.0, lastScale * value), 5.0)
-                                        lastScale = scale
-                                    },
-                                SimultaneousGesture(
-                                    DragGesture()
-                                        .onChanged { value in
-                                            offset = CGSize(
-                                                width: lastOffset.width + value.translation.width,
-                                                height: lastOffset.height + value.translation.height
-                                            )
+                                    .onEnded { _ in
+                                        lastOffset = offset
+                                    }
+                                : nil
+                        )
+                        .gesture(
+                            TapGesture(count: 2)
+                                .onEnded {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        if scale > 1.01 {
+                                            scale = 1.0
+                                            lastScale = 1.0
+                                            offset = .zero
+                                            lastOffset = .zero
+                                        } else {
+                                            scale = 2.5
+                                            lastScale = 2.5
                                         }
-                                        .onEnded { _ in
-                                            lastOffset = offset
-                                        },
-                                    TapGesture(count: 2)
-                                        .onEnded {
-                                            withAnimation(.easeInOut(duration: 0.2)) {
-                                                if scale > 1.01 {
-                                                    scale = 1.0
-                                                    lastScale = 1.0
-                                                    offset = .zero
-                                                    lastOffset = .zero
-                                                } else {
-                                                    scale = 2.5
-                                                    lastScale = 2.5
-                                                }
-                                            }
-                                        }
-                                )
-                            )
+                                    }
+                                }
                         )
                         .animation(.easeInOut(duration: 0.15), value: scale)
                         .animation(.easeInOut(duration: 0.15), value: offset)
@@ -606,26 +610,13 @@ struct ImageTabView: View {
     let sections: [PortalSection]
 
     var body: some View {
-        // Show all images in all sections as swipeable
         TabView {
             ForEach(sections.flatMap { $0.aFiles }) { file in
                 if let urlString = file.url, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        if let image = phase.image {
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .clipped()
-                        } else if phase.error != nil {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .overlay(Text("Image Error").foregroundColor(.secondary))
-                        } else {
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .overlay(Text("Loading...").foregroundColor(.secondary))
-                        }
-                    }
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                        .clipped()
                 } else {
                     Rectangle()
                         .fill(Color.gray.opacity(0.2))

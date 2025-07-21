@@ -5,6 +5,7 @@
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
+import Kingfisher
 
 // MARK: - API Responses
 
@@ -689,13 +690,11 @@ struct MainScreenToolbar: ViewModifier {
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink(destination: ProfileView(userId: userId)) {
                         if let url = currentUser?.profilePictureURL {
-                            AsyncImage(url: url) { image in
-                                image.resizable().scaledToFill()
-                            } placeholder: {
-                                Circle().fill(Color.gray.opacity(0.3))
-                            }
-                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                            .clipShape(Circle())
+                            KFImage(url)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                .clipShape(Circle())
                         } else {
                             Image(systemName: "person.crop.circle")
                                 .resizable()
@@ -762,13 +761,11 @@ struct ChatList: View {
                     HStack(spacing: 0) {
                         Button(action: { selectedProfileId = user.id }) {
                             if let url = user.profilePictureURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().scaledToFill()
-                                } placeholder: {
-                                    Color.gray
-                                }
-                                .frame(width: 64, height: 64)
-                                .clipShape(Circle())
+                                KFImage(url)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 64, height: 64)
+                                    .clipShape(Circle())
                             } else {
                                 Image(systemName: "person.crop.circle")
                                     .resizable()
@@ -858,13 +855,11 @@ struct ActiveChatList: View {
                         HStack(spacing: 0) {
                             Button(action: { selectedProfileId = user.id }) {
                                 if let url = user.profilePictureURL {
-                                    AsyncImage(url: url) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        Color.gray
-                                    }
-                                    .frame(width: 64, height: 64)
-                                    .clipShape(Circle())
+                                    KFImage(url)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 64, height: 64)
+                                        .clipShape(Circle())
                                 } else {
                                     Image(systemName: "person.crop.circle")
                                         .resizable()

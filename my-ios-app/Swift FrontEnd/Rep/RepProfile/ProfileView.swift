@@ -5,6 +5,7 @@
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
+import Kingfisher
 
 // MARK: - Unified User Model
 
@@ -1046,13 +1047,11 @@ struct ProfileInfoView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 11) {
             if let url = photoURL {
-                AsyncImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle().fill(Color.gray.opacity(0.3))
-                }
-                .frame(width: 108, height: 108)
-                .clipShape(Circle())
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 108, height: 108)
+                    .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.gray.opacity(0.3))
@@ -1060,7 +1059,6 @@ struct ProfileInfoView: View {
             }
 
             VStack(alignment: .leading, spacing: 7) {
-                // Show city if you want
                 if let city = city, !city.isEmpty {
                     Text(city)
                         .font(.system(size: 17, weight: .bold))
@@ -1076,8 +1074,6 @@ struct ProfileInfoView: View {
             Spacer()
         }
         .padding(15)
-        .onAppear {
-        }
     }
 }
 

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct PortalItem: View {
     let portal: Portal
@@ -17,20 +18,12 @@ struct PortalItem: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             if let urlString = portal.mainImageUrl, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    if let image = phase.image {
-                        image
-                            .resizable()
-                            .aspectRatio(16/9, contentMode: .fill)
-                    } else if phase.error != nil {
-                        Color.gray
-                    } else {
-                        Color.gray.opacity(0.3)
-                    }
-                }
-                .frame(width: imageWidth, height: imageHeight)
-                .clipped()
-                .cornerRadius(3)
+                KFImage(url)
+                    .resizable()
+                    .aspectRatio(16/9, contentMode: .fill)
+                    .frame(width: imageWidth, height: imageHeight)
+                    .clipped()
+                    .cornerRadius(3)
             } else {
                 Color.gray.opacity(0.2)
                     .frame(width: imageWidth, height: imageHeight)

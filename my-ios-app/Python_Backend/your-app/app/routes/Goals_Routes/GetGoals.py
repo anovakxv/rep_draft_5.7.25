@@ -7,6 +7,7 @@ from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.utils.auth import jwt_required
 from app import db
+from sqlalchemy.orm import joinedload
 
 goals_bp = Blueprint('get_user_goals', __name__)
 

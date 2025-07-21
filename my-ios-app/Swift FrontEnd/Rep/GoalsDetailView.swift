@@ -607,7 +607,7 @@ struct LargeBarChartView: View {
 
     var body: some View {
         GeometryReader { geometry in
-            HStack(alignment: .bottom, spacing: 16) { // <-- Increased spacing from 8 to 16
+            HStack(alignment: .bottom, spacing: 8) {
                 ForEach(data) { item in
                     VStack(spacing: 0) {
                         // Qty label on top

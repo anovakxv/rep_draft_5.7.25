@@ -2,7 +2,7 @@
 //  Rep
 //
 //  Created by Dmytro Holovko on 10.28.2023.
-//  Updated by Adam Novak on 07.13.2025
+//  Updated by Adam Novak on 07.20.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
@@ -31,6 +31,7 @@ class OrientationObserver: ObservableObject {
 @MainActor
 class PortalViewModel: ObservableObject {
     @Published var portalDetail: PortalDetail?
+    @Published var portalGoals: [Goal] = []
     @Published var section = 0
     @Published var isEditPresented = false
     @Published var reportingIncrements: [ReportingIncrement] = []
@@ -57,6 +58,26 @@ class PortalViewModel: ObservableObject {
         }.resume()
     }
 
+    func fetchPortalGoals(portalId: Int) {
+        let urlString = "\(APIConfig.baseURL)/api/goals/portal?portals_id=\(portalId)"
+        guard let url = URL(string: urlString) else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data else { return }
+            do {
+                let response = try JSONDecoder().decode(PortalGoalsResponse.self, from: data)
+                DispatchQueue.main.async {
+                    self.portalGoals = response.aGoals
+                }
+            } catch {
+                print("Decode error:", error)
+            }
+        }.resume()
+    }
+
     func fetchReportingIncrements() {
         let urlString = "\(APIConfig.baseURL)/api/reporting_increments/list"
         guard let url = URL(string: urlString) else { return }
@@ -76,6 +97,10 @@ class PortalViewModel: ObservableObject {
             }
         }.resume()
     }
+}
+
+struct PortalGoalsResponse: Codable {
+    let aGoals: [Goal]
 }
 
 // MARK: - Portal Page
@@ -121,6 +146,7 @@ struct PortalPage: View {
                         )
                     }
                     .onAppear {
+                        viewModel.fetchPortalGoals(portalId: portalId)
                         if viewModel.reportingIncrements.isEmpty {
                             viewModel.fetchReportingIncrements()
                         }
@@ -190,7 +216,7 @@ struct PortalPageContent: View {
     private var goalDestination: some View {
         Group {
             if let goalId = selectedGoalId,
-            let selectedGoal = portal.aGoals?.first(where: { $0.id == goalId }) {
+               let selectedGoal = viewModel.portalGoals.first(where: { $0.id == goalId }) {
                 GoalsDetailView(initialGoal: selectedGoal)
             } else {
                 EmptyView()
@@ -263,6 +289,7 @@ struct PortalPageContent: View {
                     // Sticky segmented picker
                     Section(header: stickyHeader) {
                         PortalSectionContent(
+                            viewModel: viewModel,
                             portal: portal,
                             section: viewModel.section,
                             selectedGoalId: $selectedGoalId
@@ -555,6 +582,7 @@ struct PortalHeader: View {
 // MARK: - PortalSectionContent
 
 struct PortalSectionContent: View {
+    @ObservedObject var viewModel: PortalViewModel
     let portal: PortalDetail
     let section: Int
     @Binding var selectedGoalId: Int?
@@ -563,7 +591,7 @@ struct PortalSectionContent: View {
         Group {
             if section == 0 {
                 // "Goal Teams" tab
-                PortalResultsSection(goals: portal.aGoals ?? [], selectedGoalId: $selectedGoalId)
+                PortalResultsSection(goals: viewModel.portalGoals, selectedGoalId: $selectedGoalId)
             } else if section == 1 {
                 // "Story" tab
                 PortalStorySection(portal: portal)
@@ -739,7 +767,7 @@ struct PortalDetail: Identifiable, Codable {
     let aTexts: [PortalText]?
     let aSections: [PortalSection]?
     let aUsers: [User]?
-    let aLeads: [User]? 
+    let aLeads: [User]?
 }
 
 struct PortalUser: Identifiable, Codable {

@@ -5,6 +5,7 @@
 from flask import Blueprint, request, jsonify, g
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.utils.auth import jwt_required
 from app import db
 from sqlalchemy.orm import joinedload

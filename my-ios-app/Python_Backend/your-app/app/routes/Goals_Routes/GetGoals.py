@@ -58,11 +58,7 @@ def get_goals_by_user():
     aGoals = []
     for goal in goals:
         increment = get_increment(goal)
-        # Patch: use the same chart_data logic as details
-        goal.chart_data = Goal.chart_data.__get__(goal, Goal)
-        chart_data = goal.chart_data(increment=increment, num_periods=4)
         result = goal.as_dict(increment=increment, num_periods=4)
-        result["chartData"] = chart_data
         aGoals.append(result)
 
     return jsonify({"aGoals": aGoals})
@@ -81,10 +77,7 @@ def get_goals_by_portal():
     aGoals = []
     for goal in goals:
         increment = get_increment(goal)
-        goal.chart_data = Goal.chart_data.__get__(goal, Goal)
-        chart_data = goal.chart_data(increment=increment, num_periods=4)
         result = goal.as_dict(increment=increment, num_periods=4)
-        result["chartData"] = chart_data
         aGoals.append(result)
 
     return jsonify({"aGoals": aGoals})

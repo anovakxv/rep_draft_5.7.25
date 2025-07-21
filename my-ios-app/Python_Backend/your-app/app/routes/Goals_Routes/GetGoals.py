@@ -71,7 +71,6 @@ def get_goals_by_portal():
     if not portals_id:
         return jsonify({"error": "portals_id required"}), 400
 
-    # Eager-load reporting_increment so get_increment works!
     goals = (
         Goal.query.options(joinedload(Goal.reporting_increment))
         .filter_by(portals_id=portals_id)
@@ -80,8 +79,62 @@ def get_goals_by_portal():
 
     aGoals = []
     for goal in goals:
-        increment = get_increment(goal)
+        # --- PATCH: Determine increment from reporting increment title ---
+        increment = 'month'
+        if goal.reporting_increment and hasattr(goal.reporting_increment, "title"):
+            title = goal.reporting_increment.title.lower().strip()
+            if title == "daily":
+                increment = "day"
+            elif title == "weekly":
+                increment = "week"
+            elif title == "monthly":
+                increment = "month"
+            elif "day" in title:
+                increment = "day"
+            elif "week" in title:
+                increment = "week"
+            elif "month" in title:
+                increment = "month"
+        print(f"[DEBUG] Goal {goal.id} increment: {increment}")
+
+        # --- PATCH: Chart Data Grouping ---
+        def patched_chart_data(self, increment='day', num_periods=4):
+            from collections import OrderedDict
+            logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
+            cumulative = 0
+            data = OrderedDict()
+            for log in logs:
+                if log.timestamp:
+                    if increment == 'month':
+                        label = log.timestamp.strftime('%Y-%m')
+                        display_label = log.timestamp.strftime('%b')
+                    elif increment == 'week':
+                        label = f"{log.timestamp.year}-W{log.timestamp.isocalendar()[1]}"
+                        display_label = f"W{log.timestamp.isocalendar()[1]}"
+                    elif increment == 'day':
+                        label = log.timestamp.strftime('%Y-%m-%d')
+                        display_label = log.timestamp.strftime('%d %b')
+                    else:
+                        label = log.timestamp.strftime('%Y-%m')
+                        display_label = log.timestamp.strftime('%b')
+                    cumulative += float(log.added_value or 0)
+                    data[label] = (cumulative, display_label)
+            items = list(data.items())[-num_periods:]
+            chart_data = [
+                {
+                    "id": idx + 1,
+                    "value": value,
+                    "valueLabel": str(value),
+                    "bottomLabel": display_label
+                }
+                for idx, (label, (value, display_label)) in enumerate(items)
+            ]
+            return chart_data
+        goal.chart_data = patched_chart_data.__get__(goal, Goal)
+        chart_data = goal.chart_data(increment=increment, num_periods=4)
+
         result = goal.as_dict(increment=increment, num_periods=4)
+        result["chartData"] = chart_data
         aGoals.append(result)
 
     return jsonify({"aGoals": aGoals})

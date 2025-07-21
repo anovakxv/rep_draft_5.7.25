@@ -132,6 +132,7 @@ def get_goals_by_portal():
             return chart_data
         goal.chart_data = patched_chart_data.__get__(goal, Goal)
         chart_data = goal.chart_data(increment=increment, num_periods=4)
+        print(f"[DEBUG] Goal {goal.id} chartData: {chart_data}")  # <-- Add this line
 
         result = goal.as_dict(increment=increment, num_periods=4)
         result["chartData"] = chart_data

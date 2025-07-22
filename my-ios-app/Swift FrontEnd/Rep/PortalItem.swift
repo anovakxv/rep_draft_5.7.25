@@ -49,6 +49,7 @@ struct PortalItem: View {
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                         .truncationMode(.tail)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 HStack {

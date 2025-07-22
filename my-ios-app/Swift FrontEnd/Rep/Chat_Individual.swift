@@ -115,10 +115,10 @@ class MessageViewModel: ObservableObject {
 
 struct GrowingTextEditor: View {
     @Binding var text: String
-    @State private var textViewHeight: CGFloat = 36 * 2 // Start at 2 lines
+    @State private var textViewHeight: CGFloat = 36 // Start at 1 line
 
-    let minHeight: CGFloat = 36 * 2 // 2 lines high at start
-    let maxHeight: CGFloat = 36 * 4 // Can grow to 4 lines
+    let minHeight: CGFloat = 36 // 1 line high at start
+    let maxHeight: CGFloat = 36 * 3 // Can grow to 3 lines
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -126,7 +126,7 @@ struct GrowingTextEditor: View {
             if text.isEmpty {
                 Text("Type a message...")
                     .foregroundColor(.gray)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 6) // Reduced vertical padding
                     .padding(.horizontal, 8)
             }
             UITextViewWrapper(text: $text, calculatedHeight: $textViewHeight, minHeight: minHeight, maxHeight: maxHeight)
@@ -152,7 +152,7 @@ struct UITextViewWrapper: UIViewRepresentable {
         textView.font = UIFont.preferredFont(forTextStyle: .body)
         textView.backgroundColor = UIColor.clear
         textView.delegate = context.coordinator
-        textView.textContainerInset = UIEdgeInsets(top: 12, left: 4, bottom: 12, right: 4)
+        textView.textContainerInset = UIEdgeInsets(top: 6, left: 4, bottom: 6, right: 4) // Reduced vertical padding
         textView.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         return textView
     }

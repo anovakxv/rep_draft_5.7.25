@@ -31,24 +31,21 @@ struct PortalItem: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(portal.name)
-                        .font(.system(size: 17, weight: .semibold)) // Consistent font size
-                        .foregroundColor(.primary)
-                    Spacer()
-                    // Add category if available
-                    if let category = portal.categories_id {
-                        Text("Category \(category)")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
+                Text(portal.name)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.primary)
+                if let category = portal.categories_id {
+                    Text("Category \(category)")
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
                 }
 
                 if let subtitle = portal.subtitle, !subtitle.isEmpty {
                     Text(subtitle)
-                        .font(.system(size: 17)) // Consistent font size
+                        .font(.system(size: 17))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .truncationMode(.tail)
                 }
 
                 HStack {
@@ -65,7 +62,6 @@ struct PortalItem: View {
                     }
                 }
             }
-            Spacer()
         }
         .padding(.horizontal)
         .padding(.vertical, 12)

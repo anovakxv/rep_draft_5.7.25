@@ -34,6 +34,9 @@ struct PortalItem: View {
                 Text(portal.name)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(.primary)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let category = portal.categories_id {
                     Text("Category \(category)")
                         .font(.system(size: 12))

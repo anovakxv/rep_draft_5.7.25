@@ -9,7 +9,24 @@ import SwiftUI
 
 @main
 struct RepApp: App {
+    @State private var rootReloadKey = UUID()
+
+    var body: some Scene {
+        WindowGroup {
+            RootAppView()
+                .id(rootReloadKey)
+                .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ForceRootReload"))) { _ in
+                    rootReloadKey = UUID()
+                }
+        }
+    }
+}
+
+// MARK: - RootAppView
+
+struct RootAppView: View {
     @AppStorage("userId") var userId: Int = 0
+    @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("isRegistered") var isRegistered: Bool = false
     @AppStorage("onboardingComplete") var onboardingComplete: Bool = false
     @AppStorage("onboardingUserName") var onboardingUserName: String = ""
@@ -22,21 +39,23 @@ struct RepApp: App {
         return nil
     }
 
-    var body: some Scene {
-        WindowGroup {
+    var sessionKey: String {
+        "\(userId)-\(jwtToken)-\(isRegistered)-\(onboardingComplete)"
+    }
+
+    var body: some View {
+        NavigationStack {
             if !isRegistered {
-                RegisterNewProfileView(
-                    // Optionally, you can pass closures to set onboardingUserName/onboardingProfileImageData
-                )
+                RegisterNewProfileView()
             } else if !onboardingComplete {
-                // Show onboarding flow (EditProfileView > OnboardingView)
                 OnboardingFlowEntryView()
-            } else if userId > 0 {
+            } else if !jwtToken.isEmpty && userId > 0 {
                 MainScreen()
             } else {
                 LoginView()
             }
         }
+        .id(sessionKey)
     }
 }
 
@@ -101,4 +120,3 @@ struct OnboardingFlowEntryView: View {
         }
     }
 }
-

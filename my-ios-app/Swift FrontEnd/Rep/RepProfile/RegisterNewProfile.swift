@@ -6,6 +6,32 @@
 //
 
 import SwiftUI
+import Combine
+
+// --- Keyboard Avoidance Helper ---
+final class KeyboardResponder: ObservableObject {
+    @Published var currentHeight: CGFloat = 0
+    private var cancellableSet: Set<AnyCancellable> = []
+
+    init() {
+        let willShow = NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .map { ($0.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0 }
+        let willHide = NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .map { _ in CGFloat(0) }
+
+        Publishers.Merge(willShow, willHide)
+            .receive(on: RunLoop.main)
+            .assign(to: \.currentHeight, on: self)
+            .store(in: &cancellableSet)
+    }
+}
+
+// --- Keyboard dismiss helper ---
+extension UIApplication {
+    func endEditing() {
+        sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
+}
 
 struct RegisterNewProfileView: View {
     @State private var firstName: String = ""
@@ -16,13 +42,16 @@ struct RegisterNewProfileView: View {
     @State private var phone: String = ""
     @State private var isLoading: Bool = false
     @State private var errorMessage: String?
-    @State private var navigateToEditProfile: Bool = false
+    @State private var navigateToLogin: Bool = false
 
     // AppStorage for registration state and userId
     @AppStorage("isRegistered") var isRegistered: Bool = false
     @AppStorage("userId") var userId: Int = 0
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("pendingUserId") var pendingUserId: Int = 0
+    @AppStorage("onboardingComplete") var onboardingComplete: Bool = false
+    @AppStorage("pendingFirstName") var pendingFirstName: String = ""
+    @AppStorage("pendingLastName") var pendingLastName: String = ""
 
     // Use a persistent onboarding profile view model
     @StateObject private var onboardingProfileVM = ProfileInfoViewModel(
@@ -40,12 +69,33 @@ struct RegisterNewProfileView: View {
         mode: .edit
     )
 
+    @StateObject private var keyboard = KeyboardResponder()
+
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
-            ScrollView { // <-- Enable scrolling
+            ScrollView {
                 VStack(spacing: 0) {
-                    Spacer().frame(height: 32)
+                    // --- Moved Login prompt to the top ---
+                    HStack {
+                        Text("Already have an account? :")
+                            .font(.custom("Inter", size: 16))
+                            .foregroundColor(.gray)
+                        Button(action: {
+                            UIApplication.shared.endEditing() // Dismiss keyboard
+                            navigateToLogin = true
+                        }) {
+                            Text("Login")
+                                .font(.custom("Inter", size: 24).weight(.bold))
+                                .foregroundColor(Color.repGreen)
+                                .frame(height: 60)
+                                .padding(.horizontal, 24)
+                        }
+                    }
+                    .padding(.top, 24)
+                    .padding(.bottom, 8)
+
+                    Spacer().frame(height: 8)
 
                     // Rep Logo
                     HStack {
@@ -61,7 +111,7 @@ struct RegisterNewProfileView: View {
                     .padding(.bottom, 24)
 
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Your Info:")
+                        Text("Create Account:")
                             .font(.custom("Inter", size: 20).weight(.bold))
                             .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
 
@@ -88,10 +138,6 @@ struct RegisterNewProfileView: View {
                             .font(.custom("Inter", size: 20).weight(.bold))
                             .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
                             .padding(.top, 8)
-
-                        Text("You will receive a confirmation email.")
-                            .font(.custom("Inter", size: 15))
-                            .foregroundColor(Color(red: 0.47, green: 0.47, blue: 0.47))
 
                         TextField("Email address", text: $email)
                             .keyboardType(.emailAddress)
@@ -145,16 +191,6 @@ struct RegisterNewProfileView: View {
                             .padding(.bottom, 8)
                     }
 
-                    NavigationLink(
-                        destination: EditProfileView(
-                            viewModel: onboardingProfileVM,
-                            showOnboardingAfterSave: true
-                        ),
-                        isActive: $navigateToEditProfile
-                    ) {
-                        EmptyView()
-                    }
-
                     Button(action: {
                         registerUser()
                     }) {
@@ -164,29 +200,17 @@ struct RegisterNewProfileView: View {
                                 .frame(height: 54)
                         } else {
                             Text("Next")
-                                .font(.custom("Inter", size: 16).weight(.semibold))
+                                .font(.custom("Inter", size: 18).weight(.bold))
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 54)
+                                .frame(height: 64)
                         }
                     }
                     .background(Color(red: 0.48, green: 0.75, blue: 0.29))
-                    .cornerRadius(14)
+                    .cornerRadius(16)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 24)
                     .disabled(isLoading)
-
-                    HStack {
-                        Text("Already have an account?")
-                            .font(.custom("Inter", size: 16))
-                            .foregroundColor(.gray)
-                        NavigationLink(destination: LoginView()) {
-                            Text("Login")
-                                .font(.custom("Inter", size: 16).weight(.medium))
-                                .foregroundColor(Color.repGreen)
-                        }
-                    }
-                    .padding(.bottom, 8)
 
                     // Progress bar at bottom
                     Rectangle()
@@ -195,13 +219,19 @@ struct RegisterNewProfileView: View {
                         .cornerRadius(100)
                         .padding(.bottom, 16)
 
-                    Spacer().frame(height: 400) // <-- Add 400px white space at the bottom
+                    Spacer().frame(height: 40)
                 }
+                .padding(.bottom, keyboard.currentHeight)
+                .animation(.easeOut(duration: 0.2), value: keyboard.currentHeight)
+            }
+            NavigationLink(destination: LoginView(), isActive: $navigateToLogin) {
+                EmptyView()
             }
         }
-        .navigationBarBackButtonHidden(true)
+        .navigationBarBackButtonHidden(true) // <-- Correct placement
     }
 
+    // --- Registration logic ---
     func registerUser() {
         errorMessage = nil
 
@@ -258,7 +288,7 @@ struct RegisterNewProfileView: View {
                 }
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
                     if let apiError = try? JSONDecoder().decode([String: String].self, from: data),
-                       let msg = apiError["error"] {
+                        let msg = apiError["error"] {
                         errorMessage = msg
                     } else {
                         errorMessage = "Registration failed. Please try again."
@@ -269,20 +299,25 @@ struct RegisterNewProfileView: View {
                 // Parse userId and token from response
                 var newUserId: Int?
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let user = json["user"] as? [String: Any],
-                   let id = user["id"] as? Int {
+                    let user = json["user"] as? [String: Any],
+                    let id = user["id"] as? Int {
                     newUserId = id
                 }
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let token = json["token"] as? String {
+                    let token = json["token"] as? String {
                     jwtToken = token
                 }
 
-                // Set onboarding flags, but NOT userId yet!
-                isRegistered = true
+                // Set onboarding flags for root navigation
                 if let id = newUserId {
                     pendingUserId = id // Store for onboarding
                 }
+                pendingFirstName = firstName
+                pendingLastName = lastName
+                isRegistered = true // <-- This triggers onboarding flow in RootAppView
+                onboardingComplete = false
+
+                print("DEBUG: isRegistered=\(isRegistered), pendingUserId=\(pendingUserId), jwtToken=\(jwtToken), onboardingComplete=\(UserDefaults.standard.bool(forKey: "onboardingComplete"))")
 
                 // Update the onboardingProfileVM with the new user's info
                 onboardingProfileVM.profileInfo.firstName = firstName
@@ -294,8 +329,6 @@ struct RegisterNewProfileView: View {
                 onboardingProfileVM.profileInfo.broadcast = ""
                 onboardingProfileVM.profileInfo.otherSkill = ""
                 onboardingProfileVM.profileInfo.skills = []
-
-                navigateToEditProfile = true
             }
         }.resume()
     }

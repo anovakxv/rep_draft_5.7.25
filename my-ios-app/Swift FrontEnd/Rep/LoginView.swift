@@ -63,24 +63,16 @@ struct LoginView: View {
 
     var body: some View {
         NavigationStack {
-            VStack {
-                VStack {
-                    Spacer(minLength: 0)
-                    headerView
-                    Spacer(minLength: 0)
-                    VStack (spacing: 12.0) {
-                        textFieldsView
-                        forgotPasswordButton
-                    }
-                    Spacer()
-                    Spacer()
-                    Spacer()
-                    NavigationLink(destination: MainScreen(), isActive: $viewModel.isLoggedIn) { EmptyView() }
-                    NavigationLink(destination: RegisterNewProfileView(), isActive: $viewModel.isSignUpPresented) { EmptyView() }
-                }
-                .padding(24)
+            VStack(alignment: .leading, spacing: 0) {
+                headerView
+                    .padding(.bottom, 32)
+                textFieldsView
                 buttonsView
+                Spacer()
+                NavigationLink(destination: MainScreen(), isActive: $viewModel.isLoggedIn) { EmptyView() }
+                NavigationLink(destination: RegisterNewProfileView(), isActive: $viewModel.isSignUpPresented) { EmptyView() }
             }
+            .padding(24)
             .toolbar(.hidden)
             .ignoresSafeArea(.keyboard)
             .onChange(of: viewModel.error) { _, newValue in
@@ -123,19 +115,6 @@ struct LoginView: View {
     }
     
     @ViewBuilder
-    var forgotPasswordButton: some View {
-        HStack {
-            Spacer()
-            Button("Forgot password?") {
-                viewModel.forgotPassword()
-            }
-            .buttonStyle(.borderless)
-            .accentColor(SwiftUI.Color.repGreen)
-            .font(.caption)
-        }
-    }
-    
-    @ViewBuilder
     var buttonsView: some View {
         VStack(spacing: 24.0) {
             GButton(text: "Login") {
@@ -149,13 +128,13 @@ struct LoginView: View {
                     viewModel.isSignUpPresented = true
                 }, label: {
                     Text("Sign Up")
-                        .font(.custom("Inter", size: 18).weight(.semibold))
+                        .font(.custom("Inter", size: 24).weight(.bold))
                 })
                 .buttonStyle(.borderless)
                 .accentColor(SwiftUI.Color.repGreen)
             }
         }
-        .padding(24)
+        .padding(.top, 24)
         .font(.subheadline)
     }
 }
@@ -168,7 +147,9 @@ class APILoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: ServiceError? = nil
     @AppStorage("userId") var userId: Int = 0
-    @AppStorage("jwtToken") var jwtToken: String = "" // <-- Use jwtToken everywhere
+    @AppStorage("jwtToken") var jwtToken: String = ""
+    @AppStorage("isRegistered") var isRegistered: Bool = false
+    @AppStorage("onboardingComplete") var onboardingComplete: Bool = false // <-- Added
 
     func login() {
         guard !email.isEmpty && !password.isEmpty else {
@@ -194,7 +175,9 @@ class APILoginViewModel: ObservableObject {
                 }
                 if let apiResult = try? JSONDecoder().decode(LoginAPIResponse.self, from: data) {
                     self.userId = apiResult.result.id
-                    self.jwtToken = apiResult.token // <-- Save to jwtToken
+                    self.jwtToken = apiResult.token
+                    self.isRegistered = true
+                    self.onboardingComplete = true // <-- CRITICAL: Mark onboarding as complete after login!
                     self.isLoggedIn = true
                 } else if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
                     self.error = .serverError(apiError.error)
@@ -206,13 +189,7 @@ class APILoginViewModel: ObservableObject {
     }
 
     func forgotPassword() {
-        // Implement your forgot password logic here
-        // For now, just show an error if email is empty
-        guard !email.isEmpty else {
-            error = .inputDataError
-            return
-        }
-        // Example: Call your forgot password API here
+        // No longer used
     }
 }
 
@@ -231,7 +208,7 @@ struct UserProfile: Decodable {
     let lname: String?
     let full_name: String?
     let username: String?
-    let email: String? // Not present in your JSON, but keep if you want
+    let email: String?
     let about: String?
     let broadcast: String?
     let city: String?
@@ -244,7 +221,6 @@ struct UserProfile: Decodable {
     let updated_at: String?
     let user_type: String?
 }
-
 
 enum ServiceError: Error, CustomDebugStringConvertible, Equatable {
     case inputDataError

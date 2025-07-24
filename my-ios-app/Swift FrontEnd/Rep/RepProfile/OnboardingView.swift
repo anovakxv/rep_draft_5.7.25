@@ -10,7 +10,6 @@ struct OnboardingView: View {
     let userName: String
     let profileImage: UIImage?
     
-    @State private var navigateToMainScreen = false
     @AppStorage("isRegistered") var isRegistered: Bool = false
     @AppStorage("onboardingComplete") var onboardingComplete: Bool = false
     @AppStorage("pendingUserId") var pendingUserId: Int = 0
@@ -19,12 +18,12 @@ struct OnboardingView: View {
     // --- For fetching latest profile info ---
     @State private var profilePictureURL: URL? = nil
     @State private var fetchedUserName: String? = nil
+    @State private var hasStartedTransition = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.white.ignoresSafeArea()
-
+        ZStack {
+            Color.white.ignoresSafeArea()
+            if !hasStartedTransition {
                 VStack(spacing: 0) {
                     // --- Top Bar (matches ProfileView) ---
                     HStack {
@@ -89,22 +88,19 @@ struct OnboardingView: View {
 
                     Spacer()
 
-                    // --- NavigationLink to MainScreen ---
-                    NavigationLink(
-                        destination: MainScreen()
-                            .navigationBarBackButtonHidden(true),
-                        isActive: $navigateToMainScreen
-                    ) {
-                        EmptyView()
-                    }
-
                     // --- Action Button ---
                     Button(action: {
-                        userId = pendingUserId      // <-- Set the real userId here
-                        pendingUserId = 0           // <-- Optionally clear pendingUserId
+                        hasStartedTransition = true
+                        print("Onboarding Button Pressed. userId before: \(userId), pendingUserId: \(pendingUserId), onboardingComplete: \(onboardingComplete)")
+                        userId = pendingUserId
+                        pendingUserId = 0
                         isRegistered = true
-                        onboardingComplete = true
-                        navigateToMainScreen = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            print("Setting onboardingComplete = true")
+                            onboardingComplete = true
+                            NotificationCenter.default.post(name: Notification.Name("ForceRootReload"), object: nil)
+                            print("Onboarding Button Finished. userId after: \(userId), onboardingComplete: \(onboardingComplete)")
+                        }
                     }) {
                         Text("find Goal Team to join")
                             .font(.custom("Inter", size: 24).weight(.bold))
@@ -119,10 +115,10 @@ struct OnboardingView: View {
                     .padding(.bottom, 32)
                 }
             }
-            .navigationBarBackButtonHidden(true)
-            .onAppear {
-                fetchUserProfile()
-            }
+        }
+        .navigationBarBackButtonHidden(true)
+        .onAppear {
+            fetchUserProfile()
         }
     }
 
@@ -130,6 +126,7 @@ struct OnboardingView: View {
     private func fetchUserProfile() {
         // Use pendingUserId if set, otherwise fallback to userId
         let idToFetch = pendingUserId != 0 ? pendingUserId : userId
+        print("OnboardingView fetchUserProfile called. idToFetch: \(idToFetch)")
         guard idToFetch != 0,
               let url = URL(string: "\(APIConfig.baseURL)/api/user/profile?users_id=\(idToFetch)"),
               let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
@@ -146,6 +143,7 @@ struct OnboardingView: View {
                 } else if let fname = apiResponse.result.fname, let lname = apiResponse.result.lname {
                     self.fetchedUserName = "\(fname) \(lname)".trimmingCharacters(in: .whitespaces)
                 }
+                print("OnboardingView fetched user: \(self.fetchedUserName ?? "nil")")
             }
         }.resume()
     }

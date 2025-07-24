@@ -41,12 +41,19 @@ struct ProfileInfo {
 
 struct EditProfileView: View {
     @ObservedObject var viewModel: ProfileInfoViewModel
-    var onSave: ((_ updatedUser: User?) -> Void)? = nil // PATCH: Pass updated user
+    var onSave: ((_ updatedUser: User?) -> Void)? = nil
     let showOnboardingAfterSave: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var selectedPhoto: PhotosPickerItem? = nil
 
     @State private var showOnboarding = false
+
+    // --- PATCH: Add onboarding-aware userId selection ---
+    @AppStorage("pendingUserId") var pendingUserId: Int = 0
+    @AppStorage("userId") var userId: Int = 0
+    @AppStorage("onboardingComplete") var onboardingComplete: Bool = false
+    @AppStorage("pendingFirstName") var pendingFirstName: String = ""
+    @AppStorage("pendingLastName") var pendingLastName: String = ""
 
     init(viewModel: ProfileInfoViewModel, showOnboardingAfterSave: Bool = false, onSave: ((_ updatedUser: User?) -> Void)? = nil) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
@@ -157,7 +164,7 @@ struct EditProfileView: View {
                         Divider()
                         // Removed Spacer() here to keep content visible
                     }
-                    .padding(.bottom, 400) 
+                    .padding(.bottom, 400)
                 }
                 // Sticky debug button at the bottom
                 VStack {
@@ -183,6 +190,12 @@ struct EditProfileView: View {
             .edgesIgnoringSafeArea(.bottom)
             .navigationBarHidden(true)
             .onAppear {
+                // --- PATCH: Only prefill first/last name during onboarding, else fetch full profile ---
+                if pendingUserId != 0 && !onboardingComplete {
+                    viewModel.prefillFromRegistration(firstName: pendingFirstName, lastName: pendingLastName)
+                } else {
+                    viewModel.fetchProfile(for: userId)
+                }
                 viewModel.fetchAvailableSkills()
             }
             .onChange(of: selectedPhoto) { newItem in
@@ -430,5 +443,33 @@ class ProfileInfoViewModel: ObservableObject {
                 completion(updatedUser)
             }
         }.resume()
+    }
+
+    // --- PATCH: Only fetch full profile for normal flow, not onboarding ---
+    func fetchProfile(for userId: Int) {
+        guard userId != 0,
+              let url = URL(string: "\(APIConfig.baseURL)/api/user/profile?users_id=\(userId)"),
+              !jwtToken.isEmpty else { return }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data = data,
+                  let apiResponse = try? JSONDecoder().decode(UserProfileAPIResponse.self, from: data) else { return }
+            DispatchQueue.main.async {
+                self.profileInfo.firstName = apiResponse.result.fname ?? ""
+                self.profileInfo.lastName = apiResponse.result.lname ?? ""
+                self.profileInfo.cityName = apiResponse.result.city ?? ""
+                self.profileInfo.broadcast = apiResponse.result.broadcast ?? ""
+                self.profileInfo.otherSkill = apiResponse.result.other_skill ?? ""
+                self.profileInfo.type = RepTypeModel(rawValue: apiResponse.result.userType ?? "") ?? .lead
+                self.profileInfo.skills = Set(apiResponse.result.skills ?? [])
+            }
+        }.resume()
+    }
+
+    // --- PATCH: Prefill only first/last name for onboarding ---
+    func prefillFromRegistration(firstName: String, lastName: String) {
+        self.profileInfo.firstName = firstName
+        self.profileInfo.lastName = lastName
     }
 }

@@ -88,9 +88,13 @@ class EditPortalViewModel: ObservableObject {
         self.about = portal.about ?? ""
         self.offeringText = portal.about ?? ""
         self.goals = (portal.aGoals ?? []).map { EditableGoal(goal: $0) }
-        // Load story blocks from portal.aTexts if available
-        self.storyBlocks = (portal.aTexts?.enumerated().map { idx, text in
-            PortalWriteBlock(title: text.title ?? "", content: text.text ?? "", order: idx)
+        // Only load story blocks (section == "story")
+        self.storyBlocks = (portal.aTexts?.enumerated().compactMap { idx, text in
+            if text.section == "story" {
+                return PortalWriteBlock(title: text.title ?? "", content: text.text ?? "", order: idx)
+            } else {
+                return nil
+            }
         } ?? [])
         // Optionally prefill selectedLeads from portal.aUsers if needed
     }
@@ -190,9 +194,7 @@ class EditPortalViewModel: ObservableObject {
                 "text": block.content,
                 "section": "story"
             ]
-        } + [
-            ["title": "Offering", "text": offeringText, "section": "offering"]
-        ]
+        }
         if let textsData = try? JSONSerialization.data(withJSONObject: texts) {
             appendFormField("aTexts", String(data: textsData, encoding: .utf8) ?? "")
         }

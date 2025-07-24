@@ -9,7 +9,7 @@ import Kingfisher
 
 // MARK: - Unified User Model
 
-struct User: Identifiable, Codable {
+struct User: Identifiable, Codable, Equatable {
     let id: Int
     let fullName: String?
     let fname: String?
@@ -22,6 +22,7 @@ struct User: Identifiable, Codable {
     let userType: String?
     let city: String?
     let skills: [SkillModel]?
+    let other_skill: String?
     let lastLogin: String?
     let createdAt: String?
     let updatedAt: String?
@@ -65,6 +66,7 @@ struct User: Identifiable, Codable {
         case updatedAt = "updated_at"
         case lastMessage = "last_message"
         case lastMessageDate = "last_message_date"
+        case other_skill = "other_skill"
         case imageName
     }
 
@@ -81,6 +83,7 @@ struct User: Identifiable, Codable {
         userType: String?,
         city: String?,
         skills: [SkillModel]?,
+        other_skill: String?,
         lastLogin: String?,
         createdAt: String?,
         updatedAt: String?,
@@ -99,6 +102,7 @@ struct User: Identifiable, Codable {
         self.userType = userType
         self.city = city
         self.skills = skills
+        self.other_skill = other_skill
         self.lastLogin = lastLogin
         self.createdAt = createdAt
         self.updatedAt = updatedAt
@@ -124,6 +128,7 @@ struct User: Identifiable, Codable {
         updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
         lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
         lastMessageDate = try container.decodeIfPresent(String.self, forKey: .lastMessageDate)
+        other_skill = try container.decodeIfPresent(String.self, forKey: .other_skill)
 
         // Flexible skills decoding
         if let skillModels = try? container.decode([SkillModel].self, forKey: .skills) {
@@ -164,6 +169,7 @@ struct User: Identifiable, Codable {
             SkillModel(id: 2, title: "Marketing"),
             SkillModel(id: 3, title: "Fundraising")
         ],
+        other_skill: nil,
         lastLogin: nil,
         createdAt: nil,
         updatedAt: nil,
@@ -458,25 +464,16 @@ class ProfileViewModel: ObservableObject {
 struct ProfileView: View {
     @StateObject private var viewModel: ProfileViewModel
     @State private var selectedTab = 0
-    @State private var showAddPurpose = false
-    @State private var showMessageSheet = false
-    @State private var showAddGoal = false
-    @State private var showEditProfile = false
-    @State private var showActionSheet = false
-    @State private var showProfileActionMenu = false
     @State private var showNetworkResultAlert = false
     @State private var networkResultMessage = ""
     @Environment(\.dismiss) private var dismiss
 
     @State private var pendingAction: PendingAction? = nil
-
     @State private var reportingIncrements: [ReportingIncrement] = []
     @State private var isLoadingIncrements = false
-
-    // For navigation to GoalsDetailView
     @State private var selectedGoal: Goal? = nil
 
-    // --- FIX: Use a persistent edit profile view model ---
+    // For navigation to GoalsDetailView
     @StateObject private var editProfileVM = ProfileInfoViewModel(
         profileInfo: ProfileInfo(
             firstName: "",
@@ -491,6 +488,28 @@ struct ProfileView: View {
         ),
         mode: .edit
     )
+
+    enum ActiveSheet: Identifiable {
+        case actionSheet
+        case profileActionMenu
+        case addPurpose
+        case addGoal
+        case message
+
+        var id: Int {
+            switch self {
+            case .actionSheet: return 1
+            case .profileActionMenu: return 2
+            case .addPurpose: return 3
+            case .addGoal: return 4
+            case .message: return 5
+            }
+        }
+    }
+
+    @State private var activeSheet: ActiveSheet?
+    @State private var showEditProfile = false
+    @State private var shouldNavigateToEditProfile = false // Intermediate state
 
     enum PendingAction {
         case editProfile
@@ -531,7 +550,6 @@ struct ProfileView: View {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    // Optionally show an error or "User not found" if id == 0 and loaded
                     VStack {
                         Spacer()
                         Text("User not found.")
@@ -542,30 +560,29 @@ struct ProfileView: View {
                 BottomBarView(
                     onAdd: {
                         if viewModel.isCurrentUser {
-                            showActionSheet = true
+                            activeSheet = .actionSheet
                         } else {
-                            showProfileActionMenu = true
+                            activeSheet = .profileActionMenu
                         }
                     },
-                    onMessage: { showMessageSheet = true }
+                    onMessage: { activeSheet = .message }
                 )
-                NavigationLink(
-                    destination: EditProfileView(
+                // NavigationLink for EditProfile (not a sheet)
+                .fullScreenCover(isPresented: $showEditProfile) {
+                    EditProfileView(
                         viewModel: editProfileVM,
                         onSave: { updatedUser in
                             if let updatedUser = updatedUser {
                                 viewModel.user = updatedUser
-                                viewModel.isLoaded = true // <-- Ensure loaded after edit
+                                viewModel.isLoaded = true
                             } else {
                                 viewModel.loadProfile()
                             }
+                            showEditProfile = false
                         }
-                    ),
-                    isActive: $showEditProfile
-                ) {
-                    EmptyView()
+                    )
+                    .interactiveDismissDisabled()
                 }
-                .hidden()
             }
             .navigationBarHidden(true)
             .onAppear {
@@ -573,196 +590,210 @@ struct ProfileView: View {
                 loadReportingIncrements()
             }
             .background(Color.white.edgesIgnoringSafeArea(.all))
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    if viewModel.isCurrentUser {
-                        Button("Edit Profile") {
-                            updateEditProfileVM()
-                            showEditProfile = true
-                        }
-                    }
-                    ForEach(viewModel.actions, id: \.self) { action in
-                        Button(action) {
-                            viewModel.handleAction(action, editProfile: {
-                                updateEditProfileVM()
-                                showEditProfile = true
-                            })
-                        }
-                    }
-                    if viewModel.isCurrentUser {
-                        Button("Logout") {
-                            pendingAction = .logout
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-        }
-        .sheet(isPresented: $showActionSheet) {
-            VStack(spacing: 24) {
-                if viewModel.isCurrentUser {
-                    Button(action: {
-                        pendingAction = .addPurpose
-                        showActionSheet = false
-                    }) {
-                        Text("Add Purpose")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
-                    }
-                    Button(action: {
-                        pendingAction = .addGoal
-                        showActionSheet = false
-                    }) {
-                        Text("Add Goal")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
-                    }
-                    Button(action: {
-                        pendingAction = .editProfile
-                        showActionSheet = false
-                    }) {
-                        Text("Edit Profile")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
-                    }
-                    Button(action: {
-                        pendingAction = .logout
-                        showActionSheet = false
-                    }) {
-                        Text("Logout")
-                            .foregroundColor(.red)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
-                    }
-                }
-                Button(action: { showActionSheet = false }) {
-                    Text("Cancel")
-                        .foregroundColor(.secondary)
-                }
-            }
-            .padding()
-            .presentationDetents([.medium])
-        }
-        .sheet(isPresented: $showProfileActionMenu) {
-            VStack(spacing: 24) {
-                Button(action: {
-                    viewModel.addToNetwork { success, message in
-                        DispatchQueue.main.async {
-                            networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
-                            showProfileActionMenu = false
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                showNetworkResultAlert = true
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        if viewModel.isCurrentUser {
+                            Button("Edit Profile") {
+                                pendingAction = .editProfile
                             }
                         }
+                        ForEach(viewModel.actions, id: \.self) { action in
+                            Button(action) {
+                                viewModel.handleAction(action, editProfile: {
+                                    pendingAction = .editProfile
+                                })
+                            }
+                        }
+                        if viewModel.isCurrentUser {
+                            Button("Logout") {
+                                pendingAction = .logout
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
-                }) {
-                    Text("+ to NTWK")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 5)
-                }
-                Button(action: { showProfileActionMenu = false }) {
-                    Text("Cancel")
-                        .foregroundColor(.secondary)
                 }
             }
-            .padding()
-            .presentationDetents([.medium])
-        }
-        .alert(isPresented: $showNetworkResultAlert) {
-            Alert(title: Text(networkResultMessage))
-        }
-        .onChange(of: pendingAction) { action in
-            guard let action = action else { return }
-            switch action {
-            case .editProfile:
-                updateEditProfileVM()
-                showEditProfile = true
-            case .addPurpose:
-                showAddPurpose = true
-            case .addGoal:
-                showAddGoal = true
-            case .logout:
-                logoutAndClearSession()
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .actionSheet:
+                    VStack(spacing: 24) {
+                        if viewModel.isCurrentUser {
+                            Button(action: {
+                                pendingAction = .addPurpose
+                                activeSheet = nil
+                            }) {
+                                Text("Add Purpose")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .padding(.vertical, 5)
+                            }
+                            Button(action: {
+                                pendingAction = .addGoal
+                                activeSheet = nil
+                            }) {
+                                Text("Add Goal")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .padding(.vertical, 5)
+                            }
+                            Button(action: {
+                                pendingAction = .editProfile
+                                activeSheet = nil
+                            }) {
+                                Text("Edit Profile")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .padding(.vertical, 5)
+                            }
+                            Button(action: {
+                                pendingAction = .logout
+                                activeSheet = nil
+                            }) {
+                                Text("Logout")
+                                    .foregroundColor(.red)
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .padding(.vertical, 5)
+                            }
+                        }
+                        Button(action: { activeSheet = nil }) {
+                            Text("Cancel")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .presentationDetents([.medium])
+                case .profileActionMenu:
+                    VStack(spacing: 24) {
+                        Button(action: {
+                            viewModel.addToNetwork { success, message in
+                                DispatchQueue.main.async {
+                                    networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
+                                    activeSheet = nil
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                        showNetworkResultAlert = true
+                                    }
+                                }
+                            }
+                        }) {
+                            Text("+ to NTWK")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                        Button(action: { activeSheet = nil }) {
+                            Text("Cancel")
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+                    .presentationDetents([.medium])
+                case .addPurpose:
+                    EditPortalView(
+                        portal: PortalDetail(
+                            id: 0,
+                            name: "",
+                            subtitle: "",
+                            about: "",
+                            categories_id: nil,
+                            cities_id: nil,
+                            lead_id: nil,
+                            users_id: viewModel.user.id,
+                            _c_users_count: nil,
+                            mainImageUrl: nil,
+                            aGoals: [],
+                            aPortalUsers: [],
+                            aTexts: [],
+                            aSections: [],
+                            aUsers: [],
+                            aLeads: []
+                        ),
+                        userId: viewModel.user.id
+                    )
+                case .addGoal:
+                    EditGoalPage(
+                        existingGoal: nil,
+                        portalId: nil,
+                        userId: viewModel.user.id,
+                        reportingIncrements: reportingIncrements.isEmpty
+                            ? [
+                                ReportingIncrement(id: 1, title: "Monthly"),
+                                ReportingIncrement(id: 2, title: "Weekly"),
+                                ReportingIncrement(id: 3, title: "Daily")
+                            ]
+                            : reportingIncrements,
+                        associatedPortalName: nil
+                    )
+                case .message:
+                    MessageView(
+                        viewModel: MessageViewModel(
+                            currentUserId: viewModel.loggedInUserId,
+                            otherUserId: viewModel.user.id,
+                            otherUserName: viewModel.user.fullName ?? "",
+                            otherUserPhotoURL: viewModel.user.profilePictureURL
+                        )
+                    )
+                }
             }
-            pendingAction = nil
-        }
-        .sheet(isPresented: $showAddPurpose) {
-            EditPortalView(
-                portal: PortalDetail(
-                    id: 0,
-                    name: "",
-                    subtitle: "",
-                    about: "",
-                    categories_id: nil,
-                    cities_id: nil,
-                    lead_id: nil,
-                    users_id: viewModel.user.id,
-                    _c_users_count: nil,
-                    mainImageUrl: nil,
-                    aGoals: [],
-                    aPortalUsers: [],
-                    aTexts: [],
-                    aSections: [],
-                    aUsers: [],
-                    aLeads: []
-                ),
-                userId: viewModel.user.id
-            )
-        }
-        .sheet(isPresented: $showAddGoal) {
-            EditGoalPage(
-                existingGoal: nil,
-                portalId: nil,
-                userId: viewModel.user.id,
-                reportingIncrements: reportingIncrements.isEmpty
-                    ? [
-                        ReportingIncrement(id: 1, title: "Monthly"),
-                        ReportingIncrement(id: 2, title: "Weekly"),
-                        ReportingIncrement(id: 3, title: "Daily")
-                    ]
-                    : reportingIncrements,
-                associatedPortalName: nil
-            )
-        }
-        .sheet(isPresented: $showMessageSheet) {
-            MessageView(
-                viewModel: MessageViewModel(
-                    currentUserId: viewModel.loggedInUserId,
-                    otherUserId: viewModel.user.id,
-                    otherUserName: viewModel.user.fullName ?? "",
-                    otherUserPhotoURL: viewModel.user.profilePictureURL
+            .alert(isPresented: $showNetworkResultAlert) {
+                Alert(title: Text(networkResultMessage))
+            }
+            .onChange(of: pendingAction) { action in
+                guard let action = action else { return }
+                switch action {
+                case .editProfile:
+                    UIApplication.shared.endEditing()
+                    updateEditProfileVM()
+                    activeSheet = nil // Dismiss sheet first
+                    pendingAction = nil
+                    shouldNavigateToEditProfile = true // Set intermediate state
+                case .addPurpose:
+                    activeSheet = .addPurpose
+                    pendingAction = nil
+                case .addGoal:
+                    activeSheet = .addGoal
+                    pendingAction = nil
+                case .logout:
+                    logoutAndClearSession()
+                    pendingAction = nil
+                }
+            }
+            .onChange(of: shouldNavigateToEditProfile) { newValue in
+                if newValue {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { // Increased delay
+                        showEditProfile = true
+                        shouldNavigateToEditProfile = false
+                    }
+                }
+            }
+            .onChange(of: activeSheet) { sheet in
+                if sheet != nil {
+                    // No-op
+                } else {
+                    // When any sheet except editProfile is dismissed, reload goals if needed
+                    viewModel.fetchGoals()
+                }
+            }
+            .background(
+                NavigationLink(
+                    destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
+                    isActive: Binding(
+                        get: { selectedGoal != nil },
+                        set: { isActive in if !isActive { selectedGoal = nil } }
+                    ),
+                    label: { EmptyView() }
                 )
+                .hidden()
             )
         }
-        .onChange(of: showAddGoal) { isPresented in
-            if !isPresented {
-                viewModel.fetchGoals()
-            }
-        }
-        .background(
-            NavigationLink(
-                destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
-                isActive: Binding(
-                    get: { selectedGoal != nil },
-                    set: { isActive in if !isActive { selectedGoal = nil } }
-                ),
-                label: { EmptyView() }
-            )
-            .hidden()
-        )
     }
-}
+
 
 // Helper subview to reduce type-checking complexity
 struct ProfileMainContent: View {
@@ -806,7 +837,6 @@ struct ProfileMainContent: View {
         )
     }
 
-    // ...rest of the file unchanged...
     private func loadReportingIncrements() {
         guard !isLoadingIncrements else { return }
         isLoadingIncrements = true
@@ -829,7 +859,6 @@ struct ProfileMainContent: View {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/logout") else {
             viewModel.jwtToken = ""
             viewModel.loggedInUserId = 0
-            dismiss()
             return
         }
         var request = URLRequest(url: url)
@@ -841,16 +870,16 @@ struct ProfileMainContent: View {
             DispatchQueue.main.async {
                 viewModel.jwtToken = ""
                 viewModel.loggedInUserId = 0
-                dismiss()
+                // Do NOT call dismiss() here!
             }
         }.resume()
     }
 
-    private var mappedSkillTitles: [String] {
-        guard let userSkills = viewModel.user.skills else { return [] }
-        return userSkills.map { $0.title }
+        private var mappedSkillTitles: [String] {
+            guard let userSkills = viewModel.user.skills else { return [] }
+            return userSkills.map { $0.title }
+        }
     }
-}
 
 // MARK: - Subviews for breaking up complexity
 

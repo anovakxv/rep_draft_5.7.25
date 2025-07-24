@@ -59,7 +59,6 @@ class PortalsViewModel: ObservableObject {
         case 2: tab = "all"
         default: tab = "open"
         }
-        // Limit ALL tab to 50 entries for now
         let limitParam = (tab == "all") ? "&limit=50" : ""
         let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)"
         guard let url = URL(string: urlString) else {
@@ -198,7 +197,6 @@ class PeopleViewModel: ObservableObject {
             }.resume()
         } else {
             let tab = section == 1 ? "ntwk" : "all"
-            // Limit ALL tab to 50 entries for now
             let limitParam = (tab == "all") ? "&limit=50" : ""
             let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
             guard let url = URL(string: urlString) else {
@@ -353,17 +351,12 @@ struct MainScreen: View {
     @State private var page: Page = .portals
     @State private var section = 2
 
-    // Action Sheet State
-    @State private var showActionSheet = false
-    @State private var pendingAction: MainActionSheetAction?
-    @State private var showAddPurpose = false
+    // Sheet and search state
+    @State private var mainActiveSheet: MainScreenContent.ActiveSheet?
     @State private var showSearch = false
-
-    // Search State
     @State private var searchText: String = ""
     @State private var searchDebounceTimer: Timer?
-
-    // Current user info for profile pic
+    @State private var pendingAction: MainActionSheetAction?
     @State private var currentUser: User? = nil
 
     var body: some View {
@@ -375,8 +368,7 @@ struct MainScreen: View {
                 peopleVM: peopleVM,
                 userId: userId,
                 currentUser: currentUser,
-                showActionSheet: $showActionSheet,
-                showAddPurpose: $showAddPurpose,
+                activeSheet: $mainActiveSheet,
                 showSearch: $showSearch,
                 searchText: $searchText,
                 searchDebounceTimer: $searchDebounceTimer,
@@ -394,12 +386,18 @@ struct MainScreen: View {
                 peopleVM: peopleVM,
                 userId: userId,
                 currentUser: currentUser,
-                showActionSheet: $showActionSheet
+                showActionSheet: {
+                    mainActiveSheet = .actionSheet
+                }
             ))
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
         }
         .onAppear {
+            guard !jwtToken.isEmpty, userId != 0 else {
+                // Optionally clear state here if needed
+                return
+            }
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: section)
             } else {
@@ -412,7 +410,6 @@ struct MainScreen: View {
     // --- Filtering logic for search ---
     private var filteredUsers: [User] {
         if showSearch && !searchText.isEmpty && section == 2 {
-            // Use backend search results for ALL tab
             return peopleVM.searchResults
         }
         if searchText.isEmpty { return peopleVM.users }
@@ -428,7 +425,6 @@ struct MainScreen: View {
     }
     private var filteredPortals: [Portal] {
         if showSearch && !searchText.isEmpty && section == 2 {
-            // Use backend search results for ALL tab
             return portalsVM.searchResults
         }
         if searchText.isEmpty { return portalsVM.portals }
@@ -448,11 +444,15 @@ struct MainScreen: View {
         } else if page == .portals && section == 2 {
             portalsVM.searchPortals(query: query)
         }
-        // For OPEN/NTWK, keep local filtering
     }
 
     private func fetchCurrentUser() {
-        guard !jwtToken.isEmpty else { return }
+        guard !jwtToken.isEmpty, userId != 0 else {
+            DispatchQueue.main.async {
+                self.currentUser = nil
+            }
+            return
+        }
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/me") else { return }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -464,13 +464,30 @@ struct MainScreen: View {
                     self.currentUser = decoded.result
                 }
             } catch {
-                // Ignore error, fallback to placeholder
+                // Ignore error, fallback to nil
+                DispatchQueue.main.async {
+                    self.currentUser = nil
+                }
             }
         }.resume()
     }
 }
 
 // MARK: - MainScreenContent
+
+extension MainScreenContent {
+    enum ActiveSheet: Identifiable {
+        case actionSheet
+        case addPurpose
+
+        var id: Int {
+            switch self {
+            case .actionSheet: return 1
+            case .addPurpose: return 2
+            }
+        }
+    }
+}
 
 struct MainScreenContent: View {
     @Binding var page: MainScreen.Page
@@ -479,8 +496,7 @@ struct MainScreenContent: View {
     @ObservedObject var peopleVM: PeopleViewModel
     var userId: Int
     var currentUser: User?
-    @Binding var showActionSheet: Bool
-    @Binding var showAddPurpose: Bool
+    @Binding var activeSheet: ActiveSheet?
     @Binding var showSearch: Bool
     @Binding var searchText: String
     @Binding var searchDebounceTimer: Timer?
@@ -545,7 +561,6 @@ struct MainScreenContent: View {
                     } else {
                         peopleVM.fetchPeople(userId: userId, section: section)
                     }
-                    // Clear search when switching pages
                     searchText = ""
                     portalsVM.clearSearch()
                     peopleVM.clearSearch()
@@ -561,7 +576,6 @@ struct MainScreenContent: View {
             .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
-        // --- Search Bar Overlay ---
         .overlay(
             Group {
                 if showSearch {
@@ -575,7 +589,6 @@ struct MainScreenContent: View {
                                 .padding(.horizontal)
                                 .onChange(of: searchText) { newValue in
                                     searchDebounceTimer?.invalidate()
-                                    // Debounce to avoid spamming API
                                     searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
                                         performSearch(newValue)
                                     }
@@ -595,67 +608,69 @@ struct MainScreenContent: View {
                 }
             }, alignment: .bottom
         )
-        .sheet(isPresented: $showActionSheet) {
-            VStack(spacing: 0) {
-                Button(action: {
-                    pendingAction = .addPurpose
-                    showActionSheet = false
-                }) {
-                    Text("Add Purpose")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 12)
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .actionSheet:
+                VStack(spacing: 0) {
+                    Button(action: {
+                        pendingAction = .addPurpose
+                        activeSheet = nil
+                    }) {
+                        Text("Add Purpose")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 12)
+                    }
+                    Button(action: {
+                        activeSheet = nil
+                        showSearch = true
+                    }) {
+                        Text("Search")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 12)
+                    }
+                    Button(action: { activeSheet = nil }) {
+                        Text("Cancel")
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 12)
+                    }
                 }
-                Button(action: {
-                    showActionSheet = false
-                    showSearch = true
-                }) {
-                    Text("Search")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 12)
-                }
-                Button(action: { showActionSheet = false }) {
-                    Text("Cancel")
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 12)
-                }
+                .padding()
+                .presentationDetents([.medium])
+            case .addPurpose:
+                EditPortalView(
+                    portal: PortalDetail(
+                        id: 0,
+                        name: "",
+                        subtitle: "",
+                        about: "",
+                        categories_id: nil,
+                        cities_id: nil,
+                        lead_id: nil,
+                        users_id: userId,
+                        _c_users_count: nil,
+                        mainImageUrl: nil,
+                        aGoals: [],
+                        aPortalUsers: [],
+                        aTexts: [],
+                        aSections: [],
+                        aUsers: [],
+                        aLeads: []
+                    ),
+                    userId: userId
+                )
             }
-            .padding()
-            .presentationDetents([.medium])
         }
         .onChange(of: pendingAction) { action in
             guard let action = action else { return }
             switch action {
             case .addPurpose:
-                showAddPurpose = true
+                activeSheet = .addPurpose
             }
             pendingAction = nil
-        }
-        .sheet(isPresented: $showAddPurpose) {
-            EditPortalView(
-                portal: PortalDetail(
-                    id: 0,
-                    name: "",
-                    subtitle: "",
-                    about: "",
-                    categories_id: nil,
-                    cities_id: nil,
-                    lead_id: nil,
-                    users_id: userId,
-                    _c_users_count: nil,
-                    mainImageUrl: nil,
-                    aGoals: [],
-                    aPortalUsers: [],
-                    aTexts: [],
-                    aSections: [],
-                    aUsers: [],
-                    aLeads: []
-                ),
-                userId: userId
-            )
         }
     }
 }
@@ -669,7 +684,7 @@ struct MainScreenToolbar: ViewModifier {
     var peopleVM: PeopleViewModel
     var userId: Int
     var currentUser: User?
-    @Binding var showActionSheet: Bool
+    var showActionSheet: () -> Void
 
     func body(content: Content) -> some View {
         content
@@ -705,7 +720,7 @@ struct MainScreenToolbar: ViewModifier {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(
-                        action: { showActionSheet = true },
+                        action: { showActionSheet() },
                         label: {
                             Image(systemName: "plus")
                                 .resizable()
@@ -808,7 +823,6 @@ struct ChatList: View {
             }
             .listStyle(.plain)
 
-            // NavigationLinks for programmatic navigation
             NavigationLink(
                 destination: selectedProfileId.map { ProfileView(userId: $0) },
                 isActive: Binding(

@@ -13,11 +13,16 @@ struct GoalsDetailView: View {
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
 
-    // --- Action Sheet and Sheet State ---
-    @State private var showActionSheet = false
-    @State private var showUpdateGoalSheet = false
-    @State private var showEditGoalSheet = false
-    @State private var showInviteTeamSheet = false
+    // --- Unified Sheet State ---
+    private enum ActiveSheet: Identifiable {
+        case action
+        case updateGoal
+        case editGoal
+        case inviteTeam
+
+        var id: Int { hashValue }
+    }
+    @State private var activeSheet: ActiveSheet?
 
     // --- Reporting Increments State ---
     @State private var reportingIncrements: [ReportingIncrement] = []
@@ -55,7 +60,6 @@ struct GoalsDetailView: View {
 
                 // Progress Bar and Metrics Section
                 VStack(alignment: .leading, spacing: 8) {
-                    // Custom thick progress bar with square corners
                     ZStack(alignment: .leading) {
                         Rectangle()
                             .fill(Color(UIColor.systemGray5))
@@ -76,7 +80,6 @@ struct GoalsDetailView: View {
                     }
                     .font(.callout)
                     HStack {
-                        // Show quota and progress as whole numbers
                         Text("Quota: \(Int(round(viewModel.goal.quota)))")
                         Spacer()
                         Text("Progress: \(Int(round(viewModel.goal.filledQuota)))")
@@ -95,21 +98,18 @@ struct GoalsDetailView: View {
                 }
                 .padding()
 
-                // Segmented Picker (updated to match PortalSegmentedPicker style)
                 GoalSegmentedPicker(
                     segments: ["Feed", "Report", "Team"],
                     selectedIndex: $selectedSegment
                 )
                 .padding(.horizontal)
 
-                // Table/List Section
                 List {
                     if selectedSegment == 0 {
                         ForEach(viewModel.feed) { feedItem in
                             FeedCell(feed: feedItem)
                         }
                     } else if selectedSegment == 1 {
-                        // Use LargeBarChartView for the report
                         if viewModel.goal.chartData.isEmpty {
                             Text("No chart data available.")
                         } else {
@@ -126,98 +126,93 @@ struct GoalsDetailView: View {
                 }
                 .listStyle(.plain)
 
-                // --- Bottom Action Bar ---
                 BottomGoalBar(
-                    onAdd: { showActionSheet = true },
+                    onAdd: { activeSheet = .action },
                     onMessage: { /* Optionally implement messaging */ }
                 )
             }
             .background(Color.white.edgesIgnoringSafeArea(.all))
             .navigationBarHidden(true)
             .onAppear {
-                // Set the initial goal instantly
-                viewModel.goal = initialGoal
-                // Then load the latest data from the API
-                viewModel.load(goalId: initialGoal.id)
-                loadReportingIncrements()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    viewModel.goal = initialGoal
+                    viewModel.load(goalId: initialGoal.id)
+                    loadReportingIncrements()
+                }
             }
-            // --- Custom Action Sheet ---
-            .sheet(isPresented: $showActionSheet) {
-                VStack(spacing: 24) {
-                    if viewModel.goal.typeName == "Recruiting" {
-                        Button(action: {
-                            viewModel.joinRecruitingGoal(goalId: viewModel.goal.id) { success in
-                                showActionSheet = false
-                                if success {
-                                    viewModel.load(goalId: viewModel.goal.id)
+            .sheet(item: $activeSheet) { sheet in
+                switch sheet {
+                case .action:
+                    VStack(spacing: 24) {
+                        if viewModel.goal.typeName == "Recruiting" {
+                            Button(action: {
+                                viewModel.joinRecruitingGoal(goalId: viewModel.goal.id) { success in
+                                    activeSheet = nil
+                                    if success {
+                                        viewModel.load(goalId: viewModel.goal.id)
+                                    }
                                 }
+                            }) {
+                                Text("Join Team")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .padding(.vertical, 5)
                             }
-                        }) {
-                            Text("Join Team")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
+                        } else {
+                            Button(action: {
+                                activeSheet = .updateGoal
+                            }) {
+                                Text("Update Progress")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .padding(.vertical, 5)
+                            }
                         }
-                    } else {
                         Button(action: {
-                            showUpdateGoalSheet = true
-                            showActionSheet = false
+                            activeSheet = .editGoal
                         }) {
-                            Text("Update Progress")
+                            Text("Edit Goal")
                                 .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
+                        Button(action: { activeSheet = nil }) {
+                            Text("Cancel")
+                                .foregroundColor(.secondary)
+                        }
                     }
-                    Button(action: {
-                        showEditGoalSheet = true
-                        showActionSheet = false
-                    }) {
-                        Text("Edit Goal")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
-                    }
-                    Button(action: { showActionSheet = false }) {
-                        Text("Cancel")
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding()
-                .presentationDetents([.medium])
-            }
-            // --- Sheets for Actions ---
-            .sheet(isPresented: $showUpdateGoalSheet) {
-                UpdateGoalSheet(
-                    goalId: viewModel.goal.id,
-                    quota: viewModel.goal.quota,
-                    metricName: viewModel.goal.metricName
-                )
-            }
-            .sheet(isPresented: $showEditGoalSheet) {
-                if viewModel.goal.id != 0, viewModel.goal.creatorId == viewModel.currentUserId {
-                    EditGoalPage(
-                        existingGoal: viewModel.goal,
-                        portalId: viewModel.goal.portalId ?? 0,
-                        userId: viewModel.currentUserId,
-                        reportingIncrements: reportingIncrements.isEmpty
-                            ? [
-                                ReportingIncrement(id: 1, title: "Monthly"),
-                                ReportingIncrement(id: 2, title: "Weekly"),
-                                ReportingIncrement(id: 3, title: "Daily")
-                              ]
-                            : reportingIncrements
+                    .padding()
+                    .presentationDetents([.medium])
+                case .updateGoal:
+                    UpdateGoalSheet(
+                        goalId: viewModel.goal.id,
+                        quota: viewModel.goal.quota,
+                        metricName: viewModel.goal.metricName
                     )
-                } else {
-                    Text("You do not have permission to edit this goal.")
-                        .padding()
+                case .editGoal:
+                    if viewModel.goal.id != 0, viewModel.goal.creatorId == viewModel.currentUserId {
+                        EditGoalPage(
+                            existingGoal: viewModel.goal,
+                            portalId: viewModel.goal.portalId ?? 0,
+                            userId: viewModel.currentUserId,
+                            reportingIncrements: reportingIncrements.isEmpty
+                                ? [
+                                    ReportingIncrement(id: 1, title: "Monthly"),
+                                    ReportingIncrement(id: 2, title: "Weekly"),
+                                    ReportingIncrement(id: 3, title: "Daily")
+                                  ]
+                                : reportingIncrements
+                        )
+                    } else {
+                        Text("You do not have permission to edit this goal.")
+                            .padding()
+                    }
+                case .inviteTeam:
+                    Text("Invite Team Sheet Placeholder")
                 }
-            }
-            .sheet(isPresented: $showInviteTeamSheet) {
-                Text("Invite Team Sheet Placeholder")
             }
         }
     }
@@ -330,7 +325,6 @@ class GoalsDetailViewModel: ObservableObject {
                         creatorId: apiGoal.creatorId ?? 0,
                         portalId: apiGoal.portalId
                     )
-                    // --- FEED: Use user name if available, format timestamp, round value ---
                     let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
                     self.feed = apiGoal.aLatestProgress?.compactMap { log in
                         let apiUser = teamDict[log.users_id ?? 0]
@@ -362,6 +356,7 @@ class GoalsDetailViewModel: ObservableObject {
                             userType: nil,
                             city: nil,
                             skills: nil,
+                            other_skill: nil, // <-- Add this line
                             lastLogin: nil,
                             createdAt: nil,
                             updatedAt: nil,
@@ -376,17 +371,15 @@ class GoalsDetailViewModel: ObservableObject {
         }.resume()
     }
 
-    // Helper to format ISO8601 or server date string to readable date/time
     static func formatDateString(_ isoString: String?) -> String {
         guard let isoString = isoString else { return "" }
         let isoFormatter = ISO8601DateFormatter()
         if let date = isoFormatter.date(from: isoString) {
             let formatter = DateFormatter()
             formatter.dateStyle = .none
-            formatter.timeStyle = .short // e.g., 7:25 PM
+            formatter.timeStyle = .short
             return formatter.string(from: date)
         }
-        // Try fallback parsing for other formats if needed
         let fallbackFormatter = DateFormatter()
         fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         if let date = fallbackFormatter.date(from: isoString) {
@@ -568,7 +561,7 @@ struct FeedCell: View {
                     .font(.subheadline)
                 Text("Note: \(feed.line3.isEmpty ? "NA" : feed.line3)")
                     .font(.subheadline)
-                Text("Attachments: NA") // Replace with actual attachment logic if needed
+                Text("Attachments: NA")
                     .font(.subheadline)
             }
             .padding(.top, 4)
@@ -603,14 +596,13 @@ struct TeamCell: View {
 
 struct LargeBarChartView: View {
     let data: [BarChartData]
-    var quota: Double = 1 // Pass the goal's quota when you use this view
+    var quota: Double = 1
 
     var body: some View {
         GeometryReader { geometry in
             HStack(alignment: .bottom, spacing: 8) {
                 ForEach(data) { item in
                     VStack(spacing: 0) {
-                        // Qty label on top
                         Text(item.valueLabel)
                             .font(.caption2)
                             .foregroundColor(.black)
@@ -626,7 +618,6 @@ struct LargeBarChartView: View {
                                 }()
                             )
                             .cornerRadius(3)
-                        // Time increment label on bottom
                         Text(item.bottomLabel)
                             .font(.caption2)
                             .foregroundColor(.black)

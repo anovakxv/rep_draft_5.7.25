@@ -472,9 +472,11 @@ struct FullscreenImageViewer: View {
             .ignoresSafeArea()
             Button(action: { onDismiss() }) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 36))
+                    .font(.system(size: 24))
                     .foregroundColor(.white)
-                    .padding()
+                    .padding(.top, 40)      
+                    .padding(.trailing, 40) 
+                    .contentShape(Rectangle()) // Ensures the tap area is reliable
             }
         }
         .preferredColorScheme(.dark)

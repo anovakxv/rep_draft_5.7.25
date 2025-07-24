@@ -15,9 +15,9 @@ struct GoalListItem: View {
         HStack(alignment: .center, spacing: 16) {
             // Bar Chart
             HStack(alignment: .bottom, spacing: 6) {
-                ForEach(goal.chartData) { bar in
+                ForEach(goal.chartData.suffix(4)) { bar in
                     let quota = goal.quota > 0 ? goal.quota : 1
-                    let barHeight = max(0, CGFloat(bar.value / quota) * 77) // 81 - 4 padding
+                    let barHeight = max(0, min(1.0, CGFloat(bar.value / quota)) * 77)
                     VStack(spacing: 0) {
                         Spacer(minLength: 0)
                         Rectangle()
@@ -27,7 +27,7 @@ struct GoalListItem: View {
                     }
                 }
             }
-            .frame(width: 144, height: 81, alignment: .leading)
+            .frame(width: 4 * 24 + 3 * 6, height: 81, alignment: .leading)
             .padding(.vertical, 4)
 
             VStack(alignment: .leading, spacing: 4) {

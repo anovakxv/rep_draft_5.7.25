@@ -67,7 +67,7 @@ struct GoalsDetailView: View {
                         Rectangle()
                             .fill(Color.repGreen)
                             .frame(
-                                width: max(0, CGFloat(viewModel.goal.progress) * UIScreen.main.bounds.width * 0.92),
+                                width: max(0, min(1.0, CGFloat(viewModel.goal.progress)) * UIScreen.main.bounds.width * 0.92),
                                 height: 34
                             )
                     }
@@ -614,7 +614,7 @@ struct LargeBarChartView: View {
                                 width: 40,
                                 height: {
                                     let quotaValue = quota > 0 ? quota : 1
-                                    return CGFloat(item.value / quotaValue) * (geometry.size.height - 32)
+                                    return min(1.0, CGFloat(item.value / quotaValue)) * (geometry.size.height - 32)
                                 }()
                             )
                             .cornerRadius(3)

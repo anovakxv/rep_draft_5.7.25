@@ -144,7 +144,7 @@ def api_delete_user():
     Write.query.filter_by(users_id=user_id).delete()
 
     # Delete Goals where user is the creator
-    from app.models.Purpose_Models.Goal import Goal
+    from app.models.ValueMetric_Models.Goal import Goal
     Goal.query.filter_by(users_id=user_id).delete()
 
     # Delete Portals where user is the creator
@@ -156,7 +156,7 @@ def api_delete_user():
     PortalUser.query.filter_by(user_id=user_id).delete()
 
     # Delete related DirectMessages (sent or received)
-    from app.models.People_Models.DirectMessage import DirectMessage
+    from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
     DirectMessage.query.filter((DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)).delete()
 
     # Add any other related deletes here as needed

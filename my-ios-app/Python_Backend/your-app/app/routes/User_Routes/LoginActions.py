@@ -72,6 +72,8 @@ def api_logout_user():
 
 @user_bp.route('/forgot_password', methods=['POST'])
 def api_forgot_password():
+    from datetime import datetime, timedelta
+
     data = request.get_json()
     email = data.get('email', '')
     hash_val = data.get('hash', '')
@@ -79,46 +81,63 @@ def api_forgot_password():
 
     PASS_SALT = os.environ.get('PASS_SALT', '')
 
-    if not email and not hash_val:
-        return jsonify({'error': 'email or (hash and/or new_password) required!'}), 400
-
     # Step 1: Request password reset (send hash)
-    if not hash_val:
+    if email and not hash_val:
         user = User.query.filter_by(email=email).first()
         if not user:
-            return jsonify({'error': "that user doesn't exist!"}), 404
+            return jsonify({'error': "That user doesn't exist!"}), 404
 
-        hash_str = hashlib.md5(f"{user.id}{user.password}{PASS_SALT}".encode()).hexdigest()
-        updater = PasswordUpdater(users_id=user.id, hash=hash_str)
+        # Remove any old hashes for this user
+        PasswordUpdater.query.filter_by(users_id=user.id).delete()
+
+        # Create a new hash with timestamp
+        hash_str = hashlib.md5(f"{user.id}{user.password}{PASS_SALT}{str(time.time())}".encode()).hexdigest()
+        expires_at = datetime.utcnow() + timedelta(hours=1)
+        updater = PasswordUpdater(users_id=user.id, hash=hash_str, created_at=datetime.utcnow(), expires_at=expires_at)
         db.session.add(updater)
         db.session.commit()
 
-        reset_link = f"https://yourdomain.com/reset_password/{hash_str}/"
-        message = f"Your hash is {hash_str}; the link to reset your password is {reset_link} account: {email}."
-        send_mail(email, 'Reset your password', message)
+        reset_link = f"https://networkedcapital.co/reset_password/{hash_str}/"
+        message = f"""
+Hello,
+
+We received a request to reset your password.
+
+Click the link below to set a new password:
+{reset_link}
+
+If you did not request this, you can ignore this email.
+
+Thanks,
+The Networked Capital Team
+"""
+        send_mail(email, 'Reset your password', message, from_email='repcontact2025@gmail.com')
         return jsonify({'result': 'sent'})
 
     # Step 2: Reset password using hash
-    updater = PasswordUpdater.query.filter_by(hash=hash_val).first()
-    if not updater:
-        return jsonify({'error': 'wrong hash'}), 400
+    if hash_val:
+        updater = PasswordUpdater.query.filter_by(hash=hash_val).first()
+        if not updater:
+            return jsonify({'error': 'Invalid or expired reset link.'}), 400
 
-    show_new_password = False
-    if not new_password:
-        new_password = (
-            hashlib.md5((PASS_SALT + str(time.time())).encode()).hexdigest()[2:10]
-            + '_' + hash_val[2:10]
-        )
-        show_new_password = True
+        # Check hash expiry (assuming expires_at column exists)
+        if hasattr(updater, 'expires_at') and updater.expires_at and updater.expires_at < datetime.utcnow():
+            db.session.delete(updater)
+            db.session.commit()
+            return jsonify({'error': 'Reset link has expired.'}), 400
 
-    user = User.query.filter_by(id=updater.users_id).first()
-    if not user:
-        return jsonify({'error': "User not found"}), 404
+        if not new_password:
+            return jsonify({'error': 'New password required.'}), 400
 
-    user.password = hashlib.md5((PASS_SALT + new_password).encode()).hexdigest()
-    db.session.delete(updater)
-    db.session.commit()
+        user = User.query.filter_by(id=updater.users_id).first()
+        if not user:
+            db.session.delete(updater)
+            db.session.commit()
+            return jsonify({'error': "User not found"}), 404
 
-    if show_new_password:
-        return jsonify({'new_password': new_password})
-    return jsonify({'result': 'ok'})
+        user.password = hashlib.md5((PASS_SALT + new_password).encode()).hexdigest()
+        db.session.delete(updater)
+        db.session.commit()
+        return jsonify({'result': 'ok'})
+
+    return jsonify({'error': 'email or (hash and new_password) required!'}), 400

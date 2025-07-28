@@ -2,16 +2,24 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-def send_mail(to, subject, body, from_email=None):
+import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+def send_mail(to, subject, body, from_email='repcontact2025@gmail.com'):
     """
-    Stub for sending an email.
-    Replace this with your actual email sending logic (e.g., using Flask-Mail, SMTP, or a third-party service).
+    Send an email using SendGrid.
     """
-    # Example: print to console for development/testing
-    print(f"Sending email to: {to}")
-    print(f"Subject: {subject}")
-    print(f"Body: {body}")
-    if from_email:
-        print(f"From: {from_email}")
-    # In production, implement actual email sending here.
-    return True
+    message = Mail(
+        from_email=from_email,
+        to_emails=to,
+        subject=subject,
+        html_content=body
+    )
+    try:
+        sg = SendGridAPIClient(os.environ['SENDGRID_API_KEY'])
+        response = sg.send(message)
+        return response.status_code == 202
+    except Exception as e:
+        print(f"SendGrid error: {e}")
+        return False

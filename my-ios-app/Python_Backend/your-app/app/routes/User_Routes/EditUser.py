@@ -134,11 +134,32 @@ def api_delete_user():
     user = g.current_user
     user_id = user.id
 
-    # Delete related UserSkill, UserNetwork, UserFollower, etc.
+    # Delete related UserSkill, UserNetwork, UserFollower
     UserSkill.query.filter_by(users_id=user_id).delete()
     UserNetwork.query.filter((UserNetwork.users_id1 == user_id) | (UserNetwork.users_id2 == user_id)).delete()
     UserFollower.query.filter((UserFollower.users_id1 == user_id) | (UserFollower.users_id2 == user_id)).delete()
-    # If you have other related tables (e.g., Write, DirectMessage), add similar deletes here.
+
+    # Delete related Write sections
+    from app.models.People_Models.Write import Write
+    Write.query.filter_by(users_id=user_id).delete()
+
+    # Delete Goals where user is the creator
+    from app.models.Purpose_Models.Goal import Goal
+    Goal.query.filter_by(users_id=user_id).delete()
+
+    # Delete Portals where user is the creator
+    from app.models.Purpose_Models.Portal import Portal
+    Portal.query.filter_by(users_id=user_id).delete()
+
+    # Remove user from PortalUser/team member relationships (do not delete the portal)
+    from app.models.Purpose_Models.PortalUser import PortalUser
+    PortalUser.query.filter_by(user_id=user_id).delete()
+
+    # Delete related DirectMessages (sent or received)
+    from app.models.People_Models.DirectMessage import DirectMessage
+    DirectMessage.query.filter((DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)).delete()
+
+    # Add any other related deletes here as needed
 
     db.session.delete(user)
     db.session.commit()

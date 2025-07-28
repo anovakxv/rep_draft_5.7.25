@@ -72,6 +72,7 @@ def api_logout_user():
 
 @user_bp.route('/forgot_password', methods=['POST'])
 def api_forgot_password():
+    import time
     from datetime import datetime, timedelta
 
     data = request.get_json()
@@ -90,10 +91,9 @@ def api_forgot_password():
         # Remove any old hashes for this user
         PasswordUpdater.query.filter_by(users_id=user.id).delete()
 
-        # Create a new hash with timestamp
+        # Create a new hash
         hash_str = hashlib.md5(f"{user.id}{user.password}{PASS_SALT}{str(time.time())}".encode()).hexdigest()
-        expires_at = datetime.utcnow() + timedelta(hours=1)
-        updater = PasswordUpdater(users_id=user.id, hash=hash_str, created_at=datetime.utcnow(), expires_at=expires_at)
+        updater = PasswordUpdater(users_id=user.id, hash=hash_str)
         db.session.add(updater)
         db.session.commit()
 
@@ -119,12 +119,6 @@ The Networked Capital Team
         updater = PasswordUpdater.query.filter_by(hash=hash_val).first()
         if not updater:
             return jsonify({'error': 'Invalid or expired reset link.'}), 400
-
-        # Check hash expiry (assuming expires_at column exists)
-        if hasattr(updater, 'expires_at') and updater.expires_at and updater.expires_at < datetime.utcnow():
-            db.session.delete(updater)
-            db.session.commit()
-            return jsonify({'error': 'Reset link has expired.'}), 400
 
         if not new_password:
             return jsonify({'error': 'New password required.'}), 400

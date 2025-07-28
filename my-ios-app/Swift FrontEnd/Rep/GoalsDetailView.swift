@@ -30,6 +30,9 @@ struct GoalsDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    // --- Delete Alert State ---
+    @State private var showDeleteAlert = false
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -179,6 +182,15 @@ struct GoalsDetailView: View {
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
+                        // --- Delete Button ---
+                        Button(role: .destructive) {
+                            showDeleteAlert = true
+                        } label: {
+                            Text("Delete Goal")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
                         Button(action: { activeSheet = nil }) {
                             Text("Cancel")
                                 .foregroundColor(.secondary)
@@ -203,7 +215,7 @@ struct GoalsDetailView: View {
                                     ReportingIncrement(id: 1, title: "Monthly"),
                                     ReportingIncrement(id: 2, title: "Weekly"),
                                     ReportingIncrement(id: 3, title: "Daily")
-                                  ]
+                                ]
                                 : reportingIncrements
                         )
                     } else {
@@ -214,7 +226,37 @@ struct GoalsDetailView: View {
                     Text("Invite Team Sheet Placeholder")
                 }
             }
+            // --- Confirmation Alert ---
+            .alert("Delete Goal?", isPresented: $showDeleteAlert) {
+                Button("Delete", role: .destructive) {
+                    deleteGoal()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete this goal? This cannot be undone.")
+            }
         }
+    }
+
+    // --- Delete Goal Function ---
+    private func deleteGoal() {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/delete"),
+            let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let params: [String: Any] = ["goals_id": viewModel.goal.id]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: params)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    dismiss()
+                } else {
+                    // Optionally show error
+                }
+            }
+        }.resume()
     }
 
     private func loadReportingIncrements() {

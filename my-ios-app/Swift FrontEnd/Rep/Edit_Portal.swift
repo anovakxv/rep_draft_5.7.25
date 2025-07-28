@@ -462,6 +462,7 @@ struct EditPortalView: View {
     @StateObject private var viewModel: EditPortalViewModel
     @State private var photoPickerItems: [PhotosPickerItem] = []
     @State private var showAddLeadsSheet = false
+    @State private var showDeleteAlert = false // <-- Added for portal delete
 
     let userId: Int
 
@@ -599,11 +600,56 @@ struct EditPortalView: View {
 
                     // Story blocks editing section
                     PortalStoryBlocksEditorView(viewModel: viewModel)
+
+                    // --- Delete Portal Button ---
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Text("Delete Portal")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                    }
+                    .padding(.top, 24)
                 }
                 .padding()
             }
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
+        // --- Delete Portal Confirmation Alert ---
+        .alert("Delete Portal?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                deletePortal()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this portal? This cannot be undone.")
+        }
+    }
+
+    // --- Delete Portal Function ---
+    private func deletePortal() {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/delete"),
+              !viewModel.jwtToken.isEmpty else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(viewModel.jwtToken)", forHTTPHeaderField: "Authorization")
+        let params: [String: Any] = [
+            "portal_id": viewModel.portalId,
+            "user_id": viewModel.userId
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: params)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    dismiss()
+                } else {
+                    // Optionally show error
+                }
+            }
+        }.resume()
     }
 }

@@ -127,3 +127,19 @@ def api_edit_user():
 
     # Return updated user profile with skills and relationships
     return jsonify({'result': get_user_response(user, session_user_id=user_id)})
+
+@user_bp.route('/delete', methods=['POST'])
+@jwt_required
+def api_delete_user():
+    user = g.current_user
+    user_id = user.id
+
+    # Delete related UserSkill, UserNetwork, UserFollower, etc.
+    UserSkill.query.filter_by(users_id=user_id).delete()
+    UserNetwork.query.filter((UserNetwork.users_id1 == user_id) | (UserNetwork.users_id2 == user_id)).delete()
+    UserFollower.query.filter((UserFollower.users_id1 == user_id) | (UserFollower.users_id2 == user_id)).delete()
+    # If you have other related tables (e.g., Write, DirectMessage), add similar deletes here.
+
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'result': 'ok'})

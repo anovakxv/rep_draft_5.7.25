@@ -55,6 +55,9 @@ struct EditProfileView: View {
     @AppStorage("pendingFirstName") var pendingFirstName: String = ""
     @AppStorage("pendingLastName") var pendingLastName: String = ""
 
+    // --- Delete Profile State ---
+    @State private var showDeleteAlert = false
+
     init(viewModel: ProfileInfoViewModel, showOnboardingAfterSave: Bool = false, onSave: ((_ updatedUser: User?) -> Void)? = nil) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
         self.showOnboardingAfterSave = showOnboardingAfterSave
@@ -162,6 +165,18 @@ struct EditProfileView: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)
                         Divider()
+                        // --- Delete Profile Button ---
+                        Button(role: .destructive) {
+                            showDeleteAlert = true
+                        } label: {
+                            Text("Delete Profile")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                        }
+                        .padding(.top, 24)
+                        // --- End Delete Profile Button ---
                         // Removed Spacer() here to keep content visible
                     }
                     .padding(.bottom, 400)
@@ -212,7 +227,38 @@ struct EditProfileView: View {
                     }
                 }
             }
+            // --- Delete Profile Alert ---
+            .alert("Delete Profile?", isPresented: $showDeleteAlert) {
+                Button("Delete", role: .destructive) {
+                    deleteProfile()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete your profile? This cannot be undone.")
+            }
         }
+    }
+
+    // --- Delete Profile Function ---
+    private func deleteProfile() {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/delete"),
+              !viewModel.jwtToken.isEmpty else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(viewModel.jwtToken)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    // Log out and clear session
+                    viewModel.jwtToken = ""
+                    // Optionally clear other user data here
+                    dismiss()
+                } else {
+                    // Optionally show error
+                }
+            }
+        }.resume()
     }
 }
 

@@ -159,6 +159,9 @@ def api_delete_user():
     from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
     DirectMessage.query.filter((DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)).delete()
 
+    from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+    GoalProgressLog.query.filter_by(users_id=user_id).delete()
+
     # Add any other related deletes here as needed
 
     db.session.delete(user)

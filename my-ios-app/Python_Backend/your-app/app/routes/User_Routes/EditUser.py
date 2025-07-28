@@ -140,7 +140,7 @@ def api_delete_user():
     UserFollower.query.filter((UserFollower.users_id1 == user_id) | (UserFollower.users_id2 == user_id)).delete()
 
     # Delete related Write sections
-    from app.models.People_Models.Write import Write
+    from app.models.People_Models.Write_Models.Writings_Model import Write
     Write.query.filter_by(users_id=user_id).delete()
 
     # Delete Goals where user is the creator

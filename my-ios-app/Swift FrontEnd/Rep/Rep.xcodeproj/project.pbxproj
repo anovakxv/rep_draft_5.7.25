@@ -30,6 +30,8 @@
 		005B63852E16F88600A1F0C1 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 005B63692E16F88600A1F0C1 /* README.md */; };
 		005B63862E16F88600A1F0C1 /* REPLogo.png in Resources */ = {isa = PBXBuildFile; fileRef = 005B635C2E16F88600A1F0C1 /* REPLogo.png */; };
 		005B63872E16F88600A1F0C1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 005B635E2E16F88600A1F0C1 /* Assets.xcassets */; };
+		009219B92E37F85C00AC0A40 /* ResetPassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009219B82E37F85500AC0A40 /* ResetPassword.swift */; };
+		009219BB2E37FA5E00AC0A40 /* NewPassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009219BA2E37FA5800AC0A40 /* NewPassword.swift */; };
 		00D80A612E1B6B0C003C926D /* SkillAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D80A602E1B6B0C003C926D /* SkillAPI.swift */; };
 		00E10AAD2E21951E00BC7392 /* Edit_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */; };
 		00E10AAF2E21953000BC7392 /* Update_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAE2E21953000BC7392 /* Update_Goal.swift */; };
@@ -80,6 +82,8 @@
 		005B636F2E16F88600A1F0C1 /* RepSkillsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepSkillsModel.swift; sourceTree = "<group>"; };
 		005B63702E16F88600A1F0C1 /* RepTypeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepTypeModel.swift; sourceTree = "<group>"; };
 		005B63712E16F88600A1F0C1 /* SupportingTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupportingTypes.swift; sourceTree = "<group>"; };
+		009219B82E37F85500AC0A40 /* ResetPassword.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetPassword.swift; sourceTree = "<group>"; };
+		009219BA2E37FA5800AC0A40 /* NewPassword.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewPassword.swift; sourceTree = "<group>"; };
 		00D80A602E1B6B0C003C926D /* SkillAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillAPI.swift; sourceTree = "<group>"; };
 		00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Edit_Goal.swift; sourceTree = "<group>"; };
 		00E10AAE2E21953000BC7392 /* Update_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Update_Goal.swift; sourceTree = "<group>"; };
@@ -195,6 +199,8 @@
 				005B636E2E16F88600A1F0C1 /* RegisterNewProfile.swift */,
 				00D80A602E1B6B0C003C926D /* SkillAPI.swift */,
 				005B636F2E16F88600A1F0C1 /* RepSkillsModel.swift */,
+				009219B82E37F85500AC0A40 /* ResetPassword.swift */,
+				009219BA2E37FA5800AC0A40 /* NewPassword.swift */,
 				005B63702E16F88600A1F0C1 /* RepTypeModel.swift */,
 				005B63712E16F88600A1F0C1 /* SupportingTypes.swift */,
 			);
@@ -360,11 +366,13 @@
 				005B63762E16F88600A1F0C1 /* MainScreen.swift in Sources */,
 				005B63772E16F88600A1F0C1 /* ActivityIndicator.swift in Sources */,
 				005B63782E16F88600A1F0C1 /* SupportingTypes.swift in Sources */,
+				009219BB2E37FA5E00AC0A40 /* NewPassword.swift in Sources */,
 				005B63792E16F88600A1F0C1 /* RepSkillsModel.swift in Sources */,
 				005B637A2E16F88600A1F0C1 /* Chat_Individual.swift in Sources */,
 				005B637B2E16F88600A1F0C1 /* GoalListItem.swift in Sources */,
 				005B637C2E16F88600A1F0C1 /* PortalPage.swift in Sources */,
 				005B637D2E16F88600A1F0C1 /* Chat_Group.swift in Sources */,
+				009219B92E37F85C00AC0A40 /* ResetPassword.swift in Sources */,
 				005B637E2E16F88600A1F0C1 /* RepTypeModel.swift in Sources */,
 				005B637F2E16F88600A1F0C1 /* GoalsDetailView.swift in Sources */,
 				005B63812E16F88600A1F0C1 /* RegisterNewProfile.swift in Sources */,
@@ -529,10 +537,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 1.22;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
+				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Rep;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -547,7 +557,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.22;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -555,7 +565,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				XROS_DEPLOYMENT_TARGET = 2.2;
 			};
 			name = Debug;
@@ -567,10 +577,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 1.22;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
+				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Rep;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -585,7 +597,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.22;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -593,7 +605,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 				XROS_DEPLOYMENT_TARGET = 2.2;
 			};
 			name = Release;

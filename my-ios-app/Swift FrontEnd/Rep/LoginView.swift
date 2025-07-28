@@ -56,7 +56,8 @@ struct LoginView: View {
     @StateObject private var viewModel = APILoginViewModel()
     @State private var isAlertPresented = false
     @FocusState private var focusedField: Field?
-    
+    @State private var isResetPasswordPresented = false // <-- Added for reset password navigation
+
     enum Field: Hashable {
         case email, password
     }
@@ -71,6 +72,8 @@ struct LoginView: View {
                 Spacer()
                 NavigationLink(destination: MainScreen(), isActive: $viewModel.isLoggedIn) { EmptyView() }
                 NavigationLink(destination: RegisterNewProfileView(), isActive: $viewModel.isSignUpPresented) { EmptyView() }
+                // --- Reset Password NavigationLink ---
+                NavigationLink(destination: ResetPasswordView(), isActive: $isResetPasswordPresented) { EmptyView() }
             }
             .padding(24)
             .toolbar(.hidden)
@@ -111,6 +114,19 @@ struct LoginView: View {
                 .focused($focusedField, equals: .password)
                 .submitLabel(.go)
                 .onSubmit { viewModel.login() }
+            // --- Add Reset Password Link ---
+            HStack {
+                Spacer()
+                Button(action: {
+                    isResetPasswordPresented = true
+                }) {
+                    Text("Forgot Password?")
+                        .font(.footnote)
+                        .foregroundColor(.blue)
+                        .underline()
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
     

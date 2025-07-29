@@ -97,20 +97,17 @@ def api_forgot_password():
         db.session.add(updater)
         db.session.commit()
 
-        reset_link = f"https://networkedcapital.co/reset_password/{hash_str}/"
+        reset_link = f"https://networkedcapital.co/reset_password/?token={hash_str}"
         message = f"""
-Hello,
-
-We received a request to reset your password.
-
-Click the link below to set a new password:
-{reset_link}
-
-If you did not request this, you can ignore this email.
-
-Thanks,
+Hello,<br><br>
+We received a request to reset your password.<br><br>
+Click the link below to set a new password:<br>
+<a href="{reset_link}">{reset_link}</a><br><br>
+If you did not request this, you can ignore this email.<br><br>
+Thanks,<br>
 The Networked Capital Team
 """
+
         send_mail(email, 'Reset your password', message, from_email='repcontact2025@gmail.com')
         return jsonify({'result': 'sent'})
 

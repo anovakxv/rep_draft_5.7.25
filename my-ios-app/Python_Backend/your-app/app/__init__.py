@@ -59,7 +59,8 @@ def create_app():
     from app.routes.User_Routes.Write import user_bp as write_bp
     from app.routes.User_Routes.Get_People import people_bp as get_people_bp
     from app.models.People_Models import FlaggedUser
-
+    from app.models.People_Models.BlockedUser import BlockedUser 
+    
     # --- Register SearchPeople API Blueprint ---
     from app.routes.User_Routes.SearchPeople import search_people_bp
     app.register_blueprint(search_people_bp)

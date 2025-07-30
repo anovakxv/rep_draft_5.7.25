@@ -6,6 +6,8 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.user import User
 from app.models.People_Models.UserNetwork import UserNetwork
+from app.models.People_Models.BlockedUser import BlockedUser
+
 from app.utils.auth import jwt_required
 
 user_bp = Blueprint('add_to_network', __name__)
@@ -86,3 +88,48 @@ def api_flag_user():
     db.session.add(flagged)
     db.session.commit()
     return jsonify({'result': 'flagged'})
+
+@user_bp.route('/block', methods=['POST'])
+@jwt_required
+def block_user():
+    data = request.get_json()
+    user_id = g.current_user.id
+    blocked_id = data.get('users_id')
+    if not blocked_id:
+        return jsonify({'error': 'users_id is empty!'}), 400
+    if str(user_id) == str(blocked_id):
+        return jsonify({'error': "You can't block yourself."}), 400
+    if not User.query.filter_by(id=blocked_id).first():
+        return jsonify({'error': "That users_id doesn't exist!"}), 404
+    exists = BlockedUser.query.filter_by(blocker_id=user_id, blocked_id=blocked_id).first()
+    if exists:
+        return jsonify({'error': 'Already blocked.'}), 400
+    blocked = BlockedUser(blocker_id=user_id, blocked_id=blocked_id)
+    db.session.add(blocked)
+    db.session.commit()
+    return jsonify({'result': 'blocked'})
+
+@user_bp.route('/unblock', methods=['POST'])
+@jwt_required
+def unblock_user():
+    data = request.get_json()
+    user_id = g.current_user.id
+    blocked_id = data.get('users_id')
+    if not blocked_id:
+        return jsonify({'error': 'users_id is empty!'}), 400
+    exists = BlockedUser.query.filter_by(blocker_id=user_id, blocked_id=blocked_id).first()
+    if not exists:
+        return jsonify({'error': 'Not blocked.'}), 400
+    db.session.delete(exists)
+    db.session.commit()
+    return jsonify({'result': 'unblocked'})
+
+@user_bp.route('/is_blocked', methods=['GET'])
+@jwt_required
+def is_blocked():
+    user_id = g.current_user.id
+    target_id = request.args.get('users_id')
+    if not target_id:
+        return jsonify({'error': 'users_id is required'}), 400
+    exists = BlockedUser.query.filter_by(blocker_id=user_id, blocked_id=target_id).first()
+    return jsonify({'is_blocked': bool(exists)})

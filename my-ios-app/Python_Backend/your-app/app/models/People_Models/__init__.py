@@ -9,3 +9,5 @@ from .UserNetwork import UserNetwork
 from .UserFollower import UserFollower
 from .PasswordUpdater import PasswordUpdater
 from .Skill import Skill
+from .FlaggedUser import FlaggedUser
+from .BlockedUser import BlockedUser

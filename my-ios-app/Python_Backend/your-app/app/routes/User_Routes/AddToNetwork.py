@@ -56,3 +56,33 @@ def api_add_to_network_action():
         return jsonify({'result': 'deleted'})
 
     return jsonify({'error': 'Unknown error'}), 400
+
+from app.models.People_Models.FlaggedUser import FlaggedUser
+
+@user_bp.route('/flag_user', methods=['POST'])
+@jwt_required
+def api_flag_user():
+    data = request.get_json()
+    user_id = g.current_user.id
+    flagged_id = data.get('users_id')
+    reason = data.get('reason', '')
+
+    if not user_id:
+        return jsonify({'error': 'Login error!'}), 401
+    if not flagged_id:
+        return jsonify({'error': 'users_id is empty!'}), 400
+    if str(user_id) == str(flagged_id):
+        return jsonify({'error': "You can't flag yourself."}), 400
+
+    # Check if target user exists
+    if not User.query.filter_by(id=flagged_id).first():
+        return jsonify({'error': "That users_id doesn't exist!"}), 404
+
+    exists = FlaggedUser.query.filter_by(flagger_id=user_id, flagged_id=flagged_id).first()
+    if exists:
+        return jsonify({'error': 'You have already flagged this user.'}), 400
+
+    flagged = FlaggedUser(flagger_id=user_id, flagged_id=flagged_id, reason=reason)
+    db.session.add(flagged)
+    db.session.commit()
+    return jsonify({'result': 'flagged'})

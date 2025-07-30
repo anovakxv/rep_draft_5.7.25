@@ -59,14 +59,16 @@ def create_app():
     from app.routes.User_Routes.TwitterLogin import user_bp as twitter_login_bp
     from app.routes.User_Routes.Write import user_bp as write_bp
     from app.routes.User_Routes.Get_People import people_bp as get_people_bp
-
+    from app.routes.User_Routes.BlockUser import user_bp as block_user_bp
+    from app.models.People_Models import FlaggedUser
+    
     # --- Register SearchPeople API Blueprint ---
     from app.routes.User_Routes.SearchPeople import search_people_bp
     app.register_blueprint(search_people_bp)
 
     # Register each blueprint, all under /api/user except Get_People (which has its own endpoints)
     app.register_blueprint(add_to_network_bp, url_prefix='/api/user')
-    # app.register_blueprint(block_user_bp, url_prefix='/api/user')
+    app.register_blueprint(block_user_bp, url_prefix='/api/user')
     app.register_blueprint(edit_user_bp, url_prefix='/api/user')
     app.register_blueprint(get_me_bp, url_prefix='/api/user')
     app.register_blueprint(get_profile_bp, url_prefix='/api/user')

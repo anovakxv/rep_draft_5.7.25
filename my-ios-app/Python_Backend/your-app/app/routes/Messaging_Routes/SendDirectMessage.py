@@ -9,6 +9,7 @@ from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMess
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
 from app.utils.auth import jwt_required
+from app.models.People_Models.BlockUser import BlockedUser
 from datetime import datetime
 from sqlalchemy import text
 
@@ -36,9 +37,13 @@ def api_send_message():
         if not portal:
             return jsonify({'error': "the portal doesn't exist!"}), 404
 
-    # Check if blocked
-    if does_user_block(to_user_id, user_id):
+    # Check if recipient has blocked sender
+    if BlockedUser.query.filter_by(blocker_id=to_user_id, blocked_id=user_id).first():
         return jsonify({'error': 'blocked!'}), 403
+
+    # (Optional) Check if sender has blocked recipient (if you want to prevent sending in both directions)
+    # if BlockedUser.query.filter_by(blocker_id=user_id, blocked_id=to_user_id).first():
+    #     return jsonify({'error': 'blocked!'}), 403
 
     # Create message using DirectMessage model
     msg = DirectMessage(
@@ -52,16 +57,6 @@ def api_send_message():
 
     # Register activity
     register_new_activity(user_id, to_user_id, "new_direct_message", 1, msg.id, "messages")
-
-    # Optionally, remove hidden conversations
-    # db.session.execute(
-    #    text(
-    #        "DELETE FROM users_hidden_conversations WHERE "
-    #        "   (users_id1=:uid1 AND users_id2=:uid2) OR (users_id2=:uid1 AND users_id1=:uid2)"
-    #    ),
-    #    {'uid1': user_id, 'uid2': to_user_id}
-    #)
-    #db.session.commit()
 
     # Build flat message object for Swift client
     sender = User.query.filter_by(id=user_id).first()

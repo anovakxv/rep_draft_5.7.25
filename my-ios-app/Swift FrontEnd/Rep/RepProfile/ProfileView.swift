@@ -222,7 +222,7 @@ struct WriteBlock: Identifiable, Codable {
 
 class ProfileViewModel: ObservableObject {
     @Published var user: User = .placeholder
-    @Published var isLoaded: Bool = false // <-- Add this line
+    @Published var isLoaded: Bool = false
     @Published var portals: [Portal] = []
     @Published var goals: [Goal] = []
     @Published var actions: [String] = []
@@ -231,6 +231,7 @@ class ProfileViewModel: ObservableObject {
     @Published var writeTitle: String = ""
     @Published var editingWrite: WriteBlock? = nil
     @Published var availableSkills: [SkillModel] = []
+    @Published var isBlocked: Bool = false // <-- Track block status
 
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("userId") var loggedInUserId: Int = 0
@@ -245,12 +246,13 @@ class ProfileViewModel: ObservableObject {
     }
 
     func loadProfile() {
-        isLoaded = false // <-- Reset loading state
+        isLoaded = false
         fetchUser()
         fetchPortals()
         fetchGoals()
         fetchWrites(for: viewedUserId)
         fetchAvailableSkills()
+        fetchBlockStatus()
     }
 
     func fetchAvailableSkills() {
@@ -357,7 +359,6 @@ class ProfileViewModel: ObservableObject {
         let body: [String: Any] = [
             "title": writeTitle,
             "content": writeText
-            // Only include "order" if you are actually changing it
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, _, error in
@@ -391,8 +392,8 @@ class ProfileViewModel: ObservableObject {
             if let _ = data {
                 DispatchQueue.main.async {
                     self.editingWrite = nil
-                    self.writeTitle = ""      // <-- Add this
-                    self.writeText = ""       // <-- Add this
+                    self.writeTitle = ""
+                    self.writeText = ""
                     self.fetchWrites(for: self.viewedUserId)
                 }
             }
@@ -416,6 +417,124 @@ class ProfileViewModel: ObservableObject {
         }.resume()
     }
 
+    // --- Block/Unblock logic ---
+    func fetchBlockStatus() {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/is_blocked?users_id=\(viewedUserId)") else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data = data else { return }
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let blocked = json["is_blocked"] as? Bool {
+                DispatchQueue.main.async {
+                    self.isBlocked = blocked
+                }
+            }
+        }.resume()
+    }
+
+    func blockUser(completion: @escaping (Bool, String?) -> Void) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/block") else {
+            completion(false, "Invalid URL")
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "users_id": viewedUserId
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(false, error.localizedDescription)
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(false, "No response")
+                return
+            }
+            if httpResponse.statusCode == 200 {
+                DispatchQueue.main.async { self.isBlocked = true }
+                completion(true, nil)
+            } else {
+                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
+                completion(false, message)
+            }
+        }.resume()
+    }
+
+    func unblockUser(completion: @escaping (Bool, String?) -> Void) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/unblock") else {
+            completion(false, "Invalid URL")
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "users_id": viewedUserId
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(false, error.localizedDescription)
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(false, "No response")
+                return
+            }
+            if httpResponse.statusCode == 200 {
+                DispatchQueue.main.async { self.isBlocked = false }
+                completion(true, nil)
+            } else {
+                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
+                completion(false, message)
+            }
+        }.resume()
+    }
+    func flagUser(reason: String = "", completion: @escaping (Bool, String?) -> Void) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/flag_user") else {
+            completion(false, "Invalid URL")
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "users_id": viewedUserId,
+            "reason": reason
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                completion(false, error.localizedDescription)
+                return
+            }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                completion(false, "No response")
+                return
+            }
+            if httpResponse.statusCode == 200 {
+                completion(true, nil)
+            } else {
+                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
+                completion(false, message)
+            }
+        }.resume()
+    }
     func goBack() {}
     func handleAction(_ action: String, editProfile: @escaping () -> Void) {
         if action == "Edit Profile" { editProfile() }
@@ -532,148 +651,167 @@ struct ProfileView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
-                if viewModel.isLoaded && viewModel.user.id != 0 {
-                    ScrollView {
-                        ProfileMainContent(
-                            viewModel: viewModel,
-                            selectedTab: $selectedTab,
-                            selectedGoal: $selectedGoal,
-                            mappedSkillTitles: mappedSkillTitles,
-                            stickyHeader: { AnyView(stickyHeader) }
-                        )
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if !viewModel.isLoaded {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    VStack {
-                        Spacer()
-                        Text("User not found.")
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                }
-                BottomBarView(
-                    onAdd: {
-                        if viewModel.isCurrentUser {
-                            activeSheet = .actionSheet
-                        } else {
-                            activeSheet = .profileActionMenu
-                        }
-                    },
-                    onMessage: { activeSheet = .message }
-                )
-                // NavigationLink for EditProfile (not a sheet)
-                .fullScreenCover(isPresented: $showEditProfile) {
-                    EditProfileView(
-                        viewModel: editProfileVM,
-                        onSave: { updatedUser in
-                            if let updatedUser = updatedUser {
-                                viewModel.user = updatedUser
-                                viewModel.isLoaded = true
-                            } else {
-                                viewModel.loadProfile()
-                            }
-                            showEditProfile = false
-                        }
+    NavigationStack {
+        VStack(spacing: 0) {
+            NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
+            if viewModel.isLoaded && viewModel.user.id != 0 {
+                ScrollView {
+                    ProfileMainContent(
+                        viewModel: viewModel,
+                        selectedTab: $selectedTab,
+                        selectedGoal: $selectedGoal,
+                        mappedSkillTitles: mappedSkillTitles,
+                        stickyHeader: { AnyView(stickyHeader) }
                     )
-                    .interactiveDismissDisabled()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if !viewModel.isLoaded {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack {
+                    Spacer()
+                    Text("User not found.")
+                        .foregroundColor(.secondary)
+                    Spacer()
                 }
             }
-            .navigationBarHidden(true)
-            .onAppear {
-                viewModel.loadProfile()
-                loadReportingIncrements()
-            }
-            .background(Color.white.edgesIgnoringSafeArea(.all))
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        if viewModel.isCurrentUser {
-                            Button("Edit Profile") {
-                                pendingAction = .editProfile
-                            }
-                        }
-                        ForEach(viewModel.actions, id: \.self) { action in
-                            Button(action) {
-                                viewModel.handleAction(action, editProfile: {
-                                    pendingAction = .editProfile
-                                })
-                            }
-                        }
-                        if viewModel.isCurrentUser {
-                            Button("Logout") {
-                                pendingAction = .logout
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
+            BottomBarView(
+                onAdd: {
+                    if viewModel.isCurrentUser {
+                        activeSheet = .actionSheet
+                    } else {
+                        activeSheet = .profileActionMenu
                     }
+                },
+                onMessage: { activeSheet = .message }
+            )
+            // NavigationLink for EditProfile (not a sheet)
+            .fullScreenCover(isPresented: $showEditProfile) {
+                EditProfileView(
+                    viewModel: editProfileVM,
+                    onSave: { updatedUser in
+                        if let updatedUser = updatedUser {
+                            viewModel.user = updatedUser
+                            viewModel.isLoaded = true
+                        } else {
+                            viewModel.loadProfile()
+                        }
+                        showEditProfile = false
+                    }
+                )
+                .interactiveDismissDisabled()
+            }
+        }
+        .navigationBarHidden(true)
+        .onAppear {
+            viewModel.loadProfile()
+            loadReportingIncrements()
+        }
+        .background(Color.white.edgesIgnoringSafeArea(.all))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    if viewModel.isCurrentUser {
+                        Button("Edit Profile") {
+                            pendingAction = .editProfile
+                        }
+                    }
+                    ForEach(viewModel.actions, id: \.self) { action in
+                        Button(action) {
+                            viewModel.handleAction(action, editProfile: {
+                                pendingAction = .editProfile
+                            })
+                        }
+                    }
+                    if viewModel.isCurrentUser {
+                        Button("Logout") {
+                            pendingAction = .logout
+                        }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
-            .sheet(item: $activeSheet) { sheet in
-                switch sheet {
-                case .actionSheet:
-                    VStack(spacing: 24) {
-                        if viewModel.isCurrentUser {
-                            Button(action: {
-                                pendingAction = .addPurpose
-                                activeSheet = nil
-                            }) {
-                                Text("Add Purpose")
-                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.vertical, 5)
-                            }
-                            Button(action: {
-                                pendingAction = .addGoal
-                                activeSheet = nil
-                            }) {
-                                Text("Add Goal")
-                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.vertical, 5)
-                            }
-                            Button(action: {
-                                pendingAction = .editProfile
-                                activeSheet = nil
-                            }) {
-                                Text("Edit Profile")
-                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.vertical, 5)
-                            }
-                            Button(action: {
-                                pendingAction = .logout
-                                activeSheet = nil
-                            }) {
-                                Text("Logout")
-                                    .foregroundColor(.red)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.vertical, 5)
-                            }
-                        }
-                        Button(action: { activeSheet = nil }) {
-                            Text("Cancel")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding()
-                    .presentationDetents([.medium])
-                case .profileActionMenu:
-                    VStack(spacing: 24) {
+        }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .actionSheet:
+                VStack(spacing: 24) {
+                    if viewModel.isCurrentUser {
                         Button(action: {
-                            viewModel.addToNetwork { success, message in
+                            pendingAction = .addPurpose
+                            activeSheet = nil
+                        }) {
+                            Text("Add Purpose")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                        Button(action: {
+                            pendingAction = .addGoal
+                            activeSheet = nil
+                        }) {
+                            Text("Add Goal")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                        Button(action: {
+                            pendingAction = .editProfile
+                            activeSheet = nil
+                        }) {
+                            Text("Edit Profile")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                        Button(action: {
+                            pendingAction = .logout
+                            activeSheet = nil
+                        }) {
+                            Text("Logout")
+                                .foregroundColor(.red)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
+                        }
+                    }
+                    Button(action: { activeSheet = nil }) {
+                        Text("Cancel")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .presentationDetents([.medium])
+            case .profileActionMenu:
+                VStack(spacing: 24) {
+                    Button(action: {
+                        viewModel.addToNetwork { success, message in
+                            DispatchQueue.main.async {
+                                networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
+                                activeSheet = nil
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                    showNetworkResultAlert = true
+                                }
+                            }
+                        }
+                    }) {
+                        Text("+ to NTWK")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    // --- Block/Unblock User Button (conditionally shown) ---
+                    if viewModel.isBlocked {
+                        Button(action: {
+                            viewModel.unblockUser { success, message in
                                 DispatchQueue.main.async {
-                                    networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
+                                    networkResultMessage = success ? "User unblocked." : (message ?? "Failed to unblock user.")
                                     activeSheet = nil
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                                         showNetworkResultAlert = true
@@ -681,118 +819,157 @@ struct ProfileView: View {
                                 }
                             }
                         }) {
-                            Text("+ to NTWK")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            Text("Unblock User")
+                                .foregroundColor(.red)
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
-                        Button(action: { activeSheet = nil }) {
-                            Text("Cancel")
-                                .foregroundColor(.secondary)
+                    } else {
+                        Button(action: {
+                            viewModel.blockUser { success, message in
+                                DispatchQueue.main.async {
+                                    networkResultMessage = success ? "User blocked." : (message ?? "Failed to block user.")
+                                    activeSheet = nil
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                        showNetworkResultAlert = true
+                                    }
+                                }
+                            }
+                        }) {
+                            Text("Block User")
+                                .foregroundColor(.red)
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
                         }
                     }
-                    .padding()
-                    .presentationDetents([.medium])
-                case .addPurpose:
-                    EditPortalView(
-                        portal: PortalDetail(
-                            id: 0,
-                            name: "",
-                            subtitle: "",
-                            about: "",
-                            categories_id: nil,
-                            cities_id: nil,
-                            lead_id: nil,
-                            users_id: viewModel.user.id,
-                            _c_users_count: nil,
-                            mainImageUrl: nil,
-                            aGoals: [],
-                            aPortalUsers: [],
-                            aTexts: [],
-                            aSections: [],
-                            aUsers: [],
-                            aLeads: []
-                        ),
-                        userId: viewModel.user.id
-                    )
-                case .addGoal:
-                    EditGoalPage(
-                        existingGoal: nil,
-                        portalId: nil,
-                        userId: viewModel.user.id,
-                        reportingIncrements: reportingIncrements.isEmpty
-                            ? [
-                                ReportingIncrement(id: 1, title: "Monthly"),
-                                ReportingIncrement(id: 2, title: "Weekly"),
-                                ReportingIncrement(id: 3, title: "Daily")
-                            ]
-                            : reportingIncrements,
-                        associatedPortalName: nil
-                    )
-                case .message:
-                    MessageView(
-                        viewModel: MessageViewModel(
-                            currentUserId: viewModel.loggedInUserId,
-                            otherUserId: viewModel.user.id,
-                            otherUserName: viewModel.user.fullName ?? "",
-                            otherUserPhotoURL: viewModel.user.profilePictureURL
-                        )
-                    )
-                }
-            }
-            .alert(isPresented: $showNetworkResultAlert) {
-                Alert(title: Text(networkResultMessage))
-            }
-            .onChange(of: pendingAction) { action in
-                guard let action = action else { return }
-                switch action {
-                case .editProfile:
-                    UIApplication.shared.endEditing()
-                    updateEditProfileVM()
-                    activeSheet = nil // Dismiss sheet first
-                    pendingAction = nil
-                    shouldNavigateToEditProfile = true // Set intermediate state
-                case .addPurpose:
-                    activeSheet = .addPurpose
-                    pendingAction = nil
-                case .addGoal:
-                    activeSheet = .addGoal
-                    pendingAction = nil
-                case .logout:
-                    logoutAndClearSession()
-                    pendingAction = nil
-                }
-            }
-            .onChange(of: shouldNavigateToEditProfile) { newValue in
-                if newValue {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { // Increased delay
-                        showEditProfile = true
-                        shouldNavigateToEditProfile = false
+                    // --- End Block/Unblock User Button ---
+                    // --- Flag as Inappropriate Button ---
+                    Button(action: {
+                        viewModel.flagUser { success, message in
+                            DispatchQueue.main.async {
+                                networkResultMessage = success ? "User flagged as inappropriate." : (message ?? "Failed to flag user.")
+                                activeSheet = nil
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                    showNetworkResultAlert = true
+                                }
+                            }
+                        }
+                    }) {
+                        Text("Flag as Inappropriate")
+                            .foregroundColor(.orange)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    // --- End Flag as Inappropriate Button ---
+                    Button(action: { activeSheet = nil }) {
+                        Text("Cancel")
+                            .foregroundColor(.secondary)
                     }
                 }
+                .padding()
+                .presentationDetents([.medium])
+            case .addPurpose:
+                EditPortalView(
+                    portal: PortalDetail(
+                        id: 0,
+                        name: "",
+                        subtitle: "",
+                        about: "",
+                        categories_id: nil,
+                        cities_id: nil,
+                        lead_id: nil,
+                        users_id: viewModel.user.id,
+                        _c_users_count: nil,
+                        mainImageUrl: nil,
+                        aGoals: [],
+                        aPortalUsers: [],
+                        aTexts: [],
+                        aSections: [],
+                        aUsers: [],
+                        aLeads: []
+                    ),
+                    userId: viewModel.user.id
+                )
+            case .addGoal:
+                EditGoalPage(
+                    existingGoal: nil,
+                    portalId: nil,
+                    userId: viewModel.user.id,
+                    reportingIncrements: reportingIncrements.isEmpty
+                        ? [
+                            ReportingIncrement(id: 1, title: "Monthly"),
+                            ReportingIncrement(id: 2, title: "Weekly"),
+                            ReportingIncrement(id: 3, title: "Daily")
+                        ]
+                        : reportingIncrements,
+                    associatedPortalName: nil
+                )
+            case .message:
+                MessageView(
+                    viewModel: MessageViewModel(
+                        currentUserId: viewModel.loggedInUserId,
+                        otherUserId: viewModel.user.id,
+                        otherUserName: viewModel.user.fullName ?? "",
+                        otherUserPhotoURL: viewModel.user.profilePictureURL
+                    )
+                )
             }
-            .onChange(of: activeSheet) { sheet in
-                if sheet != nil {
-                    // No-op
-                } else {
-                    // When any sheet except editProfile is dismissed, reload goals if needed
-                    viewModel.fetchGoals()
+        }
+        .alert(isPresented: $showNetworkResultAlert) {
+            Alert(title: Text(networkResultMessage))
+        }
+        .onChange(of: pendingAction) { action in
+            guard let action = action else { return }
+            switch action {
+            case .editProfile:
+                UIApplication.shared.endEditing()
+                updateEditProfileVM()
+                activeSheet = nil // Dismiss sheet first
+                pendingAction = nil
+                shouldNavigateToEditProfile = true // Set intermediate state
+            case .addPurpose:
+                activeSheet = .addPurpose
+                pendingAction = nil
+            case .addGoal:
+                activeSheet = .addGoal
+                pendingAction = nil
+            case .logout:
+                logoutAndClearSession()
+                pendingAction = nil
+            }
+        }
+        .onChange(of: shouldNavigateToEditProfile) { newValue in
+            if newValue {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { // Increased delay
+                    showEditProfile = true
+                    shouldNavigateToEditProfile = false
                 }
             }
-            .background(
-                NavigationLink(
-                    destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
-                    isActive: Binding(
-                        get: { selectedGoal != nil },
-                        set: { isActive in if !isActive { selectedGoal = nil } }
-                    ),
-                    label: { EmptyView() }
-                )
-                .hidden()
-            )
         }
+        .onChange(of: activeSheet) { sheet in
+            if sheet != nil {
+                // No-op
+            } else {
+                // When any sheet except editProfile is dismissed, reload goals if needed
+                viewModel.fetchGoals()
+            }
+        }
+        .background(
+            NavigationLink(
+                destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
+                isActive: Binding(
+                    get: { selectedGoal != nil },
+                    set: { isActive in if !isActive { selectedGoal = nil } }
+                ),
+                label: { EmptyView() }
+            )
+            .hidden()
+        )
     }
+}
 
 
 // Helper subview to reduce type-checking complexity

@@ -35,3 +35,35 @@ class UserNetwork(db.Model):
             "timestamp": self.timestamp.isoformat() + 'Z' if self.timestamp else None,
             "updated_at": self.updated_at.isoformat() + 'Z' if self.updated_at else None,
         }
+    
+from flask import Blueprint, request, jsonify, g
+from app import db
+from app.models.People_Models.BlockedUser import BlockedUser
+from app.utils.auth import jwt_required
+
+user_bp = Blueprint('block_user', __name__)
+
+@user_bp.route('/block', methods=['POST'])
+@jwt_required
+def block_user():
+    blocker_id = g.current_user.id
+    blocked_id = request.json.get('users_id')
+    if not blocked_id or blocker_id == blocked_id:
+        return jsonify({'error': 'Invalid user'}), 400
+    if BlockedUser.query.filter_by(blocker_id=blocker_id, blocked_id=blocked_id).first():
+        return jsonify({'result': 'already blocked'})
+    db.session.add(BlockedUser(blocker_id=blocker_id, blocked_id=blocked_id))
+    db.session.commit()
+    return jsonify({'result': 'blocked'})
+
+@user_bp.route('/unblock', methods=['POST'])
+@jwt_required
+def unblock_user():
+    blocker_id = g.current_user.id
+    blocked_id = request.json.get('users_id')
+    block = BlockedUser.query.filter_by(blocker_id=blocker_id, blocked_id=blocked_id).first()
+    if block:
+        db.session.delete(block)
+        db.session.commit()
+    return jsonify({'result': 'unblocked'})
+   

@@ -1,8 +1,8 @@
-"""Initial migration
+"""Establish new base migration
 
-Revision ID: 9b4ae1baf414
+Revision ID: 5fa2f4928cfa
 Revises: 
-Create Date: 2025-06-25 20:20:22.169034
+Create Date: 2025-07-30 13:56:54.515918
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '9b4ae1baf414'
+revision = '5fa2f4928cfa'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -29,6 +29,18 @@ def upgrade():
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name')
+    )
+    op.create_table('goal_metrics',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('goal_type', sa.String(length=50), nullable=False),
+    sa.Column('metric', sa.String(length=50), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('goal_progress_files',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('goal_progress_id', sa.Integer(), nullable=False),
+    sa.Column('file_url', sa.String(), nullable=False),
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('goal_types',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -73,13 +85,6 @@ def upgrade():
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('title')
     )
-    op.create_table('goal_metrics',
-    sa.Column('id', sa.Integer(), nullable=False),
-    sa.Column('goal_types_id', sa.Integer(), nullable=False),
-    sa.Column('title', sa.String(length=100), nullable=False),
-    sa.ForeignKeyConstraint(['goal_types_id'], ['goal_types.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
     op.create_table('users',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
@@ -104,7 +109,7 @@ def upgrade():
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('email_verification_token', sa.String(length=128), nullable=True),
     sa.Column('profile_picture_url', sa.String(length=512), nullable=True),
-    sa.ForeignKeyConstraint(['users_types_id'], ['user_types.id'], ),
+    sa.ForeignKeyConstraint(['users_types_id'], ['user_types.id'], ondelete='SET NULL'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email'),
     sa.UniqueConstraint('username')
@@ -112,6 +117,16 @@ def upgrade():
     with op.batch_alter_table('users', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_users_phone'), ['phone'], unique=False)
 
+    op.create_table('blocked_users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('blocker_id', sa.Integer(), nullable=False),
+    sa.Column('blocked_id', sa.Integer(), nullable=False),
+    sa.Column('timestamp', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['blocked_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['blocker_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('blocker_id', 'blocked_id', name='uq_blocked_pair')
+    )
     op.create_table('chats',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
@@ -128,9 +143,20 @@ def upgrade():
     sa.Column('recipient_id', sa.Integer(), nullable=False),
     sa.Column('text', sa.Text(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['recipient_id'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['recipient_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('flagged_users',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('flagger_id', sa.Integer(), nullable=False),
+    sa.Column('flagged_id', sa.Integer(), nullable=False),
+    sa.Column('reason', sa.String(length=255), nullable=True),
+    sa.Column('timestamp', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['flagged_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['flagger_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('flagger_id', 'flagged_id', name='uq_flagged_pair')
     )
     op.create_table('password_updaters',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -153,10 +179,10 @@ def upgrade():
     sa.Column('status', sa.String(length=32), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['categories_id'], ['categories.id'], ),
-    sa.ForeignKeyConstraint(['cities_id'], ['cities.id'], ),
-    sa.ForeignKeyConstraint(['lead_id'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['categories_id'], ['categories.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['cities_id'], ['cities.id'], ondelete='SET NULL'),
+    sa.ForeignKeyConstraint(['lead_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('portals', schema=None) as batch_op:
@@ -187,8 +213,8 @@ def upgrade():
     sa.Column('timestamp', sa.DateTime(), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['users_id1'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['users_id2'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['users_id1'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id2'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('users_id1', 'users_id2', name='uq_users_network_pair')
     )
@@ -200,8 +226,8 @@ def upgrade():
     sa.Column('users_id', sa.Integer(), nullable=False),
     sa.Column('skills_id', sa.Integer(), nullable=False),
     sa.Column('timestamp', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['skills_id'], ['skills.id'], ),
-    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['skills_id'], ['skills.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('users_id', 'skills_id', name='uq_users_skills_pair')
     )
@@ -217,7 +243,7 @@ def upgrade():
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('writes', schema=None) as batch_op:
@@ -228,8 +254,8 @@ def upgrade():
     sa.Column('chats_id', sa.Integer(), nullable=False),
     sa.Column('users_id', sa.Integer(), nullable=False),
     sa.Column('joined_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['chats_id'], ['chats.id'], ),
-    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['chats_id'], ['chats.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('goals',
@@ -237,27 +263,23 @@ def upgrade():
     sa.Column('title', sa.String(length=255), nullable=False),
     sa.Column('subtitle', sa.String(length=255), nullable=True),
     sa.Column('users_id', sa.Integer(), nullable=False),
-    sa.Column('portals_id', sa.Integer(), nullable=False),
+    sa.Column('portals_id', sa.Integer(), nullable=True),
     sa.Column('lead_id', sa.Integer(), nullable=True),
     sa.Column('description', sa.Text(), nullable=False),
-    sa.Column('quota', sa.Integer(), nullable=True),
-    sa.Column('filled_quota', sa.Integer(), nullable=True),
+    sa.Column('quota', sa.Float(), nullable=True),
+    sa.Column('filled_quota', sa.Float(), nullable=True),
     sa.Column('quota_is_reached_note', sa.Boolean(), nullable=True),
-    sa.Column('goal_types_id', sa.Integer(), nullable=False),
-    sa.Column('goal_metrics_id', sa.Integer(), nullable=False),
+    sa.Column('goal_type', sa.String(length=50), nullable=False),
+    sa.Column('metric', sa.String(length=50), nullable=False),
     sa.Column('rep_commission', sa.Float(), nullable=True),
     sa.Column('reporting_increments_id', sa.Integer(), nullable=False),
-    sa.ForeignKeyConstraint(['goal_metrics_id'], ['goal_metrics.id'], ),
-    sa.ForeignKeyConstraint(['goal_types_id'], ['goal_types.id'], ),
-    sa.ForeignKeyConstraint(['lead_id'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['portals_id'], ['portals.id'], ),
+    sa.ForeignKeyConstraint(['lead_id'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['portals_id'], ['portals.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['reporting_increments_id'], ['reporting_increments.id'], ),
-    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('goals', schema=None) as batch_op:
-        batch_op.create_index(batch_op.f('ix_goals_goal_metrics_id'), ['goal_metrics_id'], unique=False)
-        batch_op.create_index(batch_op.f('ix_goals_goal_types_id'), ['goal_types_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_goals_portals_id'), ['portals_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_goals_reporting_increments_id'), ['reporting_increments_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_goals_users_id'), ['users_id'], unique=False)
@@ -268,8 +290,16 @@ def upgrade():
     sa.Column('sender_id', sa.Integer(), nullable=False),
     sa.Column('text', sa.Text(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['chat_id'], ['chats.id'], ),
-    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['chat_id'], ['chats.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('messages_read',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('users_id', sa.Integer(), nullable=False),
+    sa.Column('messages_id', sa.Integer(), nullable=False),
+    sa.ForeignKeyConstraint(['messages_id'], ['direct_messages.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('portal_events',
@@ -309,8 +339,8 @@ def upgrade():
     sa.Column('role', sa.String(length=32), nullable=False),
     sa.Column('joined_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['portal_id'], ['portals.id'], ),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['portal_id'], ['portals.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('portal_id', 'user_id', name='uq_portal_user_pair')
     )
@@ -328,7 +358,7 @@ def upgrade():
     sa.Column('content', sa.Text(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['portals_id'], ['portals.id'], ),
+    sa.ForeignKeyConstraint(['portals_id'], ['portals.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('portals_graphic_sections', schema=None) as batch_op:
@@ -342,12 +372,25 @@ def upgrade():
     sa.Column('section', sa.String(length=64), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['portal_id'], ['portals.id'], ),
+    sa.ForeignKeyConstraint(['portal_id'], ['portals.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('portals_texts', schema=None) as batch_op:
         batch_op.create_index(batch_op.f('ix_portals_texts_portal_id'), ['portal_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_portals_texts_section'), ['section'], unique=False)
+
+    op.create_table('portals_users_share',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('portals_id', sa.Integer(), nullable=False),
+    sa.Column('users_id', sa.Integer(), nullable=False),
+    sa.Column('shared_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['portals_id'], ['portals.id'], ),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    with op.batch_alter_table('portals_users_share', schema=None) as batch_op:
+        batch_op.create_index(batch_op.f('ix_portals_users_share_portals_id'), ['portals_id'], unique=False)
+        batch_op.create_index(batch_op.f('ix_portals_users_share_users_id'), ['users_id'], unique=False)
 
     op.create_table('goals_pre_invites',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -356,20 +399,20 @@ def upgrade():
     sa.Column('type', sa.String(length=20), nullable=False),
     sa.Column('identifier', sa.String(length=255), nullable=False),
     sa.Column('timestamp', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['goals_id'], ['goals.id'], ),
-    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['goals_id'], ['goals.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('goals_progress_log',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('users_id', sa.Integer(), nullable=False),
     sa.Column('goals_id', sa.Integer(), nullable=False),
-    sa.Column('added_value', sa.Integer(), nullable=False),
+    sa.Column('added_value', sa.Float(), nullable=False),
     sa.Column('note', sa.Text(), nullable=True),
-    sa.Column('value', sa.Integer(), nullable=True),
+    sa.Column('value', sa.Float(), nullable=True),
     sa.Column('timestamp', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['goals_id'], ['goals.id'], ),
-    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['goals_id'], ['goals.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     with op.batch_alter_table('goals_progress_log', schema=None) as batch_op:
@@ -385,9 +428,9 @@ def upgrade():
     sa.Column('read1', sa.Boolean(), nullable=True),
     sa.Column('read2', sa.Boolean(), nullable=True),
     sa.Column('timestamp', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['goals_id'], ['goals.id'], ),
-    sa.ForeignKeyConstraint(['users_id1'], ['users.id'], ),
-    sa.ForeignKeyConstraint(['users_id2'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['goals_id'], ['goals.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id1'], ['users.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['users_id2'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('portals_graphic_sections_s3_content',
@@ -420,6 +463,11 @@ def downgrade():
 
     op.drop_table('goals_progress_log')
     op.drop_table('goals_pre_invites')
+    with op.batch_alter_table('portals_users_share', schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f('ix_portals_users_share_users_id'))
+        batch_op.drop_index(batch_op.f('ix_portals_users_share_portals_id'))
+
+    op.drop_table('portals_users_share')
     with op.batch_alter_table('portals_texts', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_portals_texts_section'))
         batch_op.drop_index(batch_op.f('ix_portals_texts_portal_id'))
@@ -438,13 +486,12 @@ def downgrade():
     op.drop_table('portal_users')
     op.drop_table('portal_invites')
     op.drop_table('portal_events')
+    op.drop_table('messages_read')
     op.drop_table('group_messages')
     with op.batch_alter_table('goals', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_goals_users_id'))
         batch_op.drop_index(batch_op.f('ix_goals_reporting_increments_id'))
         batch_op.drop_index(batch_op.f('ix_goals_portals_id'))
-        batch_op.drop_index(batch_op.f('ix_goals_goal_types_id'))
-        batch_op.drop_index(batch_op.f('ix_goals_goal_metrics_id'))
 
     op.drop_table('goals')
     op.drop_table('chats_users')
@@ -474,13 +521,14 @@ def downgrade():
 
     op.drop_table('portals')
     op.drop_table('password_updaters')
+    op.drop_table('flagged_users')
     op.drop_table('direct_messages')
     op.drop_table('chats')
+    op.drop_table('blocked_users')
     with op.batch_alter_table('users', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_users_phone'))
 
     op.drop_table('users')
-    op.drop_table('goal_metrics')
     op.drop_table('user_types')
     op.drop_table('skills')
     with op.batch_alter_table('s3_content', schema=None) as batch_op:
@@ -489,6 +537,8 @@ def downgrade():
     op.drop_table('s3_content')
     op.drop_table('reporting_increments')
     op.drop_table('goal_types')
+    op.drop_table('goal_progress_files')
+    op.drop_table('goal_metrics')
     op.drop_table('cities')
     op.drop_table('categories')
     # ### end Alembic commands ###

@@ -4,6 +4,4 @@ eventlet.monkey_patch()
 from app import create_app, socketio
 
 app = create_app()
-
-if __name__ == "__main__":
-    socketio.run(app)
+# Do NOT include any `if __name__ == "__main__":` block here!

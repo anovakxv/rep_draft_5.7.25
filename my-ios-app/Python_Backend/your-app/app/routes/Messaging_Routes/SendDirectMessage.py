@@ -9,7 +9,7 @@ from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMess
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.user_utils import does_user_block, register_new_activity
 from app.utils.auth import jwt_required
-from app.models.People_Models.BlockUser import BlockedUser
+from app.models.People_Models.BlockedUser import BlockedUser
 from datetime import datetime
 from sqlalchemy import text
 

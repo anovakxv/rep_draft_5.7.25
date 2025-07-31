@@ -64,7 +64,15 @@ struct RootAppView: View {
 struct OnboardingFlowEntryView: View {
     @AppStorage("onboardingUserName") var onboardingUserName: String = ""
     @AppStorage("onboardingProfileImageData") var onboardingProfileImageData: Data?
-    @State private var showOnboarding = false
+    @AppStorage("acceptedTermsOfUse") var acceptedTermsOfUse: Bool = false
+
+    enum OnboardingStep {
+        case profile
+        case terms
+        case onboarding
+    }
+    @State private var step: OnboardingStep = .profile
+
     @State private var profileInfo = ProfileInfo(
         firstName: "",
         lastName: "",
@@ -100,22 +108,35 @@ struct OnboardingFlowEntryView: View {
 
     var body: some View {
         NavigationStack {
-            EditProfileView(
-                viewModel: onboardingProfileVM,
-                showOnboardingAfterSave: true,
-                onSave: { _ in
-                    onboardingUserName = (onboardingProfileVM.profileInfo.firstName + " " + onboardingProfileVM.profileInfo.lastName).trimmingCharacters(in: .whitespaces)
-                    if let image = onboardingProfileVM.profileInfo.image, let data = image.jpegData(compressionQuality: 0.8) {
-                        onboardingProfileImageData = data
+            Group {
+                switch step {
+                case .profile:
+                    EditProfileView(
+                        viewModel: onboardingProfileVM,
+                        showOnboardingAfterSave: true,
+                        onSave: { _ in
+                            onboardingUserName = (onboardingProfileVM.profileInfo.firstName + " " + onboardingProfileVM.profileInfo.lastName).trimmingCharacters(in: .whitespaces)
+                            if let image = onboardingProfileVM.profileInfo.image, let data = image.jpegData(compressionQuality: 0.8) {
+                                onboardingProfileImageData = data
+                            }
+                            if !acceptedTermsOfUse {
+                                step = .terms
+                            } else {
+                                step = .onboarding
+                            }
+                        }
+                    )
+                case .terms:
+                    TermsOfUseView {
+                        acceptedTermsOfUse = true
+                        step = .onboarding
                     }
-                    showOnboarding = true
+                case .onboarding:
+                    OnboardingView(
+                        userName: onboardingUserName,
+                        profileImage: onboardingProfileImage
+                    )
                 }
-            )
-            .navigationDestination(isPresented: $showOnboarding) {
-                OnboardingView(
-                    userName: onboardingUserName,
-                    profileImage: onboardingProfileImage
-                )
             }
         }
     }

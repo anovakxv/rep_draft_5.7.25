@@ -10,3 +10,4 @@ from .PortalGraphicSection import PortalGraphicSection
 from .PortalInvite import PortalInvite
 from .PortalTexts import PortalText
 from .PortalUser import PortalUser
+from .FlaggedPortal import FlaggedPortal

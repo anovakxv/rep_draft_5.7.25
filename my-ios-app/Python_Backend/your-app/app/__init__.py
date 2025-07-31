@@ -32,7 +32,7 @@ def create_app():
     from app.models.People_Models.Messaging_Models import Direct_Messages, Group_Messages, GroupChatMetaData, GroupChatUsers
 
     # Purpose_Models
-    from app.models.Purpose_Models import Portal, PortalEvent, PortalGraphicSection, PortalInvite, PortalTexts, PortalUser, PortalsUsersShare
+    from app.models.Purpose_Models import Portal, PortalEvent, PortalGraphicSection, PortalInvite, PortalTexts, PortalUser, PortalsUsersShare, FlaggedPortal
 
     # s3Content_Models
     from app.models.s3Content_Models import s3Content
@@ -60,7 +60,7 @@ def create_app():
     from app.routes.User_Routes.Get_People import people_bp as get_people_bp
     from app.models.People_Models import FlaggedUser
     from app.models.People_Models.BlockedUser import BlockedUser 
-    
+
     # --- Register SearchPeople API Blueprint ---
     from app.routes.User_Routes.SearchPeople import search_people_bp
     app.register_blueprint(search_people_bp)
@@ -88,6 +88,7 @@ def create_app():
     from app.routes.Portal_Routes.Portal_GraphicSections import portal_bp as portal_graphic_sections_bp
     from app.routes.Portal_Routes.Portal_TextSections import portal_bp as portal_texts_bp
     from app.routes.Portal_Routes.SharePortalViaMessage import portal_bp as portal_share_bp
+    from app.routes.Portal_Routes.FlagPortal import portal_bp as flag_portal_bp
 
     # --- Register SearchPortals API Blueprint ---
     from app.routes.Portal_Routes.SearchPortals import search_portals_bp
@@ -98,6 +99,8 @@ def create_app():
     app.register_blueprint(portal_graphic_sections_bp, url_prefix='/api/portal')
     app.register_blueprint(portal_texts_bp, url_prefix='/api/portal')
     app.register_blueprint(portal_share_bp, url_prefix='/api/portal')
+    app.register_blueprint(flag_portal_bp, url_prefix='/api/portal')
+
 
     # --- Register Messaging API Blueprints ---
     from app.routes.Messaging_Routes.DeleteGroupChat import user_bp as delete_group_chat_bp

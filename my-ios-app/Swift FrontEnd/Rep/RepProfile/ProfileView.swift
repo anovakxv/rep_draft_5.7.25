@@ -591,6 +591,8 @@ struct ProfileView: View {
     @State private var reportingIncrements: [ReportingIncrement] = []
     @State private var isLoadingIncrements = false
     @State private var selectedGoal: Goal? = nil
+    @State private var showPolicy = false
+    @State private var showFlagConfirmation = false
 
     // For navigation to GoalsDetailView
     @StateObject private var editProfileVM = ProfileInfoViewModel(
@@ -775,14 +777,24 @@ struct ProfileView: View {
                         }) {
                             Text("Logout")
                                 .foregroundColor(.red)
-                                .font(.title2)
+                                .font(.body)
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
                     }
+                    Button(action: {
+                        showPolicy = true
+                    }) {
+                        Text("Policy")
+                            .foregroundColor(.black)
+                            .font(.body)
+                            .fontWeight(.regular)
+                            .padding(.vertical, 5)
+                    }
                     Button(action: { activeSheet = nil }) {
                         Text("Cancel")
                             .foregroundColor(.secondary)
+                            .font(.body)
                     }
                 }
                 .padding()
@@ -821,7 +833,7 @@ struct ProfileView: View {
                         }) {
                             Text("Unblock User")
                                 .foregroundColor(.red)
-                                .font(.title2)
+                                .font(.body)
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
@@ -839,7 +851,7 @@ struct ProfileView: View {
                         }) {
                             Text("Block User")
                                 .foregroundColor(.red)
-                                .font(.title2)
+                                .font(.body)
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
@@ -847,26 +859,31 @@ struct ProfileView: View {
                     // --- End Block/Unblock User Button ---
                     // --- Flag as Inappropriate Button ---
                     Button(action: {
-                        viewModel.flagUser { success, message in
-                            DispatchQueue.main.async {
-                                networkResultMessage = success ? "User flagged as inappropriate." : (message ?? "Failed to flag user.")
-                                activeSheet = nil
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                    showNetworkResultAlert = true
-                                }
-                            }
-                        }
+                        showFlagConfirmation = true
                     }) {
                         Text("Flag as Inappropriate")
-                            .foregroundColor(.orange)
-                            .font(.title2)
+                            .foregroundColor(.red)
+                            .font(.body)
                             .fontWeight(.bold)
                             .padding(.vertical, 5)
+                    }
+                    .alert("Flag User?", isPresented: $showFlagConfirmation) {
+                        Button("Flag", role: .destructive) {
+                            viewModel.flagUser { success, message in
+                                networkResultMessage = success ? "User flagged as inappropriate." : (message ?? "Failed to flag user.")
+                                showNetworkResultAlert = true
+                            }
+                            activeSheet = nil
+                        }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("Are you sure you want to flag this person as inappropriate?")
                     }
                     // --- End Flag as Inappropriate Button ---
                     Button(action: { activeSheet = nil }) {
                         Text("Cancel")
                             .foregroundColor(.secondary)
+                            .font(.body)
                     }
                 }
                 .padding()
@@ -918,6 +935,9 @@ struct ProfileView: View {
                 )
             }
         }
+        .navigationDestination(isPresented: $showPolicy) {
+            TermsOfUseView()
+        }    
         .alert(isPresented: $showNetworkResultAlert) {
             Alert(title: Text(networkResultMessage))
         }
@@ -1033,9 +1053,12 @@ struct ProfileMainContent: View {
     }
 
     private func logoutAndClearSession() {
+        @AppStorage("acceptedTermsOfUse") var acceptedTermsOfUse: Bool = false // <-- Add this line
+
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/logout") else {
             viewModel.jwtToken = ""
             viewModel.loggedInUserId = 0
+            acceptedTermsOfUse = false // <-- Reset Terms flag on local logout
             return
         }
         var request = URLRequest(url: url)
@@ -1047,6 +1070,7 @@ struct ProfileMainContent: View {
             DispatchQueue.main.async {
                 viewModel.jwtToken = ""
                 viewModel.loggedInUserId = 0
+                acceptedTermsOfUse = false // <-- Reset Terms flag on logout
                 // Do NOT call dismiss() here!
             }
         }.resume()

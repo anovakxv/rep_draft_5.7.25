@@ -258,8 +258,8 @@ struct PortalPage: View {
                     showFlagConfirmation = true
                 }) {
                     Text("Flag as Inappropriate")
-                        .foregroundColor(.orange)
-                        .font(.title2)
+                        .foregroundColor(.red)
+                        .font(.body)
                         .fontWeight(.bold)
                         .padding(.vertical, 5)
                 }
@@ -278,6 +278,7 @@ struct PortalPage: View {
                 Button(action: { activeSheet = nil }) {
                     Text("Cancel")
                         .foregroundColor(.secondary)
+                        .font(.body)
                 }
             }
             .padding()

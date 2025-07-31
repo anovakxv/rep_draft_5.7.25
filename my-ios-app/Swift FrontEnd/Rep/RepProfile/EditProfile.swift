@@ -241,8 +241,15 @@ struct EditProfileView: View {
 
     // --- Delete Profile Function ---
     private func deleteProfile() {
+        @AppStorage("acceptedTermsOfUse") var acceptedTermsOfUse: Bool = false // <-- Add this line
+
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/delete"),
-              !viewModel.jwtToken.isEmpty else { return }
+            !viewModel.jwtToken.isEmpty else {
+            viewModel.jwtToken = ""
+            acceptedTermsOfUse = false // <-- Reset Terms flag on local delete
+            dismiss()
+            return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -252,7 +259,7 @@ struct EditProfileView: View {
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                     // Log out and clear session
                     viewModel.jwtToken = ""
-                    // Optionally clear other user data here
+                    acceptedTermsOfUse = false // <-- Reset Terms flag on delete
                     dismiss()
                 } else {
                     // Optionally show error

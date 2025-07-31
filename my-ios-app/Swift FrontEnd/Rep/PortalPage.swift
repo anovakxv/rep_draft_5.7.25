@@ -99,6 +99,41 @@ class PortalViewModel: ObservableObject {
         }.resume()
     }
 }
+extension PortalViewModel {
+        func flagPortal(portalId: Int, reason: String = "", completion: @escaping (Bool, String?) -> Void) {
+            guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/flag_portal") else {
+                completion(false, "Invalid URL")
+                return
+            }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if !jwtToken.isEmpty {
+                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+            }
+            let body: [String: Any] = [
+                "portal_id": portalId,
+                "reason": reason
+            ]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    completion(false, error.localizedDescription)
+                    return
+                }
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    completion(false, "No response")
+                    return
+                }
+                if httpResponse.statusCode == 200 {
+                    completion(true, nil)
+                } else {
+                    let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
+                    completion(false, message)
+                }
+            }.resume()
+        }
+    }
 
 struct PortalGoalsResponse: Codable {
     let aGoals: [Goal]
@@ -111,6 +146,10 @@ struct PortalPage: View {
     let portalId: Int
     let userId: Int
     @Environment(\.dismiss) private var dismiss
+
+    @State private var showFlagConfirmation = false
+    @State private var flagResultMessage: String? = nil
+    @State private var showFlagResultAlert = false
 
     // Navigation/modal state
     @State private var pendingAction: PendingAction? = nil
@@ -214,6 +253,27 @@ struct PortalPage: View {
                             .padding(.vertical, 5)
                     }
                 }
+                Button(action: {
+                    showFlagConfirmation = true
+                }) {
+                    Text("Flag as Inappropriate")
+                        .foregroundColor(.orange)
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
+                }
+                .alert("Flag Portal?", isPresented: $showFlagConfirmation) {
+                    Button("Flag", role: .destructive) {
+                        viewModel.flagPortal(portalId: portal.id) { success, message in
+                            flagResultMessage = success ? "Portal flagged. Thank you for your report." : (message ?? "Failed to flag portal.")
+                            showFlagResultAlert = true
+                        }
+                        activeSheet = nil
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Are you sure you want to flag this portal as inappropriate?")
+                }
                 Button(action: { activeSheet = nil }) {
                     Text("Cancel")
                         .foregroundColor(.secondary)
@@ -224,6 +284,9 @@ struct PortalPage: View {
         case .none:
             EmptyView()
         }
+    }
+    .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
+        Button("OK", role: .cancel) { flagResultMessage = nil }
     }
 
     // Helper for main content

@@ -11,6 +11,8 @@ from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.Purpose_Models.PortalUser import PortalUser
 from app.models.Purpose_Models.PortalsUsersShare import PortalsUsersShare
 from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
+from app.models.Purpose_Models.FlaggedPortal import FlaggedPortal
+
 from sqlalchemy import or_
 from sqlalchemy.orm import subqueryload
 from app.utils.auth import jwt_required
@@ -135,7 +137,7 @@ def api_get_portals():
 def filter_network_portals():
     """
     Returns a list of portals for the MainScreen, filtered by tab: open, ntwk, all.
-    Use ?user_id=...&tab=open|ntwk|all
+    Use ?user_id=...&tab=open|ntwk|all&safe_only=true|false
     """
     args = request.args
     offset = int(args.get('offset', 0))
@@ -145,6 +147,7 @@ def filter_network_portals():
     keyword = args.get('keyword', '')
     cities_id = args.get('cities_id')
     portals_id = args.get('portals_id')
+    safe_only = args.get('safe_only', 'false').lower() == 'true'
 
     # Use JWT user if not provided
     if not user_id and hasattr(g, "current_user"):
@@ -177,9 +180,6 @@ def filter_network_portals():
                 Portal.id.in_(goal_team_portal_ids)
             )
         )
-        # query = query.filter(~Portal.id.in_(
-        #     db.session.query(UsersHiddenPortals.portals_id).filter_by(users_id=user_id)
-        # ))
     elif tab == "ntwk":
         # NTWK tab = all portals where a member of my network is on a GoalTeam
         from app.models.People_Models.UserNetwork import UserNetwork
@@ -193,6 +193,10 @@ def filter_network_portals():
         query = query.filter(Portal.visible == True)
     else:
         return jsonify({'error': 'Invalid tab value!'}), 400
+
+    if safe_only:
+        flagged_portal_ids = db.session.query(FlaggedPortal.portal_id).distinct()
+        query = query.filter(~Portal.id.in_(flagged_portal_ids))
 
     if keyword:
         query = query.filter(Portal.name.ilike(f"%{keyword.lower()}%"))

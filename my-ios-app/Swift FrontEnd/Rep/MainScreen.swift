@@ -49,7 +49,7 @@ class PortalsViewModel: ObservableObject {
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
-    func fetchPortals(userId: Int, section: Int) {
+    func fetchPortals(userId: Int, section: Int, safeOnly: Bool = false) {
         isLoading = true
         errorMessage = nil
         let tab: String
@@ -60,7 +60,8 @@ class PortalsViewModel: ObservableObject {
         default: tab = "open"
         }
         let limitParam = (tab == "all") ? "&limit=50" : ""
-        let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)"
+        let safeParam = safeOnly ? "&safe_only=true" : ""
+        let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)\(safeParam)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"
             isLoading = false
@@ -358,6 +359,7 @@ struct MainScreen: View {
     @State private var searchDebounceTimer: Timer?
     @State private var pendingAction: MainActionSheetAction?
     @State private var currentUser: User? = nil
+    @State private var showOnlySafePortals = false // <-- Added
 
     var body: some View {
         NavigationStack {
@@ -377,7 +379,8 @@ struct MainScreen: View {
                 filteredUsers: filteredUsers,
                 filteredActiveChats: filteredActiveChats,
                 filteredPortals: filteredPortals,
-                fetchCurrentUser: fetchCurrentUser
+                fetchCurrentUser: fetchCurrentUser,
+                showOnlySafePortals: $showOnlySafePortals // <-- Added
             )
             .modifier(MainScreenToolbar(
                 section: $section,
@@ -399,11 +402,21 @@ struct MainScreen: View {
                 return
             }
             if page == .portals {
-                portalsVM.fetchPortals(userId: userId, section: section)
+                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals) // <-- Updated
             } else {
                 peopleVM.fetchPeople(userId: userId, section: section)
             }
             fetchCurrentUser()
+        }
+        .onChange(of: showOnlySafePortals) { newValue in // <-- Added
+            if page == .portals {
+                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: newValue)
+            }
+        }
+        .onChange(of: section) { newSection in // <-- Added for section change
+            if page == .portals {
+                portalsVM.fetchPortals(userId: userId, section: newSection, safeOnly: showOnlySafePortals)
+            }
         }
     }
 
@@ -506,6 +519,7 @@ struct MainScreenContent: View {
     var filteredActiveChats: [ActiveChat]
     var filteredPortals: [Portal]
     var fetchCurrentUser: () -> Void
+    @Binding var showOnlySafePortals: Bool // <-- Added
 
     var body: some View {
         VStack(spacing: 0) {
@@ -557,7 +571,7 @@ struct MainScreenContent: View {
                 action: {
                     page = page == .people ? .portals : .people
                     if page == .portals {
-                        portalsVM.fetchPortals(userId: userId, section: section)
+                        portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals) // <-- Updated
                     } else {
                         peopleVM.fetchPeople(userId: userId, section: section)
                     }
@@ -612,6 +626,58 @@ struct MainScreenContent: View {
             switch sheet {
             case .actionSheet:
                 VStack(spacing: 0) {
+                    HStack(spacing: 24) {
+                        Text("Show:")
+                            .font(.title2)
+                            .fontWeight(.regular)
+                            .foregroundColor(.black)
+                            .padding(.trailing, 4)
+                        Button(action: {
+                            showOnlySafePortals = false
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: false)
+                        }) {
+                            HStack {
+                                ZStack {
+                                    Circle()
+                                        .stroke(Color.black, lineWidth: 2)
+                                        .frame(width: 24, height: 24)
+                                    if !showOnlySafePortals {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.black)
+                                            .font(.system(size: 14, weight: .bold))
+                                    }
+                                }
+                                Text("All")
+                                    .font(.title2)
+                                    .fontWeight(!showOnlySafePortals ? .bold : .regular)
+                                    .foregroundColor(.black)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        Button(action: {
+                            showOnlySafePortals = true
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: true)
+                        }) {
+                            HStack {
+                                ZStack {
+                                    Circle()
+                                        .stroke(Color.black, lineWidth: 2)
+                                        .frame(width: 24, height: 24)
+                                    if showOnlySafePortals {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.black)
+                                            .font(.system(size: 14, weight: .bold))
+                                    }
+                                }
+                                Text("Safe")
+                                    .font(.title2)
+                                    .fontWeight(showOnlySafePortals ? .bold : .regular)
+                                    .foregroundColor(.black)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .padding(.vertical, 12)
                     Button(action: {
                         pendingAction = .addPurpose
                         activeSheet = nil

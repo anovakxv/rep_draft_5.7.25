@@ -99,6 +99,7 @@ class PortalViewModel: ObservableObject {
         }.resume()
     }
 }
+
 extension PortalViewModel {
         func flagPortal(portalId: Int, reason: String = "", completion: @escaping (Bool, String?) -> Void) {
             guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/flag_portal") else {
@@ -133,7 +134,7 @@ extension PortalViewModel {
                 }
             }.resume()
         }
-    }
+}
 
 struct PortalGoalsResponse: Codable {
     let aGoals: [Goal]
@@ -285,9 +286,6 @@ struct PortalPage: View {
             EmptyView()
         }
     }
-    .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
-        Button("OK", role: .cancel) { flagResultMessage = nil }
-    }
 
     // Helper for main content
     @ViewBuilder
@@ -375,6 +373,9 @@ struct PortalPage: View {
                     .hidden()
                 )
                 .navigationBarHidden(true)
+                .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
+                Button("OK", role: .cancel) { flagResultMessage = nil }
+            }
         }
     }
 }

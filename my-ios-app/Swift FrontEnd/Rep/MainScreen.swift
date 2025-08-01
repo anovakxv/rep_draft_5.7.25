@@ -626,6 +626,58 @@ struct MainScreenContent: View {
             switch sheet {
             case .actionSheet:
                 VStack(spacing: 24) {
+                    HStack(spacing: 24) {
+                        Text("Show:")
+                            .font(.body)
+                            .fontWeight(.regular)
+                            .foregroundColor(.secondary)
+                            .padding(.trailing, 4)
+                        Button(action: {
+                            showOnlySafePortals = false
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: false)
+                        }) {
+                            HStack {
+                                ZStack {
+                                    Circle()
+                                        .stroke(Color.secondary, lineWidth: 2)
+                                        .frame(width: 20, height: 20)
+                                    if !showOnlySafePortals {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                            .font(.system(size: 14, weight: .bold))
+                                    }
+                                }
+                                Text("All")
+                                    .font(.body)
+                                    .fontWeight(!showOnlySafePortals ? .bold : .regular)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        Button(action: {
+                            showOnlySafePortals = true
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: true)
+                        }) {
+                            HStack {
+                                ZStack {
+                                    Circle()
+                                        .stroke(Color.secondary, lineWidth: 2)
+                                        .frame(width: 20, height: 20)
+                                    if showOnlySafePortals {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                            .font(.system(size: 14, weight: .bold))
+                                    }
+                                }
+                                Text("Safe")
+                                    .font(.body)
+                                    .fontWeight(showOnlySafePortals ? .bold : .regular)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .padding(.vertical, 12)
                     Button(action: {
                         pendingAction = .addPurpose
                         activeSheet = nil
@@ -651,58 +703,6 @@ struct MainScreenContent: View {
                             .foregroundColor(.secondary)
                             .padding(.vertical, 12)
                     }
-                    HStack(spacing: 24) {
-                        Text("Show:")
-                            .font(.body)
-                            .fontWeight(.regular)
-                            .foregroundColor(.black)
-                            .padding(.trailing, 4)
-                        Button(action: {
-                            showOnlySafePortals = false
-                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: false)
-                        }) {
-                            HStack {
-                                ZStack {
-                                    Circle()
-                                        .stroke(Color.black, lineWidth: 2)
-                                        .frame(width: 20, height: 20)
-                                    if !showOnlySafePortals {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.black)
-                                            .font(.system(size: 12, weight: .bold))
-                                    }
-                                }
-                                Text("All")
-                                    .font(.body)
-                                    .fontWeight(!showOnlySafePortals ? .bold : .regular)
-                                    .foregroundColor(.black)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        Button(action: {
-                            showOnlySafePortals = true
-                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: true)
-                        }) {
-                            HStack {
-                                ZStack {
-                                    Circle()
-                                        .stroke(Color.black, lineWidth: 2)
-                                        .frame(width: 20, height: 20)
-                                    if showOnlySafePortals {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.black)
-                                            .font(.system(size: 12, weight: .bold))
-                                    }
-                                }
-                                Text("Safe")
-                                    .font(.body)
-                                    .fontWeight(showOnlySafePortals ? .bold : .regular)
-                                    .foregroundColor(.black)
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
-                    .padding(.vertical, 12)
                 }
                 .padding()
                 .presentationDetents([.medium])

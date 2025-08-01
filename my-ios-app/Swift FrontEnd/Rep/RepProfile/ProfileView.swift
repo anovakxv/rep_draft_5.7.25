@@ -778,7 +778,6 @@ struct ProfileView: View {
                             Text("Logout")
                                 .foregroundColor(.red)
                                 .font(.body)
-                                .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
                     }
@@ -852,7 +851,6 @@ struct ProfileView: View {
                             Text("Block User")
                                 .foregroundColor(.red)
                                 .font(.body)
-                                .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
                     }
@@ -864,7 +862,6 @@ struct ProfileView: View {
                         Text("Flag as Inappropriate")
                             .foregroundColor(.red)
                             .font(.body)
-                            .fontWeight(.bold)
                             .padding(.vertical, 5)
                     }
                     .alert("Flag User?", isPresented: $showFlagConfirmation) {

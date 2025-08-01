@@ -260,7 +260,6 @@ struct PortalPage: View {
                     Text("Flag as Inappropriate")
                         .foregroundColor(.red)
                         .font(.body)
-                        .fontWeight(.bold)
                         .padding(.vertical, 5)
                 }
                 .alert("Flag Portal?", isPresented: $showFlagConfirmation) {

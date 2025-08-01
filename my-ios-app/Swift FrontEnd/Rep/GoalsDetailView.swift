@@ -187,8 +187,7 @@ struct GoalsDetailView: View {
                             showDeleteAlert = true
                         } label: {
                             Text("Delete Goal")
-                                .font(.title2)
-                                .fontWeight(.bold)
+                                .font(.body)
                                 .padding(.vertical, 5)
                         }
                         Button(action: { activeSheet = nil }) {

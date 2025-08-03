@@ -13,6 +13,10 @@ struct GoalsDetailView: View {
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
 
+    // --- Messaging State ---
+    @State private var showMessageView = false
+    @State private var messageUser: User? = nil
+
     // --- Unified Sheet State ---
     private enum ActiveSheet: Identifiable {
         case action
@@ -131,7 +135,35 @@ struct GoalsDetailView: View {
 
                 BottomGoalBar(
                     onAdd: { activeSheet = .action },
-                    onMessage: { /* Optionally implement messaging */ }
+                    onMessage: {
+                        // --- Activate messaging to Goal Creator ---
+                        let creatorId = viewModel.goal.creatorId
+                        guard creatorId != 0 else { return }
+                        // Try to find the creator in the team array for full info, else fallback
+                        let creatorUser = viewModel.team.first(where: { $0.id == creatorId }) ??
+                            User(
+                                id: creatorId,
+                                fullName: nil,
+                                fname: nil,
+                                lname: nil,
+                                username: nil,
+                                about: nil,
+                                broadcast: nil,
+                                profilePictureURL: nil,
+                                imageName: nil,
+                                userType: nil,
+                                city: nil,
+                                skills: nil,
+                                other_skill: nil,
+                                lastLogin: nil,
+                                createdAt: nil,
+                                updatedAt: nil,
+                                lastMessage: nil,
+                                lastMessageDate: nil
+                            )
+                        messageUser = creatorUser
+                        showMessageView = true
+                    }
                 )
             }
             .background(Color.white.edgesIgnoringSafeArea(.all))
@@ -234,6 +266,26 @@ struct GoalsDetailView: View {
             } message: {
                 Text("Are you sure you want to delete this goal? This cannot be undone.")
             }
+            // --- Messaging NavigationLink ---
+            .background(
+                NavigationLink(
+                    destination:
+                        messageUser.map { user in
+                            MessageView(
+                                viewModel: .init(
+                                    currentUserId: viewModel.currentUserId,
+                                    otherUserId: user.id,
+                                    otherUserName: user.displayName,
+                                    otherUserPhotoURL: user.profilePictureURL
+                                )
+                            )
+                        },
+                    isActive: $showMessageView
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            )
         }
     }
 

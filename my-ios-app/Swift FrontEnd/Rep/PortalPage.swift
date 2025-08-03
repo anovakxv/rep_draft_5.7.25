@@ -151,21 +151,20 @@ struct PortalPage: View {
     @State private var showFlagConfirmation = false
     @State private var flagResultMessage: String? = nil
     @State private var showFlagResultAlert = false
+    @State private var selectedLead: User? = nil
 
     // Navigation/modal state
     @State private var pendingAction: PendingAction? = nil
 
-    // Enum for all possible sheets (EditGoal, Message, PortalActionSheet)
+    // Enum for all possible sheets (EditGoal, PortalActionSheet)
     enum ActiveSheet: Identifiable {
         case addGoal
-        case message
         case portalActionMenu
 
         var id: Int {
             switch self {
             case .addGoal: return 1
-            case .message: return 2
-            case .portalActionMenu: return 3
+            case .portalActionMenu: return 2
             }
         }
     }
@@ -178,9 +177,16 @@ struct PortalPage: View {
     @State private var chatUserId: Int? = nil
     @State private var chatUserName: String = ""
     @State private var chatUserPhotoURL: URL? = nil
+    @State private var showMessageView = false // <-- NEW
+
+    // Device type check for robust sheet/fullScreenCover logic
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
 
     private func leadRepUser(from portal: PortalDetail) -> User? {
-        return portal.aUsers?.first
+    // Use the first lead user, not just any user
+    return portal.aLeads?.first
     }
     private func isCurrentUserLead(_ portal: PortalDetail) -> Bool {
         portal.aUsers?.contains(where: { $0.id == userId }) ?? false
@@ -205,19 +211,6 @@ struct PortalPage: View {
                 reportingIncrements: viewModel.reportingIncrements,
                 associatedPortalName: portal.name
             )
-        case .message:
-            if let lead = leadRepUser(from: portal) {
-                MessageView(
-                    viewModel: MessageViewModel(
-                        currentUserId: userId,
-                        otherUserId: lead.id,
-                        otherUserName: "\(lead.fname ?? "") \(lead.lname ?? "")",
-                        otherUserPhotoURL: lead.profilePictureURL
-                    )
-                )
-            } else {
-                Text("Lead Rep not found.")
-            }
         case .portalActionMenu:
             VStack(spacing: 24) {
                 if isCurrentUserLead(portal) {
@@ -302,16 +295,27 @@ struct PortalPage: View {
                 onAdd: { activeSheet = .portalActionMenu },
                 onMessage: {
                     if let lead = leadRepUser(from: portal) {
-                        chatUserId = lead.id
-                        chatUserName = (lead.fname ?? "") + " " + (lead.lname ?? "")
-                        chatUserPhotoURL = lead.profilePictureURL
-                        activeSheet = .message
+                        selectedLead = lead
+                        showMessageView = true
+                    } else {
+                        print("No lead user found for portal!")
                     }
                 }
             )
-            .sheet(item: $activeSheet) { _ in
-                activeSheetView(portal: portal)
-            }
+            // Only keep sheets for addGoal and portalActionMenu
+            .background(
+                Group {
+                    Color.clear
+                        .sheet(isPresented: Binding(
+                            get: { activeSheet == .addGoal || activeSheet == .portalActionMenu },
+                            set: { show in if !show { activeSheet = nil } }
+                        )) {
+                            if let portal = viewModel.portalDetail {
+                                activeSheetView(portal: portal)
+                            }
+                        }
+                }
+            )
             // NavigationLink for EditPortalView
             NavigationLink(
                 destination: EditPortalView(portal: portal, userId: userId)
@@ -320,6 +324,24 @@ struct PortalPage: View {
                         viewModel.fetchPortalDetail(portalId: portal.id, userId: userId)
                     },
                 isActive: $showEditPortal
+            ) {
+                EmptyView()
+            }
+            .hidden()
+            // NavigationLink for MessageView (Chat_Individual)
+            NavigationLink(
+                destination:
+                    selectedLead.map { lead in
+                        MessageView(
+                            viewModel: MessageViewModel(
+                                currentUserId: userId,
+                                otherUserId: lead.id,
+                                otherUserName: (lead.fname ?? "") + " " + (lead.lname ?? ""),
+                                otherUserPhotoURL: lead.profilePictureURL
+                            )
+                        )
+                    },
+                isActive: $showMessageView
             ) {
                 EmptyView()
             }
@@ -344,7 +366,7 @@ struct PortalPage: View {
                     chatUserId = user.id
                     chatUserName = (user.fname ?? "") + " " + (user.lname ?? "")
                     chatUserPhotoURL = user.profilePictureURL
-                    activeSheet = .message
+                    showMessageView = true
                 }
                 pendingAction = nil
             }

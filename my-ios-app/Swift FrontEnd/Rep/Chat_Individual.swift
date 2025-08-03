@@ -81,9 +81,16 @@ class MessageViewModel: ObservableObject {
     }
     
     func sendMessage() {
+        print("sendMessage called: currentUserId=\(currentUserId), otherUserId=\(otherUserId), jwtToken=\(jwtToken)")
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_message") else { return }
+        guard !trimmed.isEmpty else {
+            print("Message is empty, not sending.")
+            return
+        }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_message") else {
+            print("Invalid URL for send_message")
+            return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -96,7 +103,14 @@ class MessageViewModel: ObservableObject {
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data, error == nil else { return }
+            if let error = error {
+                print("Send message error: \(error)")
+                return
+            }
+            guard let data = data else {
+                print("No data returned from send message")
+                return
+            }
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             if let apiResult = try? decoder.decode(SendMessageAPIResponse.self, from: data) {
@@ -196,7 +210,7 @@ struct UITextViewWrapper: UIViewRepresentable {
 // MARK: - Messaging View
 
 struct MessageView: View {
-    @ObservedObject var viewModel: MessageViewModel
+    @StateObject var viewModel: MessageViewModel
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {

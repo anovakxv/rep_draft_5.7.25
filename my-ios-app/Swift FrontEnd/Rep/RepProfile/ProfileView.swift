@@ -594,6 +594,10 @@ struct ProfileView: View {
     @State private var showPolicy = false
     @State private var showFlagConfirmation = false
 
+    // --- Messaging navigation state ---
+    @State private var selectedUser: User? = nil
+    @State private var showMessageView = false
+
     // For navigation to GoalsDetailView
     @StateObject private var editProfileVM = ProfileInfoViewModel(
         profileInfo: ProfileInfo(
@@ -615,7 +619,6 @@ struct ProfileView: View {
         case profileActionMenu
         case addPurpose
         case addGoal
-        case message
 
         var id: Int {
             switch self {
@@ -623,7 +626,6 @@ struct ProfileView: View {
             case .profileActionMenu: return 2
             case .addPurpose: return 3
             case .addGoal: return 4
-            case .message: return 5
             }
         }
     }
@@ -686,7 +688,11 @@ struct ProfileView: View {
                         activeSheet = .profileActionMenu
                     }
                 },
-                onMessage: { activeSheet = .message }
+                onMessage: {
+                    print("Messaging: loggedInUserId=\(viewModel.loggedInUserId), selectedUserId=\(viewModel.user.id)")
+                    selectedUser = viewModel.user
+                    showMessageView = true
+                }
             )
             // NavigationLink for EditProfile (not a sheet)
             .fullScreenCover(isPresented: $showEditProfile) {
@@ -921,15 +927,6 @@ struct ProfileView: View {
                         : reportingIncrements,
                     associatedPortalName: nil
                 )
-            case .message:
-                MessageView(
-                    viewModel: MessageViewModel(
-                        currentUserId: viewModel.loggedInUserId,
-                        otherUserId: viewModel.user.id,
-                        otherUserName: viewModel.user.fullName ?? "",
-                        otherUserPhotoURL: viewModel.user.profilePictureURL
-                    )
-                )
             }
         }
         .navigationDestination(isPresented: $showPolicy) {
@@ -975,15 +972,35 @@ struct ProfileView: View {
             }
         }
         .background(
-            NavigationLink(
-                destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
-                isActive: Binding(
-                    get: { selectedGoal != nil },
-                    set: { isActive in if !isActive { selectedGoal = nil } }
-                ),
-                label: { EmptyView() }
-            )
-            .hidden()
+            Group {
+                NavigationLink(
+                    destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
+                    isActive: Binding(
+                        get: { selectedGoal != nil },
+                        set: { isActive in if !isActive { selectedGoal = nil } }
+                    ),
+                    label: { EmptyView() }
+                )
+                .hidden()
+                // --- Messaging NavigationLink ---
+                NavigationLink(
+                    destination:
+                        selectedUser.map { user in
+                            MessageView(
+                                viewModel: .init(
+                                    currentUserId: viewModel.loggedInUserId,
+                                    otherUserId: user.id,
+                                    otherUserName: user.displayName,
+                                    otherUserPhotoURL: user.profilePictureURL
+                                )
+                            )
+                        },
+                    isActive: $showMessageView
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            }
         )
     }
 }

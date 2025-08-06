@@ -31,7 +31,7 @@ struct TermsOfUseView: View {
                 Inappropriate content can be flagged by users and reviewed by our team.
                 Users can block others to prevent unwanted or abusive interactions.
 
-                4. Removal of Objectionable Content	
+                4. Removal of Objectionable Content    
                 We will review flagged content and remove content that violates this policy within 24 hours of the content being flagged. Users who repeatedly violate our content policy will be ejected from the platform. 
 
                 5. Intellectual Property

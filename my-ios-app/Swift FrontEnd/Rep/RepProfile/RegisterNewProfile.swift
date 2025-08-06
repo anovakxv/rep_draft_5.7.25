@@ -33,6 +33,46 @@ extension UIApplication {
     }
 }
 
+// --- Custom Styled TextField for better placeholder and input readability ---
+struct StyledTextField: View {
+    var placeholder: String
+    @Binding var text: String
+    var isSecure: Bool = false
+    var keyboardType: UIKeyboardType = .default
+    var autocapitalization: TextInputAutocapitalization = .sentences
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundColor(Color(red: 0.35, green: 0.35, blue: 0.38)) // Darker gray
+                    .font(.custom("Inter", size: 16))
+                    .padding(.leading, 16)
+            }
+            if isSecure {
+                SecureField("", text: $text)
+                    .foregroundColor(.black)
+                    .font(.custom("Inter", size: 16))
+                    .padding(.leading, 16)
+            } else {
+                TextField("", text: $text)
+                    .foregroundColor(.black)
+                    .font(.custom("Inter", size: 16))
+                    .keyboardType(keyboardType)
+                    .textInputAutocapitalization(autocapitalization)
+                    .padding(.leading, 16)
+            }
+        }
+        .padding(.vertical, 12)
+        .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+        )
+    }
+}
+
 struct RegisterNewProfileView: View {
     @State private var firstName: String = ""
     @State private var lastName: String = ""
@@ -116,22 +156,8 @@ struct RegisterNewProfileView: View {
                             .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
 
                         HStack(spacing: 12) {
-                            TextField("First Name", text: $firstName)
-                                .padding()
-                                .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                                )
-                            TextField("Last Name", text: $lastName)
-                                .padding()
-                                .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                                .cornerRadius(14)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14)
-                                        .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                                )
+                            StyledTextField(placeholder: "First Name", text: $firstName, autocapitalization: .words)
+                            StyledTextField(placeholder: "Last Name", text: $lastName, autocapitalization: .words)
                         }
 
                         Text("Email:")
@@ -139,46 +165,11 @@ struct RegisterNewProfileView: View {
                             .foregroundColor(Color(red: 0.10, green: 0.11, blue: 0.16))
                             .padding(.top, 8)
 
-                        TextField("Email address", text: $email)
-                            .keyboardType(.emailAddress)
-                            .autocapitalization(.none)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
+                        StyledTextField(placeholder: "Email address", text: $email, keyboardType: .emailAddress, autocapitalization: .never)
 
-                        // Password field (secure)
-                        SecureField("Password", text: $password)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
-
-                        // Confirm Password field (secure)
-                        SecureField("Confirm Password", text: $confirmPassword)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
-
-                        TextField("Phone number (optional)", text: $phone)
-                            .keyboardType(.phonePad)
-                            .padding()
-                            .background(Color(red: 0.95, green: 0.95, blue: 0.95))
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
-                            )
+                        StyledTextField(placeholder: "Password", text: $password, isSecure: true)
+                        StyledTextField(placeholder: "Confirm Password", text: $confirmPassword, isSecure: true)
+                        StyledTextField(placeholder: "Phone number (optional)", text: $phone, keyboardType: .phonePad, autocapitalization: .never)
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 16)

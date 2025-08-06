@@ -9,6 +9,42 @@ import Combine
 import PhotosUI
 import Foundation
 
+// --- Custom Styled TextField for better placeholder and input readability ---
+struct StyledProfileTextField: View {
+    var placeholder: String
+    @Binding var text: String
+    var isSecure: Bool = false
+    var keyboardType: UIKeyboardType = .default
+    var autocapitalization: TextInputAutocapitalization = .sentences
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundColor(Color(red: 0.35, green: 0.35, blue: 0.38))
+                    .font(.custom("Inter", size: 16))
+                    .padding(.leading, 16)
+            }
+            if isSecure {
+                SecureField("", text: $text)
+                    .foregroundColor(.black)
+                    .font(.custom("Inter", size: 16))
+                    .padding(.leading, 16)
+            } else {
+                TextField("", text: $text)
+                    .foregroundColor(.black)
+                    .font(.custom("Inter", size: 16))
+                    .keyboardType(keyboardType)
+                    .textInputAutocapitalization(autocapitalization)
+                    .padding(.leading, 16)
+            }
+        }
+        .padding(.vertical, 12)
+        .background(Color(red: 0.98, green: 0.98, blue: 0.98))
+        .cornerRadius(6)
+    }
+}
+
 // MARK: - SkillModel
 
 struct SkillModel: Identifiable, Hashable, Codable {
@@ -91,19 +127,22 @@ struct EditProfileView: View {
                         EditProfileInfoSection(viewModel: viewModel, selectedPhoto: $selectedPhoto)
                         VStack(alignment: .leading, spacing: 16) {
                             HStack(spacing: 12) {
-                                TextField("First Name", text: $viewModel.profileInfo.firstName)
-                                    .padding()
-                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                    .cornerRadius(6)
-                                TextField("Last Name", text: $viewModel.profileInfo.lastName)
-                                    .padding()
-                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                    .cornerRadius(6)
+                                StyledProfileTextField(
+                                    placeholder: "First Name",
+                                    text: $viewModel.profileInfo.firstName,
+                                    autocapitalization: .words
+                                )
+                                StyledProfileTextField(
+                                    placeholder: "Last Name",
+                                    text: $viewModel.profileInfo.lastName,
+                                    autocapitalization: .words
+                                )
                             }
-                            TextField("Broadcast (optional)", text: $viewModel.profileInfo.broadcast)
-                                .padding()
-                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                .cornerRadius(6)
+                            StyledProfileTextField(
+                                placeholder: "Broadcast (optional)",
+                                text: $viewModel.profileInfo.broadcast,
+                                autocapitalization: .sentences
+                            )
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Rep Type")
                                     .font(.custom("Inter", size: 16).weight(.bold))
@@ -122,10 +161,11 @@ struct EditProfileView: View {
                                 Text("City")
                                     .font(.custom("Inter", size: 16).weight(.bold))
                                     .foregroundColor(.black)
-                                TextField("Enter City (optional)", text: $viewModel.profileInfo.cityName)
-                                    .padding()
-                                    .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                    .cornerRadius(6)
+                                StyledProfileTextField(
+                                    placeholder: "Enter City (optional)",
+                                    text: $viewModel.profileInfo.cityName,
+                                    autocapitalization: .words
+                                )
                             }
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Select up to 3 Skills")
@@ -157,10 +197,11 @@ struct EditProfileView: View {
                                         .foregroundColor(.gray)
                                 }
                             }
-                            TextField("Other Skill (optional)", text: $viewModel.profileInfo.otherSkill)
-                                .padding()
-                                .background(Color(red: 0.98, green: 0.98, blue: 0.98))
-                                .cornerRadius(6)
+                            StyledProfileTextField(
+                                placeholder: "Other Skill (optional)",
+                                text: $viewModel.profileInfo.otherSkill,
+                                autocapitalization: .words
+                            )
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 8)

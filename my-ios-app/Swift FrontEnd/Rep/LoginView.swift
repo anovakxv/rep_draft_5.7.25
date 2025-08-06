@@ -8,6 +8,46 @@
 import SwiftUI
 import Combine
 
+// --- Custom Styled TextField for better placeholder and input readability ---
+struct StyledLoginTextField: View {
+    var placeholder: String
+    @Binding var text: String
+    var isSecure: Bool = false
+    var keyboardType: UIKeyboardType = .default
+    var autocapitalization: TextInputAutocapitalization = .sentences
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            if text.isEmpty {
+                Text(placeholder)
+                    .foregroundColor(Color(red: 0.35, green: 0.35, blue: 0.38)) // Darker gray
+                    .font(.custom("Inter", size: 16))
+                    .padding(.leading, 16)
+            }
+            if isSecure {
+                SecureField("", text: $text)
+                    .foregroundColor(.black)
+                    .font(.custom("Inter", size: 16))
+                    .padding(.leading, 16)
+            } else {
+                TextField("", text: $text)
+                    .foregroundColor(.black)
+                    .font(.custom("Inter", size: 16))
+                    .keyboardType(keyboardType)
+                    .textInputAutocapitalization(autocapitalization)
+                    .padding(.leading, 16)
+            }
+        }
+        .padding(.vertical, 12)
+        .background(Color(red: 0.95, green: 0.95, blue: 0.95))
+        .cornerRadius(14)
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color(red: 0.48, green: 0.75, blue: 0.29), lineWidth: 1)
+        )
+    }
+}
+
 // --- Stub Views for compilation ---
 
 struct GTextField: View {
@@ -106,14 +146,26 @@ struct LoginView: View {
     @ViewBuilder
     var textFieldsView: some View {
         VStack(spacing: 24.0) {
-            GTextField(model: .email, text: $viewModel.email)
-                .focused($focusedField, equals: .email)
-                .submitLabel(.next)
-                .onSubmit { focusedField = .password }
-            GTextField(model: .password, text: $viewModel.password)
-                .focused($focusedField, equals: .password)
-                .submitLabel(.go)
-                .onSubmit { viewModel.login() }
+            StyledLoginTextField(
+                placeholder: "Email",
+                text: $viewModel.email,
+                isSecure: false,
+                keyboardType: .emailAddress,
+                autocapitalization: .never // For email, use .never
+            )
+            .focused($focusedField, equals: .email)
+            .submitLabel(.next)
+            .onSubmit { focusedField = .password }
+            StyledLoginTextField(
+                placeholder: "Password",
+                text: $viewModel.password,
+                isSecure: true,
+                keyboardType: .default,
+                autocapitalization: .never // For password, use .never
+            )
+            .focused($focusedField, equals: .password)
+            .submitLabel(.go)
+            .onSubmit { viewModel.login() }
             // --- Add Reset Password Link ---
             HStack {
                 Spacer()

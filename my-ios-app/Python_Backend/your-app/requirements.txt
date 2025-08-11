@@ -11,3 +11,4 @@ gunicorn
 PyJWT
 Flask-Cors
 sendgrid
+pyapns2

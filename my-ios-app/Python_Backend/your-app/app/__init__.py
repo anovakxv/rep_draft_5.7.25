@@ -2,6 +2,14 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
+import os
+
+# Write the PEM file from the environment variable (if present)
+pem_path = "/tmp/apns_cert.pem"
+if "APNS_CERT_PEM" in os.environ:
+    with open(pem_path, "w") as f:
+        f.write(os.environ["APNS_CERT_PEM"])
+
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
@@ -60,6 +68,8 @@ def create_app():
     from app.routes.User_Routes.Get_People import people_bp as get_people_bp
     from app.models.People_Models import FlaggedUser
     from app.models.People_Models.BlockedUser import BlockedUser 
+    from app.routes.User_Routes.DeviceToken import user_bp as device_token_bp
+
 
     # --- Register SearchPeople API Blueprint ---
     from app.routes.User_Routes.SearchPeople import search_people_bp
@@ -78,6 +88,7 @@ def create_app():
     app.register_blueprint(register_user_bp, url_prefix='/api/user')
     app.register_blueprint(twitter_login_bp, url_prefix='/api/user')
     app.register_blueprint(write_bp, url_prefix='/api/user')
+    app.register_blueprint(device_token_bp, url_prefix='/api/user')
 
     # Get_People endpoints (like /api/active_chat_list, /api/filter_people)
     app.register_blueprint(get_people_bp)

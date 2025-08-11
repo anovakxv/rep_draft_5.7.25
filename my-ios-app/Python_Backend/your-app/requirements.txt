@@ -12,3 +12,4 @@ PyJWT
 Flask-Cors
 sendgrid
 pyapns2
+flask_jwt_extended

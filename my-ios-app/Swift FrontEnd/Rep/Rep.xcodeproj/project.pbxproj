@@ -95,9 +95,22 @@
 		00FDCFA42E1C2F3C00A63D8D /* appstore.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = appstore.png; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		003D02C12E4BE75E00880967 /* Exceptions for "Rep" folder in "Rep" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 005B632C2E16F83200A1F0C1 /* Rep */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		005B632F2E16F83200A1F0C1 /* Rep */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				003D02C12E4BE75E00880967 /* Exceptions for "Rep" folder in "Rep" target */,
+			);
 			path = Rep;
 			sourceTree = "<group>";
 		};
@@ -554,6 +567,7 @@
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Rep/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Rep;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
@@ -594,6 +608,7 @@
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Rep/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Rep;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;

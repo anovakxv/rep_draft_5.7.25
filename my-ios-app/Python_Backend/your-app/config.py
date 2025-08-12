@@ -9,4 +9,4 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET = os.getenv('JWT_SECRET', 'changeme')
     PASS_SALT = os.getenv('PASS_SALT', 'changeme')
-    
+    JWT_TOKEN_LOCATION = ["headers"] 

@@ -13,3 +13,4 @@ Flask-Cors
 sendgrid
 flask_jwt_extended
 requests
+google-auth

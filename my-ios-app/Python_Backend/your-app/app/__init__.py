@@ -10,12 +10,13 @@ if "APNS_CERT_PEM" in os.environ:
     with open(pem_path, "w") as f:
         f.write(os.environ["APNS_CERT_PEM"])
 
-from flask import Flask
+from flask import Flask, app
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 from config import Config
 from flask_migrate import Migrate
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager
 
 db = SQLAlchemy()
 socketio = SocketIO(cors_allowed_origins="*")
@@ -29,6 +30,7 @@ def create_app():
     socketio.init_app(app)
     migrate = Migrate(app, db)
 
+    jwt = JWTManager(app)
     # --- Import all models so Flask-Migrate can detect them ---
 
     # People_Models

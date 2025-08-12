@@ -11,6 +11,7 @@ build/
 !default.perspectivev3
 xcuserdata/
 *.xcscmblueprint
+GoogleService-Info.plist
 
 # SwiftPM
 .build/
@@ -59,3 +60,4 @@ Preview Content/
 # Misc
 *.moved-aside
 *.xcuserdatad
+

@@ -50,6 +50,40 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+
+          // --- Proactively fetch and send FCM token on app launch ---
+        Messaging.messaging().token { fcmToken, error in
+            print("Fetched FCM token:", fcmToken ?? "nil")
+            let jwtToken = UserDefaults.standard.string(forKey: "jwtToken") ?? ""
+            let userId = UserDefaults.standard.integer(forKey: "userId")
+            guard let fcmToken = fcmToken, !jwtToken.isEmpty, userId > 0 else {
+                print("No FCM token, jwtToken, or userId, not sending to backend (on launch).")
+                return
+            }
+            guard let url = URL(string: "\(APIConfig.baseURL)/api/user/device_token") else {
+                print("Invalid backend URL for device token registration (on launch).")
+                return
+            }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+            let body: [String: Any] = [
+                "device_token": fcmToken
+            ]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    print("Failed to send FCM token to backend (on launch): \(error)")
+                    return
+                }
+                if let httpResponse = response as? HTTPURLResponse {
+                    print("FCM token sent to backend on launch, status: \(httpResponse.statusCode)")
+                }
+            }.resume()
+        }
+        // --- End proactive FCM send ---
+
         return true
     }
 

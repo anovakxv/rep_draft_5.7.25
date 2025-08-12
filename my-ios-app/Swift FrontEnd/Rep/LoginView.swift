@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import FirebaseMessaging
 
 // --- Custom Styled TextField for better placeholder and input readability ---
 struct StyledLoginTextField: View {
@@ -247,6 +248,25 @@ class APILoginViewModel: ObservableObject {
                     self.isRegistered = true
                     self.onboardingComplete = true // <-- CRITICAL: Mark onboarding as complete after login!
                     self.isLoggedIn = true
+
+                      // --- Register FCM token after login ---
+                    Messaging.messaging().token { token, error in
+                        guard let token = token, !self.jwtToken.isEmpty, self.userId > 0 else { return }
+                        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/device_token") else { return }
+                        var request = URLRequest(url: url)
+                        request.httpMethod = "POST"
+                        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                        request.setValue("Bearer \(self.jwtToken)", forHTTPHeaderField: "Authorization")
+                        let body: [String: Any] = ["device_token": token]
+                        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                        URLSession.shared.dataTask(with: request) { _, response, _ in
+                            if let httpResponse = response as? HTTPURLResponse {
+                                print("FCM token sent to backend after login, status: \(httpResponse.statusCode)")
+                            }
+                        }.resume()
+                    }
+                    // --- End FCM registration ---
+                    
                 } else if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
                     self.error = .serverError(apiError.error)
                 } else {

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Combine
+import FirebaseMessaging
 
 // --- Keyboard Avoidance Helper ---
 final class KeyboardResponder: ObservableObject {
@@ -320,6 +321,24 @@ struct RegisterNewProfileView: View {
                 onboardingProfileVM.profileInfo.broadcast = ""
                 onboardingProfileVM.profileInfo.otherSkill = ""
                 onboardingProfileVM.profileInfo.skills = []
+
+                // --- Register FCM token after registration ---
+                Messaging.messaging().token { token, error in
+                    guard let token = token, !jwtToken.isEmpty, let id = newUserId, id > 0 else { return }
+                    guard let url = URL(string: "\(APIConfig.baseURL)/api/user/device_token") else { return }
+                    var request = URLRequest(url: url)
+                    request.httpMethod = "POST"
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+                    let body: [String: Any] = ["device_token": token]
+                    request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+                    URLSession.shared.dataTask(with: request) { _, response, _ in
+                        if let httpResponse = response as? HTTPURLResponse {
+                            print("FCM token sent to backend after registration, status: \(httpResponse.statusCode)")
+                        }
+                    }.resume()
+            }
+            // --- End FCM registration ---
             }
         }.resume()
     }

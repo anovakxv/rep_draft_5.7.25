@@ -47,86 +47,86 @@ struct RepApp: App {
 // MARK: - AppDelegate for Push Notifications
 
 class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
+    // Add this property to track when we have an APNS token
+    private var hasAPNSToken = false
+    
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
-
-          // --- Proactively fetch and send FCM token on app launch ---
-        Messaging.messaging().token { fcmToken, error in
-            print("Fetched FCM token:", fcmToken ?? "nil")
-            let jwtToken = UserDefaults.standard.string(forKey: "jwtToken") ?? ""
-            let userId = UserDefaults.standard.integer(forKey: "userId")
-            guard let fcmToken = fcmToken, !jwtToken.isEmpty, userId > 0 else {
-                print("No FCM token, jwtToken, or userId, not sending to backend (on launch).")
-                return
-            }
-            guard let url = URL(string: "\(APIConfig.baseURL)/api/user/device_token") else {
-                print("Invalid backend URL for device token registration (on launch).")
-                return
-            }
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-            let body: [String: Any] = [
-                "device_token": fcmToken
-            ]
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    print("Failed to send FCM token to backend (on launch): \(error)")
-                    return
-                }
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("FCM token sent to backend on launch, status: \(httpResponse.statusCode)")
-                }
-            }.resume()
-        }
-        // --- End proactive FCM send ---
-
+        
+        // DON'T request FCM token here - we'll do it after getting the APNS token
         return true
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        print("✅ Received APNS token")
         // Pass device token to FCM
         Messaging.messaging().apnsToken = deviceToken
+        hasAPNSToken = true
+        
+        // NOW request the FCM token since we have the APNS token
+        Messaging.messaging().token { fcmToken, error in
+            if let fcmToken = fcmToken {
+                print("✅ Successfully retrieved FCM token: \(fcmToken)")
+                self.sendFCMTokenToBackend(fcmToken: fcmToken)
+            } else if let error = error {
+                print("❌ Error retrieving FCM token: \(error.localizedDescription)")
+            }
+        }
     }
-
-    // Called when FCM issues a new registration token
-    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        print("FCM registration token: \(fcmToken ?? "")")
-        // Send this FCM token to your backend
+    
+    // Move token sending to a separate method for reuse
+    private func sendFCMTokenToBackend(fcmToken: String) {
         let jwtToken = UserDefaults.standard.string(forKey: "jwtToken") ?? ""
         let userId = UserDefaults.standard.integer(forKey: "userId")
-        guard let fcmToken = fcmToken, !jwtToken.isEmpty, userId > 0 else {
-            print("No FCM token, jwtToken, or userId, not sending to backend.")
+        
+        guard !jwtToken.isEmpty, userId > 0 else {
+            print("No jwtToken or userId, not sending FCM token to backend.")
             return
         }
+        
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/device_token") else {
             print("Invalid backend URL for device token registration.")
             return
         }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        let body: [String: Any] = [
-            "device_token": fcmToken
-        ]
+        
+        // Make sure token is sent exactly as expected by backend
+        let body: [String: Any] = ["device_token": fcmToken]
+        
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
                 print("Failed to send FCM token to backend: \(error)")
                 return
             }
+            
             if let httpResponse = response as? HTTPURLResponse {
                 print("FCM token sent to backend, status: \(httpResponse.statusCode)")
+                
+                // Debug response body if not 200
+                if httpResponse.statusCode != 200, let data = data, let responseString = String(data: data, encoding: .utf8) {
+                    print("Backend response: \(responseString)")
+                }
             }
         }.resume()
     }
 
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        print("Failed to register: \(error)")
+        print("Failed to register for remote notifications: \(error)")
+    }
+
+    // Called when FCM issues a new registration token
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        if let fcmToken = fcmToken {
+            print("FCM registration token updated: \(fcmToken)")
+            sendFCMTokenToBackend(fcmToken: fcmToken)
+        }
     }
 }
 

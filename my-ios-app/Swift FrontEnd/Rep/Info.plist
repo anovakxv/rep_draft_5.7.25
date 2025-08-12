@@ -5,7 +5,7 @@
     <key>CFBundleName</key>
     <string>My iOS App</string>
     <key>CFBundleIdentifier</key>
-    <string>com.example.my-ios-app</string>
+    <string>NetworkedCapital.Rep</string>
     <key>CFBundleVersion</key>
     <string>1.0</string>
     <key>CFBundleShortVersionString</key>
@@ -17,6 +17,15 @@
         <string>UIInterfaceOrientationPortrait</string>
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    
+    <!-- Added for push notifications -->
+    <key>FirebaseAppDelegateProxyEnabled</key>
+    <false/>
+    
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>remote-notification</string>
     </array>
 </dict>
 </plist>

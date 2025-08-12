@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		001258932E1C220400D4B1FC /* APIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001258922E1C220400D4B1FC /* APIConfig.swift */; };
+		002C5EC22E4ABA920075E82B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */; };
 		0042DA0A2E29AA24001D8E88 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0042DA092E29AA24001D8E88 /* OnboardingView.swift */; };
 		0054E71E2E2DDB3A00D09E4C /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0054E71D2E2DDB3A00D09E4C /* Kingfisher */; };
 		005B63732E16F88600A1F0C1 /* EditProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 005B636B2E16F88600A1F0C1 /* EditProfile.swift */; };
@@ -58,6 +59,7 @@
 
 /* Begin PBXFileReference section */
 		001258922E1C220400D4B1FC /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
+		002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		0042DA092E29AA24001D8E88 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		005B632D2E16F83200A1F0C1 /* Rep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rep.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		005B633E2E16F83300A1F0C1 /* RepTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RepTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -160,6 +162,7 @@
 				00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */,
 				005B63632E16F88600A1F0C1 /* GoalsDetailView.swift */,
 				005B63642E16F88600A1F0C1 /* Info.plist */,
+				002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */,
 				005B63652E16F88600A1F0C1 /* LoginView.swift */,
 				005B63662E16F88600A1F0C1 /* MainScreen.swift */,
 				00E10AAE2E21953000BC7392 /* Update_Goal.swift */,
@@ -338,6 +341,7 @@
 				00FDCFA52E1C2F3C00A63D8D /* appstore.png in Resources */,
 				005B63862E16F88600A1F0C1 /* REPLogo.png in Resources */,
 				005B63872E16F88600A1F0C1 /* Assets.xcassets in Resources */,
+				002C5EC22E4ABA920075E82B /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -34,6 +34,7 @@
 		009219B92E37F85C00AC0A40 /* ResetPassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009219B82E37F85500AC0A40 /* ResetPassword.swift */; };
 		009219BB2E37FA5E00AC0A40 /* NewPassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009219BA2E37FA5800AC0A40 /* NewPassword.swift */; };
 		0092BB492E3B30570018B500 /* Terms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0092BB482E3B30530018B500 /* Terms.swift */; };
+		00D465922E4ACD0F0032A43D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 00D465912E4ACD0F0032A43D /* FirebaseMessaging */; };
 		00D80A612E1B6B0C003C926D /* SkillAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D80A602E1B6B0C003C926D /* SkillAPI.swift */; };
 		00E10AAD2E21951E00BC7392 /* Edit_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */; };
 		00E10AAF2E21953000BC7392 /* Update_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAE2E21953000BC7392 /* Update_Goal.swift */; };
@@ -117,6 +118,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				00D465922E4ACD0F0032A43D /* FirebaseMessaging in Frameworks */,
 				0054E71E2E2DDB3A00D09E4C /* Kingfisher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -234,6 +236,7 @@
 			name = Rep;
 			packageProductDependencies = (
 				0054E71D2E2DDB3A00D09E4C /* Kingfisher */,
+				00D465912E4ACD0F0032A43D /* FirebaseMessaging */,
 			);
 			productName = Rep;
 			productReference = 005B632D2E16F83200A1F0C1 /* Rep.app */;
@@ -319,6 +322,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				0054E71B2E2DDB2500D09E4C /* XCRemoteSwiftPackageReference "Kingfisher" */,
+				00D465902E4ACD0F0032A43D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 005B632E2E16F83200A1F0C1 /* Products */;
@@ -565,7 +569,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.30;
+				MARKETING_VERSION = 1.33;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -605,7 +609,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.30;
+				MARKETING_VERSION = 1.33;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -754,6 +758,14 @@
 				minimumVersion = 8.5.0;
 			};
 		};
+		00D465902E4ACD0F0032A43D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.1.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -761,6 +773,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 0054E71B2E2DDB2500D09E4C /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
+		};
+		00D465912E4ACD0F0032A43D /* FirebaseMessaging */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00D465902E4ACD0F0032A43D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

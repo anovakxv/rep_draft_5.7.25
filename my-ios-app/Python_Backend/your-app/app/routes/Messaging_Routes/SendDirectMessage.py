@@ -63,8 +63,11 @@ def api_send_message():
     recipient = User.query.filter_by(id=to_user_id).first()
     device_token = recipient.device_token if recipient else None
 
+    print(f"Recipient device_token: {device_token}")
+
     if device_token:
         try:
+            print(f"About to send FCM notification to device_token={device_token}")  # <-- Added debug print
             sender = User.query.filter_by(id=user_id).first()
             send_fcm_notification(
                 device_token,
@@ -74,6 +77,8 @@ def api_send_message():
             )
         except Exception as e:
             print(f"FCM notification error: {e}")
+    else:
+        print(f"No device token for user_id={to_user_id}") 
 
     # Build flat message object for Swift client
     sender = User.query.filter_by(id=user_id).first()

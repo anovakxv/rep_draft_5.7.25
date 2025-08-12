@@ -24,4 +24,5 @@ def register_device_token():
 
     u.device_token = device_token
     db.session.commit()
+    print(f"Registered device_token for user_id={user_id}: {device_token}")  
     return jsonify({"message": "Device token updated"}), 200

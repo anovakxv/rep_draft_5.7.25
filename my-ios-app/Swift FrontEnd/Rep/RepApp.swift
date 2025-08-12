@@ -7,6 +7,8 @@
 
 import SwiftUI
 import UserNotifications
+import FirebaseCore
+import FirebaseMessaging
 
 @main
 struct RepApp: App {
@@ -14,6 +16,8 @@ struct RepApp: App {
     @State private var rootReloadKey = UUID()
 
     init() {
+        // Configure Firebase
+        FirebaseApp.configure()
         // Request notification permissions
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             if let error = error {
@@ -42,17 +46,26 @@ struct RepApp: App {
 
 // MARK: - AppDelegate for Push Notifications
 
-class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
-        let tokenParts = deviceToken.map { data in String(format: "%02.2hhx", data) }
-        let token = tokenParts.joined()
-        print("Device Token: \(token)")
+class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Messaging.messaging().delegate = self
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+        return true
+    }
 
-        // Send token to backend
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        // Pass device token to FCM
+        Messaging.messaging().apnsToken = deviceToken
+    }
+
+    // Called when FCM issues a new registration token
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        print("FCM registration token: \(fcmToken ?? "")")
+        // Send this FCM token to your backend
         let jwtToken = UserDefaults.standard.string(forKey: "jwtToken") ?? ""
         let userId = UserDefaults.standard.integer(forKey: "userId")
-        guard !jwtToken.isEmpty, userId > 0 else {
-            print("No jwtToken or userId, not sending device token to backend.")
+        guard let fcmToken = fcmToken, !jwtToken.isEmpty, userId > 0 else {
+            print("No FCM token, jwtToken, or userId, not sending to backend.")
             return
         }
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/device_token") else {
@@ -64,16 +77,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         let body: [String: Any] = [
-            "device_token": token
+            "device_token": fcmToken
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error = error {
-                print("Failed to send device token to backend: \(error)")
+                print("Failed to send FCM token to backend: \(error)")
                 return
             }
             if let httpResponse = response as? HTTPURLResponse {
-                print("Device token sent to backend, status: \(httpResponse.statusCode)")
+                print("FCM token sent to backend, status: \(httpResponse.statusCode)")
             }
         }.resume()
     }

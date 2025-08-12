@@ -12,10 +12,7 @@ from app.utils.auth import jwt_required
 from app.models.People_Models.BlockedUser import BlockedUser
 from datetime import datetime
 from sqlalchemy import text
-
-# --- Push Notification Imports ---
-from apns2.client import APNsClient
-from apns2.payload import Payload
+from app.utils.notifications import send_fcm_notification  # <-- Import the utility
 
 user_bp = Blueprint('send_message', __name__)
 
@@ -62,23 +59,21 @@ def api_send_message():
     # Register activity
     register_new_activity(user_id, to_user_id, "new_direct_message", 1, msg.id, "messages")
 
-    # --- Push Notification Logic ---
+    # --- Push Notification Logic (FCM) ---
     recipient = User.query.filter_by(id=to_user_id).first()
     device_token = recipient.device_token if recipient else None
 
     if device_token:
         try:
-            pem_path = "/tmp/apns_cert.pem"
             sender = User.query.filter_by(id=user_id).first()
-            payload = Payload(
-                alert=f"New message from {sender.full_name}: {message_text}",
-                sound="default",
-                badge=1
+            send_fcm_notification(
+                device_token,
+                title=f"New message from {sender.full_name}",
+                body=message_text,
+                data={"type": "direct_message", "sender_id": user_id}
             )
-            client = APNsClient(pem_path, use_sandbox=False, use_alternative_port=False)
-            client.send_notification(device_token, payload, topic='NetworkedCapital.Rep')
         except Exception as e:
-            print(f"Push notification error: {e}")
+            print(f"FCM notification error: {e}")
 
     # Build flat message object for Swift client
     sender = User.query.filter_by(id=user_id).first()

@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		001258932E1C220400D4B1FC /* APIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001258922E1C220400D4B1FC /* APIConfig.swift */; };
+		001825382E4C39CB00F15FAF /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001825372E4C39C600F15FAF /* Components.swift */; };
 		002C5EC22E4ABA920075E82B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */; };
 		0042DA0A2E29AA24001D8E88 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0042DA092E29AA24001D8E88 /* OnboardingView.swift */; };
 		0054E71E2E2DDB3A00D09E4C /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 0054E71D2E2DDB3A00D09E4C /* Kingfisher */; };
@@ -60,6 +61,7 @@
 
 /* Begin PBXFileReference section */
 		001258922E1C220400D4B1FC /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
+		001825372E4C39C600F15FAF /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		0042DA092E29AA24001D8E88 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		005B632D2E16F83200A1F0C1 /* Rep.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Rep.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -173,6 +175,7 @@
 				005B635F2E16F88600A1F0C1 /* Chat_Group.swift */,
 				005B63602E16F88600A1F0C1 /* Chat_Individual.swift */,
 				005B63612E16F88600A1F0C1 /* Edit_Portal.swift */,
+				001825372E4C39C600F15FAF /* Components.swift */,
 				005B63622E16F88600A1F0C1 /* GoalListItem.swift */,
 				00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */,
 				005B63632E16F88600A1F0C1 /* GoalsDetailView.swift */,
@@ -390,6 +393,7 @@
 				005B63762E16F88600A1F0C1 /* MainScreen.swift in Sources */,
 				005B63772E16F88600A1F0C1 /* ActivityIndicator.swift in Sources */,
 				005B63782E16F88600A1F0C1 /* SupportingTypes.swift in Sources */,
+				001825382E4C39CB00F15FAF /* Components.swift in Sources */,
 				009219BB2E37FA5E00AC0A40 /* NewPassword.swift in Sources */,
 				005B63792E16F88600A1F0C1 /* RepSkillsModel.swift in Sources */,
 				005B637A2E16F88600A1F0C1 /* Chat_Individual.swift in Sources */,
@@ -562,7 +566,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.30;
+				CURRENT_PROJECT_VERSION = 1.35;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -583,7 +587,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.33;
+				MARKETING_VERSION = 1.35;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -603,7 +607,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.30;
+				CURRENT_PROJECT_VERSION = 1.35;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -624,7 +628,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.33;
+				MARKETING_VERSION = 1.35;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;

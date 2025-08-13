@@ -18,8 +18,6 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 
-from . import socket_events
-
 db = SQLAlchemy()
 socketio = SocketIO(cors_allowed_origins="*")
 
@@ -158,5 +156,7 @@ def create_app():
     app.register_blueprint(join_or_leave_goal_bp, url_prefix='/api/goals')
     app.register_blueprint(update_goal_filled_quota_bp, url_prefix='/api/goals')
     app.register_blueprint(get_goals_bp, url_prefix='/api/goals')
+
+    from . import socket_events
 
     return app

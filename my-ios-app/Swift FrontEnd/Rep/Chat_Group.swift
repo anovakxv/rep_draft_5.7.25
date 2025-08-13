@@ -6,6 +6,33 @@
 
 import SwiftUI
 
+// MARK: - AnyDecodable (for dynamic JSON parsing)
+
+struct AnyDecodable: Decodable {
+    let value: Any
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intVal = try? container.decode(Int.self) {
+            value = intVal
+        } else if let strVal = try? container.decode(String.self) {
+            value = strVal
+        } else if let dictVal = try? container.decode([String: AnyDecodable].self) {
+            value = dictVal.mapValues { $0.value }
+        } else if let arrVal = try? container.decode([AnyDecodable].self) {
+            value = arrVal.map { $0.value }
+        } else {
+            value = ()
+        }
+    }
+}
+
+// MARK: - ErrorMessage for Identifiable error alerts
+
+struct ErrorMessage: Identifiable {
+    let id = UUID()
+    let message: String
+}
+
 // MARK: - Group Message Model
 
 struct GroupMessage: Identifiable, Decodable {
@@ -234,10 +261,13 @@ struct GroupChatView: View {
                 onBack: { dismiss() },
                 onPlus: { showEditSheet = true }
             )
+            
+            // --- Horizontal member list (profile pics + names) ---
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    ForEach(viewModel.groupMembers) { member in
-                        VStack(spacing: 2) {
+                    let members = viewModel.groupMembers
+                    ForEach(members) { member in
+                        VStack {
                             if let url = member.photoURL {
                                 AsyncImage(url: url) { image in
                                     image.resizable().aspectRatio(contentMode: .fill)
@@ -262,6 +292,7 @@ struct GroupChatView: View {
                 .padding(.vertical, 6)
             }
             .background(Color.white)
+            // --- End horizontal member list ---
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -338,12 +369,13 @@ struct GroupChatView: View {
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .sheet(isPresented: $showEditSheet) {
             EditGroupChatView(
-                chatId: viewModel.chatId,
-                currentMembers: viewModel.groupMembers,
-                groupName: viewModel.groupName,
-                onSave: {
-                    viewModel.fetchGroupChat()
-                    showEditSheet = false
+                chatId: nil,
+                currentMembers: [],
+                groupName: "",
+                isNewChat: true,
+                currentUserId: viewModel.currentUserId,
+                onSave: { newChatId in
+                    // Navigate to GroupChatView with newChatId
                 },
                 onCancel: {
                     showEditSheet = false
@@ -355,20 +387,33 @@ struct GroupChatView: View {
 }
 
 // MARK: - Edit Group Chat Sheet
+
+enum EditGroupSheetType: Identifiable {
+    case add
+    case remove
+
+    var id: Int {
+        switch self {
+        case .add: return 1
+        case .remove: return 2
+        }
+    }
+}
+
 struct EditGroupChatView: View {
-    let chatId: Int
+    let chatId: Int?
     let currentMembers: [GroupMember]
     let groupName: String
-    var onSave: () -> Void
+    let isNewChat: Bool
+    let currentUserId: Int
+    var onSave: (Int?) -> Void // Passes new chatId if created, else nil
     var onCancel: () -> Void
 
     @State private var editedName: String = ""
-    @State private var selectedMemberIds: Set<Int> = []
-    @State private var showAddSheet = false
-    @State private var showRemoveSheet = false
-    @State private var ntwkUsers: [User] = []
+    @State private var selectedMembersToAdd: [Int: String] = [:]
+    @State private var activeSheet: EditGroupSheetType?
     @State private var isLoading = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: ErrorMessage?
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     var body: some View {
@@ -379,7 +424,9 @@ struct EditGroupChatView: View {
                         TextField("Group Name", text: $editedName)
                     }
                     Section(header: Text("Members")) {
-                        ForEach(currentMembers) { member in
+                        // Show current or selected members
+                        let baseMembers = isNewChat ? [] : currentMembers
+                        ForEach(baseMembers) { member in
                             HStack {
                                 if let url = member.photoURL {
                                     AsyncImage(url: url) { image in
@@ -398,16 +445,30 @@ struct EditGroupChatView: View {
                                 Spacer()
                             }
                         }
+                        // Show pending additions by name
+                        let currentIds = Set(baseMembers.map { $0.id })
+                        let pendingIds = Set(selectedMembersToAdd.keys).subtracting(currentIds)
+                        ForEach(Array(pendingIds), id: \.self) { id in
+                            HStack {
+                                Image(systemName: "person.crop.circle.badge.plus")
+                                    .foregroundColor(.green)
+                                Text("Will add \(selectedMembersToAdd[id] ?? "User")")
+                                    .foregroundColor(.green)
+                                Spacer()
+                            }
+                        }
                         HStack {
-                            Button(action: { showAddSheet = true }) {
-                                Label("Add to Chat", systemImage: "person.crop.circle.badge.plus")
+                            Button(action: { activeSheet = .add }) {
+                                Label(isNewChat ? "Add Members" : "Add to Chat", systemImage: "person.crop.circle.badge.plus")
                             }
                             Spacer()
-                            Button(action: { showRemoveSheet = true }) {
-                                Label("Remove Member", systemImage: "person.crop.circle.badge.minus")
-                                    .foregroundColor(.red)
+                            if !isNewChat {
+                                Button(action: { activeSheet = .remove }) {
+                                    Label("Remove Member(s)", systemImage: "person.crop.circle.badge.minus")
+                                        .foregroundColor(.red)
+                                }
+                                .disabled(currentMembers.count <= 1)
                             }
-                            .disabled(currentMembers.count <= 1)
                         }
                     }
                 }
@@ -423,44 +484,86 @@ struct EditGroupChatView: View {
                 }
             }
             .alert(item: $errorMessage) { msg in
-                Alert(title: Text("Error"), message: Text(msg), dismissButton: .default(Text("OK")))
+                Alert(title: Text("Error"), message: Text(msg.message), dismissButton: .default(Text("OK")))
             }
-            .navigationTitle("Edit Group")
+            .navigationTitle(isNewChat ? "New Group Chat" : "Edit Group")
             .navigationBarItems(
                 leading: Button("Cancel") { onCancel() },
                 trailing: Button("Save") {
-                    saveGroupChanges()
+                    if isNewChat {
+                        createGroupChat()
+                    } else {
+                        saveGroupChanges()
+                    }
                 }
             )
             .onAppear {
                 editedName = groupName
             }
-            .sheet(isPresented: $showAddSheet) {
-                NTWKUserPicker(
-                    onSelect: { user in
-                        selectedMemberIds.insert(user.id)
-                        showAddSheet = false
-                    },
-                    jwtToken: jwtToken,
-                    chatId: chatId
-                )
-            }
-            .actionSheet(isPresented: $showRemoveSheet) {
-                ActionSheet(
-                    title: Text("Remove Group Member"),
-                    message: Text("Select members to remove from this group chat."),
-                    buttons: removeMemberButtons() + [.cancel()]
-                )
+            .sheet(item: $activeSheet) { sheetType in
+                switch sheetType {
+                case .add:
+                    NTWKUserPicker(
+                        onSelect: { selectedUsers in
+                            for user in selectedUsers {
+                                selectedMembersToAdd[user.id] = user.fullName ?? "User"
+                            }
+                            activeSheet = nil
+                        },
+                        jwtToken: jwtToken,
+                        chatId: chatId ?? 0,
+                        alreadySelected: Set(selectedMembersToAdd.keys).union(currentMembers.map { $0.id })
+                    )
+                case .remove:
+                    RemoveMembersSheet(
+                        members: currentMembers,
+                        onRemove: { member in
+                            activeSheet = nil
+                            removeMember(memberId: member.id)
+                        },
+                        onCancel: {
+                            activeSheet = nil
+                        }
+                    )
+                }
             }
         }
     }
 
-    private func removeMemberButtons() -> [ActionSheet.Button] {
-        currentMembers.map { member in
-            .destructive(Text(member.name)) {
-                removeMember(memberId: member.id)
-            }
+    // --- New Chat Creation Logic ---
+    private func createGroupChat() {
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/manage_chat") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
+        // Always include self
+        let allIds = [currentUserId] + Array(selectedMembersToAdd.keys)
+        let body: [String: Any] = [
+            "title": editedName,
+            "aAddIDs": allIds
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                if let error = error {
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
+                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    errorMessage = ErrorMessage(message: "Failed to create chat. (\(http.statusCode))")
+                } else if let data = data,
+                          let decoded = try? JSONDecoder().decode([String: AnyDecodable].self, from: data),
+                          let chatId = (decoded["result"]?.value as? [String: Any])?["id"] as? Int {
+                    onSave(chatId)
+                } else {
+                    onSave(nil)
+                }
+            }
+        }.resume()
     }
 
     private func removeMember(memberId: Int) {
@@ -482,11 +585,11 @@ struct EditGroupChatView: View {
             DispatchQueue.main.async {
                 isLoading = false
                 if let error = error {
-                    errorMessage = error.localizedDescription
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    errorMessage = "Failed to remove member. (\(http.statusCode))"
+                    errorMessage = ErrorMessage(message: "Failed to remove member. (\(http.statusCode))")
                 } else {
-                    onSave()
+                    onSave(nil)
                 }
             }
         }.resume()
@@ -502,7 +605,7 @@ struct EditGroupChatView: View {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        let addIds = Array(selectedMemberIds.subtracting(currentMembers.map { $0.id }))
+        let addIds = Array(Set(selectedMembersToAdd.keys).subtracting(currentMembers.map { $0.id }))
         let body: [String: Any] = [
             "chats_id": chatId,
             "title": editedName,
@@ -513,33 +616,90 @@ struct EditGroupChatView: View {
             DispatchQueue.main.async {
                 isLoading = false
                 if let error = error {
-                    errorMessage = error.localizedDescription
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    errorMessage = "Failed to save changes. (\(http.statusCode))"
+                    errorMessage = ErrorMessage(message: "Failed to save changes. (\(http.statusCode))")
                 } else {
-                    onSave()
+                    onSave(nil)
                 }
             }
         }.resume()
     }
 }
 
-// Helper struct for picking NTWK users
+// MARK: - Remove Members Sheet
+
+struct RemoveMembersSheet: View {
+    let members: [GroupMember]
+    var onRemove: (GroupMember) -> Void
+    var onCancel: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(members) { member in
+                    Button(role: .destructive) {
+                        onRemove(member)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            if let url = member.photoURL {
+                                AsyncImage(url: url) { image in
+                                    image.resizable().aspectRatio(contentMode: .fill)
+                                } placeholder: {
+                                    Circle().fill(Color.gray.opacity(0.3))
+                                }
+                                .frame(width: 32, height: 32)
+                                .clipShape(Circle())
+                            } else {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                                    .frame(width: 32, height: 32)
+                            }
+                            Text(member.name)
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Remove Member(s)")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        onCancel()
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Helper struct for picking NTWK users (multi-select)
 struct NTWKUserPicker: View {
-    var onSelect: (User) -> Void
+    var onSelect: ([User]) -> Void
     var jwtToken: String
     var chatId: Int
+    var alreadySelected: Set<Int> = []
 
     @Environment(\.dismiss) private var dismiss
     @State private var users: [User] = []
     @State private var isLoading = false
-    @State private var errorMessage: String?
+    @State private var errorMessage: ErrorMessage?
+    @State private var selectedUsers: Set<Int> = []
 
     var body: some View {
         NavigationView {
             ZStack {
                 List(users) { user in
-                    Button(action: { onSelect(user) }) {
+                    Button(action: {
+                        if selectedUsers.contains(user.id) {
+                            selectedUsers.remove(user.id)
+                        } else {
+                            selectedUsers.insert(user.id)
+                        }
+                    }) {
                         HStack {
                             if let url = user.profilePictureURL {
                                 AsyncImage(url: url) { image in
@@ -555,8 +715,14 @@ struct NTWKUserPicker: View {
                                     .frame(width: 32, height: 32)
                             }
                             Text(user.fullName ?? "")
+                            Spacer()
+                            if selectedUsers.contains(user.id) || alreadySelected.contains(user.id) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
                         }
                     }
+                    .disabled(alreadySelected.contains(user.id))
                 }
                 if isLoading {
                     ProgressView("Loading...")
@@ -572,10 +738,18 @@ struct NTWKUserPicker: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        let selected = users.filter { selectedUsers.contains($0.id) }
+                        onSelect(selected)
+                        dismiss()
+                    }
+                    .disabled(selectedUsers.isEmpty)
+                }
             }
             .onAppear { fetchNTWKUsers() }
             .alert(item: $errorMessage) { msg in
-                Alert(title: Text("Error"), message: Text(msg), dismissButton: .default(Text("OK")))
+                Alert(title: Text("Error"), message: Text(msg.message), dismissButton: .default(Text("OK")))
             }
         }
     }
@@ -583,7 +757,7 @@ struct NTWKUserPicker: View {
     private func fetchNTWKUsers() {
         isLoading = true
         errorMessage = nil
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/members_of_my_network?not_in_chats_id=\(chatId)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/members_of_my_network?not_in_chats_id=\(chatId)") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
@@ -592,12 +766,13 @@ struct NTWKUserPicker: View {
             DispatchQueue.main.async {
                 isLoading = false
                 if let error = error {
-                    errorMessage = error.localizedDescription
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    errorMessage = "Failed to load NTWK. (\(http.statusCode))"
+                    errorMessage = ErrorMessage(message: "Failed to load NTWK. (\(http.statusCode))")
                 } else if let data = data,
-                          let decoded = try? JSONDecoder().decode(NTWKUsersAPIResponse.self, from: data) {
-                    users = decoded.result
+                        let decoded = try? JSONDecoder().decode([String: [User]].self, from: data),
+                        let usersArr = decoded["result"] {
+                    users = usersArr
                 }
             }
         }.resume()

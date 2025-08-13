@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00085E112E4D1AD000F7CAA9 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 00085E102E4D1AD000F7CAA9 /* SocketIO */; };
+		00085E132E4D1BC500F7CAA9 /* RealtimeSocketManager 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00085E122E4D1BC500F7CAA9 /* RealtimeSocketManager 2.swift */; };
 		001258932E1C220400D4B1FC /* APIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001258922E1C220400D4B1FC /* APIConfig.swift */; };
 		001825382E4C39CB00F15FAF /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001825372E4C39C600F15FAF /* Components.swift */; };
 		002C5EC22E4ABA920075E82B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */; };
@@ -60,6 +62,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		00085E122E4D1BC500F7CAA9 /* RealtimeSocketManager 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RealtimeSocketManager 2.swift"; sourceTree = "<group>"; };
 		001258922E1C220400D4B1FC /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
 		001825372E4C39C600F15FAF /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -135,6 +138,7 @@
 			files = (
 				00D465922E4ACD0F0032A43D /* FirebaseMessaging in Frameworks */,
 				0054E71E2E2DDB3A00D09E4C /* Kingfisher in Frameworks */,
+				00085E112E4D1AD000F7CAA9 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -185,6 +189,7 @@
 				005B63662E16F88600A1F0C1 /* MainScreen.swift */,
 				00E10AAE2E21953000BC7392 /* Update_Goal.swift */,
 				001258922E1C220400D4B1FC /* APIConfig.swift */,
+				00085E122E4D1BC500F7CAA9 /* RealtimeSocketManager 2.swift */,
 				005B63672E16F88600A1F0C1 /* PortalItem.swift */,
 				005B63682E16F88600A1F0C1 /* PortalPage.swift */,
 				005B63692E16F88600A1F0C1 /* README.md */,
@@ -253,6 +258,7 @@
 			packageProductDependencies = (
 				0054E71D2E2DDB3A00D09E4C /* Kingfisher */,
 				00D465912E4ACD0F0032A43D /* FirebaseMessaging */,
+				00085E102E4D1AD000F7CAA9 /* SocketIO */,
 			);
 			productName = Rep;
 			productReference = 005B632D2E16F83200A1F0C1 /* Rep.app */;
@@ -339,6 +345,7 @@
 			packageReferences = (
 				0054E71B2E2DDB2500D09E4C /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				00D465902E4ACD0F0032A43D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				00085E0F2E4D1ABC00F7CAA9 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 005B632E2E16F83200A1F0C1 /* Products */;
@@ -387,6 +394,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				00E10AAD2E21951E00BC7392 /* Edit_Goal.swift in Sources */,
+				00085E132E4D1BC500F7CAA9 /* RealtimeSocketManager 2.swift in Sources */,
 				005B63732E16F88600A1F0C1 /* EditProfile.swift in Sources */,
 				005B63742E16F88600A1F0C1 /* Edit_Portal.swift in Sources */,
 				005B63752E16F88600A1F0C1 /* RepApp.swift in Sources */,
@@ -769,6 +777,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		00085E0F2E4D1ABC00F7CAA9 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		0054E71B2E2DDB2500D09E4C /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher";
@@ -788,6 +804,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		00085E102E4D1AD000F7CAA9 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 00085E0F2E4D1ABC00F7CAA9 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
 		0054E71D2E2DDB3A00D09E4C /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 0054E71B2E2DDB2500D09E4C /* XCRemoteSwiftPackageReference "Kingfisher" */;

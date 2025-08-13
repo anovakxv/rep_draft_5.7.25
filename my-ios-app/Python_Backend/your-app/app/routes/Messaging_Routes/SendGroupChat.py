@@ -6,10 +6,11 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.user import User
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
 from datetime import datetime
-from sqlalchemy import text  # <-- Add this import
 
 user_bp = Blueprint('send_group_chat', __name__)
 
@@ -40,6 +41,11 @@ def api_send_chat_message():
     if not chat:
         return jsonify({'error': "the chat doesn't exist!"}), 404
 
+    # Check if user is a member of the chat
+    is_member = ChatsUsers.query.filter_by(chats_id=chat_id, users_id=user_id).count()
+    if not is_member:
+        return jsonify({'error': 'You are not a member of this chat.'}), 403
+
     # Create group message
     msg = GroupMessage(
         chat_id=chat_id,
@@ -50,19 +56,15 @@ def api_send_chat_message():
     db.session.add(msg)
     db.session.commit()
 
-    # Optionally, remove hidden chat conversations
-    # db.session.execute(
-    #     text(
-    #         "DELETE FROM chats_hidden_conversations WHERE chats_id=:cid"
-    #    ),
-    #    {'cid': chat_id}
-    #)
-    # db.session.commit()
-
-    # Use as_dict() for unified response, includes sender user object
-    message_obj = msg.as_dict()
-    from app.models.People_Models.user import User
+    # Prepare response matching Swift GroupMessage model
     sender = User.query.filter_by(id=user_id).first()
-    message_obj['sender'] = sender.as_dict() if sender else None
+    message_obj = {
+        "id": msg.id,
+        "sender_id": msg.sender_id,
+        "sender_name": sender.full_name if sender else "",
+        "sender_photo_url": getattr(sender, "profile_picture_url", None) if sender else None,
+        "text": msg.text,
+        "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+    }
 
     return jsonify({'result': 'Message sent.', 'message': message_obj}), 200

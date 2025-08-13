@@ -341,6 +341,7 @@ extension MainScreen {
     }
     enum MainActionSheetAction {
         case addPurpose
+        case teamChat 
     }
 }
 
@@ -352,6 +353,7 @@ struct MainScreen: View {
     @State private var page: Page = .portals
     @State private var section = 2
 
+    @State private var showTeamChat = false
     // Sheet and search state
     @State private var mainActiveSheet: MainScreenContent.ActiveSheet?
     @State private var showSearch = false
@@ -362,39 +364,53 @@ struct MainScreen: View {
     @State private var showOnlySafePortals = false // <-- Added
 
     var body: some View {
-        NavigationStack {
-            MainScreenContent(
-                page: $page,
-                section: $section,
-                portalsVM: portalsVM,
-                peopleVM: peopleVM,
-                userId: userId,
-                currentUser: currentUser,
-                activeSheet: $mainActiveSheet,
-                showSearch: $showSearch,
-                searchText: $searchText,
-                searchDebounceTimer: $searchDebounceTimer,
-                pendingAction: $pendingAction,
-                performSearch: performSearch,
-                filteredUsers: filteredUsers,
-                filteredActiveChats: filteredActiveChats,
-                filteredPortals: filteredPortals,
-                fetchCurrentUser: fetchCurrentUser,
-                showOnlySafePortals: $showOnlySafePortals // <-- Added
-            )
-            .modifier(MainScreenToolbar(
-                section: $section,
-                page: $page,
-                portalsVM: portalsVM,
-                peopleVM: peopleVM,
-                userId: userId,
-                currentUser: currentUser,
-                showActionSheet: {
-                    mainActiveSheet = .actionSheet
-                }
-            ))
-            .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
-            .navigationBarTitleDisplayMode(.inline)
+        ZStack { // <-- Wrap in ZStack to allow overlaying NavigationLink
+            NavigationStack {
+                MainScreenContent(
+                    page: $page,
+                    section: $section,
+                    portalsVM: portalsVM,
+                    peopleVM: peopleVM,
+                    userId: userId,
+                    currentUser: currentUser,
+                    activeSheet: $mainActiveSheet,
+                    showSearch: $showSearch,
+                    searchText: $searchText,
+                    searchDebounceTimer: $searchDebounceTimer,
+                    pendingAction: $pendingAction,
+                    performSearch: performSearch,
+                    filteredUsers: filteredUsers,
+                    filteredActiveChats: filteredActiveChats,
+                    filteredPortals: filteredPortals,
+                    fetchCurrentUser: fetchCurrentUser,
+                    showOnlySafePortals: $showOnlySafePortals // <-- Added
+                )
+                .modifier(MainScreenToolbar(
+                    section: $section,
+                    page: $page,
+                    portalsVM: portalsVM,
+                    peopleVM: peopleVM,
+                    userId: userId,
+                    currentUser: currentUser,
+                    showActionSheet: {
+                        mainActiveSheet = .actionSheet
+                    }
+                ))
+                .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            // --- Place NavigationLink here ---
+            NavigationLink(
+                destination: GroupChatView(
+                    viewModel: GroupChatViewModel(
+                        currentUserId: userId,
+                        chatId: 0 // or a special value for a new/empty group chat
+                    )
+                ),
+                isActive: $showTeamChat
+            ) {
+                EmptyView()
+            }
         }
         .onAppear {
             guard !jwtToken.isEmpty, userId != 0 else {
@@ -417,6 +433,16 @@ struct MainScreen: View {
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: newSection, safeOnly: showOnlySafePortals)
             }
+        }
+        .onChange(of: pendingAction) { action in
+            guard let action = action else { return }
+            switch action {
+            case .addPurpose:
+                mainActiveSheet = .addPurpose
+            case .teamChat:
+                showTeamChat = true
+            }
+            pendingAction = nil
         }
     }
 
@@ -689,6 +715,16 @@ struct MainScreenContent: View {
                             .padding(.vertical, 12)
                     }
                     Button(action: {
+                        pendingAction = .teamChat
+                        activeSheet = nil
+                    }) {
+                        Text("Team Chat")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 12)
+                    }
+                    Button(action: {
                         activeSheet = nil
                         showSearch = true
                     }) {
@@ -735,6 +771,9 @@ struct MainScreenContent: View {
             switch action {
             case .addPurpose:
                 activeSheet = .addPurpose
+            case .teamChat:
+                // No-op here; handled in MainScreen
+                break
             }
             pendingAction = nil
         }

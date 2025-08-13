@@ -136,6 +136,7 @@ struct GroupChatView: View {
     var body: some View {
         VStack(spacing: 0) {
             NavigationHeaderView(name: viewModel.groupName, onBack: { dismiss() })
+            // Removed .ignoresSafeArea(edges: .top) for correct header layout
 
             // Group Members Bar
             ScrollView(.horizontal, showsIndicators: false) {
@@ -165,13 +166,7 @@ struct GroupChatView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
             }
-            .background(Color(UIColor.systemGray6))
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                alignment: .bottom
-            )
+            .background(Color.white)
 
             // Messages List
             ScrollViewReader { proxy in
@@ -216,13 +211,16 @@ struct GroupChatView: View {
                 }
             }
 
-            // Input Bar
+            // Input Bar (matches individual chat, uses GrowingTextEditor)
             HStack(spacing: 8) {
-                TextField("Type a message...", text: $viewModel.inputText)
-                    .padding(12)
-                    .background(Color(UIColor.systemGray6))
-                    .cornerRadius(20)
-                    .font(.body)
+                GrowingTextEditor(
+                    text: $viewModel.inputText,
+                    minHeight: 36,
+                    maxHeight: 36 * 4
+                )
+                .font(.body)
+                // Do NOT add .background or .cornerRadius here
+
                 Button(action: {
                     viewModel.sendMessage()
                 }) {
@@ -232,7 +230,7 @@ struct GroupChatView: View {
                         .padding(.vertical, 10)
                         .padding(.horizontal, 18)
                         .background(SwiftUI.Color.repGreen)
-                        .cornerRadius(20)
+                        .cornerRadius(8)
                 }
                 .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -250,6 +248,7 @@ struct GroupChatView: View {
         .onAppear {
             viewModel.fetchGroupChat()
         }
+        .navigationBarHidden(true) // Hide default nav bar and back button
     }
 }
 
@@ -279,7 +278,6 @@ struct GroupMessageBubble: View {
         .id(message.id)
     }
 }
-
 
 // MARK: - Preview
 

@@ -24,6 +24,10 @@ def send_fcm_notification(fcm_token, title, body, data=None):
         credentials.refresh(Request())
         access_token = credentials.token
 
+        # Ensure all data values are strings (required by FCM)
+        if data:
+            data = {str(k): str(v) for k, v in data.items()}
+
         message = {
             "message": {
                 "token": fcm_token,
@@ -40,7 +44,7 @@ def send_fcm_notification(fcm_token, title, body, data=None):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json; UTF-8",
         }
-        print(f"FCM payload: {json.dumps(message)}")  # <-- Added payload debug print
+        print(f"FCM payload: {json.dumps(message)}")  # Debug: print payload
         response = requests.post(url, headers=headers, data=json.dumps(message))
         print("FCM v1 response:", response.status_code, response.text)
     except Exception as e:

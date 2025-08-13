@@ -341,7 +341,7 @@ extension MainScreen {
     }
     enum MainActionSheetAction {
         case addPurpose
-        case teamChat 
+        case teamChat
     }
 }
 
@@ -361,10 +361,10 @@ struct MainScreen: View {
     @State private var searchDebounceTimer: Timer?
     @State private var pendingAction: MainActionSheetAction?
     @State private var currentUser: User? = nil
-    @State private var showOnlySafePortals = false // <-- Added
+    @State private var showOnlySafePortals = false
 
     var body: some View {
-        ZStack { // <-- Wrap in ZStack to allow overlaying NavigationLink
+        ZStack {
             NavigationStack {
                 MainScreenContent(
                     page: $page,
@@ -383,7 +383,7 @@ struct MainScreen: View {
                     filteredActiveChats: filteredActiveChats,
                     filteredPortals: filteredPortals,
                     fetchCurrentUser: fetchCurrentUser,
-                    showOnlySafePortals: $showOnlySafePortals // <-- Added
+                    showOnlySafePortals: $showOnlySafePortals
                 )
                 .modifier(MainScreenToolbar(
                     section: $section,
@@ -399,12 +399,11 @@ struct MainScreen: View {
                 .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
                 .navigationBarTitleDisplayMode(.inline)
             }
-            // --- Place NavigationLink here ---
             NavigationLink(
                 destination: GroupChatView(
                     viewModel: GroupChatViewModel(
                         currentUserId: userId,
-                        chatId: 0 // or a special value for a new/empty group chat
+                        chatId: 0
                     )
                 ),
                 isActive: $showTeamChat
@@ -413,25 +412,24 @@ struct MainScreen: View {
             }
         }
         .onAppear {
-            guard !jwtToken.isEmpty, userId != 0 else {
-                // Optionally clear state here if needed
-                return
-            }
+            guard !jwtToken.isEmpty, userId != 0 else { return }
             if page == .portals {
-                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals) // <-- Updated
+                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
             } else {
                 peopleVM.fetchPeople(userId: userId, section: section)
             }
             fetchCurrentUser()
         }
-        .onChange(of: showOnlySafePortals) { newValue in // <-- Added
+        .onChange(of: showOnlySafePortals) { newValue in
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: section, safeOnly: newValue)
             }
         }
-        .onChange(of: section) { newSection in // <-- Added for section change
+        .onChange(of: section) { newSection in
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: newSection, safeOnly: showOnlySafePortals)
+            } else {
+                peopleVM.fetchPeople(userId: userId, section: newSection)
             }
         }
         .onChange(of: pendingAction) { action in
@@ -459,7 +457,11 @@ struct MainScreen: View {
     private var filteredActiveChats: [ActiveChat] {
         if searchText.isEmpty { return peopleVM.activeChats }
         return peopleVM.activeChats.filter {
-            ($0.user?.fullName ?? "").localizedCaseInsensitiveContains(searchText)
+            if $0.type == "direct" {
+                return ($0.user?.fullName ?? "").localizedCaseInsensitiveContains(searchText)
+            } else {
+                return ($0.chat?.name ?? "").localizedCaseInsensitiveContains(searchText)
+            }
         }
     }
     private var filteredPortals: [Portal] {
@@ -487,9 +489,7 @@ struct MainScreen: View {
 
     private func fetchCurrentUser() {
         guard !jwtToken.isEmpty, userId != 0 else {
-            DispatchQueue.main.async {
-                self.currentUser = nil
-            }
+            DispatchQueue.main.async { self.currentUser = nil }
             return
         }
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/me") else { return }
@@ -499,14 +499,9 @@ struct MainScreen: View {
             guard let data = data else { return }
             do {
                 let decoded = try JSONDecoder().decode(UserProfileAPIResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.currentUser = decoded.result
-                }
+                DispatchQueue.main.async { self.currentUser = decoded.result }
             } catch {
-                // Ignore error, fallback to nil
-                DispatchQueue.main.async {
-                    self.currentUser = nil
-                }
+                DispatchQueue.main.async { self.currentUser = nil }
             }
         }.resume()
     }
@@ -545,7 +540,7 @@ struct MainScreenContent: View {
     var filteredActiveChats: [ActiveChat]
     var filteredPortals: [Portal]
     var fetchCurrentUser: () -> Void
-    @Binding var showOnlySafePortals: Bool // <-- Added
+    @Binding var showOnlySafePortals: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -597,7 +592,7 @@ struct MainScreenContent: View {
                 action: {
                     page = page == .people ? .portals : .people
                     if page == .portals {
-                        portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals) // <-- Updated
+                        portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
                     } else {
                         peopleVM.fetchPeople(userId: userId, section: section)
                     }
@@ -772,7 +767,6 @@ struct MainScreenContent: View {
             case .addPurpose:
                 activeSheet = .addPurpose
             case .teamChat:
-                // No-op here; handled in MainScreen
                 break
             }
             pendingAction = nil
@@ -958,12 +952,13 @@ struct ChatList: View {
     }
 }
 
-// MARK: - Active Chat List
+// MARK: - Active Chat List (Direct + Group)
 
 struct ActiveChatList: View {
     var chats: [ActiveChat]
     @State private var selectedProfileId: Int?
-    @State private var selectedChatId: Int?
+    @State private var selectedDirectUserId: Int?
+    @State private var selectedGroupChatId: Int?
     @AppStorage("userId") var currentUserId: Int = 0
 
     var body: some View {
@@ -989,7 +984,7 @@ struct ActiveChatList: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             .padding(.leading, 16)
-                            Button(action: { selectedChatId = user.id }) {
+                            Button(action: { selectedDirectUserId = user.id }) {
                                 VStack(alignment: .leading) {
                                     HStack {
                                         Text(user.fullName ?? "")
@@ -1028,11 +1023,55 @@ struct ActiveChatList: View {
                                 .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
                             alignment: .bottom
                         )
+                    } else if chat.type == "group", let group = chat.chat {
+                        Button(action: { selectedGroupChatId = group.id }) {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color(UIColor.systemGray5))
+                                        .frame(width: 64, height: 64)
+                                    Text(group.name?.prefix(2).uppercased() ?? "GC")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.black)
+                                }
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        Text(group.name ?? "Group Chat")
+                                            .font(.system(size: 17, weight: .semibold))
+                                            .lineLimit(1)
+                                        Spacer()
+                                        if let dateString = chat.last_message_time,
+                                           let date = ISO8601DateFormatter().date(from: dateString) {
+                                            Text(date.timeAgoDisplay())
+                                                .font(.caption)
+                                        }
+                                    }
+                                    Text(chat.last_message?.text ?? "")
+                                        .font(.system(size: 17))
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .padding(.leading, 16)
+                            .frame(height: 64)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.vertical, 16)
+                        .background(Color.white)
+                        .listRowInsets(EdgeInsets())
+                        .overlay(
+                            Rectangle()
+                                .frame(height: 1)
+                                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                            alignment: .bottom
+                        )
                     }
                 }
             }
             .listStyle(.plain)
 
+            // Profile (direct)
             NavigationLink(
                 destination: selectedProfileId.map { ProfileView(userId: $0) },
                 isActive: Binding(
@@ -1041,21 +1080,45 @@ struct ActiveChatList: View {
                 ),
                 label: { EmptyView() }
             )
+            // Direct chat
             NavigationLink(
-                destination: selectedChatId.flatMap { id in
-                    if let chat = chats.first(where: { $0.user?.id == id }) {
-                        Chat(
-                            userId: id,
-                            userName: chat.user?.fullName ?? "",
-                            userPhotoURL: chat.user?.profilePictureURL
+                destination: selectedDirectUserId.flatMap { id in
+                    if let chat = chats.first(where: { $0.user?.id == id && $0.type == "direct" }) {
+                        return AnyView(
+                            Chat(
+                                userId: id,
+                                userName: chat.user?.fullName ?? "",
+                                userPhotoURL: chat.user?.profilePictureURL
+                            )
                         )
-                    } else {
-                        Chat(userId: id)
                     }
+                    return AnyView(EmptyView())
                 },
                 isActive: Binding(
-                    get: { selectedChatId != nil },
-                    set: { if !$0 { selectedChatId = nil } }
+                    get: { selectedDirectUserId != nil },
+                    set: { if !$0 { selectedDirectUserId = nil } }
+                ),
+                label: { EmptyView() }
+            )
+            // Group chat
+            NavigationLink(
+                destination: selectedGroupChatId.flatMap { gid in
+                    if let group = chats.first(where: { $0.chat?.id == gid && $0.type == "group" }) {
+                        return AnyView(
+                            GroupChatView(
+                                viewModel: GroupChatViewModel(
+                                    currentUserId: currentUserId,
+                                    chatId: gid,
+                                    customChatTitle: group.chat?.name
+                                )
+                            )
+                        )
+                    }
+                    return AnyView(EmptyView())
+                },
+                isActive: Binding(
+                    get: { selectedGroupChatId != nil },
+                    set: { if !$0 { selectedGroupChatId = nil } }
                 ),
                 label: { EmptyView() }
             )

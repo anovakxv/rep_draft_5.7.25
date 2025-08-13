@@ -67,4 +67,16 @@ def api_send_chat_message():
         "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
     }
 
+    # --- Socket.IO broadcast for real-time group chat ---
+    try:
+        from app import socketio
+        socketio.emit(
+            "group_message",
+            {"chat_id": chat_id, **message_obj},
+            room=f"chat_{chat_id}"
+        )
+    except Exception as e:
+        # Log error but do not block response
+        print(f"SocketIO emit error: {e}")
+
     return jsonify({'result': 'Message sent.', 'message': message_obj}), 200

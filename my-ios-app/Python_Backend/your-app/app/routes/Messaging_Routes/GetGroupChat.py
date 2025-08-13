@@ -12,7 +12,7 @@ from app.utils.auth import jwt_required
 
 group_chat_bp = Blueprint('group_chat', __name__)
 
-@group_chat_bp.route('/api/group_chat', methods=['GET'])
+@group_chat_bp.route('/group_chat', methods=['GET'])  # CHANGED (was /api/group_chat)
 @jwt_required
 def api_group_chat():
     user_id = g.current_user.id
@@ -29,29 +29,36 @@ def api_group_chat():
     if limit > 4096:
         return jsonify({'error': 'limit should be <= 4096'}), 400
 
-    # Get chat info
     chat = Chats.query.filter_by(id=chats_id).first()
     if not chat:
         return jsonify({'error': 'Chat not found!'}), 404
 
-    # Get users in the chat
     users = db.session.query(User).join(
         ChatsUsers, ChatsUsers.users_id == User.id
     ).filter(ChatsUsers.chats_id == chats_id).all()
     users_result = [u.as_dict() for u in users]
 
-    # Get group messages in the chat (latest first, then reverse for chronological)
     messages = GroupMessage.query.filter_by(chat_id=chats_id)\
         .order_by(GroupMessage.created_at.desc())\
         .offset(offset).limit(limit).all()
 
-    # Use as_dict() for unified message response (includes sender object)
-    messages_result = [msg.as_dict() for msg in reversed(messages)]
+    flat_messages = []
+    for m in reversed(messages):
+        sender = m.sender
+        full_name = (getattr(sender, "full_name", None) or
+                     f"{getattr(sender,'fname','')} {getattr(sender,'lname','')}".strip())
+        flat_messages.append({
+            "id": m.id,
+            "sender_id": m.sender_id,
+            "sender_name": full_name or "",
+            "sender_photo_url": getattr(sender, "profile_picture_url", None) if sender else None,
+            "text": m.text,
+            "timestamp": m.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+        })
 
     result = {
         'chat': chat.as_dict() if hasattr(chat, 'as_dict') else {},
         'users': users_result,
-        'messages': messages_result
+        'messages': flat_messages
     }
-
     return jsonify({'result': result})

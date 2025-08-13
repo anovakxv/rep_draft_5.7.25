@@ -13,9 +13,12 @@ struct GoalsDetailView: View {
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
 
-    // --- Messaging State ---
-    @State private var showMessageView = false
-    @State private var messageUser: User? = nil
+    // --- Group Chat State ---
+    @State private var showGoalTeamChat = false
+    @State private var goalTeamChatId: Int? = nil
+    @State private var isCreatingTeamChat = false
+    @State private var chatCreationError: String?
+    @AppStorage("jwtToken") private var jwtToken: String = ""
 
     // --- Unified Sheet State ---
     private enum ActiveSheet: Identifiable {
@@ -39,132 +42,128 @@ struct GoalsDetailView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // --- Custom Top Bar (matches PortalHeader style) ---
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.system(size: 20))
-                    }
-                    Spacer()
-                    Text(viewModel.goal.title)
-                        .font(.system(size: 20, weight: .bold))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer()
-                    Color.clear.frame(width: 24, height: 24)
-                }
-                .frame(height: 44)
-                .padding(.horizontal, 15)
-                .background(Color.white)
-                .overlay(
-                    Rectangle()
-                        .frame(height: 1)
-                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                    alignment: .bottom
-                )
-
-                // Progress Bar and Metrics Section
-                VStack(alignment: .leading, spacing: 8) {
-                    ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(Color(UIColor.systemGray5))
-                            .frame(height: 34)
-                        Rectangle()
-                            .fill(Color.repGreen)
-                            .frame(
-                                width: max(0, min(1.0, CGFloat(viewModel.goal.progress)) * UIScreen.main.bounds.width * 0.92),
-                                height: 34
-                            )
-                    }
-                    .frame(height: 34)
-                    .padding(.vertical, 3)
+            ZStack {
+                VStack(spacing: 0) {
+                    // --- Custom Top Bar ---
                     HStack {
-                        Text("Metric: \(viewModel.goal.metricName)")
-                        Spacer()
-                        Text("Goal Type: \(viewModel.goal.typeName)")
-                    }
-                    .font(.callout)
-                    HStack {
-                        Text("Quota: \(Int(round(viewModel.goal.quota)))")
-                        Spacer()
-                        Text("Progress: \(Int(round(viewModel.goal.filledQuota)))")
-                    }
-                    .font(.callout)
-                    if !viewModel.goal.subtitle.isEmpty {
-                        Text(viewModel.goal.subtitle)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                    }
-                    if !viewModel.goal.description.isEmpty {
-                        Text(viewModel.goal.description)
-                            .font(.body)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding()
-
-                GoalSegmentedPicker(
-                    segments: ["Feed", "Report", "Team"],
-                    selectedIndex: $selectedSegment
-                )
-                .padding(.horizontal)
-
-                List {
-                    if selectedSegment == 0 {
-                        ForEach(viewModel.feed) { feedItem in
-                            FeedCell(feed: feedItem)
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.system(size: 20))
                         }
-                    } else if selectedSegment == 1 {
-                        if viewModel.goal.chartData.isEmpty {
-                            Text("No chart data available.")
-                        } else {
-                            LargeBarChartView(data: viewModel.goal.chartData, quota: viewModel.goal.quota)
+                        Spacer()
+                        Text(viewModel.goal.title)
+                            .font(.system(size: 20, weight: .bold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        Spacer()
+                        Color.clear.frame(width: 24, height: 24)
+                    }
+                    .frame(height: 44)
+                    .padding(.horizontal, 15)
+                    .background(Color.white)
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                        alignment: .bottom
+                    )
+
+                    // Progress Bar and Metrics Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color(UIColor.systemGray5))
+                                .frame(height: 34)
+                            Rectangle()
+                                .fill(Color.repGreen)
+                                .frame(
+                                    width: max(0, min(1.0, CGFloat(viewModel.goal.progress)) * UIScreen.main.bounds.width * 0.92),
+                                    height: 34
+                                )
                         }
-                    } else if selectedSegment == 2 {
-                        ForEach(viewModel.team) { user in
-                            TeamCell(user: user)
-                                .onTapGesture {
-                                    viewModel.showProfile(for: user)
+                        .frame(height: 34)
+                        .padding(.vertical, 3)
+                        HStack {
+                            Text("Metric: \(viewModel.goal.metricName)")
+                            Spacer()
+                            Text("Goal Type: \(viewModel.goal.typeName)")
+                        }
+                        .font(.callout)
+                        HStack {
+                            Text("Quota: \(Int(round(viewModel.goal.quota)))")
+                            Spacer()
+                            Text("Progress: \(Int(round(viewModel.goal.filledQuota)))")
+                        }
+                        .font(.callout)
+                        if !viewModel.goal.subtitle.isEmpty {
+                            Text(viewModel.goal.subtitle)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
+                        if !viewModel.goal.description.isEmpty {
+                            Text(viewModel.goal.description)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding()
+
+                    GoalSegmentedPicker(
+                        segments: ["Feed", "Report", "Team"],
+                        selectedIndex: $selectedSegment
+                    )
+                    .padding(.horizontal)
+
+                    List {
+                        if selectedSegment == 0 {
+                            ForEach(viewModel.feed) { feedItem in
+                                FeedCell(feed: feedItem)
+                            }
+                        } else if selectedSegment == 1 {
+                            Group {
+                                if viewModel.goal.chartData.isEmpty {
+                                    Text("No chart data available.")
+                                } else {
+                                    LargeBarChartView(data: viewModel.goal.chartData, quota: viewModel.goal.quota)
                                 }
+                            }
+                        } else if selectedSegment == 2 {
+                            ForEach(viewModel.team) { user in
+                                TeamCell(user: user)
+                                    .onTapGesture {
+                                        viewModel.showProfile(for: user)
+                                    }
+                            }
                         }
                     }
-                }
-                .listStyle(.plain)
+                    .listStyle(.plain)
 
-                BottomGoalBar(
-                    onAdd: { activeSheet = .action },
-                    onMessage: {
-                        // --- Activate messaging to Goal Creator ---
-                        let creatorId = viewModel.goal.creatorId
-                        guard creatorId != 0 else { return }
-                        // Try to find the creator in the team array for full info, else fallback
-                        let creatorUser = viewModel.team.first(where: { $0.id == creatorId }) ??
-                            User(
-                                id: creatorId,
-                                fullName: nil,
-                                fname: nil,
-                                lname: nil,
-                                username: nil,
-                                about: nil,
-                                broadcast: nil,
-                                profilePictureURL: nil,
-                                imageName: nil,
-                                userType: nil,
-                                city: nil,
-                                skills: nil,
-                                other_skill: nil,
-                                lastLogin: nil,
-                                createdAt: nil,
-                                updatedAt: nil,
-                                lastMessage: nil,
-                                lastMessageDate: nil
-                            )
-                        messageUser = creatorUser
-                        showMessageView = true
-                    }
-                )
+                    BottomGoalBar(
+                        onAdd: { activeSheet = .action },
+                        onMessage: {
+                            openGoalTeamChat()
+                        }
+                    )
+                }
+                .disabled(isCreatingTeamChat)
+
+                if isCreatingTeamChat {
+                    Color.black.opacity(0.15).ignoresSafeArea()
+                    ProgressView("Opening Team Chat...")
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(radius: 8)
+                }
+
+                // Hidden navigation link (moved here for clearer type inference)
+                NavigationLink(isActive: $showGoalTeamChat) {
+                    goalTeamChatDestination
+                } label: {
+                    EmptyView()
+                }
+                .hidden()
             }
             .background(Color.white.edgesIgnoringSafeArea(.all))
             .navigationBarHidden(true)
@@ -214,7 +213,6 @@ struct GoalsDetailView: View {
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
-                        // --- Delete Button ---
                         Button(role: .destructive) {
                             showDeleteAlert = true
                         } label: {
@@ -257,7 +255,6 @@ struct GoalsDetailView: View {
                     Text("Invite Team Sheet Placeholder")
                 }
             }
-            // --- Confirmation Alert ---
             .alert("Delete Goal?", isPresented: $showDeleteAlert) {
                 Button("Delete", role: .destructive) {
                     deleteGoal()
@@ -266,45 +263,105 @@ struct GoalsDetailView: View {
             } message: {
                 Text("Are you sure you want to delete this goal? This cannot be undone.")
             }
-            // --- Messaging NavigationLink ---
-            .background(
-                NavigationLink(
-                    destination:
-                        messageUser.map { user in
-                            MessageView(
-                                viewModel: .init(
-                                    currentUserId: viewModel.currentUserId,
-                                    otherUserId: user.id,
-                                    otherUserName: user.displayName,
-                                    otherUserPhotoURL: user.profilePictureURL
-                                )
-                            )
-                        },
-                    isActive: $showMessageView
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-            )
+            .alert(item: $chatCreationError) { err in
+                Alert(
+                    title: Text("Chat Error"),
+                    message: Text(err),
+                    dismissButton: .default(Text("OK"))
+                )
+            }
         }
+    }
+
+    // Destination builder
+    @ViewBuilder
+    private var goalTeamChatDestination: some View {
+        if let chatId = goalTeamChatId {
+            GroupChatView(
+                viewModel: GroupChatViewModel(
+                    currentUserId: viewModel.currentUserId,
+                    chatId: chatId,
+                    customChatTitle: "Goal Team: \(viewModel.goal.title)"
+                )
+            )
+        } else {
+            EmptyView()
+        }
+    }
+
+    // --- Create / Open Goal Team Chat ---
+    private func openGoalTeamChat() {
+        guard !isCreatingTeamChat else { return }
+
+        if let _ = goalTeamChatId {
+            showGoalTeamChat = true
+            return
+        }
+
+        guard !jwtToken.isEmpty else {
+            chatCreationError = "Not authenticated."
+            return
+        }
+
+        isCreatingTeamChat = true
+        chatCreationError = nil
+
+        let memberIds = viewModel.team
+            .map { $0.id }
+            .filter { $0 != viewModel.currentUserId }
+
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/manage_chat") else {
+            isCreatingTeamChat = false
+            chatCreationError = "Bad URL."
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+
+        let body: [String: Any] = [
+            "title": "Goal Team: \(viewModel.goal.title)",
+            "aAddIDs": memberIds
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isCreatingTeamChat = false
+                if let error = error {
+                    chatCreationError = error.localizedDescription
+                    return
+                }
+                guard
+                    let data = data,
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                    let chatsId = json["chats_id"] as? Int
+                else {
+                    chatCreationError = "Failed to create chat."
+                    return
+                }
+                self.goalTeamChatId = chatsId
+                self.showGoalTeamChat = true
+            }
+        }.resume()
     }
 
     // --- Delete Goal Function ---
     private func deleteGoal() {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/delete"),
-            let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
+              let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let params: [String: Any] = ["goals_id": viewModel.goal.id]
         request.httpBody = try? JSONSerialization.data(withJSONObject: params)
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        URLSession.shared.dataTask(with: request) { _, response, _ in
             DispatchQueue.main.async {
                 if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
                     dismiss()
-                } else {
-                    // Optionally show error
                 }
             }
         }.resume()
@@ -329,7 +386,7 @@ struct GoalsDetailView: View {
     }
 }
 
-// MARK: - Goal Segmented Picker (matches PortalSegmentedPicker style)
+// MARK: - Goal Segmented Picker
 
 struct GoalSegmentedPicker: View {
     let segments: [String]
@@ -394,7 +451,7 @@ class GoalsDetailViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, _, _ in
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode(GoalDetailAPIResponse.self, from: data)
@@ -449,7 +506,7 @@ class GoalsDetailViewModel: ObservableObject {
                             userType: nil,
                             city: nil,
                             skills: nil,
-                            other_skill: nil, // <-- Add this line
+                            other_skill: nil,
                             lastLogin: nil,
                             createdAt: nil,
                             updatedAt: nil,
@@ -513,17 +570,9 @@ class GoalsDetailViewModel: ObservableObject {
         }.resume()
     }
 
-    func goBack() {
-        // Handle navigation back
-    }
-
-    func handleAction(_ action: String) {
-        // Handle Invite, Update, Edit, etc.
-    }
-
-    func showProfile(for user: User) {
-        // Navigate to user profile
-    }
+    func goBack() {}
+    func handleAction(_ action: String) {}
+    func showProfile(for user: User) {}
 }
 
 // MARK: - API Models

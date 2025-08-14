@@ -70,6 +70,7 @@ def api_send_chat_message():
     # --- Socket.IO broadcast for real-time group chat ---
     try:
         from app import socketio
+        print(f"[SocketIO] Emitting group_message to chat_{chat_id}: {message_obj}")
         socketio.emit(
             "group_message",
             {"chat_id": chat_id, **message_obj},

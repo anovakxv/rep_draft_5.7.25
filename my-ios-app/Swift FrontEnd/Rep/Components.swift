@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 // MARK: - GrowingTextEditor
@@ -19,7 +18,7 @@ struct GrowingTextEditor: View {
                     .padding(.horizontal, 8)
             }
             UITextViewWrapper(
-                text: $text,
+                text: Binding<String>(get: { self.text }, set: { self.text = $0 }),
                 calculatedHeight: $textViewHeight,
                 minHeight: minHeight,
                 maxHeight: maxHeight
@@ -34,7 +33,7 @@ struct GrowingTextEditor: View {
 // MARK: - UITextViewWrapper for dynamic height
 
 struct UITextViewWrapper: UIViewRepresentable {
-    @Binding var text: String
+    var text: Binding<String>
     @Binding var calculatedHeight: CGFloat
 
     let minHeight: CGFloat
@@ -52,8 +51,8 @@ struct UITextViewWrapper: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: UITextView, context: Context) {
-        if uiView.text != self.text {
-            uiView.text = self.text
+        if uiView.text != self.text.wrappedValue {
+            uiView.text = self.text.wrappedValue
         }
         UITextViewWrapper.recalculateHeight(view: uiView, result: $calculatedHeight, minHeight: minHeight, maxHeight: maxHeight)
         uiView.isScrollEnabled = calculatedHeight >= maxHeight
@@ -81,7 +80,7 @@ struct UITextViewWrapper: UIViewRepresentable {
         }
 
         func textViewDidChange(_ textView: UITextView) {
-            self.parent.text = textView.text
+            self.parent.text.wrappedValue = textView.text
             UITextViewWrapper.recalculateHeight(view: textView, result: self.parent.$calculatedHeight, minHeight: parent.minHeight, maxHeight: parent.maxHeight)
         }
     }

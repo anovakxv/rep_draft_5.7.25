@@ -353,7 +353,11 @@ struct MainScreen: View {
     @State private var page: Page = .portals
     @State private var section = 2
 
-    @State private var showTeamChat = false
+    // --- NEW STATE for group chat creation/navigation ---
+    @State private var newGroupChatId: Int? = nil
+    @State private var navigateToGroupChat = false
+    @State private var showCreateGroupChatSheet = false
+
     // Sheet and search state
     @State private var mainActiveSheet: MainScreenContent.ActiveSheet?
     @State private var showSearch = false
@@ -398,17 +402,19 @@ struct MainScreen: View {
                 ))
                 .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
                 .navigationBarTitleDisplayMode(.inline)
-            }
-            NavigationLink(
-                destination: GroupChatView(
-                    viewModel: GroupChatViewModel(
-                        currentUserId: userId,
-                        chatId: 0
-                    )
-                ),
-                isActive: $showTeamChat
-            ) {
-                EmptyView()
+                // --- Navigation to newly created group chat ---
+                NavigationLink(
+                    destination: newGroupChatId.map {
+                        GroupChatView(
+                            viewModel: GroupChatViewModel(
+                                currentUserId: userId,
+                                chatId: $0
+                            )
+                        )
+                    },
+                    isActive: $navigateToGroupChat
+                ) { EmptyView() }
+                .hidden()
             }
         }
         .onAppear {
@@ -438,9 +444,32 @@ struct MainScreen: View {
             case .addPurpose:
                 mainActiveSheet = .addPurpose
             case .teamChat:
-                showTeamChat = true
+                // Open create group chat sheet instead of placeholder chat
+                showCreateGroupChatSheet = true
             }
             pendingAction = nil
+        }
+        .sheet(isPresented: $showCreateGroupChatSheet) {
+            EditGroupChatView(
+                chatId: nil,
+                currentMembers: [],
+                groupName: "",
+                isNewChat: true,
+                currentUserId: userId,
+                onSave: { createdId in
+                    showCreateGroupChatSheet = false
+                    guard let createdId else { return }
+                    // Ensure socket join early
+                    RealtimeSocketManager.shared.join(chatId: createdId)
+                    newGroupChatId = createdId
+                    navigateToGroupChat = true
+                    // Refresh active chats list after creation
+                    peopleVM.fetchPeople(userId: userId, section: 0)
+                },
+                onCancel: {
+                    showCreateGroupChatSheet = false
+                }
+            )
         }
     }
 
@@ -872,8 +901,8 @@ struct ChatList: View {
         ZStack {
             List {
                 ForEach(users) { user in
-                    HStack(spacing: 0) {
-                        Button(action: { selectedProfileId = user.id }) {
+                    Button(action: { selectedProfileId = user.id }) {
+                        HStack(spacing: 0) {
                             if let url = user.profilePictureURL {
                                 KFImage(url)
                                     .resizable()
@@ -887,10 +916,6 @@ struct ChatList: View {
                                     .frame(width: 64, height: 64)
                                     .clipShape(Circle())
                             }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .padding(.leading, 16)
-                        Button(action: { selectedChatId = user.id }) {
                             VStack(alignment: .leading) {
                                 HStack {
                                     Text(user.fullName ?? "")
@@ -906,11 +931,13 @@ struct ChatList: View {
                             }
                             .padding(.leading, 8)
                         }
-                        .buttonStyle(PlainButtonStyle())
+                        .padding(.leading, 16)
+                        .frame(height: 64)
+                        .padding(.vertical, 16)
+                        .background(Color.white)
+                        .contentShape(Rectangle())
                     }
-                    .frame(height: 64)
-                    .padding(.vertical, 16)
-                    .background(Color.white)
+                    .buttonStyle(PlainButtonStyle())
                     .listRowInsets(EdgeInsets())
                     .overlay(
                         Rectangle()
@@ -927,24 +954,6 @@ struct ChatList: View {
                 isActive: Binding(
                     get: { selectedProfileId != nil },
                     set: { if !$0 { selectedProfileId = nil } }
-                ),
-                label: { EmptyView() }
-            )
-            NavigationLink(
-                destination: selectedChatId.flatMap { id in
-                    if let user = users.first(where: { $0.id == id }) {
-                        Chat(
-                            userId: user.id,
-                            userName: user.fullName ?? "",
-                            userPhotoURL: user.profilePictureURL
-                        )
-                    } else {
-                        Chat(userId: id)
-                    }
-                },
-                isActive: Binding(
-                    get: { selectedChatId != nil },
-                    set: { if !$0 { selectedChatId = nil } }
                 ),
                 label: { EmptyView() }
             )
@@ -967,6 +976,7 @@ struct ActiveChatList: View {
                 ForEach(chats) { chat in
                     if chat.type == "direct", let user = chat.user {
                         HStack(spacing: 0) {
+                            // Profile pic button
                             Button(action: { selectedProfileId = user.id }) {
                                 if let url = user.profilePictureURL {
                                     KFImage(url)
@@ -984,6 +994,7 @@ struct ActiveChatList: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             .padding(.leading, 16)
+                            // Text/chat button
                             Button(action: { selectedDirectUserId = user.id }) {
                                 VStack(alignment: .leading) {
                                     HStack {
@@ -1010,6 +1021,7 @@ struct ActiveChatList: View {
                                     }
                                 }
                                 .padding(.leading, 8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                             }
                             .buttonStyle(PlainButtonStyle())
                         }

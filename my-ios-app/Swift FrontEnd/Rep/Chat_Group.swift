@@ -26,11 +26,35 @@ struct AnyDecodable: Decodable {
     }
 }
 
+// MARK: - Shared Profile Picture Helper
+
+fileprivate let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
+fileprivate func patchProfilePictureURL(_ imageName: String?) -> URL? {
+    guard let imageName = imageName, !imageName.isEmpty else { return nil }
+    if imageName.starts(with: "http") {
+        return URL(string: imageName)
+    } else {
+        return URL(string: s3BaseURL + imageName)
+    }
+}
+
 // MARK: - ErrorMessage for Identifiable error alerts
 
 struct ErrorMessage: Identifiable {
     let id = UUID()
     let message: String
+}
+
+// MARK: - Asset Host Helper
+
+extension APIConfig {
+    static var assetHost: String {
+        if baseURL.hasSuffix("/api") {
+            return String(baseURL.dropLast(4))
+        }
+        return baseURL
+    }
 }
 
 // MARK: - Group Message Model
@@ -39,18 +63,22 @@ struct GroupMessage: Identifiable, Decodable {
     let id: Int
     let senderId: Int
     let senderName: String
-    let senderPhotoURL: URL?
+    let senderPhoto: String?
     let text: String
     let timestamp: Date
+
+    var senderPhotoURL: URL? {
+        patchProfilePictureURL(senderPhoto)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
         case senderId = "sender_id"
         case senderName = "sender_name"
-        case senderPhotoURL = "sender_photo_url"
+        case senderPhoto = "sender_photo_url"
         case text
         case timestamp
-        case createdAt = "created_at" // fallback support
+        case createdAt = "created_at"
     }
 
     init(from decoder: Decoder) throws {
@@ -58,12 +86,7 @@ struct GroupMessage: Identifiable, Decodable {
         id = try c.decode(Int.self, forKey: .id)
         senderId = try c.decode(Int.self, forKey: .senderId)
         senderName = (try? c.decode(String.self, forKey: .senderName)) ?? ""
-        if let urlStr = try? c.decodeIfPresent(String.self, forKey: .senderPhotoURL),
-           let u = URL(string: urlStr) {
-            senderPhotoURL = u
-        } else {
-            senderPhotoURL = nil
-        }
+        senderPhoto = try? c.decodeIfPresent(String.self, forKey: .senderPhoto)
         text = try c.decode(String.self, forKey: .text)
         let rawDate = (try? c.decodeIfPresent(String.self, forKey: .timestamp)) ??
                       (try? c.decodeIfPresent(String.self, forKey: .createdAt)) ?? ""
@@ -72,6 +95,7 @@ struct GroupMessage: Identifiable, Decodable {
         } else {
             timestamp = Date()
         }
+        print("[GroupMessage] senderName=\(senderName) rawPhoto=\(senderPhoto ?? "nil") finalURL=\(senderPhotoURL?.absoluteString ?? "nil")")
     }
 }
 
@@ -80,12 +104,24 @@ struct GroupMessage: Identifiable, Decodable {
 struct GroupMember: Identifiable, Decodable {
     let id: Int
     let name: String
-    let photoURL: URL?
+    let profilePicture: String?
+
+    var photoURL: URL? {
+        patchProfilePictureURL(profilePicture)
+    }
 
     enum CodingKeys: String, CodingKey {
         case id
         case name = "full_name"
-        case photoURL = "profile_picture_url"
+        case profilePicture = "profile_picture_url"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        profilePicture = try? c.decodeIfPresent(String.self, forKey: .profilePicture)
+        print("[GroupMember] id=\(id) name=\(name) rawProfile=\(profilePicture ?? "nil") finalURL=\(photoURL?.absoluteString ?? "nil")")
     }
 }
 
@@ -133,31 +169,37 @@ class GroupChatViewModel: ObservableObject {
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
-    private var realtimeInitialized = false
-
     init(currentUserId: Int, chatId: Int, customChatTitle: String? = nil) {
         self.currentUserId = currentUserId
         self.chatId = chatId
         self.customChatTitle = customChatTitle
+        print("[GroupChatVM:init] chatId=\(chatId) baseURL=\(APIConfig.baseURL)")
+        if jwtToken.isEmpty {
+            print("[GroupChatVM:init] jwtToken EMPTY")
+        } else {
+            print("[GroupChatVM:init] jwtToken len=\(jwtToken.count)")
+        }
         fetchGroupChat()
         setupRealtime()
     }
 
     private func setupRealtime() {
-        guard !realtimeInitialized, !jwtToken.isEmpty else { return }
-        realtimeInitialized = true
-        // Connect & join room
+        guard !jwtToken.isEmpty else { return }
         RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken)
         RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
             guard let self = self else { return }
-            // Validate chat
+            print("[GroupChatVM \(self.chatId)] socket payload: \(payload)")
             guard let incomingChatId = payload["chat_id"] as? Int, incomingChatId == self.chatId else { return }
-            // Decode
             if let data = try? JSONSerialization.data(withJSONObject: payload),
                let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
                 DispatchQueue.main.async {
                     if !self.messages.contains(where: { $0.id == msg.id }) {
-                        self.messages.append(msg)
+                        // If optimistic placeholder exists (negative ID), replace it
+                        if let idx = self.messages.firstIndex(where: { $0.id < 0 && $0.text == msg.text && $0.senderId == msg.senderId }) {
+                            self.messages[idx] = msg
+                        } else {
+                            self.messages.append(msg)
+                        }
                     }
                 }
             }
@@ -166,7 +208,6 @@ class GroupChatViewModel: ObservableObject {
     }
 
     func fetchGroupChat() {
-        // UPDATED path to flattened group chat endpoint under /api/message
         guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group_chat?chats_id=\(chatId)&limit=50") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
@@ -186,26 +227,100 @@ class GroupChatViewModel: ObservableObject {
 
     func sendMessage() {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-        // UPDATED path for send group message
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_chat_message") else { return }
+        print("[sendMessage] called with text: '\(trimmed)'")
+        guard !trimmed.isEmpty else {
+            print("[sendMessage] inputText is empty after trimming.")
+            return
+        }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_chat_message") else {
+            print("[sendMessage] Invalid URL")
+            return
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+        let body: [String: Any] = [
             "chats_id": chatId,
             "message": trimmed
-        ])
-        URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
-        // Clear immediately; socket broadcast will append
-        DispatchQueue.main.async { self.inputText = "" }
-    }
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        print("[sendMessage] Sending request: \(request) with body: \(body)")
 
-    deinit {
-        RealtimeSocketManager.shared.leave(chatId: chatId)
+        // Optimistic placeholder
+        let tempId = -(messages.count + 1)
+        let optimistic = GroupMessagePlaceholder.make(id: tempId, senderId: currentUserId, text: trimmed)
+        DispatchQueue.main.async {
+            self.messages.append(optimistic)
+            self.inputText = ""
+        }
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error {
+                print("[sendMessage] Network error: \(error)")
+                return
+            }
+            if let http = response as? HTTPURLResponse {
+                print("[sendMessage] HTTP status: \(http.statusCode)")
+            }
+            guard let data = data else {
+                print("[sendMessage] No data returned")
+                return
+            }
+            if let decoded = try? JSONDecoder().decode(SendGroupMessageAPIResponse.self, from: data) {
+                let real = decoded.message
+                DispatchQueue.main.async {
+                    if let idx = self.messages.firstIndex(where: { $0.id == tempId }) {
+                        self.messages[idx] = real
+                    } else if !self.messages.contains(where: { $0.id == real.id }) {
+                        self.messages.append(real)
+                    }
+                }
+            } else {
+                print("[sendMessage] Failed to decode response: \(String(data: data, encoding: .utf8) ?? "")")
+            }
+        }.resume()
+    }
+}
+
+// MARK: - Initials Helper
+
+func initials(for name: String) -> String {
+    let comps = name.split(separator: " ")
+    let first = comps.first?.first.map { String($0) } ?? ""
+    let last = comps.dropFirst().first?.first.map { String($0) } ?? ""
+    return (first + last).uppercased()
+}
+
+// MARK: - Group Member Avatar View
+
+struct GroupMemberAvatar: View {
+    let name: String
+    let photoURL: URL?
+    var size: CGFloat = 36
+
+    var body: some View {
+        ZStack {
+            if let url = photoURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle().fill(Color.gray.opacity(0.3))
+                }
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: size, height: size)
+                Text(initials(for: name))
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+            }
+        }
     }
 }
 
@@ -250,139 +365,157 @@ struct GroupChatNavigationHeaderView:  View {
 // MARK: - Group Chat View
 
 struct GroupChatView: View {
-    @ObservedObject var viewModel: GroupChatViewModel
+    @StateObject var viewModel: GroupChatViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var showEditSheet = false
+    @State private var newChatId: Int? = nil
+    @State private var navigateToNewChat = false
+
+    // Custom init so callers can still pass a freshly created VM once.
+    init(viewModel: GroupChatViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
+
+    private var newChatDestination: AnyView {
+        if let newChatId = newChatId {
+            return AnyView(
+                GroupChatView(
+                    viewModel: GroupChatViewModel(
+                        currentUserId: viewModel.currentUserId,
+                        chatId: newChatId
+                    )
+                )
+            )
+        } else {
+            return AnyView(EmptyView())
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 0) {
-            GroupChatNavigationHeaderView(
-                name: viewModel.customChatTitle ?? viewModel.groupName,
-                onBack: { dismiss() },
-                onPlus: { showEditSheet = true }
-            )
-            
-            // --- Horizontal member list (profile pics + names) ---
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    let members = viewModel.groupMembers
-                    ForEach(members) { member in
-                        VStack {
-                            if let url = member.photoURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Circle().fill(Color.gray.opacity(0.3))
-                                }
-                                .frame(width: 36, height: 36)
-                                .clipShape(Circle())
-                            } else {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 36, height: 36)
-                            }
-                            Text(member.name)
-                                .font(.caption2)
-                                .lineLimit(1)
-                                .frame(width: 40)
-                        }
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-            }
-            .background(Color.white)
-            // --- End horizontal member list ---
+        NavigationStack {
+            VStack(spacing: 0) {
+                GroupChatNavigationHeaderView(
+                    name: viewModel.customChatTitle ?? viewModel.groupName,
+                    onBack: { dismiss() },
+                    onPlus: { showEditSheet = true }
+                )
 
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(viewModel.messages) { message in
-                            HStack(alignment: .bottom, spacing: 8) {
-                                if message.senderId == viewModel.currentUserId {
-                                    Spacer()
-                                    GroupMessageBubble(message: message, isCurrentUser: true)
-                                } else {
-                                    if let url = message.senderPhotoURL {
-                                        AsyncImage(url: url) { image in
-                                            image.resizable().aspectRatio(contentMode: .fill)
-                                        } placeholder: {
-                                            Circle().fill(Color.gray.opacity(0.3))
-                                        }
-                                        .frame(width: 32, height: 32)
-                                        .clipShape(Circle())
-                                    } else {
-                                        Circle()
-                                            .fill(Color.gray.opacity(0.3))
-                                            .frame(width: 32, height: 32)
-                                    }
-                                    GroupMessageBubble(message: message, isCurrentUser: false)
-                                    Spacer()
-                                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        let members = viewModel.groupMembers
+                        ForEach(members) { member in
+                            VStack {
+                                GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 36)
+                                Text(initials(for: member.name))
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .frame(width: 40)
                             }
                         }
                     }
-                    .padding(.vertical, 12)
                     .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                 }
                 .background(Color.white)
-                .onChange(of: viewModel.messages.count) { _ in
-                    if let last = viewModel.messages.last {
-                        withAnimation {
-                            proxy.scrollTo(last.id, anchor: .bottom)
+
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(viewModel.messages) { message in
+                                HStack(alignment: .bottom, spacing: 8) {
+                                    if message.senderId == viewModel.currentUserId {
+                                        Spacer()
+                                        GroupMessageBubble(message: message, isCurrentUser: true)
+                                    } else {
+                                        GroupMessageBubble(message: message, isCurrentUser: false)
+                                        Spacer()
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 12)
+                    }
+                    .background(Color.white)
+                    .onChange(of: viewModel.messages.count) { _ in
+                        if let last = viewModel.messages.last {
+                            withAnimation {
+                                proxy.scrollTo(last.id, anchor: .bottom)
+                            }
                         }
                     }
                 }
-            }
 
-            HStack(spacing: 8) {
-                GrowingTextEditor(
-                    text: $viewModel.inputText,
-                    minHeight: 36,
-                    maxHeight: 36 * 4
+                HStack(spacing: 8) {
+                    GrowingTextEditor(
+                        text: $viewModel.inputText,
+                        minHeight: 36,
+                        maxHeight: 36 * 4
+                    )
+                    .font(.body)
+
+                    Button(action: {
+                        print("[UI] Send tapped. raw input='\(viewModel.inputText)' disabled? \(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
+                        viewModel.sendMessage()
+                    }) {
+                        Text("Send")
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 18)
+                            .background(SwiftUI.Color.repGreen)
+                            .cornerRadius(8)
+                    }
+                    .background(Color.orange.opacity(0.2)) // TEMP: visualize hit area
+                    // .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) // TEMP: allow always
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .top
                 )
-                .font(.body)
-
-                Button(action: {
-                    viewModel.sendMessage()
-                }) {
-                    Text("Send")
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .padding(.vertical, 10)
-                        .padding(.horizontal, 18)
-                        .background(SwiftUI.Color.repGreen)
-                        .cornerRadius(8)
-                }
-                .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(Color.white)
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                alignment: .top
-            )
-        }
-        .background(Color.white.edgesIgnoringSafeArea(.all))
-        .sheet(isPresented: $showEditSheet) {
-            EditGroupChatView(
-                chatId: nil,
-                currentMembers: [],
-                groupName: "",
-                isNewChat: true,
-                currentUserId: viewModel.currentUserId,
-                onSave: { newChatId in
-                    // Navigate to GroupChatView with newChatId
-                },
-                onCancel: {
-                    showEditSheet = false
+            .background(Color.white.edgesIgnoringSafeArea(.all))
+            .sheet(isPresented: $showEditSheet) {
+                EditGroupChatView(
+                    chatId: nil,
+                    currentMembers: [],
+                    groupName: "",
+                    isNewChat: true,
+                    currentUserId: viewModel.currentUserId,
+                    onSave: { newChatId in
+                        showEditSheet = false
+                        if let newChatId = newChatId {
+                            RealtimeSocketManager.shared.join(chatId: newChatId)
+                            self.newChatId = newChatId
+                            self.navigateToNewChat = true
+                        }
+                    },
+                    onCancel: {
+                        showEditSheet = false
+                    }
+                )
+            }
+            .navigationBarHidden(true)
+            .background(
+                NavigationLink(
+                    destination: newChatDestination,
+                    isActive: $navigateToNewChat
+                ) {
+                    EmptyView()
                 }
+                .hidden()
             )
+            .onAppear {
+                print("[GroupChatView] onAppear chatId=\(viewModel.chatId)")
+            }
         }
-        .navigationBarHidden(true)
     }
 }
 
@@ -406,7 +539,7 @@ struct EditGroupChatView: View {
     let groupName: String
     let isNewChat: Bool
     let currentUserId: Int
-    var onSave: (Int?) -> Void // Passes new chatId if created, else nil
+    var onSave: (Int?) -> Void
     var onCancel: () -> Void
 
     @State private var editedName: String = ""
@@ -424,28 +557,14 @@ struct EditGroupChatView: View {
                         TextField("Group Name", text: $editedName)
                     }
                     Section(header: Text("Members")) {
-                        // Show current or selected members
                         let baseMembers = isNewChat ? [] : currentMembers
                         ForEach(baseMembers) { member in
                             HStack {
-                                if let url = member.photoURL {
-                                    AsyncImage(url: url) { image in
-                                        image.resizable().aspectRatio(contentMode: .fill)
-                                    } placeholder: {
-                                        Circle().fill(Color.gray.opacity(0.3))
-                                    }
-                                    .frame(width: 32, height: 32)
-                                    .clipShape(Circle())
-                                } else {
-                                    Circle()
-                                        .fill(Color.gray.opacity(0.3))
-                                        .frame(width: 32, height: 32)
-                                }
+                                GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 32)
                                 Text(member.name)
                                 Spacer()
                             }
                         }
-                        // Show pending additions by name
                         let currentIds = Set(baseMembers.map { $0.id })
                         let pendingIds = Set(selectedMembersToAdd.keys).subtracting(currentIds)
                         ForEach(Array(pendingIds), id: \.self) { id in
@@ -530,7 +649,6 @@ struct EditGroupChatView: View {
         }
     }
 
-    // --- New Chat Creation Logic ---
     private func createGroupChat() {
         isLoading = true
         errorMessage = nil
@@ -541,7 +659,6 @@ struct EditGroupChatView: View {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        // Always include self
         let allIds = [currentUserId] + Array(selectedMembersToAdd.keys)
         let body: [String: Any] = [
             "title": editedName,
@@ -555,10 +672,20 @@ struct EditGroupChatView: View {
                     errorMessage = ErrorMessage(message: error.localizedDescription)
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     errorMessage = ErrorMessage(message: "Failed to create chat. (\(http.statusCode))")
-                } else if let data = data,
-                          let decoded = try? JSONDecoder().decode([String: AnyDecodable].self, from: data),
-                          let chatId = (decoded["result"]?.value as? [String: Any])?["id"] as? Int {
-                    onSave(chatId)
+                } else if let data = data {
+                    print("Create chat response: \(String(data: data, encoding: .utf8) ?? "")")
+                    if let decoded = try? JSONDecoder().decode([String: AnyDecodable].self, from: data) {
+                        if let chatDict = decoded["chat"]?.value as? [String: Any],
+                           let chatId = chatDict["id"] as? Int {
+                            onSave(chatId)
+                        } else if let chatId = decoded["chats_id"]?.value as? Int {
+                            onSave(chatId)
+                        } else {
+                            onSave(nil)
+                        }
+                    } else {
+                        onSave(nil)
+                    }
                 } else {
                     onSave(nil)
                 }
@@ -577,7 +704,7 @@ struct EditGroupChatView: View {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
         let body: [String: Any] = [
-            "chats_id": chatId,
+            "chats_id": chatId as Any,
             "aDelIDs": [memberId]
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -607,7 +734,7 @@ struct EditGroupChatView: View {
         }
         let addIds = Array(Set(selectedMembersToAdd.keys).subtracting(currentMembers.map { $0.id }))
         let body: [String: Any] = [
-            "chats_id": chatId,
+            "chats_id": chatId as Any,
             "title": editedName,
             "aAddIDs": addIds
         ]
@@ -644,19 +771,7 @@ struct RemoveMembersSheet: View {
                         dismiss()
                     } label: {
                         HStack {
-                            if let url = member.photoURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Circle().fill(Color.gray.opacity(0.3))
-                                }
-                                .frame(width: 32, height: 32)
-                                .clipShape(Circle())
-                            } else {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 32, height: 32)
-                            }
+                            GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 32)
                             Text(member.name)
                                 .foregroundColor(.red)
                         }
@@ -701,19 +816,7 @@ struct NTWKUserPicker: View {
                         }
                     }) {
                         HStack {
-                            if let url = user.profilePictureURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().aspectRatio(contentMode: .fill)
-                                } placeholder: {
-                                    Circle().fill(Color.gray.opacity(0.3))
-                                }
-                                .frame(width: 32, height: 32)
-                                .clipShape(Circle())
-                            } else {
-                                Circle()
-                                    .fill(Color.gray.opacity(0.3))
-                                    .frame(width: 32, height: 32)
-                            }
+                            GroupMemberAvatar(name: user.fullName ?? "", photoURL: user.profilePictureURL, size: 32)
                             Text(user.fullName ?? "")
                             Spacer()
                             if selectedUsers.contains(user.id) || alreadySelected.contains(user.id) {
@@ -770,8 +873,8 @@ struct NTWKUserPicker: View {
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     errorMessage = ErrorMessage(message: "Failed to load NTWK. (\(http.statusCode))")
                 } else if let data = data,
-                        let decoded = try? JSONDecoder().decode([String: [User]].self, from: data),
-                        let usersArr = decoded["result"] {
+                          let decoded = try? JSONDecoder().decode([String: [User]].self, from: data),
+                          let usersArr = decoded["result"] {
                     users = usersArr
                 }
             }
@@ -786,23 +889,60 @@ struct GroupMessageBubble: View {
     let isCurrentUser: Bool
 
     var body: some View {
-        VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 2) {
-            if !isCurrentUser {
-                Text(message.senderName)
-                    .font(.caption2)
-                    .foregroundColor(.gray)
+        HStack(alignment: .bottom, spacing: 8) {
+            if isCurrentUser {
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(message.text)
+                        .padding(10)
+                        .background(Color.black)
+                        .foregroundColor(Color.repGreen)
+                        .cornerRadius(8)
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: 260, alignment: .trailing)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message.senderName)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                    Text(message.text)
+                        .padding(10)
+                        .background(Color(UIColor.systemGray5))
+                        .foregroundColor(.black)
+                        .cornerRadius(8)
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: 260, alignment: .leading)
+                Spacer()
             }
-            Text(message.text)
-                .padding(10)
-                .background(isCurrentUser ? Color.repGreen : Color(UIColor.systemGray5))
-                .foregroundColor(isCurrentUser ? .white : .black)
-                .cornerRadius(16)
-            Text(message.timestamp, style: .time)
-                .font(.caption2)
-                .foregroundColor(.gray)
         }
-        .frame(maxWidth: 260, alignment: isCurrentUser ? .trailing : .leading)
         .id(message.id)
+    }
+}
+// Helper to build an optimistic GroupMessage
+fileprivate enum GroupMessagePlaceholder {
+    static func make(id: Int, senderId: Int, text: String) -> GroupMessage {
+        let iso = ISO8601DateFormatter().string(from: Date())
+        let json: [String: Any] = [
+            "id": id,
+            "sender_id": senderId,
+            "sender_name": "You",
+            "sender_photo_url": NSNull(),
+            "text": text,
+            "timestamp": iso
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: json),
+           let decoded = try? JSONDecoder().decode(GroupMessage.self, from: data) {
+            return decoded
+        }
+        // Fallback (should rarely happen)
+        let data = try! JSONSerialization.data(withJSONObject: json)
+        return try! JSONDecoder().decode(GroupMessage.self, from: data)
     }
 }
 

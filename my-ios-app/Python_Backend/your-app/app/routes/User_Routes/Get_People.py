@@ -6,9 +6,9 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.messages_read import MessagesRead
-# from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
-# from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
-# from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.user import User
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.models.People_Models.Skill import Skill
@@ -89,8 +89,8 @@ def batch_get_last_direct_messages(user_id, contact_ids):
 @jwt_required
 def api_active_chat_list():
     """
-    Returns the user's active chat list (OPEN tab): all direct chats the user is part of,
-    sorted by most recent message descending.
+    Returns the user's active chat list (OPEN tab): all direct chats and group chats (with at least one message)
+    the user is part of, sorted by most recent message descending.
     """
     user_id = g.current_user.id
 
@@ -102,7 +102,7 @@ def api_active_chat_list():
     if offset < 0:
         return jsonify({'error': 'offset is wrong!'}), 400
 
-    # Get the latest message per direct chat (between user and each contact)
+    # --- DIRECT CHATS ---
     direct_contacts = db.session.query(
         db.case(
             (DirectMessage.sender_id == user_id, DirectMessage.recipient_id),
@@ -117,10 +117,29 @@ def api_active_chat_list():
     users_map = batch_get_users(contact_ids) if contact_ids else {}
     last_direct_msgs = batch_get_last_direct_messages(user_id, contact_ids) if contact_ids else {}
 
+    # --- GROUP CHATS (with at least one message) ---
+    group_chats = (
+        db.session.query(
+            GroupMessage.chat_id,
+            db.func.max(GroupMessage.created_at).label('last_message_time')
+        )
+        .join(ChatsUsers, ChatsUsers.chats_id == GroupMessage.chat_id)
+        .filter(ChatsUsers.users_id == user_id)
+        .group_by(GroupMessage.chat_id)
+        .all()
+    )
+    chat_ids = [row.chat_id for row in group_chats]
+    chats_map = {c.id: c for c in Chats.query.filter(Chats.id.in_(chat_ids)).all()} if chat_ids else {}
+    last_group_msgs = {}
+    for row in group_chats:
+        last_msg = GroupMessage.query.filter_by(chat_id=row.chat_id).order_by(GroupMessage.created_at.desc()).first()
+        if last_msg:
+            last_group_msgs[row.chat_id] = last_msg
+
     # --- Get all read message IDs for this user ---
     read_ids = set(r.messages_id for r in MessagesRead.query.filter_by(users_id=user_id).all())
 
-    # Collect all latest chat events (direct only)
+    # --- Collect all latest chat events (direct + group) ---
     chat_events = []
     for row in direct_contacts:
         chat_events.append({
@@ -128,18 +147,18 @@ def api_active_chat_list():
             'contact_id': row.contact_id,
             'last_message_time': row.last_message_time
         })
-    # for row in group_chats:
-    #     chat_events.append({
-    #         'type': 'group',
-    #         'chat_id': row.chat_id,
-    #         'last_message_time': row.last_message_time
-    #     })
+    for row in group_chats:
+        chat_events.append({
+            'type': 'group',
+            'chat_id': row.chat_id,
+            'last_message_time': row.last_message_time
+        })
 
-    # Sort all chats by last_message_time descending
+    # --- Sort all chats by last_message_time descending ---
     chat_events.sort(key=lambda x: x['last_message_time'], reverse=True)
     chat_events = chat_events[offset:offset+limit]
 
-    # Build response: for each chat, include user info and last message, and add 'id' field
+    # --- Build response ---
     result = []
     for event in chat_events:
         if event['type'] == 'direct':
@@ -147,7 +166,6 @@ def api_active_chat_list():
             last_msg = last_direct_msgs.get(event['contact_id'])
             user_dict = user.as_dict() if user else {}
             user_dict = patch_profile_picture_url(user_dict)
-            # --- Add read status to last_message ---
             is_read = "1" if last_msg and last_msg.id in read_ids else "0"
             result.append({
                 'id': f"direct-{user.id}" if user else None,
@@ -156,16 +174,16 @@ def api_active_chat_list():
                 'last_message': last_msg.as_dict(read=is_read) if last_msg else {},
                 'last_message_time': event['last_message_time']
             })
-        # elif event['type'] == 'group':
-        #     chat = chats_map.get(event['chat_id'])
-        #     last_msg = last_group_msgs.get(event['chat_id'])
-        #     result.append({
-        #         'id': f"group-{chat.id}" if chat else None,
-        #         'type': 'group',
-        #         'chat': chat.as_dict() if chat else {},
-        #         'last_message': last_msg.as_dict() if last_msg else {},
-        #         'last_message_time': event['last_message_time']
-        #     })
+        elif event['type'] == 'group':
+            chat = chats_map.get(event['chat_id'])
+            last_msg = last_group_msgs.get(event['chat_id'])
+            result.append({
+                'id': f"group-{chat.id}" if chat else None,
+                'type': 'group',
+                'chat': chat.as_dict() if chat else {},
+                'last_message': last_msg.as_dict() if last_msg else {},
+                'last_message_time': event['last_message_time']
+            })
 
     return jsonify({'result': result})
 

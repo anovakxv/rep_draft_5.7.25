@@ -94,7 +94,6 @@ def api_manage_chat():
     }
     return jsonify(result)
 
-
 @user_bp.route('/delete_chat', methods=['POST'])
 @jwt_required
 def api_delete_group_chat():
@@ -119,6 +118,8 @@ def api_delete_group_chat():
     ChatsUsers.query.filter_by(chats_id=chats_id).delete()
     from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
     GroupMessage.query.filter_by(chat_id=chats_id).delete()
+    # Also delete any orphaned messages with chat_id IS NULL
+    db.session.execute("DELETE FROM group_messages WHERE chat_id IS NULL;")
     db.session.commit()
 
     # Now delete the chat itself

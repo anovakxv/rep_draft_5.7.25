@@ -43,7 +43,7 @@ struct MessageModel: Decodable {
     let text: String?
     let created_at: String?
     let read: String?
-    let sender_id: Int?          // <-- added
+    let sender_id: Int?
 }
 
 // MARK: - ViewModels
@@ -105,8 +105,8 @@ class PortalsViewModel: ObservableObject {
 
     func searchPortals(query: String, limit: Int = 50) {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
-            self.searchResults = []
-            self.isSearching = false
+            searchResults = []
+            isSearching = false
             return
         }
         isLoading = true
@@ -152,8 +152,8 @@ class PortalsViewModel: ObservableObject {
     }
 
     func clearSearch() {
-        self.searchResults = []
-        self.isSearching = false
+        searchResults = []
+        isSearching = false
     }
 }
 
@@ -164,7 +164,13 @@ class PeopleViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchResults: [User] = []
     @Published var isSearching: Bool = false
-    @Published var hasUnreadDirectMessages: Bool = false
+    @Published var hasUnreadDirectMessages: Bool = false {
+        didSet {
+            if oldValue != hasUnreadDirectMessages {
+                UserDefaults.standard.set(hasUnreadDirectMessages, forKey: "hasUnreadDMFlag")
+            }
+        }
+    }
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
@@ -189,31 +195,32 @@ class PeopleViewModel: ObservableObject {
                     if let error = error {
                         self.errorMessage = error.localizedDescription
                         self.activeChats = []
-                        self.hasUnreadDirectMessages = false
                         return
                     }
                     guard let data = data else {
                         self.errorMessage = "No data"
                         self.activeChats = []
-                        self.hasUnreadDirectMessages = false
                         return
                     }
                     do {
                         let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
                         self.activeChats = response.result
-
-                        // Updated unread logic using sender_id
-                        self.hasUnreadDirectMessages = response.result.contains { chat in
+                        let had = self.hasUnreadDirectMessages
+                        let stillUnread = response.result.contains { chat in
                             guard chat.type == "direct",
                                   let msg = chat.last_message,
                                   let read = msg.read,
                                   let senderId = msg.sender_id else { return false }
                             return read == "0" && senderId != userId
                         }
+                        if !stillUnread {
+                            self.hasUnreadDirectMessages = false
+                        } else if !had && stillUnread {
+                            self.hasUnreadDirectMessages = true
+                        }
                     } catch {
                         self.errorMessage = "Failed to decode: \(error.localizedDescription)"
                         self.activeChats = []
-                        self.hasUnreadDirectMessages = false
                     }
                 }
             }.resume()
@@ -257,8 +264,8 @@ class PeopleViewModel: ObservableObject {
 
     func searchPeople(query: String, limit: Int = 50) {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
-            self.searchResults = []
-            self.isSearching = false
+            searchResults = []
+            isSearching = false
             return
         }
         isLoading = true
@@ -304,8 +311,8 @@ class PeopleViewModel: ObservableObject {
     }
 
     func clearSearch() {
-        self.searchResults = []
-        self.isSearching = false
+        searchResults = []
+        isSearching = false
     }
 }
 
@@ -321,31 +328,26 @@ struct MainSegmentedPicker: View {
         HStack(spacing: 0) {
             ForEach(segments.indices, id: \.self) { index in
                 Button(action: {
-                    if let onSelect = onSelect {
-                        onSelect(index)
-                    } else {
-                        selectedIndex = index
-                    }
+                    if let onSelect { onSelect(index) } else { selectedIndex = index }
                 }) {
-                    ZStack {
+                    ZStack(alignment: .topLeading) {
                         (selectedIndex == index ? Color.black : Color.white)
                         Text(segments[index])
                             .fontWeight(.medium)
                             .foregroundColor(selectedIndex == index ? .white : .black)
                             .frame(maxWidth: .infinity, minHeight: 32)
                             .padding(.vertical, 2)
-                            .overlay(
-                                Group {
-                                    if attentionDotIndices.contains(index) {
-                                        Circle()
-                                            .fill(Color.repGreen)
-                                            .frame(width: 10, height: 10)
-                                            .offset(x: 16, y: -10)
-                                    }
-                                },
-                                alignment: .topTrailing
-                            )
+
+                        if index == 0 && attentionDotIndices.contains(0) {
+                            Circle()
+                                .fill(Color.repGreen)
+                                .frame(width: 12, height: 12)
+                                .padding(.top, 4)
+                                .padding(.leading, 4)
+                                .transition(.scale.combined(with: .opacity))
+                        }
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
                 .frame(maxWidth: .infinity)
@@ -357,6 +359,7 @@ struct MainSegmentedPicker: View {
                 )
             }
         }
+        .animation(.easeInOut(duration: 0.15), value: attentionDotIndices)
         .frame(width: 240, height: 32)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
         .overlay(
@@ -388,6 +391,8 @@ struct MainScreen: View {
     @StateObject private var peopleVM = PeopleViewModel()
     @AppStorage("userId") var userId: Int = 0
     @AppStorage("jwtToken") var jwtToken: String = ""
+    @AppStorage("hasUnreadDMFlag") private var persistedUnreadDM: Bool = false
+
     @State private var page: Page = .portals
     @State private var section = 2
 
@@ -406,6 +411,9 @@ struct MainScreen: View {
     @State private var inviteCheckTimer: Timer?
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
     @State private var openNeedsAttention: Bool = false
+
+    // Fallback polling timer for unread detection when socket events not received
+    @State private var unreadPollTimer: Timer? = nil
 
     var body: some View {
         ZStack {
@@ -440,7 +448,8 @@ struct MainScreen: View {
                         mainActiveSheet = .actionSheet
                     },
                     openNeedsAttention: $openNeedsAttention,
-                    forceShowPeopleOpen: forceShowPeopleOpen
+                    forceShowPeopleOpen: forceShowPeopleOpen,
+                    showOnlySafePortals: showOnlySafePortals // pass safe flag
                 ))
                 .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
                 .navigationBarTitleDisplayMode(.inline)
@@ -459,6 +468,9 @@ struct MainScreen: View {
             }
         }
         .onAppear {
+            if persistedUnreadDM {
+                peopleVM.hasUnreadDirectMessages = true
+            }
             guard !jwtToken.isEmpty, userId != 0 else { return }
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
@@ -471,10 +483,13 @@ struct MainScreen: View {
                 GoalTeamInvitesManager.shared.fetchPendingInvites()
             }
             recalcOpenNeedsAttention()
+            scheduleUnreadPollingIfNeeded()
         }
         .onDisappear {
             inviteCheckTimer?.invalidate()
             inviteCheckTimer = nil
+            unreadPollTimer?.invalidate()
+            unreadPollTimer = nil
         }
         .onChange(of: showOnlySafePortals) { newValue in
             if page == .portals {
@@ -487,6 +502,9 @@ struct MainScreen: View {
             } else {
                 peopleVM.fetchPeople(userId: userId, section: newSection)
             }
+        }
+        .onChange(of: page) { _ in
+            scheduleUnreadPollingIfNeeded()
         }
         .onChange(of: pendingAction) { action in
             guard let action = action else { return }
@@ -506,9 +524,18 @@ struct MainScreen: View {
         }
         .onChange(of: peopleVM.hasUnreadDirectMessages) { _ in
             recalcOpenNeedsAttention()
+            if peopleVM.hasUnreadDirectMessages {
+                if unreadPollTimer != nil {
+                    unreadPollTimer?.invalidate()
+                    unreadPollTimer = nil
+                }
+            } else {
+                scheduleUnreadPollingIfNeeded()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             setupSocketNotifications()
+            scheduleUnreadPollingIfNeeded()
         }
         .sheet(isPresented: $showCreateGroupChatSheet) {
             EditGroupChatView(
@@ -534,7 +561,6 @@ struct MainScreen: View {
     }
 
     // MARK: - Socket Notification Setup
-
     private func setupSocketNotifications() {
         RealtimeSocketManager.shared.connect(
             baseURL: APIConfig.baseURL,
@@ -543,21 +569,70 @@ struct MainScreen: View {
         )
 
         RealtimeSocketManager.shared.onDirectMessageNotification { payload in
-            guard
-                let recipientId = payload["recipient_id"] as? Int,
-                recipientId == self.userId
-            else { return }
+            print("🔔 [Socket] DirectMessage payload =", payload)
+
+            let recipientId =
+                payload["recipient_id"] as? Int ??
+                payload["recipientId"] as? Int ??
+                payload["to_id"] as? Int ??
+                payload["toId"] as? Int
+
+            let senderId =
+                payload["sender_id"] as? Int ??
+                payload["senderId"] as? Int ??
+                payload["from_id"] as? Int ??
+                payload["fromId"] as? Int
+
+            print("🔍 Parsed -> recipientId:", recipientId as Any, "senderId:", senderId as Any, "currentUserId:", self.userId)
+
+            let isForCurrentUser: Bool = {
+                if let r = recipientId {
+                    return r == self.userId
+                }
+                if let s = senderId {
+                    return s != self.userId
+                }
+                return true
+            }()
+
+            if !isForCurrentUser {
+                print("ℹ️ Ignoring DM event (not for this user).")
+                return
+            }
 
             DispatchQueue.main.async {
-                self.peopleVM.hasUnreadDirectMessages = true
+                let beforeFlag = self.openNeedsAttention
+                let beforeUnread = self.peopleVM.hasUnreadDirectMessages
+                let beforePersist = self.persistedUnreadDM
+
+                if self.peopleVM.hasUnreadDirectMessages == false {
+                    self.peopleVM.hasUnreadDirectMessages = true
+                }
+                if !self.persistedUnreadDM { self.persistedUnreadDM = true }
+
+                withAnimation {
+                    self.openNeedsAttention = true
+                }
+
                 self.recalcOpenNeedsAttention()
-                self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+
+                print("""
+                ✅ [UnreadMark]
+                  before -> dot:\(beforeFlag) unread:\(beforeUnread) persisted:\(beforePersist)
+                  after  -> dot:\(self.openNeedsAttention) unread:\(self.peopleVM.hasUnreadDirectMessages) persisted:\(self.persistedUnreadDM)
+                  page:\(self.page) section:\(self.section)
+                """)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    if self.page == .people && self.section == 0 {
+                        print("🔄 Refreshing active chats after DM")
+                        self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                    }
+                }
             }
         }
     }
 
-    // Filtering
-
+    // MARK: - Filtering
     private var filteredUsers: [User] {
         if showSearch && !searchText.isEmpty && section == 2 {
             return peopleVM.searchResults
@@ -587,8 +662,20 @@ struct MainScreen: View {
         }
     }
 
+    // MARK: - State / Helpers
     private func recalcOpenNeedsAttention() {
-        openNeedsAttention = peopleVM.hasUnreadDirectMessages || !invitesManager.pendingInvites.isEmpty
+        let currentUnread = peopleVM.hasUnreadDirectMessages || persistedUnreadDM
+        let newValue = currentUnread || !invitesManager.pendingInvites.isEmpty
+        if newValue != openNeedsAttention {
+            withAnimation { openNeedsAttention = newValue }
+        } else {
+            openNeedsAttention = newValue
+        }
+        if !peopleVM.hasUnreadDirectMessages && persistedUnreadDM {
+            persistedUnreadDM = false
+        } else if peopleVM.hasUnreadDirectMessages && !persistedUnreadDM {
+            persistedUnreadDM = true
+        }
     }
 
     private func forceShowPeopleOpen() {
@@ -630,6 +717,32 @@ struct MainScreen: View {
                 DispatchQueue.main.async { self.currentUser = nil }
             }
         }.resume()
+    }
+
+    // MARK: - Fallback unread polling
+    private func scheduleUnreadPollingIfNeeded() {
+        unreadPollTimer?.invalidate()
+        unreadPollTimer = nil
+
+        guard page == .portals,
+              !peopleVM.hasUnreadDirectMessages else { return }
+
+        // Early one-time check shortly after launch / tab switch so user sees dot soon
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            if self.page == .portals && !self.peopleVM.hasUnreadDirectMessages {
+                print("🕑 One-shot unread poll (2s)")
+                self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+            }
+        }
+
+        let interval: TimeInterval = 60
+        unreadPollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
+            if self.page == .portals && !self.peopleVM.hasUnreadDirectMessages {
+                print("🕑 Polling active chats (fallback, 60s)")
+                self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+            }
+        }
+        print("✅ Started unread fallback polling @60s interval.")
     }
 }
 
@@ -920,6 +1033,7 @@ struct MainScreenToolbar: ViewModifier {
     var showActionSheet: () -> Void
     @Binding var openNeedsAttention: Bool
     var forceShowPeopleOpen: () -> Void
+    var showOnlySafePortals: Bool   // added to preserve safe filter
 
     func body(content: Content) -> some View {
         content
@@ -935,13 +1049,14 @@ struct MainScreenToolbar: ViewModifier {
                             } else {
                                 section = idx
                                 if page == .portals {
-                                    portalsVM.fetchPortals(userId: userId, section: idx)
+                                    portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals)
                                 } else {
                                     peopleVM.fetchPeople(userId: userId, section: idx)
                                 }
                             }
                         }
                     )
+                    .id(openNeedsAttention ? "dot-on" : "dot-off")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink(destination: ProfileView(userId: userId)) {

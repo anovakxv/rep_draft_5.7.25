@@ -53,8 +53,23 @@ class RealtimeSocketManager {
     func onDirectMessageNotification(_ handler: @escaping ([String: Any]) -> Void) {
         socket?.off("direct_message_notification")
         socket?.on("direct_message_notification") { data, _ in
+            print("📲 Socket received direct_message_notification: \(data)")
             if let dict = data.first as? [String: Any] {
                 handler(dict)
+            } else if data.count > 0 {
+                // Try alternative format - sometimes Socket.IO has different payload formats
+                print("⚠️ Socket data format unexpected, trying alternative parser")
+                var combinedDict: [String: Any] = [:]
+                for item in data {
+                    if let dict = item as? [String: Any] {
+                        for (key, value) in dict {
+                            combinedDict[key] = value
+                        }
+                    }
+                }
+                if !combinedDict.isEmpty {
+                    handler(combinedDict)
+                }
             }
         }
     }

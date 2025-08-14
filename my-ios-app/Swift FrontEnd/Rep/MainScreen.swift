@@ -1185,6 +1185,7 @@ struct ActiveChatList: View {
                         }
                         .frame(height: 64)
                         .padding(.vertical, 16)
+                        .padding(.trailing, 16)
                         .background(Color.white)
                         .listRowInsets(EdgeInsets())
                         .overlay(
@@ -1228,6 +1229,7 @@ struct ActiveChatList: View {
                         }
                         .buttonStyle(PlainButtonStyle())
                         .padding(.vertical, 16)
+                        .padding(.trailing, 16)
                         .background(Color.white)
                         .listRowInsets(EdgeInsets())
                         .overlay(

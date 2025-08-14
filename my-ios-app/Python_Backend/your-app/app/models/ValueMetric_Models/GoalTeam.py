@@ -22,4 +22,16 @@ class GoalTeam(db.Model):
 
     def __repr__(self):
         return f"<GoalTeam goal_id={self.goals_id} user_id={self.users_id2} confirmed={self.confirmed}>"
-        
+       
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "users_id1": self.users_id1,
+            "users_id2": self.users_id2,
+            "goals_id": self.goals_id,
+            "confirmed": self.confirmed,
+            "read1": self.read1,
+            "read2": self.read2,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+        }
+    

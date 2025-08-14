@@ -105,7 +105,10 @@ def api_members_of_my_network():
     ).filter(UserNetwork.users_id1 == users_id)
 
     if invited_goal_id:
-        subq = db.session.query(GoalTeam.users_id2).filter(GoalTeam.goals_id == invited_goal_id)
+        subq = db.session.query(GoalTeam.users_id2).filter(
+            GoalTeam.goals_id == invited_goal_id,
+            GoalTeam.confirmed == 1  # Only exclude confirmed members
+        )
         query = query.filter(~User.id.in_(subq))
 
     if not_in_chats_id:

@@ -20,3 +20,14 @@ class GoalPreInvite(db.Model):
 
     def __repr__(self):
         return f"<GoalPreInvite id={self.id} goal_id={self.goals_id} type={self.type} identifier={self.identifier}>"
+    
+    def as_dict(self):
+        return {
+            "id": self.id,
+            "users_id": self.users_id,
+            "goals_id": self.goals_id,
+            "type": self.type,
+            "identifier": self.identifier,
+            "timestamp": self.timestamp.isoformat() if self.timestamp else None
+        }    
+    

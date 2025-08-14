@@ -367,6 +367,9 @@ struct MainScreen: View {
     @State private var currentUser: User? = nil
     @State private var showOnlySafePortals = false
 
+    // --- Invite check timer ---
+    @State private var inviteCheckTimer: Timer?
+
     var body: some View {
         ZStack {
             NavigationStack {
@@ -425,6 +428,14 @@ struct MainScreen: View {
                 peopleVM.fetchPeople(userId: userId, section: section)
             }
             fetchCurrentUser()
+            // Set up a timer to check for new invites every 30 seconds
+            inviteCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+                GoalTeamInvitesManager.shared.fetchPendingInvites()
+            }
+        }
+        .onDisappear {
+            inviteCheckTimer?.invalidate()
+            inviteCheckTimer = nil
         }
         .onChange(of: showOnlySafePortals) { newValue in
             if page == .portals {
@@ -814,6 +825,10 @@ struct MainScreenToolbar: ViewModifier {
     var userId: Int
     var currentUser: User?
     var showActionSheet: () -> Void
+    
+    // Add state for navigation
+    @State private var showInvitesView = false
+    @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
 
     func body(content: Content) -> some View {
         content
@@ -848,20 +863,46 @@ struct MainScreenToolbar: ViewModifier {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        action: { showActionSheet() },
-                        label: {
-                            Image(systemName: "plus")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(
-                                    width: MainScreen.Constants.imageSize/1.5,
-                                    height: MainScreen.Constants.imageSize/1.5
-                                )
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    HStack(spacing: 16) {
+                        // Notification badge button
+                        NavigationLink(destination: InvitesView()) {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "bell.fill")
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.primary)
+                                
+                                if invitesManager.pendingInvites.count > 0 {
+                                    Text("\(invitesManager.pendingInvites.count)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .frame(width: 16, height: 16)
+                                        .background(Color.red)
+                                        .clipShape(Circle())
+                                        .offset(x: 8, y: -6)
+                                }
+                            }
                         }
-                    )
+                        
+                        // Plus button
+                        Button(
+                            action: { showActionSheet() },
+                            label: {
+                                Image(systemName: "plus")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(
+                                        width: MainScreen.Constants.imageSize/1.5,
+                                        height: MainScreen.Constants.imageSize/1.5
+                                    )
+                                    .foregroundColor(Color.repGreen)
+                            }
+                        )
+                    }
                 }
+            }
+            .onAppear {
+                // Fetch invites when screen appears
+                invitesManager.fetchPendingInvites()
             }
     }
 }

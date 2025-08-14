@@ -9,6 +9,7 @@ from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.utils.auth import jwt_required
+from app.utils.notifications import send_fcm_notification  # Add this import
 
 goals_bp = Blueprint('goal_team', __name__)
 
@@ -28,6 +29,14 @@ def invite_goal_team(goal_id):
     user_id = g.current_user.id
     users = data.get('users', [])
     results = {}
+    
+    # Get inviter and goal info for notification
+    inviter = User.query.get(user_id)
+    goal = Goal.query.get(goal_id)
+    
+    if not goal:
+        return jsonify({"error": "Goal not found"}), 404
+    
     for u_id in users:
         existing = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=u_id).first()
         if existing:
@@ -36,6 +45,31 @@ def invite_goal_team(goal_id):
             new_team = GoalTeam(goals_id=goal_id, users_id1=user_id, users_id2=u_id, confirmed=0)
             db.session.add(new_team)
             results[u_id] = "invited"
+            
+            # Send push notification to the invited user
+            invited_user = User.query.get(u_id)
+            if invited_user and invited_user.device_token:
+                try:
+                    title = f"New Goal Team Invite"
+                    body = f"{inviter.full_name} invited you to join '{goal.title}'"
+                    
+                    # Include relevant data for app routing
+                    data = {
+                        "type": "goal_team_invite",
+                        "goal_id": str(goal_id),
+                        "inviter_id": str(user_id)
+                    }
+                    
+                    print(f"Sending goal team invite notification to user {u_id}")
+                    send_fcm_notification(
+                        invited_user.device_token,
+                        title=title,
+                        body=body,
+                        data=data
+                    )
+                except Exception as e:
+                    print(f"Error sending goal team invite notification: {e}")
+    
     db.session.commit()
     # Return updated team list
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
@@ -108,3 +142,36 @@ def remove_goal_team(goal_id, user_id):
     # Return updated team list
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
     return jsonify({"result": "removed", "team": [tm.as_dict() for tm in team]})
+
+# --- GET: Fetch all pending invites for the current user ---
+@goals_bp.route('/pending_invites', methods=['GET'])
+@jwt_required
+def get_pending_invites():
+    user_id = g.current_user.id
+
+    # Query for all pending invites where the current user is the invitee
+    pending_invites = (
+        db.session.query(GoalTeam, Goal, User)
+        .join(Goal, GoalTeam.goals_id == Goal.id)
+        .join(User, GoalTeam.users_id1 == User.id)
+        .filter(GoalTeam.users_id2 == user_id)
+        .filter(GoalTeam.confirmed == 0)
+        .all()
+    )
+
+    # Format the results to match the expected Swift model
+    result = [{
+        "id": team.id,
+        "goals_id": team.goals_id,
+        "users_id1": team.users_id1,
+        "users_id2": team.users_id2,
+        "confirmed": team.confirmed,
+        "read1": team.read1,
+        "read2": team.read2,
+        "timestamp": team.timestamp.isoformat() if team.timestamp else None,
+        "goalTitle": goal.title,
+        "inviterName": f"{user.fname or ''} {user.lname or ''}".strip(),
+        "inviterPhotoURL": getattr(user, "profile_photo_url", None)
+    } for team, goal, user in pending_invites]
+
+    return jsonify({"invites": result})

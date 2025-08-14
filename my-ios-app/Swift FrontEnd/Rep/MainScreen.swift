@@ -456,6 +456,7 @@ struct MainScreen: View {
                 groupName: "",
                 isNewChat: true,
                 currentUserId: userId,
+                isCreator: true, // <-- Add this line
                 onSave: { createdId in
                     showCreateGroupChatSheet = false
                     guard let createdId else { return }

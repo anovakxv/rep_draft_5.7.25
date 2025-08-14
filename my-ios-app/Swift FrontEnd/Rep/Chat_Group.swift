@@ -95,7 +95,6 @@ struct GroupMessage: Identifiable, Decodable {
         } else {
             timestamp = Date()
         }
-        print("[GroupMessage] senderName=\(senderName) rawPhoto=\(senderPhoto ?? "nil") finalURL=\(senderPhotoURL?.absoluteString ?? "nil")")
     }
 }
 
@@ -121,7 +120,6 @@ struct GroupMember: Identifiable, Decodable {
         id = try c.decode(Int.self, forKey: .id)
         name = (try? c.decode(String.self, forKey: .name)) ?? ""
         profilePicture = try? c.decodeIfPresent(String.self, forKey: .profilePicture)
-        print("[GroupMember] id=\(id) name=\(name) rawProfile=\(profilePicture ?? "nil") finalURL=\(photoURL?.absoluteString ?? "nil")")
     }
 }
 
@@ -140,6 +138,12 @@ struct ChatInfo: Decodable {
     let id: Int
     let name: String
     let description: String?
+    let createdBy: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description
+        case createdBy = "created_by"
+    }
 }
 
 struct SendGroupMessageAPIResponse: Decodable {
@@ -162,6 +166,8 @@ class GroupChatViewModel: ObservableObject {
     @Published var inputText: String = ""
     @Published var groupMembers: [GroupMember] = []
     @Published var groupName: String = ""
+    @Published var chatCreatorId: Int?
+    @Published var isCreator: Bool = false
 
     let currentUserId: Int
     let chatId: Int
@@ -173,12 +179,6 @@ class GroupChatViewModel: ObservableObject {
         self.currentUserId = currentUserId
         self.chatId = chatId
         self.customChatTitle = customChatTitle
-        print("[GroupChatVM:init] chatId=\(chatId) baseURL=\(APIConfig.baseURL)")
-        if jwtToken.isEmpty {
-            print("[GroupChatVM:init] jwtToken EMPTY")
-        } else {
-            print("[GroupChatVM:init] jwtToken len=\(jwtToken.count)")
-        }
         fetchGroupChat()
         setupRealtime()
     }
@@ -188,13 +188,11 @@ class GroupChatViewModel: ObservableObject {
         RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken)
         RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
             guard let self = self else { return }
-            print("[GroupChatVM \(self.chatId)] socket payload: \(payload)")
             guard let incomingChatId = payload["chat_id"] as? Int, incomingChatId == self.chatId else { return }
             if let data = try? JSONSerialization.data(withJSONObject: payload),
                let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
                 DispatchQueue.main.async {
                     if !self.messages.contains(where: { $0.id == msg.id }) {
-                        // If optimistic placeholder exists (negative ID), replace it
                         if let idx = self.messages.firstIndex(where: { $0.id < 0 && $0.text == msg.text && $0.senderId == msg.senderId }) {
                             self.messages[idx] = msg
                         } else {
@@ -220,6 +218,8 @@ class GroupChatViewModel: ObservableObject {
                     self.groupName = apiResult.result.chat.name
                     self.groupMembers = apiResult.result.users
                     self.messages = apiResult.result.messages
+                    self.chatCreatorId = apiResult.result.chat.createdBy
+                    self.isCreator = (apiResult.result.chat.createdBy == self.currentUserId)
                 }
             }
         }.resume()
@@ -227,15 +227,8 @@ class GroupChatViewModel: ObservableObject {
 
     func sendMessage() {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        print("[sendMessage] called with text: '\(trimmed)'")
-        guard !trimmed.isEmpty else {
-            print("[sendMessage] inputText is empty after trimming.")
-            return
-        }
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_chat_message") else {
-            print("[sendMessage] Invalid URL")
-            return
-        }
+        guard !trimmed.isEmpty else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_chat_message") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -247,9 +240,7 @@ class GroupChatViewModel: ObservableObject {
             "message": trimmed
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        print("[sendMessage] Sending request: \(request) with body: \(body)")
 
-        // Optimistic placeholder
         let tempId = -(messages.count + 1)
         let optimistic = GroupMessagePlaceholder.make(id: tempId, senderId: currentUserId, text: trimmed)
         DispatchQueue.main.async {
@@ -257,18 +248,8 @@ class GroupChatViewModel: ObservableObject {
             self.inputText = ""
         }
 
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                print("[sendMessage] Network error: \(error)")
-                return
-            }
-            if let http = response as? HTTPURLResponse {
-                print("[sendMessage] HTTP status: \(http.statusCode)")
-            }
-            guard let data = data else {
-                print("[sendMessage] No data returned")
-                return
-            }
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data = data else { return }
             if let decoded = try? JSONDecoder().decode(SendGroupMessageAPIResponse.self, from: data) {
                 let real = decoded.message
                 DispatchQueue.main.async {
@@ -278,8 +259,6 @@ class GroupChatViewModel: ObservableObject {
                         self.messages.append(real)
                     }
                 }
-            } else {
-                print("[sendMessage] Failed to decode response: \(String(data: data, encoding: .utf8) ?? "")")
             }
         }.resume()
     }
@@ -326,7 +305,7 @@ struct GroupMemberAvatar: View {
 
 // MARK: - Custom Navigation Header
 
-struct GroupChatNavigationHeaderView:  View {
+struct GroupChatNavigationHeaderView: View {
     let name: String
     let onBack: () -> Void
     let onPlus: (() -> Void)?
@@ -362,6 +341,59 @@ struct GroupChatNavigationHeaderView:  View {
     }
 }
 
+// MARK: - Message Row
+
+private struct GroupMessageRow: View {
+    let message: GroupMessage
+    let isCurrentUser: Bool
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            if isCurrentUser {
+                Spacer()
+                GroupMessageBubble(message: message, isCurrentUser: true)
+            } else {
+                GroupMessageBubble(message: message, isCurrentUser: false)
+                Spacer()
+            }
+        }
+        .id(message.id)
+    }
+}
+
+// MARK: - Messages List
+
+private struct GroupMessagesListView: View {
+    let messages: [GroupMessage]
+    let currentUserId: Int
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(messages) { message in
+                        GroupMessageRow(
+                            message: message,
+                            isCurrentUser: message.senderId == currentUserId
+                        )
+                    }
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 12)
+            }
+            .background(Color.white)
+            .onChange(of: messages.last?.id) { lastId in
+                guard let lastId = lastId else { return }
+                DispatchQueue.main.async {
+                    withAnimation {
+                        proxy.scrollTo(lastId, anchor: .bottom)
+                    }
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Group Chat View
 
 struct GroupChatView: View {
@@ -370,8 +402,8 @@ struct GroupChatView: View {
     @State private var showEditSheet = false
     @State private var newChatId: Int? = nil
     @State private var navigateToNewChat = false
+    @State private var chatDeleted = false
 
-    // Custom init so callers can still pass a freshly created VM once.
     init(viewModel: GroupChatViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
     }
@@ -402,8 +434,7 @@ struct GroupChatView: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        let members = viewModel.groupMembers
-                        ForEach(members) { member in
+                        ForEach(viewModel.groupMembers) { member in
                             VStack {
                                 GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 36)
                                 Text(initials(for: member.name))
@@ -420,33 +451,10 @@ struct GroupChatView: View {
                 }
                 .background(Color.white)
 
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        VStack(spacing: 12) {
-                            ForEach(viewModel.messages) { message in
-                                HStack(alignment: .bottom, spacing: 8) {
-                                    if message.senderId == viewModel.currentUserId {
-                                        Spacer()
-                                        GroupMessageBubble(message: message, isCurrentUser: true)
-                                    } else {
-                                        GroupMessageBubble(message: message, isCurrentUser: false)
-                                        Spacer()
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 12)
-                    }
-                    .background(Color.white)
-                    .onChange(of: viewModel.messages.count) { _ in
-                        if let last = viewModel.messages.last {
-                            withAnimation {
-                                proxy.scrollTo(last.id, anchor: .bottom)
-                            }
-                        }
-                    }
-                }
+                GroupMessagesListView(
+                    messages: viewModel.messages,
+                    currentUserId: viewModel.currentUserId
+                )
 
                 HStack(spacing: 8) {
                     GrowingTextEditor(
@@ -457,7 +465,6 @@ struct GroupChatView: View {
                     .font(.body)
 
                     Button(action: {
-                        print("[UI] Send tapped. raw input='\(viewModel.inputText)' disabled? \(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)")
                         viewModel.sendMessage()
                     }) {
                         Text("Send")
@@ -468,8 +475,8 @@ struct GroupChatView: View {
                             .background(SwiftUI.Color.repGreen)
                             .cornerRadius(8)
                     }
-                    .background(Color.orange.opacity(0.2)) // TEMP: visualize hit area
-                    // .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) // TEMP: allow always
+                    .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .opacity(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -484,21 +491,22 @@ struct GroupChatView: View {
             .background(Color.white.edgesIgnoringSafeArea(.all))
             .sheet(isPresented: $showEditSheet) {
                 EditGroupChatView(
-                    chatId: nil,
-                    currentMembers: [],
-                    groupName: "",
-                    isNewChat: true,
+                    chatId: viewModel.chatId,
+                    currentMembers: viewModel.groupMembers,
+                    groupName: viewModel.groupName,
+                    isNewChat: false,
                     currentUserId: viewModel.currentUserId,
-                    onSave: { newChatId in
+                    isCreator: viewModel.isCreator,
+                    onSave: { _ in
                         showEditSheet = false
-                        if let newChatId = newChatId {
-                            RealtimeSocketManager.shared.join(chatId: newChatId)
-                            self.newChatId = newChatId
-                            self.navigateToNewChat = true
-                        }
+                        viewModel.fetchGroupChat()
                     },
                     onCancel: {
                         showEditSheet = false
+                    },
+                    onDelete: {
+                        showEditSheet = false
+                        chatDeleted = true
                     }
                 )
             }
@@ -507,28 +515,12 @@ struct GroupChatView: View {
                 NavigationLink(
                     destination: newChatDestination,
                     isActive: $navigateToNewChat
-                ) {
-                    EmptyView()
-                }
+                ) { EmptyView() }
                 .hidden()
             )
-            .onAppear {
-                print("[GroupChatView] onAppear chatId=\(viewModel.chatId)")
+            .onChange(of: chatDeleted) { deleted in
+                if deleted { dismiss() }
             }
-        }
-    }
-}
-
-// MARK: - Edit Group Chat Sheet
-
-enum EditGroupSheetType: Identifiable {
-    case add
-    case remove
-
-    var id: Int {
-        switch self {
-        case .add: return 1
-        case .remove: return 2
         }
     }
 }
@@ -539,14 +531,21 @@ struct EditGroupChatView: View {
     let groupName: String
     let isNewChat: Bool
     let currentUserId: Int
+    let isCreator: Bool
     var onSave: (Int?) -> Void
     var onCancel: () -> Void
+    var onDelete: (() -> Void)? = nil
 
     @State private var editedName: String = ""
     @State private var selectedMembersToAdd: [Int: String] = [:]
-    @State private var activeSheet: EditGroupSheetType?
+
+    // Use separate sheet states instead of enum
+    @State private var showAddMembersSheet = false
+    @State private var showRemoveMembersSheet = false
+
     @State private var isLoading = false
     @State private var errorMessage: ErrorMessage?
+    @State private var showDeleteAlert = false
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     var body: some View {
@@ -577,12 +576,17 @@ struct EditGroupChatView: View {
                             }
                         }
                         HStack {
-                            Button(action: { activeSheet = .add }) {
-                                Label(isNewChat ? "Add Members" : "Add to Chat", systemImage: "person.crop.circle.badge.plus")
+                            Button {
+                                showAddMembersSheet = true
+                            } label: {
+                                Label(isNewChat ? "Add Members" : "Add to Chat",
+                                      systemImage: "person.crop.circle.badge.plus")
                             }
                             Spacer()
                             if !isNewChat {
-                                Button(action: { activeSheet = .remove }) {
+                                Button {
+                                    showRemoveMembersSheet = true
+                                } label: {
                                     Label("Remove Member(s)", systemImage: "person.crop.circle.badge.minus")
                                         .foregroundColor(.red)
                                 }
@@ -590,10 +594,19 @@ struct EditGroupChatView: View {
                             }
                         }
                     }
+
+                    if !isNewChat && isCreator {
+                        Section {
+                            Button(role: .destructive) {
+                                showDeleteAlert = true
+                            } label: {
+                                Label("Delete Group Chat", systemImage: "trash")
+                            }
+                        }
+                    }
                 }
                 if isLoading {
-                    Color.black.opacity(0.2)
-                        .edgesIgnoringSafeArea(.all)
+                    Color.black.opacity(0.2).ignoresSafeArea()
                     ProgressView("Processing...")
                         .progressViewStyle(CircularProgressViewStyle())
                         .padding()
@@ -604,6 +617,12 @@ struct EditGroupChatView: View {
             }
             .alert(item: $errorMessage) { msg in
                 Alert(title: Text("Error"), message: Text(msg.message), dismissButton: .default(Text("OK")))
+            }
+            .alert("Delete Group Chat?", isPresented: $showDeleteAlert) {
+                Button("Delete", role: .destructive) { deleteGroupChat() }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This action cannot be undone.")
             }
             .navigationTitle(isNewChat ? "New Group Chat" : "Edit Group")
             .navigationBarItems(
@@ -619,32 +638,28 @@ struct EditGroupChatView: View {
             .onAppear {
                 editedName = groupName
             }
-            .sheet(item: $activeSheet) { sheetType in
-                switch sheetType {
-                case .add:
-                    NTWKUserPicker(
-                        onSelect: { selectedUsers in
-                            for user in selectedUsers {
-                                selectedMembersToAdd[user.id] = user.fullName ?? "User"
-                            }
-                            activeSheet = nil
-                        },
-                        jwtToken: jwtToken,
-                        chatId: chatId ?? 0,
-                        alreadySelected: Set(selectedMembersToAdd.keys).union(currentMembers.map { $0.id })
-                    )
-                case .remove:
-                    RemoveMembersSheet(
-                        members: currentMembers,
-                        onRemove: { member in
-                            activeSheet = nil
-                            removeMember(memberId: member.id)
-                        },
-                        onCancel: {
-                            activeSheet = nil
+            // Use separate sheet modifiers instead of one enum-based sheet
+            .sheet(isPresented: $showAddMembersSheet) {
+                NTWKUserPicker(
+                    onSelect: { selectedUsers in
+                        for user in selectedUsers {
+                            selectedMembersToAdd[user.id] = user.fullName ?? "User"
                         }
-                    )
-                }
+                    },
+                    jwtToken: jwtToken,
+                    chatId: chatId ?? 0,
+                    alreadySelected: Set(selectedMembersToAdd.keys).union(currentMembers.map { $0.id }),
+                    onCancel: { }
+                )
+            }
+            .sheet(isPresented: $showRemoveMembersSheet) {
+                RemoveMembersSheet(
+                    members: currentMembers,
+                    onRemove: { member in
+                        removeMember(memberId: member.id)
+                    },
+                    onCancel: { }
+                )
             }
         }
     }
@@ -673,7 +688,6 @@ struct EditGroupChatView: View {
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     errorMessage = ErrorMessage(message: "Failed to create chat. (\(http.statusCode))")
                 } else if let data = data {
-                    print("Create chat response: \(String(data: data, encoding: .utf8) ?? "")")
                     if let decoded = try? JSONDecoder().decode([String: AnyDecodable].self, from: data) {
                         if let chatDict = decoded["chat"]?.value as? [String: Any],
                            let chatId = chatDict["id"] as? Int {
@@ -752,6 +766,35 @@ struct EditGroupChatView: View {
             }
         }.resume()
     }
+
+    private func deleteGroupChat() {
+        guard let chatId = chatId else { return }
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/delete_chat") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "chats_id": chatId
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                if let error = error {
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
+                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    errorMessage = ErrorMessage(message: "Failed to delete chat. (\(http.statusCode))")
+                } else {
+                    onDelete?()
+                }
+            }
+        }.resume()
+    }
 }
 
 // MARK: - Remove Members Sheet
@@ -791,12 +834,14 @@ struct RemoveMembersSheet: View {
     }
 }
 
-// Helper struct for picking NTWK users (multi-select)
+// MARK: - NTWKUserPicker (Add Members)
+
 struct NTWKUserPicker: View {
     var onSelect: ([User]) -> Void
     var jwtToken: String
     var chatId: Int
     var alreadySelected: Set<Int> = []
+    var onCancel: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var users: [User] = []
@@ -808,13 +853,13 @@ struct NTWKUserPicker: View {
         NavigationView {
             ZStack {
                 List(users) { user in
-                    Button(action: {
+                    Button {
                         if selectedUsers.contains(user.id) {
                             selectedUsers.remove(user.id)
                         } else {
                             selectedUsers.insert(user.id)
                         }
-                    }) {
+                    } label: {
                         HStack {
                             GroupMemberAvatar(name: user.fullName ?? "", photoURL: user.profilePictureURL, size: 32)
                             Text(user.fullName ?? "")
@@ -839,7 +884,10 @@ struct NTWKUserPicker: View {
             .navigationTitle("Your NTWK")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        onCancel?()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
@@ -924,7 +972,9 @@ struct GroupMessageBubble: View {
         .id(message.id)
     }
 }
-// Helper to build an optimistic GroupMessage
+
+// MARK: - Optimistic Placeholder
+
 fileprivate enum GroupMessagePlaceholder {
     static func make(id: Int, senderId: Int, text: String) -> GroupMessage {
         let iso = ISO8601DateFormatter().string(from: Date())
@@ -940,7 +990,6 @@ fileprivate enum GroupMessagePlaceholder {
            let decoded = try? JSONDecoder().decode(GroupMessage.self, from: data) {
             return decoded
         }
-        // Fallback (should rarely happen)
         let data = try! JSONSerialization.data(withJSONObject: json)
         return try! JSONDecoder().decode(GroupMessage.self, from: data)
     }

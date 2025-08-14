@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		00085E112E4D1AD000F7CAA9 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 00085E102E4D1AD000F7CAA9 /* SocketIO */; };
+		000920062E4DB6E600D25E51 /* Menu_Invites.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000920052E4DB6E600D25E51 /* Menu_Invites.swift */; };
 		001258932E1C220400D4B1FC /* APIConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001258922E1C220400D4B1FC /* APIConfig.swift */; };
 		001825382E4C39CB00F15FAF /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001825372E4C39C600F15FAF /* Components.swift */; };
 		002C5EC22E4ABA920075E82B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */; };
@@ -62,6 +63,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		000920052E4DB6E600D25E51 /* Menu_Invites.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Menu_Invites.swift; sourceTree = "<group>"; };
 		001258922E1C220400D4B1FC /* APIConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIConfig.swift; sourceTree = "<group>"; };
 		001825372E4C39C600F15FAF /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
 		002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 				002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */,
 				005B63652E16F88600A1F0C1 /* LoginView.swift */,
 				005B63662E16F88600A1F0C1 /* MainScreen.swift */,
+				000920052E4DB6E600D25E51 /* Menu_Invites.swift */,
 				00A56AF62E4D87710068D404 /* RealtimeSocketManager.swift */,
 				00E10AAE2E21953000BC7392 /* Update_Goal.swift */,
 				001258922E1C220400D4B1FC /* APIConfig.swift */,
@@ -411,6 +414,7 @@
 				009219B92E37F85C00AC0A40 /* ResetPassword.swift in Sources */,
 				005B637E2E16F88600A1F0C1 /* RepTypeModel.swift in Sources */,
 				005B637F2E16F88600A1F0C1 /* GoalsDetailView.swift in Sources */,
+				000920062E4DB6E600D25E51 /* Menu_Invites.swift in Sources */,
 				005B63812E16F88600A1F0C1 /* RegisterNewProfile.swift in Sources */,
 				005B63822E16F88600A1F0C1 /* PortalItem.swift in Sources */,
 				00D80A612E1B6B0C003C926D /* SkillAPI.swift in Sources */,

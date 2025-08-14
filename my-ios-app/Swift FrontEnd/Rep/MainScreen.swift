@@ -467,7 +467,7 @@ struct MainScreen: View {
                 groupName: "",
                 isNewChat: true,
                 currentUserId: userId,
-                isCreator: true, // <-- Add this line
+                isCreator: true,
                 onSave: { createdId in
                     showCreateGroupChatSheet = false
                     guard let createdId else { return }
@@ -582,6 +582,8 @@ struct MainScreenContent: View {
     var filteredPortals: [Portal]
     var fetchCurrentUser: () -> Void
     @Binding var showOnlySafePortals: Bool
+    
+    @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
 
     var body: some View {
         VStack(spacing: 0) {
@@ -595,12 +597,15 @@ struct MainScreenContent: View {
                         .foregroundColor(.red)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if section == 0 {
-                    if filteredActiveChats.isEmpty {
+                    if filteredActiveChats.isEmpty && invitesManager.pendingInvites.isEmpty {
                         Text("No chats found.")
                             .foregroundColor(.secondary)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        ActiveChatList(chats: filteredActiveChats)
+                        ActiveChatList(
+                            chats: filteredActiveChats,
+                            invitesManager: invitesManager
+                        )
                     }
                 } else {
                     if filteredUsers.isEmpty {
@@ -628,6 +633,7 @@ struct MainScreenContent: View {
                 }
             }
         }
+        // REP logo in bottom right
         .overlay(alignment: .bottomTrailing) {
             Button(
                 action: {
@@ -812,6 +818,10 @@ struct MainScreenContent: View {
             }
             pendingAction = nil
         }
+        .onAppear {
+            // Fetch invites when the screen appears
+            invitesManager.fetchPendingInvites()
+        }
     }
 }
 
@@ -825,10 +835,6 @@ struct MainScreenToolbar: ViewModifier {
     var userId: Int
     var currentUser: User?
     var showActionSheet: () -> Void
-    
-    // Add state for navigation
-    @State private var showInvitesView = false
-    @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
 
     func body(content: Content) -> some View {
         content
@@ -863,46 +869,20 @@ struct MainScreenToolbar: ViewModifier {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
-                        // Notification badge button
-                        NavigationLink(destination: InvitesView()) {
-                            ZStack(alignment: .topTrailing) {
-                                Image(systemName: "bell.fill")
-                                    .font(.system(size: 18))
-                                    .foregroundColor(.primary)
-                                
-                                if invitesManager.pendingInvites.count > 0 {
-                                    Text("\(invitesManager.pendingInvites.count)")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .frame(width: 16, height: 16)
-                                        .background(Color.red)
-                                        .clipShape(Circle())
-                                        .offset(x: 8, y: -6)
-                                }
-                            }
+                    Button(
+                        action: { showActionSheet() },
+                        label: {
+                            Image(systemName: "plus")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(
+                                    width: MainScreen.Constants.imageSize/1.5,
+                                    height: MainScreen.Constants.imageSize/1.5
+                                )
+                                .foregroundColor(Color.repGreen)
                         }
-                        
-                        // Plus button
-                        Button(
-                            action: { showActionSheet() },
-                            label: {
-                                Image(systemName: "plus")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(
-                                        width: MainScreen.Constants.imageSize/1.5,
-                                        height: MainScreen.Constants.imageSize/1.5
-                                    )
-                                    .foregroundColor(Color.repGreen)
-                            }
-                        )
-                    }
+                    )
                 }
-            }
-            .onAppear {
-                // Fetch invites when screen appears
-                invitesManager.fetchPendingInvites()
             }
     }
 }
@@ -1007,6 +987,8 @@ struct ChatList: View {
 
 struct ActiveChatList: View {
     var chats: [ActiveChat]
+    @ObservedObject var invitesManager: GoalTeamInvitesManager
+    
     @State private var selectedProfileId: Int?
     @State private var selectedDirectUserId: Int?
     @State private var selectedGroupChatId: Int?
@@ -1015,6 +997,51 @@ struct ActiveChatList: View {
     var body: some View {
         ZStack {
             List {
+                // Green notification for pending invites
+                if invitesManager.pendingInvites.count > 0 {
+                    NavigationLink(destination: InvitesView()) {
+                        HStack {
+                            Image(systemName: "bell.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(.white)
+                                .frame(width: 40, height: 40)
+                                .background(Color.repGreen)
+                                .clipShape(Circle())
+                                .padding(.trailing, 12)
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("You have \(invitesManager.pendingInvites.count) pending invitation\(invitesManager.pendingInvites.count > 1 ? "s" : "")")
+                                    .font(.system(size: 17, weight: .semibold))
+                                    .foregroundColor(.primary)
+                                
+                                Text("Tap to view and respond")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.gray)
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color(UIColor.systemBackground))
+                                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 4)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                }
+                
+                // Regular chats
                 ForEach(chats) { chat in
                     if chat.type == "direct", let user = chat.user {
                         HStack(spacing: 0) {

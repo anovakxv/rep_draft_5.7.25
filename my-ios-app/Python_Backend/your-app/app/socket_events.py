@@ -23,9 +23,17 @@ def on_join(data):
     token = request.args.get("token")
     payload = _decode_jwt(token) if token else None
     if not payload:
-        disconnect()
-        return
+        disconnect(); return
     user_id = payload.get("sub") or payload.get("user_id")
+
+    # User personal room
+    room = data.get("room")
+    if room and room.startswith("user_"):
+        numeric = room.replace("user_", "")
+        if str(user_id) == numeric:
+            join_room(room)
+        return  # allow separate call from chat joins
+
     chat_id = data.get("chat_id")
     if not user_id or not chat_id:
         return

@@ -167,22 +167,49 @@ def api_active_chat_list():
             user_dict = user.as_dict() if user else {}
             user_dict = patch_profile_picture_url(user_dict)
             is_read = "1" if last_msg and last_msg.id in read_ids else "0"
+
+            # Ensure last_message_time is ISO8601 string
+            last_message_time_str = None
+            if event['last_message_time']:
+                last_message_time_str = event['last_message_time'].strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            last_message_payload = {}
+            if last_msg:
+                # Use model helper then inject/override fields we need
+                last_message_payload = last_msg.as_dict(read=is_read)
+                # Add created_at alias expected by iOS (keep timestamp for backward compatibility)
+                last_message_payload['created_at'] = last_message_payload.get('timestamp')
+
             result.append({
                 'id': f"direct-{user.id}" if user else None,
                 'type': 'direct',
                 'user': user_dict,
-                'last_message': last_msg.as_dict(read=is_read) if last_msg else {},
-                'last_message_time': event['last_message_time']
+                'last_message': last_message_payload,
+                'last_message_time': last_message_time_str
             })
+
         elif event['type'] == 'group':
             chat = chats_map.get(event['chat_id'])
             last_msg = last_group_msgs.get(event['chat_id'])
+
+            last_message_time_str = None
+            if event['last_message_time']:
+                last_message_time_str = event['last_message_time'].strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            last_message_payload = {}
+            if last_msg:
+                lm = last_msg.as_dict()
+                # Mirror created_at for parity if GroupMessage.as_dict uses 'timestamp'
+                if 'timestamp' in lm and 'created_at' not in lm:
+                    lm['created_at'] = lm.get('timestamp')
+                last_message_payload = lm
+
             result.append({
                 'id': f"group-{chat.id}" if chat else None,
                 'type': 'group',
                 'chat': chat.as_dict() if chat else {},
-                'last_message': last_msg.as_dict() if last_msg else {},
-                'last_message_time': event['last_message_time']
+                'last_message': last_message_payload,
+                'last_message_time': last_message_time_str
             })
 
     return jsonify({'result': result})

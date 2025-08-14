@@ -17,13 +17,20 @@ struct ActiveChatAPIResponse: Decodable {
     let result: [ActiveChat]
 }
 
-struct ActiveChat: Identifiable, Decodable {
-    let id: String // "direct-<userId>" or "group-<chatId>"
-    let type: String // "direct" or "group"
+struct ActiveChat: Identifiable, Decodable, Equatable {
+    let id: String          // "direct-<userId>" or "group-<chatId>"
+    let type: String        // "direct" or "group"
     let user: User?
     let chat: ChatModel?
     let last_message: MessageModel?
     let last_message_time: String?
+
+    static func == (lhs: ActiveChat, rhs: ActiveChat) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.type == rhs.type &&
+        lhs.last_message?.id == rhs.last_message?.id &&
+        lhs.last_message_time == rhs.last_message_time
+    }
 }
 
 struct ChatModel: Decodable {
@@ -36,6 +43,7 @@ struct MessageModel: Decodable {
     let text: String?
     let created_at: String?
     let read: String?
+    let sender_id: Int?          // <-- added
 }
 
 // MARK: - ViewModels
@@ -59,7 +67,7 @@ class PortalsViewModel: ObservableObject {
         case 2: tab = "all"
         default: tab = "open"
         }
-        let limitParam = (tab == "all") ? "&limit=50" : ""
+        let limitParam = (tab == "all") ? "&limit=200" : ""
         let safeParam = safeOnly ? "&safe_only=true" : ""
         let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)\(safeParam)"
         guard let url = URL(string: urlString) else {
@@ -156,6 +164,7 @@ class PeopleViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchResults: [User] = []
     @Published var isSearching: Bool = false
+    @Published var hasUnreadDirectMessages: Bool = false
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
@@ -180,25 +189,37 @@ class PeopleViewModel: ObservableObject {
                     if let error = error {
                         self.errorMessage = error.localizedDescription
                         self.activeChats = []
+                        self.hasUnreadDirectMessages = false
                         return
                     }
                     guard let data = data else {
                         self.errorMessage = "No data"
                         self.activeChats = []
+                        self.hasUnreadDirectMessages = false
                         return
                     }
                     do {
                         let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
                         self.activeChats = response.result
+
+                        // Updated unread logic using sender_id
+                        self.hasUnreadDirectMessages = response.result.contains { chat in
+                            guard chat.type == "direct",
+                                  let msg = chat.last_message,
+                                  let read = msg.read,
+                                  let senderId = msg.sender_id else { return false }
+                            return read == "0" && senderId != userId
+                        }
                     } catch {
                         self.errorMessage = "Failed to decode: \(error.localizedDescription)"
                         self.activeChats = []
+                        self.hasUnreadDirectMessages = false
                     }
                 }
             }.resume()
         } else {
             let tab = section == 1 ? "ntwk" : "all"
-            let limitParam = (tab == "all") ? "&limit=50" : ""
+            let limitParam = (tab == "all") ? "&limit=200" : ""
             let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
             guard let url = URL(string: urlString) else {
                 errorMessage = "Invalid URL"
@@ -293,12 +314,18 @@ class PeopleViewModel: ObservableObject {
 struct MainSegmentedPicker: View {
     let segments: [String]
     @Binding var selectedIndex: Int
+    var attentionDotIndices: Set<Int> = []
+    var onSelect: ((Int) -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 0) {
             ForEach(segments.indices, id: \.self) { index in
                 Button(action: {
-                    selectedIndex = index
+                    if let onSelect = onSelect {
+                        onSelect(index)
+                    } else {
+                        selectedIndex = index
+                    }
                 }) {
                     ZStack {
                         (selectedIndex == index ? Color.black : Color.white)
@@ -307,6 +334,17 @@ struct MainSegmentedPicker: View {
                             .foregroundColor(selectedIndex == index ? .white : .black)
                             .frame(maxWidth: .infinity, minHeight: 32)
                             .padding(.vertical, 2)
+                            .overlay(
+                                Group {
+                                    if attentionDotIndices.contains(index) {
+                                        Circle()
+                                            .fill(Color.repGreen)
+                                            .frame(width: 10, height: 10)
+                                            .offset(x: 16, y: -10)
+                                    }
+                                },
+                                alignment: .topTrailing
+                            )
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -353,12 +391,10 @@ struct MainScreen: View {
     @State private var page: Page = .portals
     @State private var section = 2
 
-    // --- NEW STATE for group chat creation/navigation ---
     @State private var newGroupChatId: Int? = nil
     @State private var navigateToGroupChat = false
     @State private var showCreateGroupChatSheet = false
 
-    // Sheet and search state
     @State private var mainActiveSheet: MainScreenContent.ActiveSheet?
     @State private var showSearch = false
     @State private var searchText: String = ""
@@ -367,8 +403,9 @@ struct MainScreen: View {
     @State private var currentUser: User? = nil
     @State private var showOnlySafePortals = false
 
-    // --- Invite check timer ---
     @State private var inviteCheckTimer: Timer?
+    @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
+    @State private var openNeedsAttention: Bool = false
 
     var body: some View {
         ZStack {
@@ -401,11 +438,12 @@ struct MainScreen: View {
                     currentUser: currentUser,
                     showActionSheet: {
                         mainActiveSheet = .actionSheet
-                    }
+                    },
+                    openNeedsAttention: $openNeedsAttention,
+                    forceShowPeopleOpen: forceShowPeopleOpen
                 ))
                 .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
                 .navigationBarTitleDisplayMode(.inline)
-                // --- Navigation to newly created group chat ---
                 NavigationLink(
                     destination: newGroupChatId.map {
                         GroupChatView(
@@ -428,10 +466,11 @@ struct MainScreen: View {
                 peopleVM.fetchPeople(userId: userId, section: section)
             }
             fetchCurrentUser()
-            // Set up a timer to check for new invites every 30 seconds
+            setupSocketNotifications()
             inviteCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
                 GoalTeamInvitesManager.shared.fetchPendingInvites()
             }
+            recalcOpenNeedsAttention()
         }
         .onDisappear {
             inviteCheckTimer?.invalidate()
@@ -455,10 +494,21 @@ struct MainScreen: View {
             case .addPurpose:
                 mainActiveSheet = .addPurpose
             case .teamChat:
-                // Open create group chat sheet instead of placeholder chat
                 showCreateGroupChatSheet = true
             }
             pendingAction = nil
+        }
+        .onChange(of: peopleVM.activeChats) { _ in
+            recalcOpenNeedsAttention()
+        }
+        .onChange(of: invitesManager.pendingInvites) { _ in
+            recalcOpenNeedsAttention()
+        }
+        .onChange(of: peopleVM.hasUnreadDirectMessages) { _ in
+            recalcOpenNeedsAttention()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            setupSocketNotifications()
         }
         .sheet(isPresented: $showCreateGroupChatSheet) {
             EditGroupChatView(
@@ -471,11 +521,9 @@ struct MainScreen: View {
                 onSave: { createdId in
                     showCreateGroupChatSheet = false
                     guard let createdId else { return }
-                    // Ensure socket join early
                     RealtimeSocketManager.shared.join(chatId: createdId)
                     newGroupChatId = createdId
                     navigateToGroupChat = true
-                    // Refresh active chats list after creation
                     peopleVM.fetchPeople(userId: userId, section: 0)
                 },
                 onCancel: {
@@ -485,7 +533,31 @@ struct MainScreen: View {
         }
     }
 
-    // --- Filtering logic for search ---
+    // MARK: - Socket Notification Setup
+
+    private func setupSocketNotifications() {
+        RealtimeSocketManager.shared.connect(
+            baseURL: APIConfig.baseURL,
+            token: jwtToken,
+            userId: userId
+        )
+
+        RealtimeSocketManager.shared.onDirectMessageNotification { payload in
+            guard
+                let recipientId = payload["recipient_id"] as? Int,
+                recipientId == self.userId
+            else { return }
+
+            DispatchQueue.main.async {
+                self.peopleVM.hasUnreadDirectMessages = true
+                self.recalcOpenNeedsAttention()
+                self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+            }
+        }
+    }
+
+    // Filtering
+
     private var filteredUsers: [User] {
         if showSearch && !searchText.isEmpty && section == 2 {
             return peopleVM.searchResults
@@ -512,6 +584,19 @@ struct MainScreen: View {
         if searchText.isEmpty { return portalsVM.portals }
         return portalsVM.portals.filter {
             $0.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private func recalcOpenNeedsAttention() {
+        openNeedsAttention = peopleVM.hasUnreadDirectMessages || !invitesManager.pendingInvites.isEmpty
+    }
+
+    private func forceShowPeopleOpen() {
+        page = .people
+        if section != 0 {
+            section = 0
+        } else {
+            peopleVM.fetchPeople(userId: userId, section: 0)
         }
     }
 
@@ -582,7 +667,7 @@ struct MainScreenContent: View {
     var filteredPortals: [Portal]
     var fetchCurrentUser: () -> Void
     @Binding var showOnlySafePortals: Bool
-    
+
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
 
     var body: some View {
@@ -633,7 +718,6 @@ struct MainScreenContent: View {
                 }
             }
         }
-        // REP logo in bottom right
         .overlay(alignment: .bottomTrailing) {
             Button(
                 action: {
@@ -819,7 +903,6 @@ struct MainScreenContent: View {
             pendingAction = nil
         }
         .onAppear {
-            // Fetch invites when the screen appears
             invitesManager.fetchPendingInvites()
         }
     }
@@ -835,6 +918,8 @@ struct MainScreenToolbar: ViewModifier {
     var userId: Int
     var currentUser: User?
     var showActionSheet: () -> Void
+    @Binding var openNeedsAttention: Bool
+    var forceShowPeopleOpen: () -> Void
 
     func body(content: Content) -> some View {
         content
@@ -842,15 +927,21 @@ struct MainScreenToolbar: ViewModifier {
                 ToolbarItem(placement: .principal) {
                     MainSegmentedPicker(
                         segments: ["OPEN", "NTWK", "ALL"],
-                        selectedIndex: $section
-                    )
-                    .onChange(of: section) { newSection in
-                        if page == .portals {
-                            portalsVM.fetchPortals(userId: userId, section: newSection)
-                        } else {
-                            peopleVM.fetchPeople(userId: userId, section: newSection)
+                        selectedIndex: $section,
+                        attentionDotIndices: openNeedsAttention ? [0] : [],
+                        onSelect: { idx in
+                            if idx == 0 && openNeedsAttention {
+                                forceShowPeopleOpen()
+                            } else {
+                                section = idx
+                                if page == .portals {
+                                    portalsVM.fetchPortals(userId: userId, section: idx)
+                                } else {
+                                    peopleVM.fetchPeople(userId: userId, section: idx)
+                                }
+                            }
                         }
-                    }
+                    )
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     NavigationLink(destination: ProfileView(userId: userId)) {
@@ -983,12 +1074,12 @@ struct ChatList: View {
     }
 }
 
-// MARK: - Active Chat List (Direct + Group)
+// MARK: - Active Chat List
 
 struct ActiveChatList: View {
     var chats: [ActiveChat]
     @ObservedObject var invitesManager: GoalTeamInvitesManager
-    
+
     @State private var selectedProfileId: Int?
     @State private var selectedDirectUserId: Int?
     @State private var selectedGroupChatId: Int?
@@ -997,7 +1088,6 @@ struct ActiveChatList: View {
     var body: some View {
         ZStack {
             List {
-                // Green notification for pending invites
                 if invitesManager.pendingInvites.count > 0 {
                     NavigationLink(destination: InvitesView()) {
                         HStack {
@@ -1008,19 +1098,19 @@ struct ActiveChatList: View {
                                 .background(Color.repGreen)
                                 .clipShape(Circle())
                                 .padding(.trailing, 12)
-                            
+
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("You have \(invitesManager.pendingInvites.count) pending invitation\(invitesManager.pendingInvites.count > 1 ? "s" : "")")
                                     .font(.system(size: 17, weight: .semibold))
                                     .foregroundColor(.primary)
-                                
+
                                 Text("Tap to view and respond")
                                     .font(.system(size: 14))
                                     .foregroundColor(.secondary)
                             }
-                            
+
                             Spacer()
-                            
+
                             Image(systemName: "chevron.right")
                                 .foregroundColor(.gray)
                                 .font(.system(size: 14, weight: .semibold))
@@ -1040,12 +1130,10 @@ struct ActiveChatList: View {
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
                 }
-                
-                // Regular chats
+
                 ForEach(chats) { chat in
                     if chat.type == "direct", let user = chat.user {
                         HStack(spacing: 0) {
-                            // Profile pic button
                             Button(action: { selectedProfileId = user.id }) {
                                 if let url = user.profilePictureURL {
                                     KFImage(url)
@@ -1063,14 +1151,14 @@ struct ActiveChatList: View {
                             }
                             .buttonStyle(PlainButtonStyle())
                             .padding(.leading, 16)
-                            // Text/chat button
                             Button(action: { selectedDirectUserId = user.id }) {
                                 VStack(alignment: .leading) {
                                     HStack {
                                         Text(user.fullName ?? "")
                                             .font(.system(size: 17, weight: .semibold))
                                         Spacer()
-                                        if let dateString = chat.last_message_time, let date = ISO8601DateFormatter().date(from: dateString) {
+                                        if let dateString = chat.last_message_time,
+                                           let date = ISO8601DateFormatter().date(from: dateString) {
                                             Text(date.timeAgoDisplay())
                                                 .font(.caption)
                                         }
@@ -1078,7 +1166,8 @@ struct ActiveChatList: View {
                                     if let lastMessage = chat.last_message,
                                        let read = lastMessage.read,
                                        read == "0",
-                                       lastMessage.id != currentUserId {
+                                       let senderId = lastMessage.sender_id,
+                                       senderId != currentUserId {
                                         Text(lastMessage.text ?? "")
                                             .font(.system(size: 17, weight: .bold))
                                             .foregroundColor(Color.repGreen)
@@ -1152,7 +1241,6 @@ struct ActiveChatList: View {
             }
             .listStyle(.plain)
 
-            // Profile (direct)
             NavigationLink(
                 destination: selectedProfileId.map { ProfileView(userId: $0) },
                 isActive: Binding(
@@ -1161,7 +1249,6 @@ struct ActiveChatList: View {
                 ),
                 label: { EmptyView() }
             )
-            // Direct chat
             NavigationLink(
                 destination: selectedDirectUserId.flatMap { id in
                     if let chat = chats.first(where: { $0.user?.id == id && $0.type == "direct" }) {
@@ -1181,7 +1268,6 @@ struct ActiveChatList: View {
                 ),
                 label: { EmptyView() }
             )
-            // Group chat
             NavigationLink(
                 destination: selectedGroupChatId.flatMap { gid in
                     if let group = chats.first(where: { $0.chat?.id == gid && $0.type == "group" }) {

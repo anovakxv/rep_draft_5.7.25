@@ -9,25 +9,24 @@
 import SwiftUI
 import Kingfisher
 
-struct GoalTeamInvite: Identifiable, Codable {
+struct GoalTeamInvite: Identifiable, Codable, Equatable {
     let id: Int
     let goals_id: Int
-    let users_id1: Int // inviter
-    let users_id2: Int // invitee (current user)
-    let confirmed: Int // 0=pending, 1=accepted, -1=declined
+    let users_id1: Int
+    let users_id2: Int
+    let confirmed: Int
     let read1: Bool
     let read2: Bool
     let timestamp: String?
-    
-    // Additional fields from joined data
+
     let goalTitle: String?
     let inviterName: String?
     let inviterPhotoURL: String?
-    
+
     var inviterDisplayName: String {
-        return inviterName ?? "Someone"
+        inviterName ?? "Someone"
     }
-    
+
     var inviterProfilePictureURL: URL? {
         guard let urlString = inviterPhotoURL, !urlString.isEmpty else { return nil }
         if urlString.starts(with: "http") {

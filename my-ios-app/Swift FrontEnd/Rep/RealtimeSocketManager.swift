@@ -1,3 +1,6 @@
+// RealtimeSocketManager.swift
+
+
 import Foundation
 import SocketIO
 
@@ -6,19 +9,63 @@ class RealtimeSocketManager {
     private var manager: SocketManager?
     private var socket: SocketIOClient?
     private var connected = false
+    private var registeredEvents = false
 
-    func connect(baseURL: String, token: String) {
-        guard !connected else { return }
-        guard let url = URL(string: baseURL) else { return }
-        manager = SocketManager(socketURL: url, config: [.compress, .connectParams(["token": token]), .log(false)])
-        socket = manager?.defaultSocket
-        socket?.on(clientEvent: .connect) { _, _ in
+    func connect(baseURL: String, token: String, userId: Int? = nil) {
+        guard !token.isEmpty, let url = URL(string: baseURL) else { return }
+        if manager == nil {
+            manager = SocketManager(
+                socketURL: url,
+                config: [
+                    .compress,
+                    .connectParams(["token": token]),
+                    .log(false)
+                ]
+            )
+            socket = manager?.defaultSocket
+            registerLifecycle(userId: userId)
+            manager?.connect()
+        } else if socket?.status == .connected, let userId {
+            // Re-emit user room join in case it was missed
+            socket?.emit("join", ["room": "user_\(userId)"])
+        }
+    }
+
+    private func registerLifecycle(userId: Int?) {
+        socket?.on(clientEvent: .connect) { [weak self] _, _ in
+            guard let self else { return }
             self.connected = true
+            if let userId = userId {
+                self.socket?.emit("join", ["room": "user_\(userId)"]) // requires server support
+            }
+            self.registerCoreListeners()
         }
-        socket?.on(clientEvent: .disconnect) { _, _ in
-            self.connected = false
+        socket?.on(clientEvent: .disconnect) { [weak self] _, _ in
+            self?.connected = false
         }
-        manager?.connect()
+    }
+
+    private func registerCoreListeners() {
+        guard !registeredEvents else { return }
+        registeredEvents = true
+    }
+
+    func onDirectMessageNotification(_ handler: @escaping ([String: Any]) -> Void) {
+        socket?.off("direct_message_notification")
+        socket?.on("direct_message_notification") { data, _ in
+            if let dict = data.first as? [String: Any] {
+                handler(dict)
+            }
+        }
+    }
+
+    func onGroupMessage(_ handler: @escaping ([String: Any]) -> Void) {
+        socket?.off("group_message")
+        socket?.on("group_message") { data, _ in
+            if let dict = data.first as? [String: Any] {
+                handler(dict)
+            }
+        }
     }
 
     func join(chatId: Int) {
@@ -29,11 +76,15 @@ class RealtimeSocketManager {
         socket?.emit("leave", ["chat_id": chatId])
     }
 
-    func onGroupMessage(_ handler: @escaping ([String: Any]) -> Void) {
-        socket?.on("group_message") { data, _ in
-            if let dict = data.first as? [String: Any] {
-                handler(dict)
-            }
+    func disconnect() {
+        manager?.disconnect()
+        connected = false
+        registeredEvents = false
+    }
+
+    func reconnectIfNeeded() {
+        if socket?.status != .connected {
+            manager?.reconnect()
         }
     }
 }

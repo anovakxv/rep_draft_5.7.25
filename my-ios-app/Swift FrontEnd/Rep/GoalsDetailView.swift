@@ -193,6 +193,17 @@ struct GoalsDetailView: View {
                                     .fontWeight(.bold)
                                     .padding(.vertical, 5)
                             }
+                            
+                            // Add Invite to Team option
+                            Button(action: {
+                                activeSheet = .inviteTeam
+                            }) {
+                                Text("Invite to Team")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                    .font(.title2)
+                                    .fontWeight(.bold)
+                                    .padding(.vertical, 5)
+                            }
                         } else {
                             Button(action: {
                                 activeSheet = .updateGoal
@@ -252,7 +263,13 @@ struct GoalsDetailView: View {
                             .padding()
                     }
                 case .inviteTeam:
-                    Text("Invite Team Sheet Placeholder")
+                    InviteTeamSheet(
+                        goalId: viewModel.goal.id,
+                        onDone: {
+                            // Refresh goal details after inviting users
+                            viewModel.load(goalId: viewModel.goal.id)
+                        }
+                    )
                 }
             }
             .alert("Delete Goal?", isPresented: $showDeleteAlert) {
@@ -810,5 +827,198 @@ struct BottomGoalBar: View {
                 .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
             alignment: .top
         )
+    }
+}
+
+// MARK: - Invite Team Sheet
+
+struct InviteTeamSheet: View {
+    let goalId: Int
+    var onDone: () -> Void
+    
+    @State private var users: [User] = []
+    @State private var selectedUsers: Set<Int> = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var inviteSuccess = false
+    
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("jwtToken") var jwtToken: String = ""
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                List {
+                    if users.isEmpty && !isLoading {
+                        Text("No network members found")
+                            .foregroundColor(.secondary)
+                            .padding()
+                    }
+                    
+                    ForEach(users) { user in
+                        Button {
+                            if selectedUsers.contains(user.id) {
+                                selectedUsers.remove(user.id)
+                            } else {
+                                selectedUsers.insert(user.id)
+                            }
+                        } label: {
+                            HStack {
+                                if let url = user.profilePictureURL {
+                                    AsyncImage(url: url) { image in
+                                        image.resizable().scaledToFill()
+                                    } placeholder: {
+                                        Circle().fill(Color.gray.opacity(0.3))
+                                    }
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(Circle())
+                                } else {
+                                    Circle()
+                                        .fill(Color.gray.opacity(0.3))
+                                        .frame(width: 40, height: 40)
+                                }
+                                
+                                Text(user.fullName ?? "")
+                                    .foregroundColor(.primary)
+                                
+                                Spacer()
+                                
+                                if selectedUsers.contains(user.id) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                }
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .listStyle(.plain)
+                
+                if isLoading {
+                    ProgressView("Loading...")
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .shadow(radius: 10)
+                }
+            }
+            .navigationTitle("Invite to Team")
+            .navigationBarItems(
+                leading: Button("Cancel") {
+                    dismiss()
+                },
+                trailing: Button("Invite") {
+                    inviteUsers()
+                }
+                .disabled(selectedUsers.isEmpty)
+            )
+            .alert(item: $errorMessage) { error in
+                Alert(title: Text("Error"), message: Text(error), dismissButton: .default(Text("OK")))
+            }
+            .alert("Invitation Sent", isPresented: $inviteSuccess) {
+                Button("OK", role: .cancel) {
+                    dismiss()
+                    onDone()
+                }
+            } message: {
+                Text("Team invitation has been sent successfully.")
+            }
+            .onAppear {
+                loadNetworkMembers()
+            }
+        }
+    }
+    
+    private func loadNetworkMembers() {
+        isLoading = true
+        errorMessage = nil
+        
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/members_of_my_network?invited_goal_id=\(goalId)") else {
+            errorMessage = "Invalid URL"
+            isLoading = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                if let error = error {
+                    errorMessage = error.localizedDescription
+                    return
+                }
+                
+                guard let data = data else {
+                    errorMessage = "No data received"
+                    return
+                }
+                
+                do {
+                    let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
+                    self.users = response.result
+                } catch {
+                    errorMessage = "Failed to decode response: \(error.localizedDescription)"
+                }
+            }
+        }.resume()
+    }
+    
+    private func inviteUsers() {
+        guard !selectedUsers.isEmpty else { return }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/\(goalId)/team") else {
+            errorMessage = "Invalid URL"
+            isLoading = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        let body: [String: Any] = [
+            "users": Array(selectedUsers)
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        } catch {
+            errorMessage = "Failed to encode request body"
+            isLoading = false
+            return
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                if let error = error {
+                    errorMessage = error.localizedDescription
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    errorMessage = "Invalid response"
+                    return
+                }
+                
+                if httpResponse.statusCode >= 200 && httpResponse.statusCode < 300 {
+                    inviteSuccess = true
+                } else {
+                    errorMessage = "Server returned error: \(httpResponse.statusCode)"
+                }
+            }
+        }.resume()
     }
 }

@@ -13,11 +13,11 @@ class GroupMessage(db.Model):
     sender_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    # Optionally: status, attachments, etc.
 
     # Relationships
     sender = db.relationship('User', backref='sent_group_messages')
-    chat = db.relationship('Chats', backref='messages')
+    # passive_deletes=True lets DB handle cascade without SQLAlchemy issuing UPDATEs
+    chat = db.relationship('Chats', backref=db.backref('messages', passive_deletes=True))
 
     def as_dict(self):
         return {

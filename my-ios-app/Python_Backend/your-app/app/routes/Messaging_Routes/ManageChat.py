@@ -110,20 +110,10 @@ def api_delete_group_chat():
     if not chat:
         return jsonify({'error': "Chat not found"}), 404
 
-    # Only the creator can delete the group chat
     if chat.created_by != user_id:
         return jsonify({'error': "Only the creator can delete this group chat."}), 403
 
-    # Delete all related messages first
-    from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
-    GroupMessage.query.filter_by(chat_id=chats_id).delete()
-    db.session.commit()
-
-    # Then delete all related users
-    ChatsUsers.query.filter_by(chats_id=chats_id).delete()
-    db.session.commit()
-
-    # Now delete the chat itself
+    # Single delete; DB cascades remove group_messages & chats_users rows
     db.session.delete(chat)
     db.session.commit()
 

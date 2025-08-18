@@ -3,13 +3,13 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, socketio  # added socketio
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.utils.auth import jwt_required
-from app.utils.notifications import send_fcm_notification  # Add this import
+from app.utils.notifications import send_fcm_notification  # existing import
 
 goals_bp = Blueprint('goal_team', __name__)
 
@@ -29,14 +29,13 @@ def invite_goal_team(goal_id):
     user_id = g.current_user.id
     users = data.get('users', [])
     results = {}
-    
-    # Get inviter and goal info for notification
+
     inviter = User.query.get(user_id)
     goal = Goal.query.get(goal_id)
-    
+
     if not goal:
         return jsonify({"error": "Goal not found"}), 404
-    
+
     for u_id in users:
         existing = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=u_id).first()
         if existing:
@@ -45,33 +44,46 @@ def invite_goal_team(goal_id):
             new_team = GoalTeam(goals_id=goal_id, users_id1=user_id, users_id2=u_id, confirmed=0)
             db.session.add(new_team)
             results[u_id] = "invited"
-            
-            # Send push notification to the invited user
+
+            # Push notification (FCM)
             invited_user = User.query.get(u_id)
             if invited_user and invited_user.device_token:
                 try:
-                    title = f"New Goal Team Invite"
+                    title = "New Goal Team Invite"
                     body = f"{inviter.full_name} invited you to join '{goal.title}'"
-                    
-                    # Include relevant data for app routing
-                    data = {
+                    payload = {
                         "type": "goal_team_invite",
                         "goal_id": str(goal_id),
                         "inviter_id": str(user_id)
                     }
-                    
                     print(f"Sending goal team invite notification to user {u_id}")
                     send_fcm_notification(
                         invited_user.device_token,
                         title=title,
                         body=body,
-                        data=data
+                        data=payload
                     )
                 except Exception as e:
                     print(f"Error sending goal team invite notification: {e}")
-    
+
+            # Realtime socket event to invitee
+            try:
+                socketio.emit(
+                    "goal_team_invite",
+                    {
+                        "goal_id": goal_id,
+                        "inviter_id": user_id,
+                        "invitee_id": u_id,
+                        "goal_title": goal.title,
+                        "inviter_name": inviter.full_name if inviter else ""
+                    },
+                    room=f"user_{u_id}"
+                )
+            except Exception as e:
+                print(f"Socket emit goal_team_invite error: {e}")
+
     db.session.commit()
-    # Return updated team list
+
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
     return jsonify({"result": results, "team": [tm.as_dict() for tm in team]})
 
@@ -84,23 +96,22 @@ def update_goal_team(goal_id):
     action = data.get('action')  # 'accept', 'decline', 'mark_as_read'
     users = data.get('users', [])
     results = {}
+
     for u_id in users:
         team = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=u_id).first()
         if not team:
             results[u_id] = "not found"
             continue
-        # Permission: Only the invitee can accept/decline/mark as read for themselves
         if action in ['accept', 'decline', 'mark_as_read'] and user_id != u_id:
             results[u_id] = "permission denied"
             continue
+
         if action == 'accept':
             team.confirmed = 1
             team.read2 = True
             results[u_id] = "accepted"
-            # --- Add progress log for Recruiting goals ---
             goal = Goal.query.get(goal_id)
             if goal and goal.goal_type == "Recruiting":
-                # Only add if not already present for this user/goal
                 existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=u_id).first()
                 if not existing_log:
                     progress_log = GoalProgressLog(
@@ -121,9 +132,53 @@ def update_goal_team(goal_id):
             if team.users_id2 == user_id:
                 team.read2 = True
             results[u_id] = "marked as read"
+
     db.session.commit()
-    # Return updated team list
+
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
+
+    # Socket updates (notify each invitee + inviter)
+    try:
+        # Find inviter_id for this goal (all team rows share same inviter)
+        inviter_id = None
+        if team:
+            inviter_id = team[0].users_id1
+
+        for u_id, status in results.items():
+            socketio.emit(
+                "goal_team_invite_update",
+                {
+                    "goal_id": goal_id,
+                    "invitee_id": u_id,
+                    "action": action,
+                    "status": status
+                },
+                room=f"user_{u_id}"
+            )
+        # Also notify current user (inviter or invitee) for UI sync
+        socketio.emit(
+            "goal_team_invite_update",
+            {
+                "goal_id": goal_id,
+                "action": action,
+                "bulk": results
+            },
+            room=f"user_{user_id}"
+        )
+        # NEW: Always notify inviter if different (ensures inviter UI refresh)
+        if inviter_id and inviter_id != user_id:
+            socketio.emit(
+                "goal_team_invite_update",
+                {
+                    "goal_id": goal_id,
+                    "action": action,
+                    "bulk": results
+                },
+                room=f"user_{inviter_id}"
+            )
+    except Exception as e:
+        print(f"Socket emit goal_team_invite_update error: {e}")
+
     return jsonify({"result": results, "team": [tm.as_dict() for tm in team]})
 
 # --- DELETE: Remove or leave team ---
@@ -134,12 +189,28 @@ def remove_goal_team(goal_id, user_id):
     team = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id).first()
     if not team:
         return jsonify({"error": "not found"}), 404
-    # Only the user themselves or the inviter can remove
     if session_user_id != user_id and session_user_id != team.users_id1:
         return jsonify({"error": "permission denied"}), 403
+
+    inviter_id = team.users_id1
+    invitee_id = team.users_id2
+
     db.session.delete(team)
     db.session.commit()
-    # Return updated team list
+
+    # Emit removal update (optional consistency)
+    try:
+        payload = {
+            "goal_id": goal_id,
+            "invitee_id": invitee_id,
+            "action": "removed",
+            "status": "removed"
+        }
+        socketio.emit("goal_team_invite_update", payload, room=f"user_{invitee_id}")
+        socketio.emit("goal_team_invite_update", payload, room=f"user_{inviter_id}")
+    except Exception as e:
+        print(f"Socket emit goal_team_invite_update (remove) error: {e}")
+
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
     return jsonify({"result": "removed", "team": [tm.as_dict() for tm in team]})
 
@@ -149,7 +220,6 @@ def remove_goal_team(goal_id, user_id):
 def get_pending_invites():
     user_id = g.current_user.id
 
-    # Query for all pending invites where the current user is the invitee
     pending_invites = (
         db.session.query(GoalTeam, Goal, User)
         .join(Goal, GoalTeam.goals_id == Goal.id)
@@ -159,7 +229,6 @@ def get_pending_invites():
         .all()
     )
 
-    # Format the results to match the expected Swift model
     result = [{
         "id": team.id,
         "goals_id": team.goals_id,
@@ -175,3 +244,49 @@ def get_pending_invites():
     } for team, goal, user in pending_invites]
 
     return jsonify({"invites": result})
+
+# --- POST: Mark all pending invites as read for current user ---
+@goals_bp.route('/pending_invites/mark_read', methods=['POST'])
+@jwt_required
+def mark_all_pending_invites_read():
+    user_id = g.current_user.id
+    invites = GoalTeam.query.filter_by(users_id2=user_id, confirmed=0).all()
+    if not invites:
+        return jsonify({"result": "none"}), 200
+
+    changed_goal_ids = set()
+    inviter_ids = set()
+    for inv in invites:
+        if not inv.read2:
+            inv.read2 = True
+        changed_goal_ids.add(inv.goals_id)
+        inviter_ids.add(inv.users_id1)
+
+    db.session.commit()
+
+    # Emit update to current user
+    try:
+        socketio.emit(
+            "goal_team_invite_update",
+            {
+                "action": "mark_as_read",
+                "goal_ids": list(changed_goal_ids)
+            },
+            room=f"user_{user_id}"
+        )
+        # Notify inviters (they may want to show read status)
+        for inviter_id in inviter_ids:
+            if inviter_id != user_id:
+                socketio.emit(
+                    "goal_team_invite_update",
+                    {
+                        "action": "invitee_read",
+                        "invitee_id": user_id,
+                        "goal_ids": list(changed_goal_ids)
+                    },
+                    room=f"user_{inviter_id}"
+                )
+    except Exception as e:
+        print(f"Socket emit mark_read error: {e}")
+
+    return jsonify({"result": "ok", "updated": len(invites)})

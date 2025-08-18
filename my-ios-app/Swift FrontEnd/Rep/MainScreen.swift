@@ -412,8 +412,10 @@ struct MainScreen: View {
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
     @State private var openNeedsAttention: Bool = false
 
-    // Fallback polling timer for unread detection when socket events not received
     @State private var unreadPollTimer: Timer? = nil
+
+    // New: ensure we only register socket invite observers once
+    @State private var notifObserversInstalled = false
 
     var body: some View {
         ZStack {
@@ -449,7 +451,7 @@ struct MainScreen: View {
                     },
                     openNeedsAttention: $openNeedsAttention,
                     forceShowPeopleOpen: forceShowPeopleOpen,
-                    showOnlySafePortals: showOnlySafePortals // pass safe flag
+                    showOnlySafePortals: showOnlySafePortals
                 ))
                 .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
                 .navigationBarTitleDisplayMode(.inline)
@@ -479,12 +481,20 @@ struct MainScreen: View {
             }
             fetchCurrentUser()
             setupSocketNotifications()
-            inviteCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+            installSocketInviteObservers()
+            // Fallback polling: quick one-shot at 1s, then every 120s
+            inviteCheckTimer?.invalidate()
+            inviteCheckTimer = nil
+            Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
+                GoalTeamInvitesManager.shared.fetchPendingInvites()
+            }
+            inviteCheckTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { _ in
                 GoalTeamInvitesManager.shared.fetchPendingInvites()
             }
             recalcOpenNeedsAttention()
             scheduleUnreadPollingIfNeeded()
         }
+
         .onDisappear {
             inviteCheckTimer?.invalidate()
             inviteCheckTimer = nil
@@ -535,7 +545,11 @@ struct MainScreen: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             setupSocketNotifications()
+            installSocketInviteObservers()
             scheduleUnreadPollingIfNeeded()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("refreshActiveChats"))) { _ in
+            peopleVM.fetchPeople(userId: userId, section: 0)
         }
         .sheet(isPresented: $showCreateGroupChatSheet) {
             EditGroupChatView(
@@ -632,6 +646,18 @@ struct MainScreen: View {
         }
     }
 
+    // MARK: - Install Socket Invite Observers
+    private func installSocketInviteObservers() {
+        guard !notifObserversInstalled else { return }
+        notifObserversInstalled = true
+        NotificationCenter.default.addObserver(forName: .socketGoalTeamInvite, object: nil, queue: .main) { _ in
+            GoalTeamInvitesManager.shared.fetchPendingInvites()
+        }
+        NotificationCenter.default.addObserver(forName: .socketGoalTeamInviteUpdate, object: nil, queue: .main) { _ in
+            GoalTeamInvitesManager.shared.fetchPendingInvites()
+        }
+    }
+
     // MARK: - Filtering
     private var filteredUsers: [User] {
         if showSearch && !searchText.isEmpty && section == 2 {
@@ -725,24 +751,25 @@ struct MainScreen: View {
         unreadPollTimer = nil
 
         guard page == .portals,
-              !peopleVM.hasUnreadDirectMessages else { return }
+            !peopleVM.hasUnreadDirectMessages else { return }
 
-        // Early one-time check shortly after launch / tab switch so user sees dot soon
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+        // One-shot quick poll at 1s
+        Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
             if self.page == .portals && !self.peopleVM.hasUnreadDirectMessages {
-                print("🕑 One-shot unread poll (2s)")
+                print("🕑 One-shot unread poll (1s)")
                 self.peopleVM.fetchPeople(userId: self.userId, section: 0)
             }
         }
 
-        let interval: TimeInterval = 60
+        // Fallback polling every 120s
+        let interval: TimeInterval = 120
         unreadPollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             if self.page == .portals && !self.peopleVM.hasUnreadDirectMessages {
-                print("🕑 Polling active chats (fallback, 60s)")
+                print("🕑 Polling active chats (fallback, 120s)")
                 self.peopleVM.fetchPeople(userId: self.userId, section: 0)
             }
         }
-        print("✅ Started unread fallback polling @60s interval.")
+        print("✅ Started unread fallback polling @120s interval.")
     }
 }
 
@@ -1033,7 +1060,7 @@ struct MainScreenToolbar: ViewModifier {
     var showActionSheet: () -> Void
     @Binding var openNeedsAttention: Bool
     var forceShowPeopleOpen: () -> Void
-    var showOnlySafePortals: Bool   // added to preserve safe filter
+    var showOnlySafePortals: Bool
 
     func body(content: Content) -> some View {
         content

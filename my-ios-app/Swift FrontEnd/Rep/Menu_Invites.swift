@@ -123,6 +123,28 @@ class GoalTeamInvitesManager: ObservableObject {
             }
         }.resume()
     }
+
+    // MARK: - Mark all invites as read when viewing
+    func markAllInvitesRead(completion: (() -> Void)? = nil) {
+        guard !jwtToken.isEmpty, userId != 0 else {
+            completion?()
+            return
+        }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/pending_invites/mark_read") else {
+            completion?()
+            return
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            DispatchQueue.main.async {
+                // Refresh invites after marking as read
+                self?.fetchPendingInvites()
+                completion?()
+            }
+        }.resume()
+    }
 }
 
 struct InvitesView: View {
@@ -198,7 +220,8 @@ struct InvitesView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            invitesManager.fetchPendingInvites()
+            // Mark all invites as read when viewing the invites screen
+            invitesManager.markAllInvitesRead()
         }
         .alert(isPresented: $showAlert, content: {
             Alert(title: Text(responseMessage ?? ""))

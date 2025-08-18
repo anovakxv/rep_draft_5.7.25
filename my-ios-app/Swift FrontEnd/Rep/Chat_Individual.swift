@@ -72,6 +72,8 @@ class MessageViewModel: ObservableObject {
             if let apiResult = try? decoder.decode(GetMessagesAPIResponse.self, from: data) {
                 DispatchQueue.main.async {
                     self.messages = apiResult.result.messages
+                    // Notify main screen to refresh active chats so the unread dot clears quickly
+                    NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
                 }
             } else {
                 print("Failed to decode messages: \(String(data: data, encoding: .utf8) ?? "")")

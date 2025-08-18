@@ -1,6 +1,5 @@
 // RealtimeSocketManager.swift
 
-
 import Foundation
 import SocketIO
 
@@ -20,23 +19,23 @@ class RealtimeSocketManager {
                     .compress,
                     .connectParams(["token": token]),
                     .log(false)
+                    // .forceWebsockets   // enable if long-poll fallback causes auth issues
                 ]
             )
             socket = manager?.defaultSocket
-            registerLifecycle(userId: userId)
+            registerLifecycle(initialUserId: userId)
             manager?.connect()
         } else if socket?.status == .connected, let userId {
-            // Re-emit user room join in case it was missed
             socket?.emit("join", ["room": "user_\(userId)"])
         }
     }
 
-    private func registerLifecycle(userId: Int?) {
+    private func registerLifecycle(initialUserId: Int?) {
         socket?.on(clientEvent: .connect) { [weak self] _, _ in
             guard let self else { return }
             self.connected = true
-            if let userId = userId {
-                self.socket?.emit("join", ["room": "user_\(userId)"]) // requires server support
+            if let uid = initialUserId {
+                self.socket?.emit("join", ["room": "user_\(uid)"])
             }
             self.registerCoreListeners()
         }
@@ -48,6 +47,13 @@ class RealtimeSocketManager {
     private func registerCoreListeners() {
         guard !registeredEvents else { return }
         registeredEvents = true
+
+        socket?.on("goal_team_invite") { data, _ in
+            NotificationCenter.default.post(name: .socketGoalTeamInvite, object: data.first as? [String: Any])
+        }
+        socket?.on("goal_team_invite_update") { data, _ in
+            NotificationCenter.default.post(name: .socketGoalTeamInviteUpdate, object: data.first as? [String: Any])
+        }
     }
 
     func onDirectMessageNotification(_ handler: @escaping ([String: Any]) -> Void) {
@@ -57,19 +63,13 @@ class RealtimeSocketManager {
             if let dict = data.first as? [String: Any] {
                 handler(dict)
             } else if data.count > 0 {
-                // Try alternative format - sometimes Socket.IO has different payload formats
-                print("⚠️ Socket data format unexpected, trying alternative parser")
-                var combinedDict: [String: Any] = [:]
+                var combined: [String: Any] = [:]
                 for item in data {
-                    if let dict = item as? [String: Any] {
-                        for (key, value) in dict {
-                            combinedDict[key] = value
-                        }
+                    if let d = item as? [String: Any] {
+                        for (k, v) in d { combined[k] = v }
                     }
                 }
-                if !combinedDict.isEmpty {
-                    handler(combinedDict)
-                }
+                if !combined.isEmpty { handler(combined) }
             }
         }
     }
@@ -102,4 +102,13 @@ class RealtimeSocketManager {
             manager?.reconnect()
         }
     }
+}
+
+// MARK: - Notification Names
+
+extension Notification.Name {
+    static let socketGoalTeamInvite = Notification.Name("socketGoalTeamInvite")
+    static let socketGoalTeamInviteUpdate = Notification.Name("socketGoalTeamInviteUpdate")
+    static let socketDirectMessage = Notification.Name("socketDirectMessage") // optional if you want broadcast
+
 }

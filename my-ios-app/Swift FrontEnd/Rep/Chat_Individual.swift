@@ -44,6 +44,8 @@ struct SendMessageAPIResponse: Decodable {
 class MessageViewModel: ObservableObject {
     @Published var messages: [SimpleMessage] = []
     @Published var inputText: String = ""
+    @Published var isLoadingOlder: Bool = false
+    @Published var canLoadOlder: Bool = true   // optimistic until proven empty
     
     let currentUserId: Int
     let otherUserId: Int
@@ -57,28 +59,26 @@ class MessageViewModel: ObservableObject {
         self.otherUserId = otherUserId
         self.otherUserName = otherUserName
         self.otherUserPhotoURL = otherUserPhotoURL
-        // NEW: listen for realtime DMs that belong to THIS conversation
+        
+        // Realtime listener for THIS DM thread
         RealtimeSocketManager.shared.onDirectMessageNotification { [weak self] payload in
             guard let self = self else { return }
             let senderId = payload["sender_id"] as? Int ?? payload["senderId"] as? Int
             let recipientId = payload["recipient_id"] as? Int ?? payload["recipientId"] as? Int
-            // Only append if this chat is the otherUserId involved and message is from them to me
+            // Only if from the other user to me
             if senderId == self.otherUserId && recipientId == self.currentUserId {
                 if let data = try? JSONSerialization.data(withJSONObject: payload) {
+                    // Try full response shape first
                     if let decoded = try? JSONDecoder.withISO8601.decode(SendMessageAPIResponse.self, from: data) {
                         DispatchQueue.main.async {
-                            if !self.messages.contains(where: { $0.id == decoded.message.id }) {
-                                self.messages.append(decoded.message)
-                            }
+                            self.appendIfNeeded(decoded.message)
                         }
                         return
                     }
-                    // Fallback manual decode
+                    // Fallback to single message
                     if let msg = try? JSONDecoder.withISO8601.decode(SimpleMessage.self, from: data) {
                         DispatchQueue.main.async {
-                            if !self.messages.contains(where: { $0.id == msg.id }) {
-                                self.messages.append(msg)
-                            }
+                            self.appendIfNeeded(msg)
                         }
                     }
                 }
@@ -86,40 +86,87 @@ class MessageViewModel: ObservableObject {
         }
     }
     
+    private func appendIfNeeded(_ message: SimpleMessage) {
+        if !messages.contains(where: { $0.id == message.id }) {
+            messages.append(message)
+            // Keep ascending order defensively
+            messages.sort { $0.timestamp < $1.timestamp }
+        }
+    }
+    
+    // Fetch newest slice (initial or refresh)
     func fetchMessages() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/get_messages?users_id=\(otherUserId)&order=ASC&mark_as_read=1") else { return }
+        fetchMessages(beforeId: nil, append: false)
+    }
+    
+    // Unified fetch supporting older pagination
+    func fetchMessages(beforeId: Int? = nil, append: Bool) {
+        if append {
+            guard !isLoadingOlder, canLoadOlder else { return }
+            isLoadingOlder = true
+        }
+        
+        var components = URLComponents(string: "\(APIConfig.baseURL)/api/message/get_messages")!
+        var query: [URLQueryItem] = [
+            .init(name: "users_id", value: "\(otherUserId)"),
+            .init(name: "order", value: "ASC"),
+            .init(name: "limit", value: "200"),
+            .init(name: "mark_as_read", value: append ? "0" : "1") // only mark on main (latest) fetch
+        ]
+        if let bid = beforeId {
+            query.append(.init(name: "before_id", value: "\(bid)"))
+        }
+        components.queryItems = query
+        
+        guard let url = components.url else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        let task = URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data, error == nil else { return }
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            if let apiResult = try? decoder.decode(GetMessagesAPIResponse.self, from: data) {
-                DispatchQueue.main.async {
-                    self.messages = apiResult.result.messages
-                    // Notify main screen to refresh active chats so the unread dot clears quickly
+        
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            if append {
+                DispatchQueue.main.async { self.isLoadingOlder = false }
+            }
+            guard let data, error == nil else { return }
+            let decoder = JSONDecoder.withISO8601
+            guard let apiResult = try? decoder.decode(GetMessagesAPIResponse.self, from: data) else {
+                print("Failed to decode messages: \(String(data: data, encoding: .utf8) ?? "")")
+                return
+            }
+            let newMsgs = apiResult.result.messages.sorted { $0.timestamp < $1.timestamp }
+            DispatchQueue.main.async {
+                if append {
+                    if newMsgs.isEmpty {
+                        self.canLoadOlder = false
+                    } else {
+                        // Insert at top without duplicates
+                        let existingIds = Set(self.messages.map { $0.id })
+                        let filtered = newMsgs.filter { !existingIds.contains($0.id) }
+                        self.messages.insert(contentsOf: filtered, at: 0)
+                    }
+                } else {
+                    self.messages = newMsgs
+                    // Notify to clear unread badge
                     NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
                 }
-            } else {
-                print("Failed to decode messages: \(String(data: data, encoding: .utf8) ?? "")")
             }
+        }.resume()
+    }
+    
+    func loadOlderIfNeeded(firstVisibleId: Int?) {
+        guard let firstId = firstVisibleId else { return }
+        // If the first currently loaded message is near top and we can load more
+        if messages.first?.id == firstId {
+            fetchMessages(beforeId: firstId, append: true)
         }
-        task.resume()
     }
     
     func sendMessage() {
-        print("sendMessage called: currentUserId=\(currentUserId), otherUserId=\(otherUserId), jwtToken=\(jwtToken)")
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            print("Message is empty, not sending.")
-            return
-        }
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_message") else {
-            print("Invalid URL for send_message")
-            return
-        }
+        guard !trimmed.isEmpty else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_message") else { return }
+        
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -131,20 +178,20 @@ class MessageViewModel: ObservableObject {
             "message": trimmed
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        
         URLSession.shared.dataTask(with: request) { data, _, error in
             if let error = error {
                 print("Send message error: \(error)")
                 return
             }
-            guard let data = data else {
+            guard let data else {
                 print("No data returned from send message")
                 return
             }
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
+            let decoder = JSONDecoder.withISO8601
             if let apiResult = try? decoder.decode(SendMessageAPIResponse.self, from: data) {
                 DispatchQueue.main.async {
-                    self.messages.append(apiResult.message)
+                    self.appendIfNeeded(apiResult.message)
                     self.inputText = ""
                 }
             } else {
@@ -174,7 +221,16 @@ struct MessageView: View {
             NavigationHeaderView(name: viewModel.otherUserName, onBack: { dismiss() })
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(spacing: 12) {
+                    LazyVStack(spacing: 12) {
+                        // Load older trigger spacer
+                        if viewModel.canLoadOlder {
+                            Color.clear
+                                .frame(height: 1)
+                                .onAppear {
+                                    // When top becomes visible, attempt to load older
+                                    viewModel.loadOlderIfNeeded(firstVisibleId: viewModel.messages.first?.id)
+                                }
+                        }
                         ForEach(viewModel.messages) { message in
                             HStack(alignment: .bottom, spacing: 8) {
                                 if message.senderId == viewModel.currentUserId {
@@ -186,13 +242,18 @@ struct MessageView: View {
                                 }
                             }
                         }
+                        if viewModel.isLoadingOlder {
+                            ProgressView()
+                                .padding(.vertical, 8)
+                        }
                     }
                     .padding(.vertical, 12)
                     .padding(.horizontal, 12)
                 }
                 .background(Color.white)
                 .onChange(of: viewModel.messages.count) { _ in
-                    if let last = viewModel.messages.last {
+                    // Scroll to bottom only when adding newer (not when prepending older)
+                    if let last = viewModel.messages.last, !viewModel.isLoadingOlder {
                         withAnimation {
                             proxy.scrollTo(last.id, anchor: .bottom)
                         }
@@ -226,9 +287,11 @@ struct MessageView: View {
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .onAppear {
-            viewModel.fetchMessages()
+            if viewModel.messages.isEmpty {
+                viewModel.fetchMessages()
+            }
         }
-        .navigationBarHidden(true) // Hide default nav bar and back button
+        .navigationBarHidden(true)
     }
 }
 

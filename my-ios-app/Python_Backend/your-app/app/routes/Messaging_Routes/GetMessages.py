@@ -3,133 +3,203 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db
-from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
-from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
-from app.models.People_Models.user import User
-from app.models.Purpose_Models.Portal import Portal
-from app.models.People_Models.Messaging_Models.messages_read import MessagesRead
-from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from datetime import datetime
+from sqlalchemy import or_, and_
+from app import db, socketio
 from app.utils.auth import jwt_required
+from app.utils.user_utils import register_new_activity
+from app.utils.notifications import send_fcm_notification
+from app.models.People_Models.user import User
+from app.models.People_Models.BlockedUser import BlockedUser
+from app.models.Purpose_Models.Portal import Portal
+from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
+from app.models.People_Models.Messaging_Models.messages_read import MessagesRead
 
-user_bp = Blueprint('get_messages', __name__)
+user_bp = Blueprint('direct_messages', __name__)
 
+# ---------------------------------------------------------------------------
+# SEND DIRECT MESSAGE
+# ---------------------------------------------------------------------------
+@user_bp.route('/send_message', methods=['POST'])
+@jwt_required
+def api_send_message():
+    data = request.get_json() or {}
+    user_id = g.current_user.id
+    to_user_id = data.get('users_id')
+    message_text = data.get('message')
+    portals_id = data.get('portals_id')
+
+    if not to_user_id:
+        return jsonify({'error': 'users_id is empty!'}), 400
+    if not message_text:
+        return jsonify({'error': 'message required!'}), 400
+
+    if portals_id:
+        portal = Portal.query.filter_by(id=portals_id).first()
+        if not portal:
+            return jsonify({'error': "the portal doesn't exist!"}), 404
+
+    # Block check (recipient blocking sender)
+    if BlockedUser.query.filter_by(blocker_id=to_user_id, blocked_id=user_id).first():
+        return jsonify({'error': 'blocked!'}), 403
+
+    # Persist message
+    msg = DirectMessage(
+        sender_id=user_id,
+        recipient_id=to_user_id,
+        text=message_text,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(msg)
+    db.session.commit()
+
+    # Activity log
+    register_new_activity(user_id, to_user_id, "new_direct_message", 1, msg.id, "messages")
+
+    sender = User.query.filter_by(id=user_id).first()
+    recipient = User.query.filter_by(id=to_user_id).first()
+
+    # Push notification (FCM) – unchanged structure
+    device_token = recipient.device_token if recipient else None
+    if device_token:
+        try:
+            send_fcm_notification(
+                device_token,
+                title=f"New message from {sender.full_name if sender else 'Someone'}",
+                body=message_text,
+                data={
+                    "type": "direct_message",
+                    "sender_id": user_id,
+                    "message_id": msg.id
+                }
+            )
+        except Exception as e:
+            print(f"FCM notification error: {e}")
+    else:
+        print(f"No device token for user_id={to_user_id}")
+
+    # Socket.IO realtime emit (room user_<recipientId>)
+    try:
+        socketio.emit(
+            'direct_message_notification',
+            {
+                "type": "direct_message",
+                "id": msg.id,
+                "message_id": msg.id,
+                "sender_id": user_id,
+                "sender_name": sender.full_name if sender else "",
+                "recipient_id": to_user_id,
+                "text": msg.text,
+                "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "read": "0"  # not yet read by recipient
+            },
+            room=f'user_{to_user_id}'
+        )
+    except Exception as e:
+        print(f"Socket emit error: {e}")
+
+    # Response (sender perspective – treat as read locally)
+    message_obj = {
+        "id": msg.id,
+        "sender_id": msg.sender_id,
+        "sender_name": sender.full_name if sender else "",
+        "text": msg.text,
+        "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "read": "1"
+    }
+    return jsonify({'result': 'Message sent.', 'message': message_obj}), 200
+
+
+# ---------------------------------------------------------------------------
+# GET DIRECT MESSAGES (Fixed to always include most recent slice)
+# ---------------------------------------------------------------------------
 @user_bp.route('/get_messages', methods=['GET'])
 @jwt_required
 def api_get_messages():
-    user_id = g.current_user.id
-    if not user_id:
-        return jsonify({'error': 'Login error!'}), 401
+    """
+    Fetch last N direct messages between current user and users_id.
+    Query params:
+      users_id    (required) other participant
+      limit       (optional, default 200, max 500)
+      order       ASC|DESC presentation order (default ASC)
+      before_id   (optional) paginate older history (messages with id < before_id)
+      mark_as_read=1 mark returned inbound (to current user) messages as read
+    Always retrieves newest messages first internally, avoiding the old issue
+    where oldest N were returned and newest were excluded when limit applied.
+    """
+    other_id = request.args.get('users_id', type=int)
+    if not other_id:
+        return jsonify({'error': 'users_id required'}), 400
 
-    args = request.args
-    newer_than_id = args.get('newer_than_id')
-    chats_id = args.get('chats_id')
-    users_id = args.get('users_id')
-    order = args.get('order', 'ASC').upper()
-    limit = int(args.get('limit', 50))
-    offset = int(args.get('offset', 0))
-    mark_as_read = args.get('mark_as_read', '0') == '1'
+    current_id = g.current_user.id
+    limit = request.args.get('limit', type=int) or 200
+    if limit < 1:
+        limit = 50
+    limit = min(limit, 500)
 
-    if order not in ['ASC', 'DESC']:
-        return jsonify({'error': 'order is wrong! ASC or DESC required'}), 400
-    if offset < 0:
-        return jsonify({'error': 'offset is wrong!'}), 400
-    if limit > 4096:
-        return jsonify({'error': 'limit should be < 4096'}), 400
+    order = (request.args.get('order') or 'ASC').upper()
+    if order not in ('ASC', 'DESC'):
+        order = 'ASC'
 
-    # Mark already read messages (only for direct messages)
-    already_read_ids = set(
-        r.messages_id for r in MessagesRead.query.filter_by(users_id=user_id).limit(1024).all()
+    before_id = request.args.get('before_id', type=int)
+    mark_flag = request.args.get('mark_as_read') == '1'
+
+    # Conversation filter
+    q = DirectMessage.query.filter(
+        or_(
+            and_(DirectMessage.sender_id == current_id, DirectMessage.recipient_id == other_id),
+            and_(DirectMessage.sender_id == other_id, DirectMessage.recipient_id == current_id)
+        )
     )
+    if before_id:
+        # Only messages older than the reference id
+        q = q.filter(DirectMessage.id < before_id)
 
-    messages = []
-    is_group = False
+    # Always pull latest first (created_at DESC, id DESC for tie-break)
+    q = q.order_by(DirectMessage.created_at.desc(), DirectMessage.id.desc()).limit(limit)
+    recent_desc = q.all()
 
-    # Direct messages
-    if users_id and not chats_id:
-        query = DirectMessage.query.filter(
-            ((DirectMessage.sender_id == user_id) & (DirectMessage.recipient_id == users_id)) |
-            ((DirectMessage.recipient_id == user_id) & (DirectMessage.sender_id == users_id))
-        )
-        if newer_than_id:
-            query = query.filter(DirectMessage.id > int(newer_than_id))
-        query = query.order_by(DirectMessage.created_at.asc() if order == 'ASC' else DirectMessage.created_at.desc())
-        messages = query.offset(offset).limit(limit).all()
-        is_group = False
-    # Group messages
-    elif chats_id:
-        # Only fetch if user is a member of the chat
-        is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
-        if not is_member:
-            return jsonify({'error': 'You are not a member of this chat.'}), 403
-        query = GroupMessage.query.filter(GroupMessage.chat_id == chats_id)
-        if newer_than_id:
-            query = query.filter(GroupMessage.id > int(newer_than_id))
-        query = query.order_by(GroupMessage.created_at.asc() if order == 'ASC' else GroupMessage.created_at.desc())
-        messages = query.offset(offset).limit(limit).all()
-        is_group = True
-    # Inbox/grouped view (direct only for now)
-    else:
-        direct_query = DirectMessage.query.filter(
-            (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)
-        )
-        if newer_than_id:
-            direct_query = direct_query.filter(DirectMessage.id > int(newer_than_id))
-        direct_query = direct_query.order_by(DirectMessage.created_at.asc() if order == 'ASC' else DirectMessage.created_at.desc())
-        direct_messages = direct_query.offset(offset).limit(limit).all()
-        messages = direct_messages
-        is_group = False
+    read_ids_new = []
 
-    # Build message list using as_dict()
-    aData = []
-    portal_ids = set()
-    chat_ids = set()
-    for msg in messages:
-        if is_group:
-            sender = User.query.filter_by(id=msg.sender_id).first()
-            msg_dict = {
-                "id": msg.id,
-                "sender_id": msg.sender_id,
-                "sender_name": sender.full_name if sender else "",
-                "sender_photo_url": getattr(sender, "profile_picture_url", None) if sender else None,
-                "text": msg.text,
-                "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "read": "1"  # For now, always "read" for group messages
-            }
-            if hasattr(msg, 'chat_id') and msg.chat_id:
-                chat_ids.add(msg.chat_id)
+    if mark_flag and recent_desc:
+        # Determine which returned messages are inbound and not already marked
+        message_ids = [m.id for m in recent_desc if m.recipient_id == current_id]
+        if message_ids:
+            existing_marked = set(
+                mid for (mid,) in db.session.query(MessagesRead.messages_id)
+                .filter(MessagesRead.users_id == current_id,
+                        MessagesRead.messages_id.in_(message_ids))
+                .all()
+            )
+            for mid in message_ids:
+                if mid not in existing_marked:
+                    db.session.add(MessagesRead(users_id=current_id, messages_id=mid))
+                    read_ids_new.append(mid)
+            if read_ids_new:
+                try:
+                    db.session.commit()
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Commit error marking messages read: {e}")
         else:
-            sender = User.query.filter_by(id=msg.sender_id).first()
-            msg_dict = {
-                "id": msg.id,
-                "sender_id": msg.sender_id,
-                "sender_name": sender.full_name if sender else "",
-                "text": msg.text,
-                "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "read": '1' if msg.id in already_read_ids else '0'
-            }
-            if hasattr(msg, 'portal_id') and msg.portal_id:
-                portal_ids.add(msg.portal_id)
-        aData.append(msg_dict)
+            existing_marked = set()
+    else:
+        existing_marked = set()
 
-    # Mark direct messages as read if needed
-    if mark_as_read and aData and not is_group:
-        unread_ids = [m['id'] for m in aData if m['read'] == '0']
-        for mid in unread_ids:
-            if not MessagesRead.query.filter_by(users_id=user_id, messages_id=mid).first():
-                db.session.add(MessagesRead(users_id=user_id, messages_id=mid))
-        db.session.commit()
+    # Helper: compute read state for each message from perspective of current user
+    def compute_read(m: DirectMessage) -> str:
+        if m.sender_id == current_id:
+            return "1"  # Sent messages always shown as read for sender
+        if m.id in read_ids_new or m.id in existing_marked:
+            return "1"
+        return "0"
 
-    # Optionally, preload portals and chats for context
-    portals = Portal.query.filter(Portal.id.in_(portal_ids)).all() if portal_ids else []
-    # chats = Chats.query.filter(Chats.id.in_(chat_ids)).all() if chat_ids else []
+    # Presentation order
+    if order == 'ASC':
+        ordered = list(reversed(recent_desc))
+    else:
+        ordered = recent_desc
 
-    aPortals = [p.as_dict() for p in portals]
-    # aChats = [c.as_dict() for c in chats]
+    payload = [m.as_dict(read=compute_read(m)) for m in ordered]
 
-    result = {
-        'messages': aData,
-        'portals': aPortals,
-        # 'chats': aChats
-    }
-    return jsonify({'result': result})
+    return jsonify({'result': {'messages': payload}}), 200

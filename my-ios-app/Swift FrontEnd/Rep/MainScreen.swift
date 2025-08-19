@@ -572,6 +572,11 @@ struct MainScreen: View {
                 }
             )
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            if !jwtToken.isEmpty && userId != 0 {
+                RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken, userId: userId)
+            }
+        }
     }
 
     // MARK: - Socket Notification Setup
@@ -583,7 +588,7 @@ struct MainScreen: View {
         )
 
         RealtimeSocketManager.shared.onDirectMessageNotification { payload in
-            print("🔔 [Socket] DirectMessage payload =", payload)
+            print("🟢 (UnreadDot) DM handler fired payload:", payload)
 
             let recipientId =
                 payload["recipient_id"] as? Int ??
@@ -632,9 +637,9 @@ struct MainScreen: View {
 
                 print("""
                 ✅ [UnreadMark]
-                  before -> dot:\(beforeFlag) unread:\(beforeUnread) persisted:\(beforePersist)
-                  after  -> dot:\(self.openNeedsAttention) unread:\(self.peopleVM.hasUnreadDirectMessages) persisted:\(self.persistedUnreadDM)
-                  page:\(self.page) section:\(self.section)
+                before -> dot:\(beforeFlag) unread:\(beforeUnread) persisted:\(beforePersist)
+                after  -> dot:\(self.openNeedsAttention) unread:\(self.peopleVM.hasUnreadDirectMessages) persisted:\(self.persistedUnreadDM)
+                page:\(self.page) section:\(self.section)
                 """)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     if self.page == .people && self.section == 0 {

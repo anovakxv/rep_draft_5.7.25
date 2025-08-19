@@ -57,6 +57,33 @@ class MessageViewModel: ObservableObject {
         self.otherUserId = otherUserId
         self.otherUserName = otherUserName
         self.otherUserPhotoURL = otherUserPhotoURL
+        // NEW: listen for realtime DMs that belong to THIS conversation
+        RealtimeSocketManager.shared.onDirectMessageNotification { [weak self] payload in
+            guard let self = self else { return }
+            let senderId = payload["sender_id"] as? Int ?? payload["senderId"] as? Int
+            let recipientId = payload["recipient_id"] as? Int ?? payload["recipientId"] as? Int
+            // Only append if this chat is the otherUserId involved and message is from them to me
+            if senderId == self.otherUserId && recipientId == self.currentUserId {
+                if let data = try? JSONSerialization.data(withJSONObject: payload) {
+                    if let decoded = try? JSONDecoder.withISO8601.decode(SendMessageAPIResponse.self, from: data) {
+                        DispatchQueue.main.async {
+                            if !self.messages.contains(where: { $0.id == decoded.message.id }) {
+                                self.messages.append(decoded.message)
+                            }
+                        }
+                        return
+                    }
+                    // Fallback manual decode
+                    if let msg = try? JSONDecoder.withISO8601.decode(SimpleMessage.self, from: data) {
+                        DispatchQueue.main.async {
+                            if !self.messages.contains(where: { $0.id == msg.id }) {
+                                self.messages.append(msg)
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
     
     func fetchMessages() {
@@ -124,6 +151,15 @@ class MessageViewModel: ObservableObject {
                 print("Failed to decode send message response: \(String(data: data, encoding: .utf8) ?? "")")
             }
         }.resume()
+    }
+}
+
+// Helper decoder for ISO8601
+extension JSONDecoder {
+    static var withISO8601: JSONDecoder {
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return d
     }
 }
 

@@ -188,9 +188,10 @@ class GroupChatViewModel: ObservableObject {
         RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken)
         RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
             guard let self = self else { return }
+            print("🧩 (GroupRT) Incoming group_message payload:", payload)
             guard let incomingChatId = payload["chat_id"] as? Int, incomingChatId == self.chatId else { return }
             if let data = try? JSONSerialization.data(withJSONObject: payload),
-               let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
+            let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
                 DispatchQueue.main.async {
                     if !self.messages.contains(where: { $0.id == msg.id }) {
                         if let idx = self.messages.firstIndex(where: { $0.id < 0 && $0.text == msg.text && $0.senderId == msg.senderId }) {
@@ -203,6 +204,7 @@ class GroupChatViewModel: ObservableObject {
             }
         }
         RealtimeSocketManager.shared.join(chatId: chatId)
+        print("➡️ (GroupRT) Requested join for chat_\(chatId)")
     }
 
     func fetchGroupChat() {

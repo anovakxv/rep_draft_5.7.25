@@ -86,12 +86,14 @@ def api_send_message():
             'direct_message_notification',
             {
                 "type": "direct_message",
-                "message_id": msg.id,
+                "id": msg.id,                    # <-- add alias for iOS decoder
+                "message_id": msg.id,            # keep existing for any other consumers
                 "sender_id": user_id,
                 "sender_name": sender.full_name if sender else "",
                 "recipient_id": to_user_id,
                 "text": msg.text,
-                "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+                "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "read": "0"                      # recipient hasn't read yet
             },
             room=f'user_{to_user_id}'
         )

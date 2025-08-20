@@ -649,6 +649,21 @@ struct MainScreen: View {
                 }
             }
         }
+        RealtimeSocketManager.shared.onGroupMessage { payload in
+            print("🟢 (UnreadDot) Group message handler fired payload:", payload)
+            let senderId = payload["sender_id"] as? Int ?? 0
+            if senderId == self.userId { return }  // Ignore own messages
+
+            DispatchQueue.main.async {
+                withAnimation {
+                    self.openNeedsAttention = true
+                }
+                if self.page == .people && self.section == 0 {
+                    print("🔄 Refreshing active chats after group message")
+                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                }
+            }
+        }
     }
 
     // MARK: - Install Socket Invite Observers
@@ -1364,10 +1379,21 @@ struct ActiveChatList: View {
                                                 .font(.caption)
                                         }
                                     }
-                                    Text(chat.last_message?.text ?? "")
-                                        .font(.system(size: 17))
-                                        .foregroundColor(.primary)
-                                        .lineLimit(1)
+                                    if let lastMessage = chat.last_message,
+                                       let read = lastMessage.read,
+                                       read == "0",
+                                       let senderId = lastMessage.sender_id,
+                                       senderId != currentUserId {
+                                        Text(lastMessage.text ?? "")
+                                            .font(.system(size: 17, weight: .bold))
+                                            .foregroundColor(Color.repGreen)
+                                            .lineLimit(1)
+                                    } else {
+                                        Text(chat.last_message?.text ?? "")
+                                            .font(.system(size: 17))
+                                            .foregroundColor(.primary)
+                                            .lineLimit(1)
+                                    }
                                 }
                             }
                             .padding(.leading, 16)

@@ -159,6 +159,13 @@ def api_active_chat_list():
     chat_events = chat_events[offset:offset+limit]
 
     # --- Build response ---
+    # --- Get last_read_message_id for all group chats for this user ---
+    last_read_map = {
+        c.chats_id: c.last_read_message_id
+        for c in ChatsUsers.query.filter_by(users_id=user_id).all()
+        if c.last_read_message_id is not None
+    }
+
     result = []
     for event in chat_events:
         if event['type'] == 'direct':
@@ -202,6 +209,12 @@ def api_active_chat_list():
                 # Mirror created_at for parity if GroupMessage.as_dict uses 'timestamp'
                 if 'timestamp' in lm and 'created_at' not in lm:
                     lm['created_at'] = lm.get('timestamp')
+                # --- Add read flag for group chat ---
+                last_read_id = last_read_map.get(event['chat_id'])
+                if last_read_id is not None and last_msg.id <= last_read_id:
+                    lm['read'] = "1"
+                else:
+                    lm['read'] = "0"
                 last_message_payload = lm
 
             result.append({

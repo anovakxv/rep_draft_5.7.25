@@ -61,4 +61,17 @@ def api_group_chat():
         'users': users_result,
         'messages': flat_messages
     }
+    # --- Mark group chat as read for this user ---
+    if flat_messages:
+        newest_id = flat_messages[-1]['id']
+        cu_row = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).first()
+        if cu_row and (cu_row.last_read_message_id is None or cu_row.last_read_message_id < newest_id):
+            cu_row.last_read_message_id = newest_id
+            try:
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                print(f"[GroupChat] Could not update last_read_message_id: {e}")
+    # --- End mark as read ---
+    
     return jsonify({'result': result})

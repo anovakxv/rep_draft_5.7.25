@@ -10,6 +10,7 @@ from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.user import User
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
+from app.utils.notifications import send_fcm_notification
 from datetime import datetime
 
 user_bp = Blueprint('send_group_chat', __name__)
@@ -56,8 +57,38 @@ def api_send_chat_message():
     db.session.add(msg)
     db.session.commit()
 
-    # Prepare response matching Swift GroupMessage model
+    # Get sender object for notifications and response
     sender = User.query.filter_by(id=user_id).first()
+
+    # Push notifications to other members
+    try:
+        member_ids = [cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=chat_id).all()]
+        if member_ids:
+            chat_name = chat.name
+            for uid in member_ids:
+                if uid == user_id:
+                    continue
+                u = User.query.filter_by(id=uid).first()
+                if not u or not u.device_token:
+                    continue
+                try:
+                    send_fcm_notification(
+                        u.device_token,
+                        title=f"{sender.full_name if sender else 'Someone'} in {chat_name}",
+                        body=message_text,
+                        data={
+                            "type": "group_message",
+                            "chat_id": chat_id,
+                            "message_id": msg.id,
+                            "sender_id": user_id
+                        }
+                    )
+                except Exception as ne:
+                    print(f"[GroupChat FCM] Error sending to user {uid}: {ne}")
+    except Exception as e:
+        print(f"[GroupChat FCM] Block error: {e}")
+
+    # Prepare response matching Swift GroupMessage model
     message_obj = {
         "id": msg.id,
         "sender_id": msg.sender_id,

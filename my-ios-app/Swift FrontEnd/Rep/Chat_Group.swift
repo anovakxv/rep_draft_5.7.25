@@ -81,6 +81,17 @@ struct GroupMessage: Identifiable, Decodable {
         case createdAt = "created_at"
     }
 
+    private static let isoWithFrac: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let isoNoFrac: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(Int.self, forKey: .id)
@@ -88,10 +99,12 @@ struct GroupMessage: Identifiable, Decodable {
         senderName = (try? c.decode(String.self, forKey: .senderName)) ?? ""
         senderPhoto = try? c.decodeIfPresent(String.self, forKey: .senderPhoto)
         text = try c.decode(String.self, forKey: .text)
-        let rawDate = (try? c.decodeIfPresent(String.self, forKey: .timestamp)) ??
-                      (try? c.decodeIfPresent(String.self, forKey: .createdAt)) ?? ""
-        if let parsed = ISO8601DateFormatter().date(from: rawDate) {
-            timestamp = parsed
+        let rawDate = (try? c.decodeIfPresent(String.self, forKey: .timestamp))
+                   ?? (try? c.decodeIfPresent(String.self, forKey: .createdAt))
+                   ?? ""
+        if let d = GroupMessage.isoWithFrac.date(from: rawDate)
+            ?? GroupMessage.isoNoFrac.date(from: rawDate) {
+            timestamp = d
         } else {
             timestamp = Date()
         }
@@ -175,6 +188,9 @@ class GroupChatViewModel: ObservableObject {
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
+    // NEW: keep track of the socket observer to avoid duplicates
+    private var groupObsId: UUID?
+
     init(currentUserId: Int, chatId: Int, customChatTitle: String? = nil) {
         self.currentUserId = currentUserId
         self.chatId = chatId
@@ -183,13 +199,38 @@ class GroupChatViewModel: ObservableObject {
         setupRealtime()
     }
 
+    deinit {
+        if let id = groupObsId {
+            RealtimeSocketManager.shared.removeGroupMessageObserver(id)
+            groupObsId = nil
+        }
+    }
+
+    // NEW: explicit cleanup API for the view to call
+    func teardownRealtime() {
+        if let id = groupObsId {
+            RealtimeSocketManager.shared.removeGroupMessageObserver(id)
+            groupObsId = nil
+        }
+        RealtimeSocketManager.shared.leave(chatId: chatId)
+    }
+
     private func setupRealtime() {
         guard !jwtToken.isEmpty else { return }
         RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken, userId: currentUserId)
-        RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
+
+        // Store observer id so we can remove it later (avoid duplicates)
+        groupObsId = RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
             guard let self = self else { return }
             print("🧩 (GroupRT) Incoming group_message payload:", payload)
-            guard let incomingChatId = payload["chat_id"] as? Int, incomingChatId == self.chatId else { return }
+
+            // Robust chat_id parsing (supports Int/String/NSNumber and "chat_id"/"chatId")
+            let chatAny = payload["chat_id"] ?? payload["chatId"]
+            let incomingChatId = (chatAny as? Int)
+                ?? (chatAny as? NSNumber)?.intValue
+                ?? Int((chatAny as? String) ?? "")
+            guard incomingChatId == self.chatId else { return }
+
             if let data = try? JSONSerialization.data(withJSONObject: payload),
                let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
                 DispatchQueue.main.async {
@@ -201,14 +242,33 @@ class GroupChatViewModel: ObservableObject {
                         }
                     }
                 }
+
+                // If someone else sent it while we're viewing, mark read immediately and refresh OPEN
+                if msg.senderId != self.currentUserId {
+                    self.markCurrentChatReadIfNeeded(latestMessageId: msg.id)
+                }
             }
         }
+
         // Delay join slightly to avoid racing the socket handshake
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self = self else { return }
             RealtimeSocketManager.shared.join(chatId: self.chatId)
             print("➡️ (GroupRT) Requested join for chat_\(self.chatId)")
         }
+    }
+    // NEW: silence unused param warning (we still accept the id for future use)
+    private func markCurrentChatReadIfNeeded(latestMessageId _: Int) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group_chat?chats_id=\(chatId)&limit=1") else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { _, _, _ in
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+            }
+        }.resume()
     }
 
     func fetchGroupChat() {
@@ -223,10 +283,11 @@ class GroupChatViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     self.groupName = apiResult.result.chat.name
                     self.groupMembers = apiResult.result.users
-                    self.messages = apiResult.result.messages
+                    // Ensure ascending order (oldest -> newest)
+                    self.messages = apiResult.result.messages.sorted { $0.timestamp < $1.timestamp }
                     self.chatCreatorId = apiResult.result.chat.createdBy
                     self.isCreator = (apiResult.result.chat.createdBy == self.currentUserId)
-                    // NEW: backend marked as read; ask MainScreen to refresh active chats
+                    // NEW: ask MainScreen to refresh active chats
                     NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
                 }
             }
@@ -390,12 +451,19 @@ private struct GroupMessagesListView: View {
                 .padding(.horizontal, 12)
             }
             .background(Color.white)
+            // NEW: scroll to bottom on initial appear
+            .onAppear {
+                if let lastId = messages.last?.id {
+                    DispatchQueue.main.async {
+                        withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
+                    }
+                }
+            }
+            // Keep auto-scrolling on new messages
             .onChange(of: messages.last?.id) { lastId in
                 guard let lastId = lastId else { return }
                 DispatchQueue.main.async {
-                    withAnimation {
-                        proxy.scrollTo(lastId, anchor: .bottom)
-                    }
+                    withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
                 }
             }
         }
@@ -531,7 +599,8 @@ struct GroupChatView: View {
                 if deleted { dismiss() }
             }
             .onDisappear {
-                RealtimeSocketManager.shared.leave(chatId: viewModel.chatId)
+                // Use the ViewModel’s cleanup instead of touching a private property
+                viewModel.teardownRealtime()
             }
         }
     }

@@ -657,9 +657,13 @@ struct MainScreen: View {
         guard !notifObserversInstalled else { return }
         notifObserversInstalled = true
         NotificationCenter.default.addObserver(forName: .socketGoalTeamInvite, object: nil, queue: .main) { _ in
+            // Instant UI feedback for invites
+            self.openNeedsAttention = true
             GoalTeamInvitesManager.shared.fetchPendingInvites()
         }
         NotificationCenter.default.addObserver(forName: .socketGoalTeamInviteUpdate, object: nil, queue: .main) { _ in
+            // Keep it simple: flip dot on; fetch will reconcile state
+            self.openNeedsAttention = true
             GoalTeamInvitesManager.shared.fetchPendingInvites()
         }
     }

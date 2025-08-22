@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, url_for, current_app
-from app import db
+from app import db, socketio  # CHANGED: include socketio
 from app.models.People_Models.user import User
 from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
@@ -14,6 +14,12 @@ import uuid
 import jwt
 import datetime
 from werkzeug.utils import secure_filename
+
+# Optional: welcome DM helper (best-effort, idempotent)
+try:
+    from app.utils.welcome_dm import send_welcome_dm_once
+except Exception:
+    send_welcome_dm_once = None  # type: ignore
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
@@ -102,6 +108,13 @@ def api_register_user():
         'user_id': user.id,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
     }, jwt_secret, algorithm='HS256')
+
+    # Best-effort Welcome DM (idempotent). Safe if helper/env not configured.
+    if send_welcome_dm_once:
+        try:
+            send_welcome_dm_once(db, socketio, recipient_id=user.id)
+        except Exception as e:
+            print(f"[WelcomeDM][register] send failed: {e}")
 
     return jsonify({
         'result': 'Registration successful. You are now logged in.',

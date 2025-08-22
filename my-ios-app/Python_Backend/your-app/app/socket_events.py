@@ -1,9 +1,14 @@
+# Rep Realtime Socket Events
+# Additive changes only (safe). Does NOT alter DB, messaging logic, or FCM push flow.
+
 from flask import request
-from flask_socketio import join_room, leave_room, disconnect
+from flask_socketio import join_room, leave_room, disconnect, emit
 from app import socketio, db
 import jwt
 from config import Config
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+
+# ---------------- Helpers ---------------- #
 
 def _decode_jwt(token: str):
     try:
@@ -11,44 +16,134 @@ def _decode_jwt(token: str):
     except Exception:
         return None
 
-@socketio.on("connect")
-def on_connect():
-    token = request.args.get("token")
-    if not token or not _decode_jwt(token):
-        return False
-    # print(f"Socket connect {request.sid}")
-
-@socketio.on("join")
-def on_join(data):
+def _current_user_id():
     token = request.args.get("token")
     payload = _decode_jwt(token) if token else None
     if not payload:
-        disconnect(); return
-    user_id = payload.get("sub") or payload.get("user_id")
+        return None
+    return payload.get("sub") or payload.get("user_id")
 
-    # User personal room
-    room = data.get("room")
-    if room and room.startswith("user_"):
-        numeric = room.replace("user_", "")
-        if str(user_id) == numeric:
-            join_room(room)
-        return  # allow separate call from chat joins
+# ---------------- Core Events ---------------- #
 
-    chat_id = data.get("chat_id")
-    if not user_id or not chat_id:
-        return
-    is_member = db.session.query(ChatsUsers).filter_by(chats_id=chat_id, users_id=user_id).count() > 0
-    if not is_member:
-        return
-    join_room(f"chat_{chat_id}")
+@socketio.on("connect")
+def on_connect():
+    """
+    Validates JWT and automatically joins the user's personal room (user_<id>).
+    This ensures the client can receive direct_message_notification events
+    without having to emit join_user_room explicitly.
+    """
+    token = request.args.get("token")
+    payload = _decode_jwt(token) if token else None
+    if not token or not payload:
+        return False  # reject connection
 
-@socketio.on("leave")
-def on_leave(data):
-    chat_id = data.get("chat_id")
-    if chat_id:
-        leave_room(f"chat_{chat_id}")
+    uid = payload.get("sub") or payload.get("user_id")
+    if not uid:
+        return False
+
+    room = f"user_{uid}"
+    join_room(room)
+    # Acknowledge to the connecting socket only (helps client-side debugging)
+    emit("joined_user_room", {"room": room}, room=request.sid)
+    # Optional debug:
+    # print(f"[Socket] connect sid={request.sid} auto-joined {room}")
 
 @socketio.on("disconnect")
 def on_disconnect():
+    # Optional: debug
+    # print(f"[Socket] disconnect sid={request.sid}")
     pass
 
+# Legacy / generic join (kept for backward compatibility)
+@socketio.on("join")
+def on_join(data):
+    """
+    Supports:
+      { "room": "user_<id>" }  (personal room)
+      { "chat_id": <groupChatId> }  (group chat room)
+    """
+    uid = _current_user_id()
+    if not uid:
+        disconnect()
+        return
+
+    # Personal user room
+    room = (data or {}).get("room")
+    if room and room.startswith("user_"):
+        numeric = room.replace("user_", "")
+        if str(uid) == numeric:
+            join_room(room)
+            emit("joined_user_room", {"room": room}, room=request.sid)
+            # print(f"[Socket] user {uid} joined personal room {room}")
+        return  # Do not fall through
+
+    # Group chat join
+    chat_id = (data or {}).get("chat_id")
+    if not chat_id:
+        return
+    is_member = db.session.query(ChatsUsers).filter_by(chats_id=chat_id, users_id=uid).count() > 0
+    if not is_member:
+        return
+    room = f"chat_{chat_id}"
+    join_room(room)
+    emit("joined_room", {"room": room}, room=request.sid)
+    # print(f"[Socket] user {uid} joined {room}")
+
+@socketio.on("leave")
+def on_leave(data):
+    chat_id = (data or {}).get("chat_id")
+    if chat_id:
+        room = f"chat_{chat_id}"
+        leave_room(room)
+        emit("left_room", {"room": room}, room=request.sid)
+        # print(f"[Socket] left {room}")
+
+# ---------------- Explicit / clearer events (new, additive) ---------------- #
+
+@socketio.on("join_user_room")
+def handle_join_user_room(data):
+    """
+    Client emits: join_user_room { "user_id": <int> }
+    We validate against JWT and join user_<id>.
+    """
+    uid = _current_user_id()
+    if not uid:
+        disconnect()
+        return
+    requested = (data or {}).get("user_id")
+    if not requested or int(requested) != int(uid):
+        return
+    room = f"user_{uid}"
+    join_room(room)
+    emit("joined_user_room", {"room": room}, room=request.sid)
+    # print(f"[Socket] user {uid} joined {room}")
+
+@socketio.on("join_group_chat")
+def handle_join_group_chat(data):
+    """
+    Client emits: join_group_chat { "chat_id": <int> }
+    Validates membership before joining room chat_<id>.
+    """
+    uid = _current_user_id()
+    if not uid:
+        disconnect()
+        return
+    chat_id = (data or {}).get("chat_id")
+    if not chat_id:
+        return
+    is_member = db.session.query(ChatsUsers).filter_by(chats_id=chat_id, users_id=uid).count() > 0
+    if not is_member:
+        return
+    room = f"chat_{chat_id}"
+    join_room(room)
+    emit("joined_room", {"room": room}, room=request.sid)
+    # print(f"[Socket] user {uid} joined {room} (explicit)")
+
+@socketio.on("leave_group_chat")
+def handle_leave_group_chat(data):
+    chat_id = (data or {}).get("chat_id")
+    if chat_id:
+        room = f"chat_{chat_id}"
+        leave_room(room)
+        emit("left_room", {"room": room}, room=request.sid)
+        # print(f"[Socket] left {room} (explicit)")

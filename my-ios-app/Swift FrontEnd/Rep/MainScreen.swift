@@ -194,33 +194,21 @@ class PeopleViewModel: ObservableObject {
                     self.isLoading = false
                     if let error = error {
                         self.errorMessage = error.localizedDescription
-                        self.activeChats = []
                         return
                     }
                     guard let data = data else {
                         self.errorMessage = "No data"
-                        self.activeChats = []
                         return
                     }
                     do {
                         let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
                         self.activeChats = response.result
-                        let had = self.hasUnreadDirectMessages
-                        let stillUnread = response.result.contains { chat in
-                            guard chat.type == "direct",
-                                  let msg = chat.last_message,
-                                  let read = msg.read,
-                                  let senderId = msg.sender_id else { return false }
-                            return read == "0" && senderId != userId
-                        }
-                        if !stillUnread {
-                            self.hasUnreadDirectMessages = false
-                        } else if !had && stillUnread {
-                            self.hasUnreadDirectMessages = true
+                        // Set/unset unread DM dot based on latest server state
+                        self.hasUnreadDirectMessages = response.result.contains {
+                            $0.type == "direct" && ($0.last_message?.read ?? "0") == "0"
                         }
                     } catch {
-                        self.errorMessage = "Failed to decode: \(error.localizedDescription)"
-                        self.activeChats = []
+                        self.errorMessage = error.localizedDescription
                     }
                 }
             }.resume()
@@ -416,6 +404,7 @@ struct MainScreen: View {
 
     // New: ensure we only register socket invite observers once
     @State private var notifObserversInstalled = false
+    @State private var socketHandlersInstalled = false
 
     var body: some View {
         ZStack {
@@ -482,13 +471,13 @@ struct MainScreen: View {
             fetchCurrentUser()
             setupSocketNotifications()
             installSocketInviteObservers()
-            // Fallback polling: quick one-shot at 1s, then every 120s
+            // Fallback polling: quick one-shot at 1s, then every 30s
             inviteCheckTimer?.invalidate()
             inviteCheckTimer = nil
             Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
                 GoalTeamInvitesManager.shared.fetchPendingInvites()
             }
-            inviteCheckTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { _ in
+            inviteCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
                 GoalTeamInvitesManager.shared.fetchPendingInvites()
             }
             recalcOpenNeedsAttention()
@@ -580,91 +569,45 @@ struct MainScreen: View {
     }
 
     // MARK: - Socket Notification Setup
-    private func setupSocketNotifications() {
-        RealtimeSocketManager.shared.connect(
-            baseURL: APIConfig.baseURL,
-            token: jwtToken,
-            userId: userId
-        )
+        private func setupSocketNotifications() {
+            guard !jwtToken.isEmpty, userId != 0 else { return } 
 
-        RealtimeSocketManager.shared.onDirectMessageNotification { payload in
-            print("🟢 (UnreadDot) DM handler fired payload:", payload)
+            RealtimeSocketManager.shared.connect(
+                baseURL: APIConfig.baseURL,
+                token: jwtToken,
+                userId: userId
+            )
 
-            let recipientId =
-                payload["recipient_id"] as? Int ??
-                payload["recipientId"] as? Int ??
-                payload["to_id"] as? Int ??
-                payload["toId"] as? Int
+            // Register handlers only once
+            guard !socketHandlersInstalled else { return }
+            socketHandlersInstalled = true
 
-            let senderId =
-                payload["sender_id"] as? Int ??
-                payload["senderId"] as? Int ??
-                payload["from_id"] as? Int ??
-                payload["fromId"] as? Int
+            RealtimeSocketManager.shared.onDirectMessageNotification { payload in
+                print("📬 (Socket DM) received:", payload)
 
-            print("🔍 Parsed -> recipientId:", recipientId as Any, "senderId:", senderId as Any, "currentUserId:", self.userId)
+                let senderId    = payload["sender_id"] as? Int ?? payload["senderId"] as? Int ?? 0
+                let recipientId = payload["recipient_id"] as? Int ?? payload["recipientId"] as? Int ?? 0
 
-            let isForCurrentUser: Bool = {
-                if let r = recipientId {
-                    return r == self.userId
-                }
-                if let s = senderId {
-                    return s != self.userId
-                }
-                return true
-            }()
+                if senderId == self.userId { return }       // ignore our own sends
+                if recipientId != self.userId { return }    // defensive
 
-            if !isForCurrentUser {
-                print("ℹ️ Ignoring DM event (not for this user).")
-                return
-            }
-
-            DispatchQueue.main.async {
-                let beforeFlag = self.openNeedsAttention
-                let beforeUnread = self.peopleVM.hasUnreadDirectMessages
-                let beforePersist = self.persistedUnreadDM
-
-                if self.peopleVM.hasUnreadDirectMessages == false {
+                DispatchQueue.main.async {
+                    // Instantly show green dot
                     self.peopleVM.hasUnreadDirectMessages = true
-                }
-                if !self.persistedUnreadDM { self.persistedUnreadDM = true }
-
-                withAnimation {
-                    self.openNeedsAttention = true
-                }
-
-                self.recalcOpenNeedsAttention()
-
-                print("""
-                ✅ [UnreadMark]
-                before -> dot:\(beforeFlag) unread:\(beforeUnread) persisted:\(beforePersist)
-                after  -> dot:\(self.openNeedsAttention) unread:\(self.peopleVM.hasUnreadDirectMessages) persisted:\(self.persistedUnreadDM)
-                page:\(self.page) section:\(self.section)
-                """)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    if self.page == .people && self.section == 0 {
-                        print("🔄 Refreshing active chats after DM")
-                        self.peopleVM.fetchPeople(userId: self.userId, section: 0)
-                    }
+                    // Refresh OPEN tab list
+                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
                 }
             }
-        }
-        RealtimeSocketManager.shared.onGroupMessage { payload in
-            print("🟢 (UnreadDot) Group message handler fired payload:", payload)
-            let senderId = payload["sender_id"] as? Int ?? 0
-            if senderId == self.userId { return }  // Ignore own messages
 
-            DispatchQueue.main.async {
-                withAnimation {
-                    self.openNeedsAttention = true
-                }
-                if self.page == .people && self.section == 0 {
-                    print("🔄 Refreshing active chats after group message")
+            RealtimeSocketManager.shared.onGroupMessage { payload in
+                let senderId = payload["sender_id"] as? Int ?? payload["senderId"] as? Int ?? 0
+                if senderId == self.userId { return }
+                DispatchQueue.main.async {
+                    // Keep OPEN list fresh for group messages too
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0)
                 }
             }
         }
-    }
 
     // MARK: - Install Socket Invite Observers
     private func installSocketInviteObservers() {
@@ -781,15 +724,15 @@ struct MainScreen: View {
             }
         }
 
-        // Fallback polling every 120s
-        let interval: TimeInterval = 120
+        // Fallback polling every 30s
+        let interval: TimeInterval = 30
         unreadPollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
             if self.page == .portals && !self.peopleVM.hasUnreadDirectMessages {
-                print("🕑 Polling active chats (fallback, 120s)")
+                print("🕑 Polling active chats (fallback, 30s)")
                 self.peopleVM.fetchPeople(userId: self.userId, section: 0)
             }
         }
-        print("✅ Started unread fallback polling @120s interval.")
+        print("✅ Started unread fallback polling @30s interval.")
     }
 }
 

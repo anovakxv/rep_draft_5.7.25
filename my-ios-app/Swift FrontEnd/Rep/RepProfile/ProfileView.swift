@@ -1,1465 +1,1012 @@
-//  ProfileView.swift
+//  GroupChatView.swift
 //  Rep
 //
-//  Created by Adam Novak on 06.15.2025
-//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+//  Created by Adam Novak on 06.19.2025
+//  (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
-import Kingfisher
 
-// MARK: - Unified User Model
+// MARK: - AnyDecodable (for dynamic JSON parsing)
 
-struct User: Identifiable, Codable, Equatable {
-    let id: Int
-    let fullName: String?
-    let fname: String?
-    let lname: String?
-    let username: String?
-    let about: String?
-    let broadcast: String?
-    let profilePictureURL: URL?
-    let imageName: String?
-    let userType: String?
-    let city: String?
-    let skills: [SkillModel]?
-    let other_skill: String?
-    let lastLogin: String?
-    let createdAt: String?
-    let updatedAt: String?
-    let lastMessage: String?
-    let lastMessageDate: String?
-
-    var displayName: String {
-        if let fullName = fullName, !fullName.isEmpty {
-            return fullName
+struct AnyDecodable: Decodable {
+    let value: Any
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let intVal = try? container.decode(Int.self) {
+            value = intVal
+        } else if let strVal = try? container.decode(String.self) {
+            value = strVal
+        } else if let dictVal = try? container.decode([String: AnyDecodable].self) {
+            value = dictVal.mapValues { $0.value }
+        } else if let arrVal = try? container.decode([AnyDecodable].self) {
+            value = arrVal.map { $0.value }
+        } else {
+            value = ()
         }
-        return [fname, lname].compactMap { $0 }.joined(separator: " ")
     }
+}
 
-    var repTypeAndCity: String {
-        let type = userType ?? ""
-        let cityStr = city ?? ""
-        if !type.isEmpty && !cityStr.isEmpty {
-            return "Rep Type: \(type)   City: \(cityStr)"
-        } else if !type.isEmpty {
-            return "Rep Type: \(type)"
-        } else if !cityStr.isEmpty {
-            return "City: \(cityStr)"
+// MARK: - Shared Profile Picture Helper
+
+fileprivate let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
+fileprivate func patchProfilePictureURL(_ imageName: String?) -> URL? {
+    guard let imageName = imageName, !imageName.isEmpty else { return nil }
+    if imageName.starts(with: "http") {
+        return URL(string: imageName)
+    } else {
+        return URL(string: s3BaseURL + imageName)
+    }
+}
+
+// MARK: - ErrorMessage for Identifiable error alerts
+
+struct ErrorMessage: Identifiable {
+    let id = UUID()
+    let message: String
+}
+
+// MARK: - Asset Host Helper
+
+extension APIConfig {
+    static var assetHost: String {
+        if baseURL.hasSuffix("/api") {
+            return String(baseURL.dropLast(4))
         }
-        return ""
+        return baseURL
+    }
+}
+
+// MARK: - Group Message Model
+
+struct GroupMessage: Identifiable, Decodable {
+    let id: Int
+    let senderId: Int
+    let senderName: String
+    let senderPhoto: String?
+    let text: String
+    let timestamp: Date
+
+    var senderPhotoURL: URL? {
+        patchProfilePictureURL(senderPhoto)
     }
 
     enum CodingKeys: String, CodingKey {
         case id
-        case fullName = "full_name"
-        case fname
-        case lname
-        case username
-        case about
-        case broadcast
-        case profilePictureURL = "profile_picture_url"
-        case userType = "user_type"
-        case city
-        case skills
-        case lastLogin = "last_login"
+        case senderId = "sender_id"
+        case senderName = "sender_name"
+        case senderPhoto = "sender_photo_url"
+        case text
+        case timestamp
         case createdAt = "created_at"
-        case updatedAt = "updated_at"
-        case lastMessage = "last_message"
-        case lastMessageDate = "last_message_date"
-        case other_skill = "other_skill"
-        case imageName
     }
 
-    init(
-        id: Int,
-        fullName: String?,
-        fname: String?,
-        lname: String?,
-        username: String?,
-        about: String?,
-        broadcast: String?,
-        profilePictureURL: URL?,
-        imageName: String?,
-        userType: String?,
-        city: String?,
-        skills: [SkillModel]?,
-        other_skill: String?,
-        lastLogin: String?,
-        createdAt: String?,
-        updatedAt: String?,
-        lastMessage: String?,
-        lastMessageDate: String?
-    ) {
-        self.id = id
-        self.fullName = fullName
-        self.fname = fname
-        self.lname = lname
-        self.username = username
-        self.about = about
-        self.broadcast = broadcast
-        self.profilePictureURL = profilePictureURL
-        self.imageName = imageName
-        self.userType = userType
-        self.city = city
-        self.skills = skills
-        self.other_skill = other_skill
-        self.lastLogin = lastLogin
-        self.createdAt = createdAt
-        self.updatedAt = updatedAt
-        self.lastMessage = lastMessage
-        self.lastMessageDate = lastMessageDate
-    }
-
-    // Flexible decoding for skills ([SkillModel] or [String])
     init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(Int.self, forKey: .id)
-        fullName = try container.decodeIfPresent(String.self, forKey: .fullName)
-        fname = try container.decodeIfPresent(String.self, forKey: .fname)
-        lname = try container.decodeIfPresent(String.self, forKey: .lname)
-        username = try container.decodeIfPresent(String.self, forKey: .username)
-        about = try container.decodeIfPresent(String.self, forKey: .about)
-        broadcast = try container.decodeIfPresent(String.self, forKey: .broadcast)
-        imageName = try container.decodeIfPresent(String.self, forKey: .imageName)
-        userType = try container.decodeIfPresent(String.self, forKey: .userType)
-        city = try container.decodeIfPresent(String.self, forKey: .city)
-        lastLogin = try container.decodeIfPresent(String.self, forKey: .lastLogin)
-        createdAt = try container.decodeIfPresent(String.self, forKey: .createdAt)
-        updatedAt = try container.decodeIfPresent(String.self, forKey: .updatedAt)
-        lastMessage = try container.decodeIfPresent(String.self, forKey: .lastMessage)
-        lastMessageDate = try container.decodeIfPresent(String.self, forKey: .lastMessageDate)
-        other_skill = try container.decodeIfPresent(String.self, forKey: .other_skill)
-
-        // Flexible skills decoding
-        if let skillModels = try? container.decode([SkillModel].self, forKey: .skills) {
-            skills = skillModels
-        } else if let skillStrings = try? container.decode([String].self, forKey: .skills) {
-            skills = skillStrings.enumerated().map { SkillModel(id: $0.offset, title: $0.element) }
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        senderId = try c.decode(Int.self, forKey: .senderId)
+        senderName = (try? c.decode(String.self, forKey: .senderName)) ?? ""
+        senderPhoto = try? c.decodeIfPresent(String.self, forKey: .senderPhoto)
+        text = try c.decode(String.self, forKey: .text)
+        let rawDate = (try? c.decodeIfPresent(String.self, forKey: .timestamp)) ??
+                      (try? c.decodeIfPresent(String.self, forKey: .createdAt)) ?? ""
+        if let parsed = ISO8601DateFormatter().date(from: rawDate) {
+            timestamp = parsed
         } else {
-            skills = nil
-        }
-
-        // Patch profile_picture_url to always be a full URL or nil
-        let urlString = try container.decodeIfPresent(String.self, forKey: .profilePictureURL)
-        if let urlString, !urlString.isEmpty {
-            if urlString.starts(with: "http") {
-                profilePictureURL = URL(string: urlString)
-            } else {
-                profilePictureURL = URL(string: "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/\(urlString)")
-            }
-        } else {
-            profilePictureURL = nil
+            timestamp = Date()
         }
     }
-
-    static let placeholder = User(
-        id: 0,
-        fullName: "John Doe",
-        fname: "John",
-        lname: "Doe",
-        username: "johndoe",
-        about: "Passionate about building teams and products...",
-        broadcast: "Looking for partners in NYC!",
-        profilePictureURL: nil,
-        imageName: "profile_placeholder",
-        userType: "Lead",
-        city: "New York",
-        skills: [
-            SkillModel(id: 1, title: "Leadership"),
-            SkillModel(id: 2, title: "Marketing"),
-            SkillModel(id: 3, title: "Fundraising")
-        ],
-        other_skill: nil,
-        lastLogin: nil,
-        createdAt: nil,
-        updatedAt: nil,
-        lastMessage: nil,
-        lastMessageDate: nil
-    )
 }
 
-// MARK: - API Response
+// MARK: - Group Member Model
 
-struct UserProfileAPIResponse: Codable {
-    let result: User
-}
-
-struct GoalsAPIResponse: Codable {
-    let aGoals: [Goal]
-}
-
-struct PortalsAPIResponse: Codable {
-    let result: [Portal]
-}
-
-// MARK: - Portal Model
-
-struct Portal: Identifiable, Codable {
+struct GroupMember: Identifiable, Decodable {
     let id: Int
     let name: String
-    let subtitle: String?
-    let about: String?
-    let categories_id: Int?
-    let cities_id: Int?
-    let lead_id: Int?
-    let users_id: Int?
-    let _c_users_count: Int?
-    let mainImageUrl: String?
+    let profilePicture: String?
+
+    var photoURL: URL? {
+        patchProfilePictureURL(profilePicture)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name = "full_name"
+        case profilePicture = "profile_picture_url"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        name = (try? c.decode(String.self, forKey: .name)) ?? ""
+        profilePicture = try? c.decodeIfPresent(String.self, forKey: .profilePicture)
+    }
 }
 
-// MARK: - WriteBlock Model
+// MARK: - API Response Models
 
-struct WriteBlock: Identifiable, Codable {
+struct GroupChatAPIResponse: Decodable {
+    struct Result: Decodable {
+        let chat: ChatInfo
+        let users: [GroupMember]
+        let messages: [GroupMessage]
+    }
+    let result: Result
+}
+
+struct ChatInfo: Decodable {
     let id: Int
-    var title: String?
-    var content: String
-    var order: Int?
-    var created_at: String?
-    var updated_at: String?
+    let name: String
+    let description: String?
+    let createdBy: Int
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, description
+        case createdBy = "created_by"
+    }
 }
 
-// MARK: - ViewModel
+struct SendGroupMessageAPIResponse: Decodable {
+    let result: String
+    let message: GroupMessage
+}
 
-class ProfileViewModel: ObservableObject {
-    @Published var user: User = .placeholder
-    @Published var isLoaded: Bool = false
-    @Published var portals: [Portal] = []
-    @Published var goals: [Goal] = []
-    @Published var actions: [String] = []
-    @Published var writeBlocks: [WriteBlock] = []
-    @Published var writeText: String = ""
-    @Published var writeTitle: String = ""
-    @Published var editingWrite: WriteBlock? = nil
-    @Published var availableSkills: [SkillModel] = []
-    @Published var isBlocked: Bool = false // <-- Track block status
+extension String: Identifiable {
+    public var id: String { self }
+}
+
+struct NTWKUsersAPIResponse: Decodable {
+    let result: [User]
+}
+
+// MARK: - Group Chat ViewModel
+
+class GroupChatViewModel: ObservableObject {
+    @Published var messages: [GroupMessage] = []
+    @Published var inputText: String = ""
+    @Published var groupMembers: [GroupMember] = []
+    @Published var groupName: String = ""
+    @Published var chatCreatorId: Int?
+    @Published var isCreator: Bool = false
+
+    let currentUserId: Int
+    let chatId: Int
+    let customChatTitle: String?
 
     @AppStorage("jwtToken") var jwtToken: String = ""
-    @AppStorage("userId") var loggedInUserId: Int = 0
 
-    let viewedUserId: Int
-    var isCurrentUser: Bool { viewedUserId == loggedInUserId }
-    var showAddPartner: Bool { false }
-
-    init(userId: Int) {
-        self.viewedUserId = userId
-        fetchAvailableSkills()
+    init(currentUserId: Int, chatId: Int, customChatTitle: String? = nil) {
+        self.currentUserId = currentUserId
+        self.chatId = chatId
+        self.customChatTitle = customChatTitle
+        fetchGroupChat()
+        setupRealtime()
     }
 
-    func loadProfile() {
-        isLoaded = false
-        fetchUser()
-        fetchPortals()
-        fetchGoals()
-        fetchWrites(for: viewedUserId)
-        fetchAvailableSkills()
-        fetchBlockStatus()
-    }
-
-    func fetchAvailableSkills() {
-        fetchSkills(jwtToken: jwtToken) { [weak self] skills in
-            DispatchQueue.main.async {
-                self?.availableSkills = skills
-            }
-        }
-    }
-
-    func fetchUser() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/profile?users_id=\(viewedUserId)") else { return }
-        var request = URLRequest(url: url)
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            if let error = error {
-                print("User fetch error:", error)
-            }
-            guard let data = data else {
-                DispatchQueue.main.async { self.isLoaded = true }
-                return
-            }
-            print("User fetch data:", String(data: data, encoding: .utf8) ?? "nil")
-            do {
-                let apiResponse = try JSONDecoder().decode(UserProfileAPIResponse.self, from: data)
+    private func setupRealtime() {
+        guard !jwtToken.isEmpty else { return }
+        RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken)
+        RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
+            guard let self = self else { return }
+            print("🧩 (GroupRT) Incoming group_message payload:", payload)
+            guard let incomingChatId = payload["chat_id"] as? Int, incomingChatId == self.chatId else { return }
+            if let data = try? JSONSerialization.data(withJSONObject: payload),
+            let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
                 DispatchQueue.main.async {
-                    self.user = apiResponse.result
-                    self.isLoaded = true
-                }
-            } catch {
-                print("User decode error:", error)
-                DispatchQueue.main.async { self.isLoaded = true }
-            }
-        }.resume()
-    }
-
-    func fetchPortals() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(viewedUserId)&tab=open") else { return }
-        var request = URLRequest(url: url)
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data else { return }
-            do {
-                let apiResponse = try JSONDecoder().decode(PortalsAPIResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.portals = apiResponse.result
-                }
-            } catch {
-                print("Portals decode error:", error)
-            }
-        }.resume()
-    }
-
-    func fetchGoals() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/list?users_id=\(viewedUserId)") else { return }
-        var request = URLRequest(url: url)
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data else { return }
-            do {
-                let apiResponse = try JSONDecoder().decode(GoalsAPIResponse.self, from: data)
-                DispatchQueue.main.async {
-                    self.goals = apiResponse.aGoals
-                }
-            } catch {
-                print("Goals decode error:", error)
-            }
-        }.resume()
-    }
-
-    func fetchWrites(for userId: Int) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/writes?users_id=\(userId)") else { return }
-        var request = URLRequest(url: url)
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data else { return }
-            do {
-                let response = try JSONDecoder().decode([String: [WriteBlock]].self, from: data)
-                DispatchQueue.main.async {
-                    self.writeBlocks = response["result"] ?? []
-                }
-            } catch {
-                print("Write fetch error:", error)
-            }
-        }.resume()
-    }
-
-    func addWrite() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        let body: [String: Any] = [
-            "title": writeTitle,
-            "content": writeText
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            if let _ = data {
-                DispatchQueue.main.async {
-                    self.writeText = ""
-                    self.writeTitle = ""
-                    self.fetchWrites(for: self.viewedUserId)
-                }
-            }
-        }.resume()
-    }
-
-    func editWrite(_ write: WriteBlock) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write/\(write.id)") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "PUT"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        var body: [String: Any] = [
-            "title": write.title ?? "",
-            "content": write.content
-        ]
-        if let order = write.order {
-            body["order"] = order
-        }
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            if let _ = data {
-                DispatchQueue.main.async {
-                    self.editingWrite = nil
-                    self.writeTitle = ""
-                    self.writeText = ""
-                    self.fetchWrites(for: self.viewedUserId)
-                }
-            }
-        }.resume()
-    }
-
-    func deleteWrite(_ write: WriteBlock) {
-        print("deleteWrite called for id:", write.id)
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write/\(write.id)") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            if let _ = data {
-                DispatchQueue.main.async {
-                    self.fetchWrites(for: self.viewedUserId)
-                }
-            }
-        }.resume()
-    }
-
-    // --- Block/Unblock logic ---
-    func fetchBlockStatus() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/is_blocked?users_id=\(viewedUserId)") else { return }
-        var request = URLRequest(url: url)
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        URLSession.shared.dataTask(with: request) { data, _, _ in
-            guard let data = data else { return }
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let blocked = json["is_blocked"] as? Bool {
-                DispatchQueue.main.async {
-                    self.isBlocked = blocked
-                }
-            }
-        }.resume()
-    }
-
-    func blockUser(completion: @escaping (Bool, String?) -> Void) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/block") else {
-            completion(false, "Invalid URL")
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        let body: [String: Any] = [
-            "users_id": viewedUserId
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(false, error.localizedDescription)
-                return
-            }
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(false, "No response")
-                return
-            }
-            if httpResponse.statusCode == 200 {
-                DispatchQueue.main.async { self.isBlocked = true }
-                completion(true, nil)
-            } else {
-                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
-                completion(false, message)
-            }
-        }.resume()
-    }
-
-    func unblockUser(completion: @escaping (Bool, String?) -> Void) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/unblock") else {
-            completion(false, "Invalid URL")
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        let body: [String: Any] = [
-            "users_id": viewedUserId
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(false, error.localizedDescription)
-                return
-            }
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(false, "No response")
-                return
-            }
-            if httpResponse.statusCode == 200 {
-                DispatchQueue.main.async { self.isBlocked = false }
-                completion(true, nil)
-            } else {
-                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
-                completion(false, message)
-            }
-        }.resume()
-    }
-    func flagUser(reason: String = "", completion: @escaping (Bool, String?) -> Void) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/flag_user") else {
-            completion(false, "Invalid URL")
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        let body: [String: Any] = [
-            "users_id": viewedUserId,
-            "reason": reason
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(false, error.localizedDescription)
-                return
-            }
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(false, "No response")
-                return
-            }
-            if httpResponse.statusCode == 200 {
-                completion(true, nil)
-            } else {
-                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
-                completion(false, message)
-            }
-        }.resume()
-    }
-    func goBack() {}
-    func handleAction(_ action: String, editProfile: @escaping () -> Void) {
-        if action == "Edit Profile" { editProfile() }
-    }
-    func addPartner() {}
-
-    // MARK: - Add to Network
-    func addToNetwork(completion: @escaping (Bool, String?) -> Void) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/network_action") else {
-            completion(false, "Invalid URL")
-            return
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        let body: [String: Any] = [
-            "action": "add",
-            "user_id": loggedInUserId,
-            "target_user_id": viewedUserId
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(false, error.localizedDescription)
-                return
-            }
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(false, "No response")
-                return
-            }
-            if httpResponse.statusCode == 200 {
-                completion(true, nil)
-            } else {
-                let message = HTTPURLResponse.localizedString(forStatusCode: httpResponse.statusCode)
-                completion(false, message)
-            }
-        }.resume()
-    }
-}
-
-// MARK: - Main Profile View
-
-struct ProfileView: View {
-    @StateObject private var viewModel: ProfileViewModel
-    @State private var selectedTab = 0
-    @State private var showNetworkResultAlert = false
-    @State private var networkResultMessage = ""
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var pendingAction: PendingAction? = nil
-    @State private var reportingIncrements: [ReportingIncrement] = []
-    @State private var isLoadingIncrements = false
-    @State private var selectedGoal: Goal? = nil
-    @State private var showPolicy = false
-    @State private var showFlagConfirmation = false
-
-    // --- Messaging navigation state ---
-    @State private var selectedUser: User? = nil
-    @State private var showMessageView = false
-
-    // For navigation to GoalsDetailView
-    @StateObject private var editProfileVM = ProfileInfoViewModel(
-        profileInfo: ProfileInfo(
-            firstName: "",
-            lastName: "",
-            skills: [],
-            type: .lead,
-            cityName: "",
-            image: nil,
-            about: "",
-            broadcast: "",
-            otherSkill: ""
-        ),
-        mode: .edit
-    )
-
-    enum ActiveSheet: Identifiable {
-        case actionSheet
-        case profileActionMenu
-        case addPurpose
-        case addGoal
-
-        var id: Int {
-            switch self {
-            case .actionSheet: return 1
-            case .profileActionMenu: return 2
-            case .addPurpose: return 3
-            case .addGoal: return 4
-            }
-        }
-    }
-
-    @State private var activeSheet: ActiveSheet?
-    @State private var showEditProfile = false
-    @State private var shouldNavigateToEditProfile = false // Intermediate state
-
-    enum PendingAction {
-        case editProfile
-        case addPurpose
-        case addGoal
-        case logout
-    }
-
-    init(userId: Int) {
-        _viewModel = StateObject(wrappedValue: ProfileViewModel(userId: userId))
-    }
-
-    private var stickyHeader: some View {
-        ProfileSegmentedPicker(
-            segments: ["Rep", "Goals", "Write"],
-            selectedIndex: $selectedTab
-        )
-        .padding(.horizontal)
-        .background(Color.white)
-    }
-
-    var body: some View {
-    NavigationStack {
-        VStack(spacing: 0) {
-            NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
-            if viewModel.isLoaded && viewModel.user.id != 0 {
-                ScrollView {
-                    ProfileMainContent(
-                        viewModel: viewModel,
-                        selectedTab: $selectedTab,
-                        selectedGoal: $selectedGoal,
-                        mappedSkillTitles: mappedSkillTitles,
-                        stickyHeader: { AnyView(stickyHeader) }
-                    )
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if !viewModel.isLoaded {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                VStack {
-                    Spacer()
-                    Text("User not found.")
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            }
-            BottomBarView(
-                onAdd: {
-                    if viewModel.isCurrentUser {
-                        activeSheet = .actionSheet
-                    } else {
-                        activeSheet = .profileActionMenu
-                    }
-                },
-                onMessage: {
-                    print("Messaging: loggedInUserId=\(viewModel.loggedInUserId), selectedUserId=\(viewModel.user.id)")
-                    selectedUser = viewModel.user
-                    showMessageView = true
-                }
-            )
-            // NavigationLink for EditProfile (not a sheet)
-            .fullScreenCover(isPresented: $showEditProfile) {
-                EditProfileView(
-                    viewModel: editProfileVM,
-                    onSave: { updatedUser in
-                        if let updatedUser = updatedUser {
-                            viewModel.user = updatedUser
-                            viewModel.isLoaded = true
+                    if !self.messages.contains(where: { $0.id == msg.id }) {
+                        if let idx = self.messages.firstIndex(where: { $0.id < 0 && $0.text == msg.text && $0.senderId == msg.senderId }) {
+                            self.messages[idx] = msg
                         } else {
-                            viewModel.loadProfile()
-                        }
-                        showEditProfile = false
-                    }
-                )
-                .interactiveDismissDisabled()
-            }
-        }
-        .navigationBarHidden(true)
-        .onAppear {
-            viewModel.loadProfile()
-            loadReportingIncrements()
-        }
-        .background(Color.white.edgesIgnoringSafeArea(.all))
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    if viewModel.isCurrentUser {
-                        Button("Edit Profile") {
-                            pendingAction = .editProfile
+                            self.messages.append(msg)
                         }
                     }
-                    ForEach(viewModel.actions, id: \.self) { action in
-                        Button(action) {
-                            viewModel.handleAction(action, editProfile: {
-                                pendingAction = .editProfile
-                            })
-                        }
-                    }
-                    if viewModel.isCurrentUser {
-                        Button("Logout") {
-                            pendingAction = .logout
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
                 }
             }
         }
-        .sheet(item: $activeSheet) { sheet in
-            switch sheet {
-            case .actionSheet:
-                VStack(spacing: 24) {
-                    if viewModel.isCurrentUser {
-                        Button(action: {
-                            pendingAction = .addPurpose
-                            activeSheet = nil
-                        }) {
-                            Text("Add Purpose")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                        Button(action: {
-                            pendingAction = .addGoal
-                            activeSheet = nil
-                        }) {
-                            Text("Add Goal")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                        Button(action: {
-                            pendingAction = .editProfile
-                            activeSheet = nil
-                        }) {
-                            Text("Edit Profile")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                        Button(action: {
-                            pendingAction = .logout
-                            activeSheet = nil
-                        }) {
-                            Text("Logout")
-                                .foregroundColor(.red)
-                                .font(.body)
-                                .padding(.vertical, 5)
-                        }
-                    }
-                    Button(action: {
-                        showPolicy = true
-                    }) {
-                        Text("Policy")
-                            .foregroundColor(.black)
-                            .font(.body)
-                            .fontWeight(.regular)
-                            .padding(.vertical, 5)
-                    }
-                    Button(action: { activeSheet = nil }) {
-                        Text("Cancel")
-                            .foregroundColor(.secondary)
-                            .font(.body)
-                    }
-                }
-                .padding()
-                .presentationDetents([.medium])
-            case .profileActionMenu:
-                VStack(spacing: 24) {
-                    Button(action: {
-                        viewModel.addToNetwork { success, message in
-                            DispatchQueue.main.async {
-                                networkResultMessage = success ? "Added to your network!" : (message ?? "Failed to add to network.")
-                                activeSheet = nil
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                    showNetworkResultAlert = true
-                                }
-                            }
-                        }
-                    }) {
-                        Text("+ to NTWK")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
-                    }
-                    // --- Block/Unblock User Button (conditionally shown) ---
-                    if viewModel.isBlocked {
-                        Button(action: {
-                            viewModel.unblockUser { success, message in
-                                DispatchQueue.main.async {
-                                    networkResultMessage = success ? "User unblocked." : (message ?? "Failed to unblock user.")
-                                    activeSheet = nil
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                        showNetworkResultAlert = true
-                                    }
-                                }
-                            }
-                        }) {
-                            Text("Unblock User")
-                                .foregroundColor(.red)
-                                .font(.body)
-                                .fontWeight(.bold)
-                                .padding(.vertical, 5)
-                        }
-                    } else {
-                        Button(action: {
-                            viewModel.blockUser { success, message in
-                                DispatchQueue.main.async {
-                                    networkResultMessage = success ? "User blocked." : (message ?? "Failed to block user.")
-                                    activeSheet = nil
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                                        showNetworkResultAlert = true
-                                    }
-                                }
-                            }
-                        }) {
-                            Text("Block User")
-                                .foregroundColor(.red)
-                                .font(.body)
-                                .padding(.vertical, 5)
-                        }
-                    }
-                    // --- End Block/Unblock User Button ---
-                    // --- Flag as Inappropriate Button ---
-                    Button(action: {
-                        showFlagConfirmation = true
-                    }) {
-                        Text("Flag as Inappropriate")
-                            .foregroundColor(.red)
-                            .font(.body)
-                            .padding(.vertical, 5)
-                    }
-                    .alert("Flag User?", isPresented: $showFlagConfirmation) {
-                        Button("Flag", role: .destructive) {
-                            viewModel.flagUser { success, message in
-                                networkResultMessage = success ? "User flagged as inappropriate." : (message ?? "Failed to flag user.")
-                                showNetworkResultAlert = true
-                            }
-                            activeSheet = nil
-                        }
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text("Are you sure you want to flag this person as inappropriate?")
-                    }
-                    // --- End Flag as Inappropriate Button ---
-                    Button(action: { activeSheet = nil }) {
-                        Text("Cancel")
-                            .foregroundColor(.secondary)
-                            .font(.body)
-                    }
-                }
-                .padding()
-                .presentationDetents([.medium])
-            case .addPurpose:
-                EditPortalView(
-                    portal: PortalDetail(
-                        id: 0,
-                        name: "",
-                        subtitle: "",
-                        about: "",
-                        categories_id: nil,
-                        cities_id: nil,
-                        lead_id: nil,
-                        users_id: viewModel.user.id,
-                        _c_users_count: nil,
-                        mainImageUrl: nil,
-                        aGoals: [],
-                        aPortalUsers: [],
-                        aTexts: [],
-                        aSections: [],
-                        aUsers: [],
-                        aLeads: []
-                    ),
-                    userId: viewModel.user.id
-                )
-            case .addGoal:
-                EditGoalPage(
-                    existingGoal: nil,
-                    portalId: nil,
-                    userId: viewModel.user.id,
-                    reportingIncrements: reportingIncrements.isEmpty
-                        ? [
-                            ReportingIncrement(id: 1, title: "Monthly"),
-                            ReportingIncrement(id: 2, title: "Weekly"),
-                            ReportingIncrement(id: 3, title: "Daily")
-                        ]
-                        : reportingIncrements,
-                    associatedPortalName: nil
-                )
-            }
-        }
-        .navigationDestination(isPresented: $showPolicy) {
-            TermsOfUseView()
-        }    
-        .alert(isPresented: $showNetworkResultAlert) {
-            Alert(title: Text(networkResultMessage))
-        }
-        .onChange(of: pendingAction) { action in
-            guard let action = action else { return }
-            switch action {
-            case .editProfile:
-                UIApplication.shared.endEditing()
-                updateEditProfileVM()
-                activeSheet = nil // Dismiss sheet first
-                pendingAction = nil
-                shouldNavigateToEditProfile = true // Set intermediate state
-            case .addPurpose:
-                activeSheet = .addPurpose
-                pendingAction = nil
-            case .addGoal:
-                activeSheet = .addGoal
-                pendingAction = nil
-            case .logout:
-                logoutAndClearSession()
-                pendingAction = nil
-            }
-        }
-        .onChange(of: shouldNavigateToEditProfile) { newValue in
-            if newValue {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { // Increased delay
-                    showEditProfile = true
-                    shouldNavigateToEditProfile = false
-                }
-            }
-        }
-        .onChange(of: activeSheet) { sheet in
-            if sheet != nil {
-                // No-op
-            } else {
-                // When any sheet except editProfile is dismissed, reload goals if needed
-                viewModel.fetchGoals()
-            }
-        }
-        .background(
-            Group {
-                NavigationLink(
-                    destination: selectedGoal.map { GoalsDetailView(initialGoal: $0) },
-                    isActive: Binding(
-                        get: { selectedGoal != nil },
-                        set: { isActive in if !isActive { selectedGoal = nil } }
-                    ),
-                    label: { EmptyView() }
-                )
-                .hidden()
-                // --- Messaging NavigationLink ---
-                NavigationLink(
-                    destination:
-                        selectedUser.map { user in
-                            MessageView(
-                                viewModel: .init(
-                                    currentUserId: viewModel.loggedInUserId,
-                                    otherUserId: user.id,
-                                    otherUserName: user.displayName,
-                                    otherUserPhotoURL: user.profilePictureURL
-                                )
-                            )
-                        },
-                    isActive: $showMessageView
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-            }
-        )
-    }
-}
-
-
-// Helper subview to reduce type-checking complexity
-struct ProfileMainContent: View {
-    @ObservedObject var viewModel: ProfileViewModel
-    @Binding var selectedTab: Int
-    @Binding var selectedGoal: Goal?
-    let mappedSkillTitles: [String]
-    let stickyHeader: () -> AnyView  // <-- Change here
-
-    var body: some View {
-        LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-            ProfileInfoView(
-                photoURL: viewModel.user.profilePictureURL,
-                city: viewModel.user.city,
-                skills: mappedSkillTitles
-            )
-            ProfileBroadcastView(broadcast: viewModel.user.broadcast)
-            Section(header: stickyHeader()) { // <-- Call as closure
-                ProfileTabContent(
-                    selectedTab: selectedTab,
-                    viewModel: viewModel,
-                    selectedGoal: $selectedGoal
-                )
-            }
-        }
-    }
-}
-
-    // --- FIX: Helper to update the edit profile view model before showing the sheet ---
-    private func updateEditProfileVM() {
-        editProfileVM.profileInfo = ProfileInfo(
-            firstName: viewModel.user.fname ?? "",
-            lastName: viewModel.user.lname ?? "",
-            skills: Set(viewModel.user.skills ?? []),
-            type: RepTypeModel(rawValue: viewModel.user.userType ?? "") ?? .lead,
-            cityName: viewModel.user.city ?? "",
-            image: nil,
-            about: viewModel.user.about ?? "",
-            broadcast: viewModel.user.broadcast ?? "",
-            otherSkill: ""
-        )
+        RealtimeSocketManager.shared.join(chatId: chatId)
+        print("➡️ (GroupRT) Requested join for chat_\(chatId)")
     }
 
-    private func loadReportingIncrements() {
-        guard !isLoadingIncrements else { return }
-        isLoadingIncrements = true
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/reporting_increments"),
-              let token = UserDefaults.standard.string(forKey: "jwtToken") else { return }
+    func fetchGroupChat() {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group_chat?chats_id=\(chatId)&limit=50") else { return }
         var request = URLRequest(url: url)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        URLSession.shared.dataTask(with: request) { data, _, _ in
-            defer { isLoadingIncrements = false }
-            guard let data = data else { return }
-            if let decoded = try? JSONDecoder().decode(ReportingIncrementsResponse.self, from: data) {
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            guard let data = data, error == nil else { return }
+            if let apiResult = try? JSONDecoder().decode(GroupChatAPIResponse.self, from: data) {
                 DispatchQueue.main.async {
-                    self.reportingIncrements = decoded.reportingIncrements
+                    self.groupName = apiResult.result.chat.name
+                    self.groupMembers = apiResult.result.users
+                    self.messages = apiResult.result.messages
+                    self.chatCreatorId = apiResult.result.chat.createdBy
+                    self.isCreator = (apiResult.result.chat.createdBy == self.currentUserId)
                 }
             }
         }.resume()
     }
 
-    private func logoutAndClearSession() {
-        @AppStorage("acceptedTermsOfUse") var acceptedTermsOfUse: Bool = false // <-- Add this line
-
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/logout") else {
-            viewModel.jwtToken = ""
-            viewModel.loggedInUserId = 0
-            acceptedTermsOfUse = false // <-- Reset Terms flag on local logout
-            return
-        }
+    func sendMessage() {
+        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/send_chat_message") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        if !viewModel.jwtToken.isEmpty {
-            request.setValue("Bearer \(viewModel.jwtToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { _, _, _ in
-            DispatchQueue.main.async {
-                viewModel.jwtToken = ""
-                viewModel.loggedInUserId = 0
-                acceptedTermsOfUse = false // <-- Reset Terms flag on logout
-                // Do NOT call dismiss() here!
+        let body: [String: Any] = [
+            "chats_id": chatId,
+            "message": trimmed
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        let tempId = -(messages.count + 1)
+        let optimistic = GroupMessagePlaceholder.make(id: tempId, senderId: currentUserId, text: trimmed)
+        DispatchQueue.main.async {
+            self.messages.append(optimistic)
+            self.inputText = ""
+        }
+
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            guard let data = data else { return }
+            if let decoded = try? JSONDecoder().decode(SendGroupMessageAPIResponse.self, from: data) {
+                let real = decoded.message
+                DispatchQueue.main.async {
+                    if let idx = self.messages.firstIndex(where: { $0.id == tempId }) {
+                        self.messages[idx] = real
+                    } else if !self.messages.contains(where: { $0.id == real.id }) {
+                        self.messages.append(real)
+                    }
+                }
             }
         }.resume()
     }
-
-        private var mappedSkillTitles: [String] {
-            guard let userSkills = viewModel.user.skills else { return [] }
-            return userSkills.map { $0.title }
-        }
-    }
-
-// MARK: - Subviews for breaking up complexity
-
-struct ProfileBroadcastView: View {
-    let broadcast: String?
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let broadcast = broadcast, !broadcast.isEmpty {
-                Text(broadcast)
-                    .font(.body)
-                    .foregroundColor(.secondary)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-    }
 }
 
-struct ProfileTabContent: View {
-    let selectedTab: Int
-    @ObservedObject var viewModel: ProfileViewModel
-    @Binding var selectedGoal: Goal?
+// MARK: - Initials Helper
+
+func initials(for name: String) -> String {
+    let comps = name.split(separator: " ")
+    let first = comps.first?.first.map { String($0) } ?? ""
+    let last = comps.dropFirst().first?.first.map { String($0) } ?? ""
+    return (first + last).uppercased()
+}
+
+// MARK: - Group Member Avatar View
+
+struct GroupMemberAvatar: View {
+    let name: String
+    let photoURL: URL?
+    var size: CGFloat = 36
 
     var body: some View {
         ZStack {
-            switch selectedTab {
-            case 0:
-                ProfileRepSection(
-                    portals: viewModel.portals,
-                    isCurrentUser: viewModel.isCurrentUser,
-                    showAddPartner: viewModel.showAddPartner,
-                    addPartnerAction: viewModel.addPartner,
-                    userId: viewModel.user.id
-                )
-                .padding(.top, 8)
-                .background(Color.white)
-            case 1:
-                GoalsListSection(
-                    goals: viewModel.goals,
-                    isCurrentUser: viewModel.isCurrentUser,
-                    showAddGoal: .constant(false),
-                    onGoalTap: { goal in
-                        selectedGoal = goal
-                    }
-                )
-                .padding(.top, 8)
-                .background(Color.white)
-            case 2:
-                WriteContentView(
-                    viewModel: viewModel,
-                    isCurrentUser: viewModel.isCurrentUser
-                )
-                .padding(.top, 8)
-                .background(Color.white)
-            default:
-                EmptyView()
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .top)
-    }
-}
-
-// MARK: - Profile Rep Section
-
-struct ProfileRepSection: View {
-    let portals: [Portal]
-    let isCurrentUser: Bool
-    let showAddPartner: Bool
-    let addPartnerAction: () -> Void
-    let userId: Int
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ForEach(portals, id: \.id) { portal in
-                NavigationLink(destination: PortalPage(portalId: portal.id, userId: userId)) {
-                    PortalItem(portal: portal)
+            if let url = photoURL {
+                AsyncImage(url: url) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: {
+                    Circle().fill(Color.gray.opacity(0.3))
                 }
-            }
-            if showAddPartner {
-                Button("Add Partner") {
-                    addPartnerAction()
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
+                .frame(width: size, height: size)
+                .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: size, height: size)
+                Text(initials(for: name))
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
             }
         }
     }
 }
 
-// MARK: - Goals List Section
+// MARK: - Custom Navigation Header
 
-struct GoalsListSection: View {
-    let goals: [Goal]
-    let isCurrentUser: Bool
-    @Binding var showAddGoal: Bool
-    var onGoalTap: (Goal) -> Void
-
-    var body: some View {
-        VStack(spacing: 0) {
-            ForEach(goals) { goal in
-                Button(action: {
-                    onGoalTap(goal)
-                }) {
-                    GoalListItem(goal: goal)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(PlainButtonStyle())
-                if goal.id != goals.last?.id {
-                    Divider()
-                        .background(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
-                }
-            }
-            if goals.isEmpty {
-                Text("No goals yet.")
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
-            }
-        }
-    }
-}
-
-// MARK: - Profile Segmented Picker
-
-struct ProfileSegmentedPicker: View {
-    let segments: [String]
-    @Binding var selectedIndex: Int
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(segments.indices, id: \.self) { index in
-                Button(action: {
-                    selectedIndex = index
-                }) {
-                    Text(segments[index])
-                        .fontWeight(.medium)
-                        .foregroundColor(selectedIndex == index ? .white : .black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
-                        .background(selectedIndex == index ? Color.black : Color.white)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .overlay(
-                    Rectangle()
-                        .frame(width: index < segments.count - 1 ? 1 : 0)
-                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                    alignment: .trailing
-                )
-            }
-        }
-        .background(Color.white)
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(Color.black, lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-    }
-}
-
-// MARK: - Supporting Views
-
-struct NavigationHeaderView: View {
+struct GroupChatNavigationHeaderView: View {
     let name: String
     let onBack: () -> Void
+    let onPlus: (() -> Void)?
 
     var body: some View {
         HStack {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
-                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                    .font(.system(size: 20))
+                    .font(.title2)
+                    .foregroundColor(.black)
             }
             Spacer()
             Text(name)
-                .font(.system(size: 20, weight: .bold))
+                .font(.headline)
+                .foregroundColor(.black)
+                .lineLimit(1)
+                .truncationMode(.tail)
             Spacer()
-            Color.clear.frame(width: 24, height: 24)
+            if let onPlus = onPlus {
+                Button(action: onPlus) {
+                    Image(systemName: "plus")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 20, height: 20)
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                }
+            }
         }
-        .frame(height: 44)
-        .padding(.horizontal, 15)
+        .padding(.horizontal)
+        .padding(.vertical, 10)
         .background(Color.white)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-            alignment: .bottom
-        )
+        .shadow(color: Color.black.opacity(0.03), radius: 2, x: 0, y: 2)
     }
 }
 
-struct ProfileInfoView: View {
-    let photoURL: URL?
-    let city: String?
-    let skills: [String]
+// MARK: - Message Row
+
+private struct GroupMessageRow: View {
+    let message: GroupMessage
+    let isCurrentUser: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 11) {
-            if let url = photoURL {
-                KFImage(url)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 108, height: 108)
-                    .clipShape(Circle())
+        HStack(alignment: .bottom, spacing: 8) {
+            if isCurrentUser {
+                Spacer()
+                GroupMessageBubble(message: message, isCurrentUser: true)
             } else {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 108, height: 108)
+                GroupMessageBubble(message: message, isCurrentUser: false)
+                Spacer()
             }
+        }
+        .id(message.id)
+    }
+}
 
-            VStack(alignment: .leading, spacing: 7) {
-                if let city = city, !city.isEmpty {
-                    Text(city)
-                        .font(.system(size: 17, weight: .bold))
+// MARK: - Messages List
+
+private struct GroupMessagesListView: View {
+    let messages: [GroupMessage]
+    let currentUserId: Int
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 12) {
+                    ForEach(messages) { message in
+                        GroupMessageRow(
+                            message: message,
+                            isCurrentUser: message.senderId == currentUserId
+                        )
+                    }
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(skills, id: \.self) { skill in
-                        Text(skill)
-                            .font(.system(size: 17))
+                .padding(.vertical, 12)
+                .padding(.horizontal, 12)
+            }
+            .background(Color.white)
+            .onChange(of: messages.last?.id) { lastId in
+                guard let lastId = lastId else { return }
+                DispatchQueue.main.async {
+                    withAnimation {
+                        proxy.scrollTo(lastId, anchor: .bottom)
                     }
                 }
             }
-            .padding(.top, 5)
-            Spacer()
         }
-        .padding(15)
     }
 }
 
-struct WriteContentView: View {
-    @ObservedObject var viewModel: ProfileViewModel
-    let isCurrentUser: Bool
+// MARK: - Group Chat View
 
-    @State private var showDeleteAlert = false
-    @State private var blockToDelete: WriteBlock?
+struct GroupChatView: View {
+    @StateObject var viewModel: GroupChatViewModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var showEditSheet = false
+    @State private var newChatId: Int? = nil
+    @State private var navigateToNewChat = false
+    @State private var chatDeleted = false
+
+    init(viewModel: GroupChatViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
+
+    private var newChatDestination: AnyView {
+        if let newChatId = newChatId {
+            return AnyView(
+                GroupChatView(
+                    viewModel: GroupChatViewModel(
+                        currentUserId: viewModel.currentUserId,
+                        chatId: newChatId
+                    )
+                )
+            )
+        } else {
+            return AnyView(EmptyView())
+        }
+    }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if viewModel.writeBlocks.isEmpty {
-                Text("No content yet.")
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
-            } else {
-                ForEach(viewModel.writeBlocks) { write in
-                    VStack(alignment: .leading, spacing: 4) {
-                        if let title = write.title, !title.isEmpty {
-                            Text(title)
-                                .font(.title3)
-                                .fontWeight(.medium)
-                        }
-                        Text(write.content)
-                            .font(.title3)
-                        if isCurrentUser {
-                            HStack {
-                                Button("Edit") {
-                                    viewModel.editingWrite = write
-                                    viewModel.writeTitle = write.title ?? ""
-                                    viewModel.writeText = write.content
-                                }
-                                .font(.title3)
-                                .foregroundColor(.blue)
-                                Spacer()
-                                Button("Delete") {
-                                    blockToDelete = write
-                                    showDeleteAlert = true
-                                }
-                                .font(.title3)
-                                .foregroundColor(.red)
+        NavigationStack {
+            VStack(spacing: 0) {
+                GroupChatNavigationHeaderView(
+                    name: viewModel.customChatTitle ?? viewModel.groupName,
+                    onBack: { dismiss() },
+                    onPlus: { showEditSheet = true }
+                )
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(viewModel.groupMembers) { member in
+                            VStack {
+                                GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 36)
+                                Text(initials(for: member.name))
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                                    .frame(width: 40)
                             }
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding()
-                    .background(Color.white)
-                    .cornerRadius(8)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
                 }
-            }
-            if isCurrentUser {
-                Divider()
-                Text(viewModel.editingWrite == nil ? "Add new block:" : "Edit block:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
-                TextField("Title", text: $viewModel.writeTitle)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .font(.title2)
-                    .padding(.horizontal)
-                TextEditor(text: $viewModel.writeText)
-                    .font(.title3)
-                    .frame(height: 120)
-                    .padding(4)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                .background(Color.white)
+
+                GroupMessagesListView(
+                    messages: viewModel.messages,
+                    currentUserId: viewModel.currentUserId
+                )
+
+                HStack(spacing: 8) {
+                    GrowingTextEditor(
+                        text: $viewModel.inputText,
+                        minHeight: 36,
+                        maxHeight: 36 * 4
                     )
-                    .padding(.horizontal)
-                Button(action: {
-                    if let editing = viewModel.editingWrite {
-                        print("Editing write with id: \(editing.id)")
-                        var updated = editing
-                        updated.title = viewModel.writeTitle
-                        updated.content = viewModel.writeText
-                        viewModel.editWrite(updated)
-                    } else {
-                        print("Adding new write")
-                        viewModel.addWrite()
+                    .font(.body)
+
+                    Button(action: {
+                        viewModel.sendMessage()
+                    }) {
+                        Text("Send")
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.vertical, 10)
+                            .padding(.horizontal, 18)
+                            .background(SwiftUI.Color.repGreen)
+                            .cornerRadius(8)
                     }
-                }) {
-                    Text(viewModel.editingWrite == nil ? "Save" : "Update")
-                        .font(.body)
-                        .fontWeight(.bold)
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .padding(.top, 8)
+                    .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .opacity(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
                 }
-                .buttonStyle(PlainButtonStyle())
-                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.white)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .top
+                )
             }
-        }
-        .padding(.vertical)
-        .onAppear {
-            viewModel.fetchWrites(for: viewModel.viewedUserId)
-        }
-        .alert("Delete Writing Block", isPresented: $showDeleteAlert) {
-            Button("Delete", role: .destructive) {
-                if let block = blockToDelete {
-                    viewModel.deleteWrite(block)
-                    blockToDelete = nil
-                }
+            .background(Color.white.edgesIgnoringSafeArea(.all))
+            .sheet(isPresented: $showEditSheet) {
+                EditGroupChatView(
+                    chatId: viewModel.chatId,
+                    currentMembers: viewModel.groupMembers,
+                    groupName: viewModel.groupName,
+                    isNewChat: false,
+                    currentUserId: viewModel.currentUserId,
+                    isCreator: viewModel.isCreator,
+                    onSave: { _ in
+                        showEditSheet = false
+                        viewModel.fetchGroupChat()
+                    },
+                    onCancel: {
+                        showEditSheet = false
+                    },
+                    onDelete: {
+                        showEditSheet = false
+                        chatDeleted = true
+                    }
+                )
             }
-            Button("Cancel", role: .cancel) {
-                blockToDelete = nil
+            .navigationBarHidden(true)
+            .background(
+                NavigationLink(
+                    destination: newChatDestination,
+                    isActive: $navigateToNewChat
+                ) { EmptyView() }
+                .hidden()
+            )
+            .onChange(of: chatDeleted) { deleted in
+                if deleted { dismiss() }
             }
-        } message: {
-            Text("Are you sure you want to delete this writing block? This action cannot be undone.")
         }
     }
 }
-// MARK: - BottomBarView
 
-struct BottomBarView: View {
-    var onAdd: () -> Void
-    var onMessage: () -> Void
+struct EditGroupChatView: View {
+    let chatId: Int?
+    let currentMembers: [GroupMember]
+    let groupName: String
+    let isNewChat: Bool
+    let currentUserId: Int
+    let isCreator: Bool
+    var onSave: (Int?) -> Void
+    var onCancel: () -> Void
+    var onDelete: (() -> Void)? = nil
+
+    @State private var editedName: String = ""
+    @State private var selectedMembersToAdd: [Int: String] = [:]
+
+    // Use separate sheet states instead of enum
+    @State private var showAddMembersSheet = false
+    @State private var showRemoveMembersSheet = false
+
+    @State private var isLoading = false
+    @State private var errorMessage: ErrorMessage?
+    @State private var showDeleteAlert = false
+    @AppStorage("jwtToken") var jwtToken: String = ""
 
     var body: some View {
-        HStack(spacing: 30) {
-            Button(action: onAdd) {
-                Image(systemName: "plus")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-                    .frame(width: 291, height: 41)
-                    .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                    .cornerRadius(6)
-                    .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
+        NavigationView {
+            ZStack {
+                Form {
+                    Section(header: Text("Group Name")) {
+                        TextField("Group Name", text: $editedName)
+                    }
+                    Section(header: Text("Members")) {
+                        let baseMembers = isNewChat ? [] : currentMembers
+                        ForEach(baseMembers) { member in
+                            HStack {
+                                GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 32)
+                                Text(member.name)
+                                Spacer()
+                            }
+                        }
+                        let currentIds = Set(baseMembers.map { $0.id })
+                        let pendingIds = Set(selectedMembersToAdd.keys).subtracting(currentIds)
+                        ForEach(Array(pendingIds), id: \.self) { id in
+                            HStack {
+                                Image(systemName: "person.crop.circle.badge.plus")
+                                    .foregroundColor(.green)
+                                Text("Will add \(selectedMembersToAdd[id] ?? "User")")
+                                    .foregroundColor(.green)
+                                Spacer()
+                            }
+                        }
+                        HStack {
+                            Button {
+                                showAddMembersSheet = true
+                            } label: {
+                                Label(isNewChat ? "Add Members" : "Add to Chat",
+                                      systemImage: "person.crop.circle.badge.plus")
+                            }
+                            Spacer()
+                            if !isNewChat {
+                                Button {
+                                    showRemoveMembersSheet = true
+                                } label: {
+                                    Label("Remove Member(s)", systemImage: "person.crop.circle.badge.minus")
+                                        .foregroundColor(.red)
+                                }
+                                .disabled(currentMembers.count <= 1)
+                            }
+                        }
+                    }
+
+                    if !isNewChat && isCreator {
+                        Section {
+                            Button(role: .destructive) {
+                                showDeleteAlert = true
+                            } label: {
+                                Label("Delete Group Chat", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+                if isLoading {
+                    Color.black.opacity(0.2).ignoresSafeArea()
+                    ProgressView("Processing...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(radius: 10)
+                }
             }
-            Button(action: onMessage) {
-                Image(systemName: "message")
-                    .font(.system(size: 20))
-                    .foregroundColor(.black)
+            .alert(item: $errorMessage) { msg in
+                Alert(title: Text("Error"), message: Text(msg.message), dismissButton: .default(Text("OK")))
+            }
+            .alert("Delete Group Chat?", isPresented: $showDeleteAlert) {
+                Button("Delete", role: .destructive) { deleteGroupChat() }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This action cannot be undone.")
+            }
+            .navigationTitle(isNewChat ? "New Group Chat" : "Edit Group")
+            .navigationBarItems(
+                leading: Button("Cancel") { onCancel() },
+                trailing: Button("Save") {
+                    if isNewChat {
+                        createGroupChat()
+                    } else {
+                        saveGroupChanges()
+                    }
+                }
+            )
+            .onAppear {
+                editedName = groupName
+            }
+            // Use separate sheet modifiers instead of one enum-based sheet
+            .sheet(isPresented: $showAddMembersSheet) {
+                NTWKUserPicker(
+                    onSelect: { selectedUsers in
+                        for user in selectedUsers {
+                            selectedMembersToAdd[user.id] = user.fullName ?? "User"
+                        }
+                    },
+                    jwtToken: jwtToken,
+                    chatId: chatId ?? 0,
+                    alreadySelected: Set(selectedMembersToAdd.keys).union(currentMembers.map { $0.id }),
+                    onCancel: { }
+                )
+            }
+            .sheet(isPresented: $showRemoveMembersSheet) {
+                RemoveMembersSheet(
+                    members: currentMembers,
+                    onRemove: { member in
+                        removeMember(memberId: member.id)
+                    },
+                    onCancel: { }
+                )
             }
         }
-        .frame(height: 51)
-        .frame(maxWidth: .infinity)
-        .background(Color.white)
-        .overlay(
-            Rectangle()
-                .frame(height: 1)
-                .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-            alignment: .top
+    }
+
+    private func createGroupChat() {
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/manage_chat") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let allIds = [currentUserId] + Array(selectedMembersToAdd.keys)
+        let body: [String: Any] = [
+            "title": editedName,
+            "aAddIDs": allIds
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                if let error = error {
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
+                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    errorMessage = ErrorMessage(message: "Failed to create chat. (\(http.statusCode))")
+                } else if let data = data {
+                    if let decoded = try? JSONDecoder().decode([String: AnyDecodable].self, from: data) {
+                        if let chatDict = decoded["chat"]?.value as? [String: Any],
+                           let chatId = chatDict["id"] as? Int {
+                            onSave(chatId)
+                        } else if let chatId = decoded["chats_id"]?.value as? Int {
+                            onSave(chatId)
+                        } else {
+                            onSave(nil)
+                        }
+                    } else {
+                        onSave(nil)
+                    }
+                } else {
+                    onSave(nil)
+                }
+            }
+        }.resume()
+    }
+
+    private func removeMember(memberId: Int) {
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/manage_chat") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "chats_id": chatId as Any,
+            "aDelIDs": [memberId]
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                if let error = error {
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
+                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    errorMessage = ErrorMessage(message: "Failed to remove member. (\(http.statusCode))")
+                } else {
+                    onSave(nil)
+                }
+            }
+        }.resume()
+    }
+
+    private func saveGroupChanges() {
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/manage_chat") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let addIds = Array(Set(selectedMembersToAdd.keys).subtracting(currentMembers.map { $0.id }))
+        let body: [String: Any] = [
+            "chats_id": chatId as Any,
+            "title": editedName,
+            "aAddIDs": addIds
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                if let error = error {
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
+                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    errorMessage = ErrorMessage(message: "Failed to save changes. (\(http.statusCode))")
+                } else {
+                    onSave(nil)
+                }
+            }
+        }.resume()
+    }
+
+    private func deleteGroupChat() {
+        guard let chatId = chatId else { return }
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/delete_chat") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = [
+            "chats_id": chatId
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { _, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                if let error = error {
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
+                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    errorMessage = ErrorMessage(message: "Failed to delete chat. (\(http.statusCode))")
+                } else {
+                    onDelete?()
+                }
+            }
+        }.resume()
+    }
+}
+
+// MARK: - Remove Members Sheet
+
+struct RemoveMembersSheet: View {
+    let members: [GroupMember]
+    var onRemove: (GroupMember) -> Void
+    var onCancel: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(members) { member in
+                    Button(role: .destructive) {
+                        onRemove(member)
+                        dismiss()
+                    } label: {
+                        HStack {
+                            GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 32)
+                            Text(member.name)
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Remove Member(s)")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        onCancel()
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - NTWKUserPicker (Add Members)
+
+struct NTWKUserPicker: View {
+    var onSelect: ([User]) -> Void
+    var jwtToken: String
+    var chatId: Int
+    var alreadySelected: Set<Int> = []
+    var onCancel: (() -> Void)? = nil
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var users: [User] = []
+    @State private var isLoading = false
+    @State private var errorMessage: ErrorMessage?
+    @State private var selectedUsers: Set<Int> = []
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                List(users) { user in
+                    Button {
+                        if selectedUsers.contains(user.id) {
+                            selectedUsers.remove(user.id)
+                        } else {
+                            selectedUsers.insert(user.id)
+                        }
+                    } label: {
+                        HStack {
+                            GroupMemberAvatar(name: user.fullName ?? "", photoURL: user.profilePictureURL, size: 32)
+                            Text(user.fullName ?? "")
+                            Spacer()
+                            if selectedUsers.contains(user.id) || alreadySelected.contains(user.id) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            }
+                        }
+                    }
+                    .disabled(alreadySelected.contains(user.id))
+                }
+                if isLoading {
+                    ProgressView("Loading...")
+                        .progressViewStyle(CircularProgressViewStyle())
+                        .padding()
+                        .background(Color.white)
+                        .cornerRadius(12)
+                        .shadow(radius: 10)
+                }
+            }
+            .navigationTitle("Your NTWK")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        onCancel?()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        let selected = users.filter { selectedUsers.contains($0.id) }
+                        onSelect(selected)
+                        dismiss()
+                    }
+                    .disabled(selectedUsers.isEmpty)
+                }
+            }
+            .onAppear { fetchNTWKUsers() }
+            .alert(item: $errorMessage) { msg in
+                Alert(title: Text("Error"), message: Text(msg.message), dismissButton: .default(Text("OK")))
+            }
+        }
+    }
+
+    private func fetchNTWKUsers() {
+        isLoading = true
+        errorMessage = nil
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/members_of_my_network?not_in_chats_id=\(chatId)") else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                isLoading = false
+                if let error = error {
+                    errorMessage = ErrorMessage(message: error.localizedDescription)
+                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    errorMessage = ErrorMessage(message: "Failed to load NTWK. (\(http.statusCode))")
+                } else if let data = data,
+                          let decoded = try? JSONDecoder().decode([String: [User]].self, from: data),
+                          let usersArr = decoded["result"] {
+                    users = usersArr
+                }
+            }
+        }.resume()
+    }
+}
+
+// MARK: - Group Message Bubble
+
+struct GroupMessageBubble: View {
+    let message: GroupMessage
+    let isCurrentUser: Bool
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            if isCurrentUser {
+                Spacer()
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(message.text)
+                        .padding(10)
+                        .background(Color.black)
+                        .foregroundColor(Color.repGreen)
+                        .cornerRadius(8)
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: 260, alignment: .trailing)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(message.senderName)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                    Text(message.text)
+                        .padding(10)
+                        .background(Color(UIColor.systemGray5))
+                        .foregroundColor(.black)
+                        .cornerRadius(8)
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundColor(.gray)
+                }
+                .frame(maxWidth: 260, alignment: .leading)
+                Spacer()
+            }
+        }
+        .id(message.id)
+    }
+}
+
+// MARK: - Optimistic Placeholder
+
+fileprivate enum GroupMessagePlaceholder {
+    static func make(id: Int, senderId: Int, text: String) -> GroupMessage {
+        let iso = ISO8601DateFormatter().string(from: Date())
+        let json: [String: Any] = [
+            "id": id,
+            "sender_id": senderId,
+            "sender_name": "You",
+            "sender_photo_url": NSNull(),
+            "text": text,
+            "timestamp": iso
+        ]
+        if let data = try? JSONSerialization.data(withJSONObject: json),
+           let decoded = try? JSONDecoder().decode(GroupMessage.self, from: data) {
+            return decoded
+        }
+        let data = try! JSONSerialization.data(withJSONObject: json)
+        return try! JSONDecoder().decode(GroupMessage.self, from: data)
+    }
+}
+
+// MARK: - Preview
+
+struct GroupChatView_Previews: PreviewProvider {
+    static var previews: some View {
+        GroupChatView(
+            viewModel: GroupChatViewModel(
+                currentUserId: 1,
+                chatId: 1,
+                customChatTitle: "Goal Team: Example Goal"
+            )
         )
     }
 }

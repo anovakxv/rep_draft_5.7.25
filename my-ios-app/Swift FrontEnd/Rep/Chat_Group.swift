@@ -185,13 +185,13 @@ class GroupChatViewModel: ObservableObject {
 
     private func setupRealtime() {
         guard !jwtToken.isEmpty else { return }
-        RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken)
+        RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken, userId: currentUserId)
         RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
             guard let self = self else { return }
             print("🧩 (GroupRT) Incoming group_message payload:", payload)
             guard let incomingChatId = payload["chat_id"] as? Int, incomingChatId == self.chatId else { return }
             if let data = try? JSONSerialization.data(withJSONObject: payload),
-            let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
+               let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
                 DispatchQueue.main.async {
                     if !self.messages.contains(where: { $0.id == msg.id }) {
                         if let idx = self.messages.firstIndex(where: { $0.id < 0 && $0.text == msg.text && $0.senderId == msg.senderId }) {
@@ -203,8 +203,12 @@ class GroupChatViewModel: ObservableObject {
                 }
             }
         }
-        RealtimeSocketManager.shared.join(chatId: chatId)
-        print("➡️ (GroupRT) Requested join for chat_\(chatId)")
+        // Delay join slightly to avoid racing the socket handshake
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            guard let self = self else { return }
+            RealtimeSocketManager.shared.join(chatId: self.chatId)
+            print("➡️ (GroupRT) Requested join for chat_\(self.chatId)")
+        }
     }
 
     func fetchGroupChat() {
@@ -400,15 +404,16 @@ private struct GroupMessagesListView: View {
 
 struct GroupChatView: View {
     @StateObject var viewModel: GroupChatViewModel
+
+    init(viewModel: GroupChatViewModel) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
+
     @Environment(\.dismiss) private var dismiss
     @State private var showEditSheet = false
     @State private var newChatId: Int? = nil
     @State private var navigateToNewChat = false
     @State private var chatDeleted = false
-
-    init(viewModel: GroupChatViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
-    }
 
     private var newChatDestination: AnyView {
         if let newChatId = newChatId {
@@ -522,6 +527,9 @@ struct GroupChatView: View {
             )
             .onChange(of: chatDeleted) { deleted in
                 if deleted { dismiss() }
+            }
+            .onDisappear {
+                RealtimeSocketManager.shared.leave(chatId: viewModel.chatId)
             }
         }
     }

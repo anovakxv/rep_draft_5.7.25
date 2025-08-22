@@ -3,131 +3,248 @@
 import Foundation
 import SocketIO
 
-class RealtimeSocketManager {
+final class RealtimeSocketManager {
     static let shared = RealtimeSocketManager()
+
     private var manager: SocketManager?
     private var socket: SocketIOClient?
-    private var connected = false
-    private var registeredEvents = false
 
-    // NEW: track latest intended user id so we always join after (re)connect
+    private(set) var isConnected = false
+    private var handlersRegistered = false
+
+    // Track last successful connection parameters for reuse / dedupe
+    private var lastBaseURL: String?
+    private var lastToken: String?
+    private var lastUserId: Int?
+
+    // Pending (desired) identity for (re)join
     private var pendingUserId: Int?
 
-    func connect(baseURL: String, token: String, userId: Int? = nil) {
-        guard !token.isEmpty, let url = URL(string: baseURL) else { return }
-        if let uid = userId { pendingUserId = uid }
+    // Callback registries (multiple listeners supported)
+    private var dmCallbacks: [([String: Any]) -> Void] = []
+    private var groupCallbacks: [([String: Any]) -> Void] = []
 
-        if manager == nil {
-            manager = SocketManager(
-                socketURL: url,
-                config: [
-                    .compress,
-                    .connectParams(["token": token]),
-                    .log(false)
-                    // .forceWebsockets   // enable if long-poll fallback causes auth issues
-                ]
-            )
-            socket = manager?.defaultSocket
-            registerLifecycle()
-            manager?.connect()
-        } else {
-            // If already created but now we know userId, and socket connected -> join immediately
-            if socket?.status == .connected, let uid = pendingUserId {
-                socket?.emit("join", ["room": "user_\(uid)"])
-                print("🔗 (Realtime) Immediate join user_\(uid)")
-            } else {
-                // Not yet connected -> connection in flight; lifecycle will handle
-                print("⏳ (Realtime) Will join user_\(pendingUserId ?? -1) after connect")
-            }
+    // MARK: - Public Connect
+
+    func connect(baseURL: String, token: String, userId: Int) {
+        guard !baseURL.isEmpty, !token.isEmpty, userId != 0 else { return }
+        pendingUserId = userId
+
+        // Normalize: strip trailing "/api" if present
+        let normalizedURL = baseURL.hasSuffix("/api") ? String(baseURL.dropLast(4)) : baseURL
+
+        // If already connected with same context, just ensure user room joined
+        if let _ = socket, isConnected,
+           lastBaseURL == normalizedURL, lastToken == token, lastUserId == userId {
+            joinUserRoom(userId: userId) // idempotent
+            return
         }
+
+        // If baseURL or token/user changed, rebuild manager
+        if manager == nil ||
+            lastBaseURL != normalizedURL ||
+            lastToken != token {
+            buildManager(baseURL: normalizedURL, token: token)
+        }
+
+        lastBaseURL = normalizedURL
+        lastToken = token
+        lastUserId = userId
+
+        // Initiate (or re-)connect
+        manager?.connect()
+    }
+
+    // Ensure personal room joined (safe to call anytime)
+    func ensureUserRoomJoined(userId: Int) {
+        pendingUserId = userId
+        if isConnected {
+            joinUserRoom(userId: userId)
+        }
+    }
+
+    // MARK: - Build / Lifecycle
+
+    private func buildManager(baseURL: String, token: String) {
+        guard let url = URL(string: baseURL) else { return }
+
+        // Tear down old (if any)
+        manager?.disconnect()
+
+        manager = SocketManager(
+            socketURL: url,
+            config: [
+                .compress,
+                .connectParams(["token": token]),
+                .extraHeaders(["Authorization": "Bearer \(token)"]), // add header auth (polling/WebSocket fallbacks)
+                .reconnects(true),
+                .reconnectAttempts(-1),
+                .reconnectWait(1),
+                .reconnectWaitMax(20),
+                .forceNew(true),
+                .log(false)
+            ]
+        )
+        socket = manager?.defaultSocket
+        handlersRegistered = false
+        registerLifecycle()
     }
 
     private func registerLifecycle() {
-        socket?.on(clientEvent: .connect) { [weak self] _, _ in
+        guard let socket else { return }
+
+        socket.on(clientEvent: .connect) { [weak self] _, _ in
             guard let self else { return }
-            self.connected = true
-            print("✅ (Realtime) Socket connected")
+            self.isConnected = true
+            print("✅ (Realtime) Connected -> \(self.lastBaseURL ?? "")")
             if let uid = self.pendingUserId {
-                print("➡️ (Realtime) Joining user_\(uid)")
-                self.socket?.emit("join", ["room": "user_\(uid)"])
+                self.joinUserRoom(userId: uid)
             } else {
-                print("⚠️ (Realtime) No pendingUserId at connect")
+                print("⚠️ (Realtime) No pending user id at connect")
             }
-            self.registerCoreListeners()
+            self.registerEventHandlersIfNeeded()
         }
-        socket?.on(clientEvent: .disconnect) { [weak self] data, _ in
-            self?.connected = false
-            print("❌ (Realtime) Disconnected:", data)
+
+        socket.on(clientEvent: .disconnect) { [weak self] data, _ in
+            guard let self else { return }
+            self.isConnected = false
+            print("❌ (Realtime) Disconnected: \(data)")
+        }
+
+        socket.on(clientEvent: .error) { data, _ in
+            print("⚠️ (Realtime) Error: \(data)")
+        }
+
+        // Generic debug (filter noisy 'ping')
+        socket.onAny { event in
+            if event.event != "ping" {
+                print("📡 (Realtime ANY) \(event.event) items=\(event.items ?? [])")
+            }
         }
     }
 
-    private func registerCoreListeners() {
-        guard !registeredEvents else { return }
-        registeredEvents = true
+    // MARK: - Event Wiring
 
-        // TEMP instrumentation: log all socket events for debugging
-        socket?.onAny { event in
-            print("📡 (Socket ANY) \(event.event) -> \(event.items ?? [])")
-        }
+    private func registerEventHandlersIfNeeded() {
+        guard !handlersRegistered, let socket else { return }
+        handlersRegistered = true
+        print("🧩 (Realtime) Registering event handlers")
 
-        socket?.on("goal_team_invite") { data, _ in
-            NotificationCenter.default.post(name: .socketGoalTeamInvite, object: data.first as? [String: Any])
-        }
-        socket?.on("goal_team_invite_update") { data, _ in
-            NotificationCenter.default.post(name: .socketGoalTeamInviteUpdate, object: data.first as? [String: Any])
-        }
-    }
+        // Direct message events: support multiple possible names
+        let dmEventNames = [
+            "direct_message_notification",
+            "new_direct_message",
+            "direct_message",
+            "dm_notification"
+        ]
 
-    func onDirectMessageNotification(_ handler: @escaping ([String: Any]) -> Void) {
-        print("🔧 (Realtime) Register DM listener")
-        socket?.off("direct_message_notification")
-        socket?.on("direct_message_notification") { data, _ in
-            print("📲 (Realtime) direct_message_notification raw:", data)
+        let dmHandler: ([Any]) -> Void = { [weak self] data in
+            guard let self else { return }
             if let dict = data.first as? [String: Any] {
-                handler(dict)
-            } else if data.count > 0 {
-                var combined: [String: Any] = [:]
-                for item in data {
-                    if let d = item as? [String: Any] {
-                        for (k, v) in d { combined[k] = v }
+                self.fireDMCallbacks(dict)
+            } else {
+                // Attempt merge if fragmented payload
+                var merged: [String: Any] = [:]
+                data.forEach {
+                    if let d = $0 as? [String: Any] {
+                        d.forEach { merged[$0.key] = $0.value }
                     }
                 }
-                if !combined.isEmpty { handler(combined) }
+                if !merged.isEmpty {
+                    self.fireDMCallbacks(merged)
+                }
             }
+        }
+
+        for evt in dmEventNames {
+            socket.on(evt) { data, _ in dmHandler(data) }
+        }
+
+        // Group message event (used by GroupChatViewModel)
+        socket.on("group_message") { [weak self] data, _ in
+            guard let self else { return }
+            guard let dict = data.first as? [String: Any] else { return }
+            self.groupCallbacks.forEach { $0(dict) }
+        }
+
+        // Existing invite events (kept)
+        socket.on("goal_team_invite") { data, _ in
+            NotificationCenter.default.post(name: .socketGoalTeamInvite,
+                                            object: data.first as? [String: Any])
+        }
+        socket.on("goal_team_invite_update") { data, _ in
+            NotificationCenter.default.post(name: .socketGoalTeamInviteUpdate,
+                                            object: data.first as? [String: Any])
         }
     }
 
-    func onGroupMessage(_ handler: @escaping ([String: Any]) -> Void) {
-        socket?.off("group_message")
-        socket?.on("group_message") { data, _ in
-            print("📡 (Realtime) group_message raw:", data)
-            if let dict = data.first as? [String: Any] {
-                handler(dict)
-            }
-        }
+    private func fireDMCallbacks(_ payload: [String: Any]) {
+        dmCallbacks.forEach { $0(payload) }
+        // Optional NotificationCenter broadcast if other parts need it
+        NotificationCenter.default.post(name: .socketDirectMessage, object: payload)
+    }
+
+    // MARK: - Public Listener Registration (additive)
+
+    func onDirectMessageNotification(_ cb: @escaping ([String: Any]) -> Void) {
+        dmCallbacks.append(cb)
+    }
+
+    func onGroupMessage(_ cb: @escaping ([String: Any]) -> Void) {
+        groupCallbacks.append(cb)
+    }
+
+    // MARK: - Room Management
+
+    private func joinUserRoom(userId: Int) {
+        // Prefer explicit event; fallback legacy 'join'
+        socket?.emit("join_user_room", ["user_id": userId])
+        socket?.emit("join", ["room": "user_\(userId)"]) // backward compatibility
+        print("➡️ (Realtime) join_user_room user_\(userId)")
     }
 
     func join(chatId: Int) {
-        socket?.emit("join", ["chat_id": chatId])
-        print("➡️ (Realtime) join(chat_id: \(chatId)) emitted")
+        socket?.emit("join_group_chat", ["chat_id": chatId])
+        socket?.emit("join", ["chat_id": chatId]) // legacy fallback (kept for compatibility)
+        print("➡️ (Realtime) join group chat \(chatId)")
     }
 
     func leave(chatId: Int) {
-        socket?.emit("leave", ["chat_id": chatId])
-        print("⬅️ (Realtime) leave(chat_id: \(chatId)) emitted")
+        socket?.emit("leave_group_chat", ["chat_id": chatId])
+        socket?.emit("leave", ["chat_id": chatId]) // legacy fallback (kept for compatibility)
+        print("⬅️ (Realtime) leave group chat \(chatId)")
     }
+
+    // MARK: - Connection Control
 
     func disconnect() {
         manager?.disconnect()
-        connected = false
-        registeredEvents = false
+        isConnected = false
     }
 
     func reconnectIfNeeded() {
-        if socket?.status != .connected {
-            manager?.reconnect()
+        guard let socket else { return }
+        if socket.status != .connected && socket.status != .connecting {
+            print("🔄 (Realtime) Reconnecting...")
+            socket.connect()
         }
     }
+
+    // MARK: - Test Helpers (Local Only)
+
+    #if DEBUG
+    func simulateIncomingDirect(senderId: Int, recipientId: Int, text: String) {
+        let payload: [String: Any] = [
+            "message_id": Int.random(in: 100000...999999),
+            "sender_id": senderId,
+            "recipient_id": recipientId,
+            "text": text,
+            "timestamp": ISO8601DateFormatter().string(from: Date()),
+            "read": "0"
+        ]
+        fireDMCallbacks(payload)
+    }
+    #endif
 }
 
 // MARK: - Notification Names
@@ -135,5 +252,5 @@ class RealtimeSocketManager {
 extension Notification.Name {
     static let socketGoalTeamInvite = Notification.Name("socketGoalTeamInvite")
     static let socketGoalTeamInviteUpdate = Notification.Name("socketGoalTeamInviteUpdate")
-    static let socketDirectMessage = Notification.Name("socketDirectMessage") // optional if you want broadcast
+    static let socketDirectMessage = Notification.Name("socketDirectMessage")
 }

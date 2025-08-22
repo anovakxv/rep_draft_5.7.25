@@ -226,6 +226,8 @@ class GroupChatViewModel: ObservableObject {
                     self.messages = apiResult.result.messages
                     self.chatCreatorId = apiResult.result.chat.createdBy
                     self.isCreator = (apiResult.result.chat.createdBy == self.currentUserId)
+                    // NEW: backend marked as read; ask MainScreen to refresh active chats
+                    NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
                 }
             }
         }.resume()

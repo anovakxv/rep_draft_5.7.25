@@ -2,7 +2,7 @@
 //
 //  Created by Dmytro Holovko on 02.12.2023.
 //  Updated by Adam Novak on 06.19.2025
-//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+//  Copyright (c) 2025 Networked Capital Inc. All rights
 
 import SwiftUI
 import Kingfisher
@@ -164,10 +164,19 @@ class PeopleViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchResults: [User] = []
     @Published var isSearching: Bool = false
+
     @Published var hasUnreadDirectMessages: Bool = false {
         didSet {
             if oldValue != hasUnreadDirectMessages {
                 UserDefaults.standard.set(hasUnreadDirectMessages, forKey: "hasUnreadDMFlag")
+            }
+        }
+    }
+    // NEW: group unread flag with persistence
+    @Published var hasUnreadGroupMessages: Bool = false {
+        didSet {
+            if oldValue != hasUnreadGroupMessages {
+                UserDefaults.standard.set(hasUnreadGroupMessages, forKey: "hasUnreadGroupFlag")
             }
         }
     }
@@ -203,10 +212,17 @@ class PeopleViewModel: ObservableObject {
                     do {
                         let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
                         self.activeChats = response.result
-                        // Set/unset unread DM dot based on latest server state
-                        self.hasUnreadDirectMessages = response.result.contains {
-                            $0.type == "direct" && ($0.last_message?.read ?? "0") == "0"
+                        // Recalculate unread dots from server truth
+                        let hasUnreadDM = response.result.contains {
+                            $0.type == "direct" && (($0.last_message?.read ?? "0") == "0")
                         }
+                        let hasUnreadGroup = response.result.contains {
+                            $0.type == "group"
+                            && (($0.last_message?.read ?? "0") == "0")
+                            && (($0.last_message?.sender_id ?? -1) != userId)
+                        }
+                        self.hasUnreadDirectMessages = hasUnreadDM
+                        self.hasUnreadGroupMessages = hasUnreadGroup
                     } catch {
                         self.errorMessage = error.localizedDescription
                     }
@@ -230,20 +246,17 @@ class PeopleViewModel: ObservableObject {
                     self.isLoading = false
                     if let error = error {
                         self.errorMessage = error.localizedDescription
-                        self.users = []
                         return
                     }
                     guard let data = data else {
                         self.errorMessage = "No data"
-                        self.users = []
                         return
                     }
                     do {
                         let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
                         self.users = response.result
                     } catch {
-                        self.errorMessage = "Failed to decode: \(error.localizedDescription)"
-                        self.users = []
+                        self.errorMessage = error.localizedDescription
                     }
                 }
             }.resume()
@@ -380,6 +393,8 @@ struct MainScreen: View {
     @AppStorage("userId") var userId: Int = 0
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("hasUnreadDMFlag") private var persistedUnreadDM: Bool = false
+    // NEW: persist group unread
+    @AppStorage("hasUnreadGroupFlag") private var persistedUnreadGroup: Bool = false
 
     @State private var page: Page = .portals
     @State private var section = 2
@@ -400,9 +415,10 @@ struct MainScreen: View {
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
     @State private var openNeedsAttention: Bool = false
 
-    @State private var unreadPollTimer: Timer? = nil
+    // Only do the 1s one-shot poll once after first open
+    @State private var initialUnreadPollScheduled = false
 
-    // New: ensure we only register socket invite observers once
+    // Ensure we only register observers/handlers once
     @State private var notifObserversInstalled = false
     @State private var socketHandlersInstalled = false
 
@@ -461,6 +477,15 @@ struct MainScreen: View {
         .onAppear {
             if persistedUnreadDM {
                 peopleVM.hasUnreadDirectMessages = true
+                if userId != 0 && !jwtToken.isEmpty {
+                    peopleVM.fetchPeople(userId: userId, section: 0)
+                }
+            }
+            if persistedUnreadGroup {
+                peopleVM.hasUnreadGroupMessages = true
+                if userId != 0 && !jwtToken.isEmpty {
+                    peopleVM.fetchPeople(userId: userId, section: 0)
+                }
             }
             guard !jwtToken.isEmpty, userId != 0 else { return }
             if page == .portals {
@@ -471,7 +496,7 @@ struct MainScreen: View {
             fetchCurrentUser()
             setupSocketNotifications()
             installSocketInviteObservers()
-            // Fallback polling: quick one-shot at 1s, then every 30s
+            // Invite polling: quick one-shot at 1s, then every 30s (unchanged)
             inviteCheckTimer?.invalidate()
             inviteCheckTimer = nil
             Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
@@ -483,12 +508,9 @@ struct MainScreen: View {
             recalcOpenNeedsAttention()
             scheduleUnreadPollingIfNeeded()
         }
-
         .onDisappear {
             inviteCheckTimer?.invalidate()
             inviteCheckTimer = nil
-            unreadPollTimer?.invalidate()
-            unreadPollTimer = nil
         }
         .onChange(of: showOnlySafePortals) { newValue in
             if page == .portals {
@@ -523,14 +545,9 @@ struct MainScreen: View {
         }
         .onChange(of: peopleVM.hasUnreadDirectMessages) { _ in
             recalcOpenNeedsAttention()
-            if peopleVM.hasUnreadDirectMessages {
-                if unreadPollTimer != nil {
-                    unreadPollTimer?.invalidate()
-                    unreadPollTimer = nil
-                }
-            } else {
-                scheduleUnreadPollingIfNeeded()
-            }
+        }
+        .onChange(of: peopleVM.hasUnreadGroupMessages) { _ in
+            recalcOpenNeedsAttention()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             setupSocketNotifications()
@@ -569,45 +586,71 @@ struct MainScreen: View {
     }
 
     // MARK: - Socket Notification Setup
-        private func setupSocketNotifications() {
-            guard !jwtToken.isEmpty, userId != 0 else { return } 
+    private func setupSocketNotifications() {
+        guard !jwtToken.isEmpty, userId != 0 else { return }
 
-            RealtimeSocketManager.shared.connect(
-                baseURL: APIConfig.baseURL,
-                token: jwtToken,
-                userId: userId
-            )
+        RealtimeSocketManager.shared.connect(
+            baseURL: APIConfig.baseURL,
+            token: jwtToken,
+            userId: userId
+        )
 
-            // Register handlers only once
-            guard !socketHandlersInstalled else { return }
-            socketHandlersInstalled = true
+        guard !socketHandlersInstalled else { return }
+        socketHandlersInstalled = true
 
-            RealtimeSocketManager.shared.onDirectMessageNotification { payload in
-                print("📬 (Socket DM) received:", payload)
+        func toInt(_ any: Any?) -> Int? {
+            if let v = any as? Int { return v }
+            if let v = any as? NSNumber { return v.intValue }
+            if let s = any as? String, let v = Int(s) { return v }
+            return nil
+        }
 
-                let senderId    = payload["sender_id"] as? Int ?? payload["senderId"] as? Int ?? 0
-                let recipientId = payload["recipient_id"] as? Int ?? payload["recipientId"] as? Int ?? 0
+        RealtimeSocketManager.shared.onDirectMessageNotification { payload in
+            // Accept common keys and multiple types
+            let senderAny    = payload["sender_id"] ?? payload["senderId"]
+            let recipientAny = payload["recipient_id"] ?? payload["recipientId"]
+            let senderId     = toInt(senderAny) ?? -1
+            let recipientId  = toInt(recipientAny) ?? -1
 
-                if senderId == self.userId { return }       // ignore our own sends
-                if recipientId != self.userId { return }    // defensive
+            // Defensive checks, but don’t block if parsing failed; prefer showing the dot
+            if senderId == self.userId { return }
+            if recipientId != self.userId && recipientId != -1 { return }
 
-                DispatchQueue.main.async {
-                    // Instantly show green dot
-                    self.peopleVM.hasUnreadDirectMessages = true
-                    // Refresh OPEN tab list
-                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
-                }
-            }
-
-            RealtimeSocketManager.shared.onGroupMessage { payload in
-                let senderId = payload["sender_id"] as? Int ?? payload["senderId"] as? Int ?? 0
-                if senderId == self.userId { return }
-                DispatchQueue.main.async {
-                    // Keep OPEN list fresh for group messages too
+            DispatchQueue.main.async {
+                // Instant UI feedback
+                self.peopleVM.hasUnreadDirectMessages = true
+                // Reconcile after brief delay
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0)
                 }
             }
         }
+
+        RealtimeSocketManager.shared.onGroupMessage { payload in
+            let senderAny = payload["sender_id"] ?? payload["senderId"]
+            let senderId  = (senderAny as? Int) ?? (senderAny as? NSNumber)?.intValue ?? Int((senderAny as? String) ?? "") ?? -1
+            if senderId == self.userId { return }
+            DispatchQueue.main.async {
+                self.peopleVM.hasUnreadGroupMessages = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                }
+            }
+        }
+
+        // NEW: personal-room notification => works even when not joined to group room
+        RealtimeSocketManager.shared.onGroupMessageNotification { payload in
+            let senderAny = payload["sender_id"] ?? payload["senderId"]
+            let senderId  = (senderAny as? Int) ?? (senderAny as? NSNumber)?.intValue ?? Int((senderAny as? String) ?? "") ?? -1
+            if senderId == self.userId { return }
+            DispatchQueue.main.async {
+                self.peopleVM.hasUnreadGroupMessages = true  // triggers dot via recalcOpenNeedsAttention onChange
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                }
+            }
+        }
+    }
 
     // MARK: - Install Socket Invite Observers
     private func installSocketInviteObservers() {
@@ -653,17 +696,28 @@ struct MainScreen: View {
 
     // MARK: - State / Helpers
     private func recalcOpenNeedsAttention() {
-        let currentUnread = peopleVM.hasUnreadDirectMessages || persistedUnreadDM
+        // Include DM + Group + persisted + invites
+        let currentUnread = peopleVM.hasUnreadDirectMessages
+            || peopleVM.hasUnreadGroupMessages
+            || persistedUnreadDM
+            || persistedUnreadGroup
         let newValue = currentUnread || !invitesManager.pendingInvites.isEmpty
         if newValue != openNeedsAttention {
             withAnimation { openNeedsAttention = newValue }
         } else {
             openNeedsAttention = newValue
         }
+        // Persist DM
         if !peopleVM.hasUnreadDirectMessages && persistedUnreadDM {
             persistedUnreadDM = false
         } else if peopleVM.hasUnreadDirectMessages && !persistedUnreadDM {
             persistedUnreadDM = true
+        }
+        // Persist Group
+        if !peopleVM.hasUnreadGroupMessages && persistedUnreadGroup {
+            persistedUnreadGroup = false
+        } else if peopleVM.hasUnreadGroupMessages && !persistedUnreadGroup {
+            persistedUnreadGroup = true
         }
     }
 
@@ -708,31 +762,22 @@ struct MainScreen: View {
         }.resume()
     }
 
-    // MARK: - Fallback unread polling
+    // MARK: - One-shot unread fallback (first open only)
     private func scheduleUnreadPollingIfNeeded() {
-        unreadPollTimer?.invalidate()
-        unreadPollTimer = nil
-
+        guard !initialUnreadPollScheduled else { return }
         guard page == .portals,
-            !peopleVM.hasUnreadDirectMessages else { return }
+              !peopleVM.hasUnreadDirectMessages,
+              !peopleVM.hasUnreadGroupMessages else { return }
 
-        // One-shot quick poll at 1s
+        initialUnreadPollScheduled = true
         Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
-            if self.page == .portals && !self.peopleVM.hasUnreadDirectMessages {
+            if self.page == .portals
+                && !self.peopleVM.hasUnreadDirectMessages
+                && !self.peopleVM.hasUnreadGroupMessages {
                 print("🕑 One-shot unread poll (1s)")
                 self.peopleVM.fetchPeople(userId: self.userId, section: 0)
             }
         }
-
-        // Fallback polling every 30s
-        let interval: TimeInterval = 30
-        unreadPollTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { _ in
-            if self.page == .portals && !self.peopleVM.hasUnreadDirectMessages {
-                print("🕑 Polling active chats (fallback, 30s)")
-                self.peopleVM.fetchPeople(userId: self.userId, section: 0)
-            }
-        }
-        print("✅ Started unread fallback polling @30s interval.")
     }
 }
 

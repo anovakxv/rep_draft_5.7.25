@@ -287,9 +287,8 @@ struct MessageView: View {
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .onAppear {
-            if viewModel.messages.isEmpty {
-                viewModel.fetchMessages()
-            }
+            // Always fetch latest (marks as read server-side and posts refreshActiveChats)
+            viewModel.fetchMessages()
         }
         .navigationBarHidden(true)
     }

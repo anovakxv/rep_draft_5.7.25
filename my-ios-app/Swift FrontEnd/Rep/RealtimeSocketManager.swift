@@ -20,9 +20,23 @@ final class RealtimeSocketManager {
     // Pending (desired) identity for (re)join
     private var pendingUserId: Int?
 
-    // Callback registries (multiple listeners supported)
-    private var dmCallbacks: [([String: Any]) -> Void] = []
-    private var groupCallbacks: [([String: Any]) -> Void] = []
+    // MARK: - Observer storage (multicast, non-breaking)
+    private struct DMObserver {
+        let id: UUID
+        let cb: ([String: Any]) -> Void
+    }
+    private struct GroupObserver {
+        let id: UUID
+        let cb: ([String: Any]) -> Void
+    }
+    // NEW: group notification observers for personal room
+    private struct GroupNotifObserver {
+        let id: UUID
+        let cb: ([String: Any]) -> Void
+    }
+    private var dmObservers: [DMObserver] = []
+    private var groupObservers: [GroupObserver] = []
+    private var groupNotifObservers: [GroupNotifObserver] = []
 
     // MARK: - Public Connect
 
@@ -33,14 +47,17 @@ final class RealtimeSocketManager {
         // Normalize: strip trailing "/api" if present
         let normalizedURL = baseURL.hasSuffix("/api") ? String(baseURL.dropLast(4)) : baseURL
 
-        // If already connected with same context, just ensure user room joined
+        // If already connected with same baseURL/token, only ensure room join (even if userId changed)
         if let _ = socket, isConnected,
-           lastBaseURL == normalizedURL, lastToken == token, lastUserId == userId {
+           lastBaseURL == normalizedURL, lastToken == token {
+            if lastUserId != userId {
+                lastUserId = userId
+            }
             joinUserRoom(userId: userId) // idempotent
             return
         }
 
-        // If baseURL or token/user changed, rebuild manager
+        // If baseURL or token changed, rebuild manager
         if manager == nil ||
             lastBaseURL != normalizedURL ||
             lastToken != token {
@@ -51,8 +68,8 @@ final class RealtimeSocketManager {
         lastToken = token
         lastUserId = userId
 
-        // Initiate (or re-)connect
-        manager?.connect()
+        // Initiate connect on the default socket
+        socket?.connect()
     }
 
     // Ensure personal room joined (safe to call anytime)
@@ -76,7 +93,7 @@ final class RealtimeSocketManager {
             config: [
                 .compress,
                 .connectParams(["token": token]),
-                .extraHeaders(["Authorization": "Bearer \(token)"]), // add header auth (polling/WebSocket fallbacks)
+                .extraHeaders(["Authorization": "Bearer \(token)"]), // header auth (polling/WebSocket)
                 .reconnects(true),
                 .reconnectAttempts(-1),
                 .reconnectWait(1),
@@ -115,6 +132,10 @@ final class RealtimeSocketManager {
             print("⚠️ (Realtime) Error: \(data)")
         }
 
+        socket.on(clientEvent: .reconnect) { data, _ in
+            print("🔄 (Realtime) Reconnect: \(data)")
+        }
+
         // Generic debug (filter noisy 'ping')
         socket.onAny { event in
             if event.event != "ping" {
@@ -141,7 +162,7 @@ final class RealtimeSocketManager {
         let dmHandler: ([Any]) -> Void = { [weak self] data in
             guard let self else { return }
             if let dict = data.first as? [String: Any] {
-                self.fireDMCallbacks(dict)
+                self.notifyDirectMessage(dict)
             } else {
                 // Attempt merge if fragmented payload
                 var merged: [String: Any] = [:]
@@ -151,7 +172,7 @@ final class RealtimeSocketManager {
                     }
                 }
                 if !merged.isEmpty {
-                    self.fireDMCallbacks(merged)
+                    self.notifyDirectMessage(merged)
                 }
             }
         }
@@ -160,14 +181,21 @@ final class RealtimeSocketManager {
             socket.on(evt) { data, _ in dmHandler(data) }
         }
 
-        // Group message event (used by GroupChatViewModel)
+        // Group message event (used by GroupChatViewModel and OPEN list refresh)
         socket.on("group_message") { [weak self] data, _ in
             guard let self else { return }
             guard let dict = data.first as? [String: Any] else { return }
-            self.groupCallbacks.forEach { $0(dict) }
+            self.groupObservers.forEach { $0.cb(dict) }
         }
 
-        // Existing invite events (kept)
+        // NEW: group notification to personal room (for OPEN dot)
+        socket.on("group_message_notification") { [weak self] data, _ in
+            guard let self else { return }
+            guard let dict = data.first as? [String: Any] else { return }
+            self.groupNotifObservers.forEach { $0.cb(dict) }
+        }
+
+        // Invite events (broadcast via NotificationCenter)
         socket.on("goal_team_invite") { data, _ in
             NotificationCenter.default.post(name: .socketGoalTeamInvite,
                                             object: data.first as? [String: Any])
@@ -178,20 +206,49 @@ final class RealtimeSocketManager {
         }
     }
 
-    private func fireDMCallbacks(_ payload: [String: Any]) {
-        dmCallbacks.forEach { $0(payload) }
-        // Optional NotificationCenter broadcast if other parts need it
+    // MARK: - Notify helpers
+
+    private func notifyDirectMessage(_ payload: [String: Any]) {
+        dmObservers.forEach { $0.cb(payload) }
+        // Optional NotificationCenter broadcast for any other listeners
         NotificationCenter.default.post(name: .socketDirectMessage, object: payload)
     }
 
-    // MARK: - Public Listener Registration (additive)
+    // MARK: - Public Listener Registration (additive, non-breaking)
 
-    func onDirectMessageNotification(_ cb: @escaping ([String: Any]) -> Void) {
-        dmCallbacks.append(cb)
+    // Non-breaking change: returns UUID but callers can ignore
+    @discardableResult
+    func onDirectMessageNotification(_ cb: @escaping ([String: Any]) -> Void) -> UUID {
+        let id = UUID()
+        dmObservers.append(DMObserver(id: id, cb: cb))
+        return id
     }
 
-    func onGroupMessage(_ cb: @escaping ([String: Any]) -> Void) {
-        groupCallbacks.append(cb)
+    func removeDirectMessageObserver(_ id: UUID) {
+        dmObservers.removeAll { $0.id == id }
+    }
+
+    @discardableResult
+    func onGroupMessage(_ cb: @escaping ([String: Any]) -> Void) -> UUID {
+        let id = UUID()
+        groupObservers.append(GroupObserver(id: id, cb: cb))
+        return id
+    }
+
+    func removeGroupMessageObserver(_ id: UUID) {
+        groupObservers.removeAll { $0.id == id }
+    }
+
+    // NEW: group_message_notification registration
+    @discardableResult
+    func onGroupMessageNotification(_ cb: @escaping ([String: Any]) -> Void) -> UUID {
+        let id = UUID()
+        groupNotifObservers.append(GroupNotifObserver(id: id, cb: cb))
+        return id
+    }
+
+    func removeGroupMessageNotificationObserver(_ id: UUID) {
+        groupNotifObservers.removeAll { $0.id == id }
     }
 
     // MARK: - Room Management
@@ -242,7 +299,7 @@ final class RealtimeSocketManager {
             "timestamp": ISO8601DateFormatter().string(from: Date()),
             "read": "0"
         ]
-        fireDMCallbacks(payload)
+        notifyDirectMessage(payload)
     }
     #endif
 }

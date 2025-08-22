@@ -107,6 +107,23 @@ def api_send_chat_message():
             {"chat_id": chat_id, **message_obj},
             room=f"chat_{chat_id}"
         )
+        # NEW: also notify each member's personal room for OPEN dot
+        try:
+            member_ids = [cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=chat_id).all()]
+        except Exception:
+            member_ids = []
+        notif_payload = {
+            "type": "group_message",
+            "chat_id": chat_id,
+            "message_id": msg.id,
+            "sender_id": user_id,
+            "text": msg.text,
+            "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+        }
+        for uid in member_ids:
+            if uid == user_id:
+                continue
+            socketio.emit("group_message_notification", notif_payload, room=f"user_{uid}")
     except Exception as e:
         # Log error but do not block response
         print(f"SocketIO emit error: {e}")

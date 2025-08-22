@@ -12,7 +12,18 @@ struct GoalListItem: View {
     let goal: Goal
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
+        // Compute once outside the ViewBuilder (safe in all SwiftUI versions)
+        let tagText: String = {
+            if goal.typeName.lowercased() == "other" {
+                let raw = goal.metricName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !raw.isEmpty else { return goal.typeName }
+                return String(raw.prefix(9))
+            } else {
+                return goal.typeName
+            }
+        }()
+
+        return HStack(alignment: .center, spacing: 16) {
             // Bar Chart
             HStack(alignment: .bottom, spacing: 6) {
                 ForEach(goal.chartData.suffix(4)) { bar in
@@ -37,7 +48,9 @@ struct GoalListItem: View {
                     Text(goal.subtitle)
                         .font(.subheadline)
                 }
-                Text("\(Int(goal.progressPercent))% [\(goal.typeName)]")
+
+                // Use the computed tagText
+                Text("\(Int(goal.progressPercent))% [\(tagText)]")
                     .font(.callout)
                     .foregroundColor(.black)
             }

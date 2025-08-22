@@ -14,9 +14,9 @@ def get_admin_user_id():
     except Exception:
         return None
 
-def send_welcome_dm_once(db, socketio, recipient_id: int, text: str = "Welcome to Rep! \n\nClicking the Rep logo in the bottom right of the "
-"MainScreen toggles between viewing Purposes / People. \n\n You can view the Purpose Pitches in fullscreen landscape mode by clicking the image at the top of a Purpose Page."
-"\n\n Start by viewing a Purpose that you'd like to prioritize, and join a Goal Team! Thank you! "):
+def send_welcome_dm_once(db, socketio, recipient_id: int, text: str = "Welcome to Rep! \n\nClicking the Rep logo in the bottom right toggles between Purposes / People. \n\n View the Purpose Pitches in fullscreen by clicking the image at the top of a Purpose page."
+"\n\nStart by viewing a Purpose that you'd like to prioritize."
+"\n\nThen join a Goal Team! \n\nThank you! "):
     """
     Safely creates one welcome DirectMessage for the recipient if not already present.
     Emits 'direct_message_notification' so iOS shows the OPEN dot instantly.

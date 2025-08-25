@@ -493,11 +493,13 @@ class GoalsDetailViewModel: ObservableObject {
     }
 
     func load(goalId: Int) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/details?goals_id=\(goalId)") else { return }
+        // Create URL with num_periods parameter for the detailed view
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/details?goals_id=\(goalId)&num_periods=7") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
+        
         URLSession.shared.dataTask(with: request) { data, _, _ in
             guard let data = data else { return }
             do {
@@ -522,6 +524,7 @@ class GoalsDetailViewModel: ObservableObject {
                         creatorId: apiGoal.creatorId ?? 0,
                         portalId: apiGoal.portalId
                     )
+
                     let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
                 
                     // Store latest progress logs for lookup

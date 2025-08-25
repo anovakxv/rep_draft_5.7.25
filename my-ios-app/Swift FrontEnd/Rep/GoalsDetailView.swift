@@ -5,6 +5,7 @@
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
+import Kingfisher
 
 // MARK: - Main View
 
@@ -12,6 +13,9 @@ struct GoalsDetailView: View {
     let initialGoal: Goal
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
+
+    // --- Profile Navigation ---
+    @State private var selectedProfileUserId: Int? = nil
 
     // --- Group Chat State ---
     @State private var showGoalTeamChat = false
@@ -118,7 +122,14 @@ struct GoalsDetailView: View {
                     List {
                         if selectedSegment == 0 {
                             ForEach(viewModel.feed) { feedItem in
-                                FeedCell(feed: feedItem)
+                                FeedCell(
+                                    feed: feedItem, 
+                                    onProfileTap: {
+                                        if let userId = viewModel.getUserIdForFeed(feedItem) {
+                                            selectedProfileUserId = userId
+                                        }
+                                    }
+                                )
                             }
                         } else if selectedSegment == 1 {
                             Group {
@@ -132,7 +143,7 @@ struct GoalsDetailView: View {
                             ForEach(viewModel.team) { user in
                                 TeamCell(user: user)
                                     .onTapGesture {
-                                        viewModel.showProfile(for: user)
+                                        selectedProfileUserId = user.id
                                     }
                             }
                         }
@@ -161,6 +172,18 @@ struct GoalsDetailView: View {
                 NavigationLink(isActive: $showGoalTeamChat) {
                     goalTeamChatDestination
                 } label: {
+                    EmptyView()
+                }
+                .hidden()
+                
+                // Profile navigation link
+                NavigationLink(
+                    destination: selectedProfileUserId.map { ProfileView(userId: $0) },
+                    isActive: Binding(
+                        get: { selectedProfileUserId != nil },
+                        set: { if !$0 { selectedProfileUserId = nil } }
+                    )
+                ) {
                     EmptyView()
                 }
                 .hidden()
@@ -447,6 +470,8 @@ class GoalsDetailViewModel: ObservableObject {
     @Published var team: [User] = []
     @Published var feed: [Feed] = []
     @Published var actions: [String] = []
+    @Published var latestProgressLogs: [APIGoalProgressLog] = []
+
 
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("userId") var currentUserId: Int = 0
@@ -460,6 +485,11 @@ class GoalsDetailViewModel: ObservableObject {
         } else {
             return URL(string: s3BaseURL + imageName)
         }
+    }
+    
+    // Helper method to get user ID from feed item
+    func getUserIdForFeed(_ feedItem: Feed) -> Int? {
+        return latestProgressLogs.first(where: { $0.id == feedItem.id })?.users_id
     }
 
     func load(goalId: Int) {
@@ -493,6 +523,9 @@ class GoalsDetailViewModel: ObservableObject {
                         portalId: apiGoal.portalId
                     )
                     let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
+                
+                    // Store latest progress logs for lookup
+                    self.latestProgressLogs = apiGoal.aLatestProgress ?? []
 
                     // Get all progress logs and sort by timestamp (newest first)
                     let allLogs = apiGoal.aLatestProgress ?? []
@@ -547,19 +580,20 @@ class GoalsDetailViewModel: ObservableObject {
             }
         }.resume()
     }
+    
     // Helper to parse timestamp string to Date
     static func parseTimestamp(_ isoString: String?) -> Date {
-    guard let isoString = isoString else { return Date.distantPast }
-    let isoFormatter = ISO8601DateFormatter()
-    if let date = isoFormatter.date(from: isoString) {
-        return date
-    }
-    let fallbackFormatter = DateFormatter()
-    fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-    if let date = fallbackFormatter.date(from: isoString) {
-        return date
-    }
-    return Date.distantPast
+        guard let isoString = isoString else { return Date.distantPast }
+        let isoFormatter = ISO8601DateFormatter()
+        if let date = isoFormatter.date(from: isoString) {
+            return date
+        }
+        let fallbackFormatter = DateFormatter()
+        fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        if let date = fallbackFormatter.date(from: isoString) {
+            return date
+        }
+        return Date.distantPast
     }
 
     static func formatDateString(_ isoString: String?) -> String {
@@ -718,21 +752,30 @@ struct BarChartData: Identifiable, Codable {
 
 struct FeedCell: View {
     let feed: Feed
+    var onProfileTap: (() -> Void)? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             if let url = feed.userProfilePictureURL {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Circle().fill(Color.gray.opacity(0.3))
+                Button(action: {
+                    onProfileTap?()
+                }) {
+                    KFImage(url) 
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(Circle())
                 }
-                .frame(width: 80, height: 80)
-                .clipShape(Circle())
+                .buttonStyle(PlainButtonStyle())
             } else {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 80, height: 80)
+                Button(action: {
+                    onProfileTap?()
+                }) {
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 80, height: 80)
+                }
+                .buttonStyle(PlainButtonStyle())
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -758,13 +801,11 @@ struct TeamCell: View {
     var body: some View {
         HStack {
             if let url = user.profilePictureURL {
-                AsyncImage(url: url) { image in
-                    image.resizable().scaledToFill()
-                } placeholder: {
-                    Circle().fill(Color.gray.opacity(0.3))
-                }
-                .frame(width: 40, height: 40)
-                .clipShape(Circle())
+                KFImage(url) 
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.gray.opacity(0.3))
@@ -889,13 +930,11 @@ struct InviteTeamSheet: View {
                         } label: {
                             HStack {
                                 if let url = user.profilePictureURL {
-                                    AsyncImage(url: url) { image in
-                                        image.resizable().scaledToFill()
-                                    } placeholder: {
-                                        Circle().fill(Color.gray.opacity(0.3))
-                                    }
-                                    .frame(width: 40, height: 40)
-                                    .clipShape(Circle())
+                                    KFImage(url)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 40, height: 40)
+                                        .clipShape(Circle())
                                 } else {
                                     Circle()
                                         .fill(Color.gray.opacity(0.3))

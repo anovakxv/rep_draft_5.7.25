@@ -493,7 +493,16 @@ class GoalsDetailViewModel: ObservableObject {
                         portalId: apiGoal.portalId
                     )
                     let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
-                    self.feed = apiGoal.aLatestProgress?.compactMap { log in
+
+                    // Get all progress logs and sort by timestamp (newest first)
+                    let allLogs = apiGoal.aLatestProgress ?? []
+                    let sortedLogs = allLogs.sorted { (log1, log2) -> Bool in
+                        let date1 = Self.parseTimestamp(log1.timestamp)
+                        let date2 = Self.parseTimestamp(log2.timestamp)
+                        return date1 > date2  // Sort descending (newest first)
+                    }
+                    let limitedLogs = sortedLogs.prefix(20)
+                    self.feed = limitedLogs.compactMap { log in
                         let apiUser = teamDict[log.users_id ?? 0]
                         let userName = apiUser?.name ?? "User"
                         let formattedDate = Self.formatDateString(log.timestamp)
@@ -508,7 +517,8 @@ class GoalsDetailViewModel: ObservableObject {
                             line4: "",
                             userProfilePictureURL: profilePictureURL
                         )
-                    } ?? []
+                    }
+
                     self.team = apiGoal.team?.map { apiUser in
                         User(
                             id: apiUser.id,
@@ -536,6 +546,20 @@ class GoalsDetailViewModel: ObservableObject {
                 print("Goal detail decode error:", error)
             }
         }.resume()
+    }
+    // Helper to parse timestamp string to Date
+    static func parseTimestamp(_ isoString: String?) -> Date {
+    guard let isoString = isoString else { return Date.distantPast }
+    let isoFormatter = ISO8601DateFormatter()
+    if let date = isoFormatter.date(from: isoString) {
+        return date
+    }
+    let fallbackFormatter = DateFormatter()
+    fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+    if let date = fallbackFormatter.date(from: isoString) {
+        return date
+    }
+    return Date.distantPast
     }
 
     static func formatDateString(_ isoString: String?) -> String {

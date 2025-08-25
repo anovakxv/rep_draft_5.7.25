@@ -190,8 +190,8 @@ class PeopleViewModel: ObservableObject {
         if section == 0 {
             let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
             guard let url = URL(string: urlString) else {
-                errorMessage = "Invalid URL"
-                isLoading = false
+                self.errorMessage = "Invalid URL"
+                self.isLoading = false
                 return
             }
             var request = URLRequest(url: url)
@@ -203,18 +203,23 @@ class PeopleViewModel: ObservableObject {
                     self.isLoading = false
                     if let error = error {
                         self.errorMessage = error.localizedDescription
+                        self.activeChats = []
                         return
                     }
                     guard let data = data else {
                         self.errorMessage = "No data"
+                        self.activeChats = []
                         return
                     }
                     do {
                         let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
                         self.activeChats = response.result
-                        // Recalculate unread dots from server truth
+
+                        // IMPORTANT: only count unread if last message is from someone else.
                         let hasUnreadDM = response.result.contains {
-                            $0.type == "direct" && (($0.last_message?.read ?? "0") == "0")
+                            $0.type == "direct"
+                            && (($0.last_message?.read ?? "0") == "0")
+                            && (($0.last_message?.sender_id ?? -1) != userId)
                         }
                         let hasUnreadGroup = response.result.contains {
                             $0.type == "group"
@@ -224,7 +229,8 @@ class PeopleViewModel: ObservableObject {
                         self.hasUnreadDirectMessages = hasUnreadDM
                         self.hasUnreadGroupMessages = hasUnreadGroup
                     } catch {
-                        self.errorMessage = error.localizedDescription
+                        self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                        self.activeChats = []
                     }
                 }
             }.resume()

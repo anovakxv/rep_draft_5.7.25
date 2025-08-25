@@ -113,7 +113,7 @@ def api_goal_details():
         for u in users
     ]
 
-    logs = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).limit(4).all()
+    logs = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).limit(20).all()
     a_latest_progress = [
         {
             "id": log.id,

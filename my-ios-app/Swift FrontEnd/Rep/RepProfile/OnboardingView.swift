@@ -103,8 +103,8 @@ struct AppWalkthroughView: View {
     private let pages: [WalkPage] = [
         // 1. Welcome to Rep – Our Purpose-Driven Movement
         .init(
-            title: "Welcome to Rep – Our Purpose-Driven Movement",
-            subtitle: "Rep helps you champion your priorities—like a world-class sales rep. Let's accelerate.",
+            title: "Welcome to Rep – our Purpose-Driven movement.",
+            subtitle: "Rep helps you champion your priorities—\n\nlike a world-class sales rep. Let's accelerate.",
             imageSystem: nil,
             imageAssetName: "REPLogo",
             footnote: nil,
@@ -113,8 +113,8 @@ struct AppWalkthroughView: View {
         ),
         // 2. Navigate Between Purposes and People
         .init(
-            title: "Navigate Between Purposes and People",
-            subtitle: "Tap the Rep logo in the bottom-right to toggle between active campaigns and the people driving them.",
+            title: "flip between Purposes and People",
+            subtitle: "tap the Rep logo in the bottom-right to toggle between active campaigns and the People driving them.",
             imageSystem: nil,
             imageAssetName: nil,
             ctaOverride: nil,
@@ -124,11 +124,10 @@ struct AppWalkthroughView: View {
         ),
         // 3. View Purpose Pitches in Full Screen
         .init(
-            title: "View Purpose Pitches in Full Screen",
-            subtitle: "Tap the top image to open the pitch deck, then swipe through fullscreen (landscape).",
+            title: "view Purpose Pitches in full screen",
+            subtitle: "tap the top image to open the Purpose Pitch, then swipe through in fullscreen.",
             imageSystem: nil,
             imageAssetName: nil,
-            footnote: "Flow: Purpose Page → Fullscreen Pitch.",
             ctaOverride: nil,
             demo: .pitchDeckDemo,
             purposePageScreenshotName: "Purpose_page",
@@ -136,13 +135,16 @@ struct AppWalkthroughView: View {
         ),
         // 4. Join a Team. Accelerate the Mission.
         .init(
-            title: "Join a Team. Accelerate the Mission.",
-            subtitle: "Choose a Goal Team. Join the mission. Your action drives prioritization.",
+            title: "join a Goal Team. Accelerate the Mission.",
+            subtitle: "view a Goal. join a Team. Accelerate your cause. and your career.",
             imageSystem: nil,
             imageAssetName: nil,
-            footnote: "Build your portfolio of purpose as you join teams. Accelerate your career.",
             ctaOverride: nil,
-            demo: .joinTeamDemo
+            demo: .joinTeamDemo,
+            // Add screenshot paths for 3-step flow
+            purposePageForGoalScreenshotName: "Purpose_page",
+            goalDetailScreenshotName: "Goals_detail", 
+            actionMenuScreenshotName: "Action_menu"
         )
     ]
 
@@ -220,6 +222,10 @@ struct WalkPage: Hashable {
     // Screen 3 screenshots
     let purposePageScreenshotName: String?
     let fullscreenPitchScreenshotName: String?
+    // Screen 4 screenshots
+    let purposePageForGoalScreenshotName: String?
+    let goalDetailScreenshotName: String?
+    let actionMenuScreenshotName: String?
     
     init(
         title: String,
@@ -232,7 +238,10 @@ struct WalkPage: Hashable {
         screenshotPortalsName: String? = nil,
         screenshotPeopleName: String? = nil,
         purposePageScreenshotName: String? = nil,
-        fullscreenPitchScreenshotName: String? = nil
+        fullscreenPitchScreenshotName: String? = nil,
+        purposePageForGoalScreenshotName: String? = nil,
+        goalDetailScreenshotName: String? = nil,
+        actionMenuScreenshotName: String? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -245,6 +254,9 @@ struct WalkPage: Hashable {
         self.screenshotPeopleName = screenshotPeopleName
         self.purposePageScreenshotName = purposePageScreenshotName
         self.fullscreenPitchScreenshotName = fullscreenPitchScreenshotName
+        self.purposePageForGoalScreenshotName = purposePageForGoalScreenshotName
+        self.goalDetailScreenshotName = goalDetailScreenshotName
+        self.actionMenuScreenshotName = actionMenuScreenshotName
     }
 }
 
@@ -276,8 +288,19 @@ struct WalkthroughPageView: View {
                             .padding(.bottom, 8)
                     }
                 case .joinTeamDemo:
-                    JoinTeamDemoView()
+                    if let p = page.purposePageForGoalScreenshotName,
+                    let g = page.goalDetailScreenshotName,
+                    let a = page.actionMenuScreenshotName {
+                        JoinTeamScreenshotsDemoView(
+                            purposePageImageName: p,
+                            goalDetailImageName: g,
+                            actionMenuImageName: a
+                        )
                         .padding(.bottom, 8)
+                    } else {
+                        JoinTeamDemoView()
+                            .padding(.bottom, 8)
+                    }
                 }
             } else if let asset = page.imageAssetName {
                 Image(asset)
@@ -1043,64 +1066,195 @@ private struct PitchScreenshotsDemoView: View {
     private let dotSize: CGFloat = 44
 
     var body: some View {
-        ZStack(alignment: .top) {
-            // Cross-fade the two screenshots (no cropping)
-            ZStack {
-                Image(purposeImageName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
-                    .opacity(showPurpose ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.35), value: showPurpose)
+        ZStack {
+            // Second (landscape) — hidden initially
+            Image(fullscreenImageName)
+                .resizable()
+                .scaledToFit()
+                .opacity(showPurpose ? 0 : 1)
+                .animation(.easeInOut(duration: 0.35), value: showPurpose)
 
-                Image(fullscreenImageName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
-                    .opacity(showPurpose ? 0 : 1)
-                    .animation(.easeInOut(duration: 0.35), value: showPurpose)
-            }
-            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 3)
+            // First (portrait) — visible initially
+            Image(purposeImageName)
+                .resizable()
+                .scaledToFit()
+                .opacity(showPurpose ? 1 : 0)
+                .animation(.easeInOut(duration: 0.35), value: showPurpose)
 
-            // Pulsing tap hint (only when showing the portrait purpose page)
+            // Tap hint appears only on portrait
             if showPurpose {
                 ZStack {
+                    // Outer soft circle
                     Circle()
                         .fill(Color.repGreen.opacity(0.22))
-                        .frame(width: dotSize + 10, height: dotSize + 10)
-                        .scaleEffect(pulse ? 1.12 : 0.92)
+                        .frame(width: dotSize * 1.32, height: dotSize * 1.32)
+                        .scaleEffect(pulse ? 1.1 : 0.92)
 
+                    // Inner stroked circle
                     Circle()
                         .stroke(Color.repGreen, lineWidth: 2.5)
                         .frame(width: dotSize, height: dotSize)
                         .scaleEffect(pulse ? 1.15 : 1.0)
                 }
-                .animation(Animation.easeInOut(duration: 0.85).repeatForever(autoreverses: true), value: pulse)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, dotYOffset)
-                .allowsHitTesting(false)
+                .padding(.bottom, 0)
+                .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
+                .offset(y: -maxCardHeight/2 + dotYOffset)
             }
         }
         .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
-        .onAppear { startTimerIfNeeded() }
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
+        .onAppear {
+            resetSequence()
+            withAnimation { pulse = true } // Start pulsing immediately, like screen 2
+        }
         .onDisappear {
             timerCancellable?.cancel()
             timerCancellable = nil
+            timerStarted = false
+            pulse = false
         }
-        .onReceive(Timer.publish(every: 2.2, on: .main, in: .common).autoconnect()) { _ in
-            withAnimation { showPurpose.toggle() }
-            withAnimation { pulse = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                withAnimation { pulse = false }
-            }
-        }
+        .onChange(of: purposeImageName) { _ in resetSequence() }
+        .onChange(of: fullscreenImageName) { _ in resetSequence() }
+    }
+
+    private func resetSequence() {
+        timerCancellable?.cancel()
+        timerCancellable = nil
+        timerStarted = false
+        showPurpose = true
+        startTimerIfNeeded()
+        withAnimation { pulse = true } // Ensure pulse restarts on asset change
     }
 
     private func startTimerIfNeeded() {
         guard !timerStarted else { return }
         timerStarted = true
+        let publisher = Timer.publish(every: 2.2, on: .main, in: .common)
+        timerCancellable = publisher.autoconnect().sink { _ in
+            withAnimation(.easeInOut(duration: 0.4)) {
+                showPurpose.toggle()
+            }
+        }
+    }
+}
+// MARK: - Join Team Screenshots Demo (Screen 4)
+// Purpose_page → Goals_detail → Action_menu, with the same pulsing "click" ring
+private struct JoinTeamScreenshotsDemoView: View {
+    let purposePageImageName: String
+    let goalDetailImageName: String
+    let actionMenuImageName: String
+
+    @State private var stage = 0 // 0: purpose page, 1: goal detail, 2: action menu
+    @State private var pulse = false
+    @State private var timerStarted = false
+    @State private var timerCancellable: AnyCancellable?
+
+    // Match sizing with other screenshot demos
+    private let maxCardWidth: CGFloat = 320
+    private let maxCardHeight: CGFloat = 360
+    private let cornerRadius: CGFloat = 16
+
+    // Ring size and positioning (adjust to match your screenshots)
+    private let dotSize: CGFloat = 44
+    
+    // Tap on a Goal tile in Purpose page (from top-left)
+    private let purposeTapYFromTop: CGFloat = 170
+    private let purposeTapXFromLeft: CGFloat = 140
+
+    // Tap on bottom action button in Goal detail (from bottom)
+    private let goalDetailTapYFromBottom: CGFloat = 42
+    private let goalDetailTapXCenterOffset: CGFloat = 0
+
+    // Tap on "Join Team" option in action sheet (from bottom)
+    private let actionMenuTapYFromBottom: CGFloat = 210
+    private let actionMenuTapXCenterOffset: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            // Cross-fade among three screenshots
+            Image(purposePageImageName)
+                .resizable()
+                .scaledToFit()
+                .opacity(stage == 0 ? 1 : 0)
+                .animation(.easeInOut(duration: 0.35), value: stage)
+
+            Image(goalDetailImageName)
+                .resizable()
+                .scaledToFit()
+                .opacity(stage == 1 ? 1 : 0)
+                .animation(.easeInOut(duration: 0.35), value: stage)
+
+            Image(actionMenuImageName)
+                .resizable()
+                .scaledToFit()
+                .opacity(stage == 2 ? 1 : 0)
+                .animation(.easeInOut(duration: 0.35), value: stage)
+
+            // Pulsing "click" ring
+            ZStack {
+                Circle()
+                    .fill(Color.repGreen.opacity(0.22))
+                    .frame(width: dotSize * 1.32, height: dotSize * 1.32)
+                    .scaleEffect(pulse ? 1.1 : 0.92)
+
+                Circle()
+                    .stroke(Color.repGreen, lineWidth: 2.5)
+                    .frame(width: dotSize, height: dotSize)
+                    .scaleEffect(pulse ? 1.15 : 1.0)
+            }
+            .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulse)
+            .offset(clickOffset(for: stage))
+            .allowsHitTesting(false)
+        }
+        .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .shadow(color: Color.black.opacity(0.08), radius: 10, x: 0, y: 4)
+        .onAppear {
+            startLoop()
+        }
+        .onDisappear {
+            timerCancellable?.cancel()
+            timerCancellable = nil
+            timerStarted = false
+            pulse = false
+        }
+    }
+
+    private func startLoop() {
+        guard !timerStarted else { return }
+        timerStarted = true
         withAnimation { pulse = true }
+
+        let publisher = Timer.publish(every: 2.2, on: .main, in: .common)
+        timerCancellable = publisher.autoconnect().sink { _ in
+            withAnimation(.easeInOut(duration: 0.4)) {
+                stage = (stage + 1) % 3
+            }
+        }
+    }
+
+    private func clickOffset(for stage: Int) -> CGSize {
+        switch stage {
+        case 0:
+            // Position on Goal tile in Purpose page
+            return CGSize(
+                width: -maxCardWidth/2 + purposeTapXFromLeft,
+                height: -maxCardHeight/2 + purposeTapYFromTop
+            )
+        case 1:
+            // Position on bottom action button in Goal detail
+            return CGSize(
+                width: goalDetailTapXCenterOffset,
+                height: maxCardHeight/2 - goalDetailTapYFromBottom
+            )
+        default:
+            // Position on "Join Team" in action sheet
+            return CGSize(
+                width: actionMenuTapXCenterOffset,
+                height: maxCardHeight/2 - actionMenuTapYFromBottom
+            )
+        }
     }
 }
 

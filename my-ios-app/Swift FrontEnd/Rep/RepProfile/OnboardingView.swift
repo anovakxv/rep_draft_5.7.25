@@ -119,7 +119,7 @@ struct AppWalkthroughView: View {
             imageAssetName: nil,
             ctaOverride: nil,
             demo: .toggleDemo,
-            screenshotPortalsName: "MainScreen_Portals", 
+            screenshotPortalsName: "MainScreen_Portals",
             screenshotPeopleName: "MainScreen_People"
         ),
         // 3. View Purpose Pitches in Full Screen
@@ -143,7 +143,7 @@ struct AppWalkthroughView: View {
             demo: .joinTeamDemo,
             // Add screenshot paths for 3-step flow
             purposePageForGoalScreenshotName: "Purpose_page",
-            goalDetailScreenshotName: "Goals_detail", 
+            goalDetailScreenshotName: "Goals_detail",
             actionMenuScreenshotName: "Action_menu"
         )
     ]
@@ -270,7 +270,7 @@ struct WalkthroughPageView: View {
             if let demo = page.demo {
                 switch demo {
                 case .toggleDemo:
-                    if let portals = page.screenshotPortalsName, 
+                    if let portals = page.screenshotPortalsName,
                        let people = page.screenshotPeopleName {
                         ToggleScreenshotDemoView(portalsImageName: portals, peopleImageName: people)
                             .padding(.bottom, 8)
@@ -492,7 +492,7 @@ private struct JoinTeamDemoView: View {
                 VStack(spacing: 10) {
                     ForEach(0..<3) { i in
                         teamListItem(
-                            title: teamNames[i], 
+                            title: teamNames[i],
                             progress: teamProgress[i],
                             isHighlighted: i == 0
                         )
@@ -1163,11 +1163,11 @@ private struct JoinTeamScreenshotsDemoView: View {
     private let purposeTapXFromLeft: CGFloat = 140
 
     // Tap on bottom action button in Goal detail (from bottom)
-    private let goalDetailTapYFromBottom: CGFloat = 42
-    private let goalDetailTapXCenterOffset: CGFloat = 0
+    private let goalDetailTapYFromBottom: CGFloat = 30
+    private let goalDetailTapXCenterOffset: CGFloat = -10
 
     // Tap on "Join Team" option in action sheet (from bottom)
-    private let actionMenuTapYFromBottom: CGFloat = 210
+    private let actionMenuTapYFromBottom: CGFloat = 155
     private let actionMenuTapXCenterOffset: CGFloat = 0
 
     var body: some View {

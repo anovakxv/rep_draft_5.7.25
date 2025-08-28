@@ -313,19 +313,45 @@ struct MultipleSelectionRow: View {
     let isSelected: Bool
     let action: () -> Void
 
+    // Smaller selector for a tighter row
+    private let selectorSize: CGFloat = 18
+    private let hitTarget: CGFloat = 28
+    private let repGreen = Color(red: 0.549, green: 0.78, blue: 0.365)
+
     var body: some View {
-        Button(action: action) {
-            HStack {
-                Text(skill.title)
-                    .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) // repGreen
-                Spacer()
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundColor(.accentColor)
+        HStack(spacing: 12) {
+            Text(skill.title)
+                .font(.system(size: 18, weight: .bold)) // smaller font
+                .foregroundColor(repGreen)
+                .lineLimit(1)
+                .truncationMode(.tail)
+
+            Spacer()
+
+            Button(action: action) {
+                ZStack {
+                    Circle()
+                        .stroke(repGreen, lineWidth: 2)
+                        .frame(width: selectorSize, height: selectorSize)
+                        .background(
+                            Circle()
+                                .fill(isSelected ? repGreen : Color.clear)
+                        )
+                    if isSelected {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                    }
                 }
+                .frame(width: hitTarget, height: hitTarget)
+                .contentShape(Circle())
             }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(isSelected ? "Deselect \(skill.title)" : "Select \(skill.title)"))
+            .accessibilityAddTraits(.isButton)
         }
+        .padding(.vertical, 4) // less vertical padding
+        .contentShape(Rectangle())
     }
 }
 

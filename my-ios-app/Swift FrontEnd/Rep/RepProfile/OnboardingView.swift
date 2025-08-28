@@ -114,10 +114,9 @@ struct AppWalkthroughView: View {
         // 2. Navigate Between Purposes and People
         .init(
             title: "Navigate Between Purposes and People",
-            subtitle: "Toggle between viewing active campaigns and the people driving them—your network of Reps.",
+            subtitle: "Tap the Rep logo in the bottom-right to toggle between active campaigns and the people driving them.",
             imageSystem: nil,
             imageAssetName: nil,
-            footnote: "Tip: Tap the Rep logo in the bottom-right of MainScreen to switch views.",
             ctaOverride: nil,
             demo: .toggleDemo,
             screenshotPortalsName: "MainScreen_Portals", 
@@ -126,12 +125,14 @@ struct AppWalkthroughView: View {
         // 3. View Purpose Pitches in Full Screen
         .init(
             title: "View Purpose Pitches in Full Screen",
-            subtitle: "Swipe through live Purpose campaigns. Tap to explore fullscreen pitch decks that drive action.",
+            subtitle: "Tap the top image to open the pitch deck, then swipe through fullscreen (landscape).",
             imageSystem: nil,
             imageAssetName: nil,
-            footnote: "Flow: MainScreen → Purpose Page → Fullscreen Pitch (landscape).",
+            footnote: "Flow: Purpose Page → Fullscreen Pitch.",
             ctaOverride: nil,
-            demo: .pitchDeckDemo
+            demo: .pitchDeckDemo,
+            purposePageScreenshotName: "Purpose_page",
+            fullscreenPitchScreenshotName: "Fullscreen_pitch"
         ),
         // 4. Join a Team. Accelerate the Mission.
         .init(
@@ -213,9 +214,12 @@ struct WalkPage: Hashable {
     let footnote: String?
     let ctaOverride: String?
     let demo: Demo?
-    // NEW: optional screenshot asset names for screen 2
+    // Screen 2 screenshots
     let screenshotPortalsName: String?
     let screenshotPeopleName: String?
+    // Screen 3 screenshots
+    let purposePageScreenshotName: String?
+    let fullscreenPitchScreenshotName: String?
     
     init(
         title: String,
@@ -226,7 +230,9 @@ struct WalkPage: Hashable {
         ctaOverride: String? = nil,
         demo: Demo? = nil,
         screenshotPortalsName: String? = nil,
-        screenshotPeopleName: String? = nil
+        screenshotPeopleName: String? = nil,
+        purposePageScreenshotName: String? = nil,
+        fullscreenPitchScreenshotName: String? = nil
     ) {
         self.title = title
         self.subtitle = subtitle
@@ -237,6 +243,8 @@ struct WalkPage: Hashable {
         self.demo = demo
         self.screenshotPortalsName = screenshotPortalsName
         self.screenshotPeopleName = screenshotPeopleName
+        self.purposePageScreenshotName = purposePageScreenshotName
+        self.fullscreenPitchScreenshotName = fullscreenPitchScreenshotName
     }
 }
 
@@ -259,8 +267,14 @@ struct WalkthroughPageView: View {
                             .padding(.bottom, 8)
                     }
                 case .pitchDeckDemo:
-                    PurposePitchDemoView()
-                        .padding(.bottom, 8)
+                    if let p = page.purposePageScreenshotName,
+                       let f = page.fullscreenPitchScreenshotName {
+                        PitchScreenshotsDemoView(purposeImageName: p, fullscreenImageName: f)
+                            .padding(.bottom, 8)
+                    } else {
+                        PurposePitchDemoView()
+                            .padding(.bottom, 8)
+                    }
                 case .joinTeamDemo:
                     JoinTeamDemoView()
                         .padding(.bottom, 8)
@@ -317,52 +331,53 @@ private struct ToggleScreenshotDemoView: View {
     @State private var timerStarted = false
     @State private var timerCancellable: AnyCancellable?
 
+    // Card sizing tuned for portrait screenshots in onboarding
+    private let maxCardWidth: CGFloat = 320
+    private let maxCardHeight: CGFloat = 360
+    private let cornerRadius: CGFloat = 16
+
     var body: some View {
-        ZStack {
-            // Cross-fade screenshots
+        ZStack(alignment: .bottomTrailing) {
+            // Cross-fade screenshots — scaledToFit to avoid cropping
             ZStack {
                 Image(portalsImageName)
                     .resizable()
-                    .scaledToFill()
-                    .frame(width: 280, height: 480)
-                    .clipped()
+                    .scaledToFit()
+                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight, alignment: .center)
                     .opacity(showPortals ? 1 : 0)
                     .animation(.easeInOut(duration: 0.35), value: showPortals)
 
                 Image(peopleImageName)
                     .resizable()
-                    .scaledToFill()
-                    .frame(width: 280, height: 480)
-                    .clipped()
+                    .scaledToFit()
+                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight, alignment: .center)
                     .opacity(showPortals ? 0 : 1)
                     .animation(.easeInOut(duration: 0.35), value: showPortals)
             }
-            .frame(width: 280, height: 180)
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 3)
 
-            // Pulsing highlight over bottom-right (Rep logo area)
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    ZStack {
-                        Circle()
-                            .fill(Color.repGreen.opacity(0.2))
-                            .frame(width: 52, height: 52)
-                            .scaleEffect(pulseLogo ? 1.1 : 0.9)
-                            
-                        Circle()
-                            .stroke(Color.repGreen, lineWidth: 2.5)
-                            .frame(width: 48, height: 48)
-                            .scaleEffect(pulseLogo ? 1.15 : 1.0)
-                    }
-                    .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulseLogo)
-                    .padding(.trailing, 14)
-                    .padding(.bottom, 10)
-                }
+            // Pulsing highlight over the bottom-right (Rep logo button on screenshot)
+            ZStack {
+                Circle()
+                    .fill(Color.repGreen.opacity(0.22))
+                    .frame(width: 58, height: 58)
+                    .scaleEffect(pulseLogo ? 1.1 : 0.92)
+
+                Circle()
+                    .stroke(Color.repGreen, lineWidth: 2.5)
+                    .frame(width: 50, height: 50)
+                    .scaleEffect(pulseLogo ? 1.15 : 1.0)
             }
+            .animation(Animation.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulseLogo)
+            // These paddings align the ring over the on-screen Rep logo in your screenshots.
+            // Tweak if needed to match your exact capture.
+            .padding(.trailing, 70)
+            .padding(.bottom, 1)
+            .allowsHitTesting(false)
         }
+        // Constrain the container so layout above/below text remains tidy
+        .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
         .onAppear {
             startTimerIfNeeded()
         }
@@ -373,15 +388,16 @@ private struct ToggleScreenshotDemoView: View {
         .onReceive(Timer.publish(every: 1.8, on: .main, in: .common).autoconnect()) { _ in
             withAnimation { showPortals.toggle() }
             withAnimation { pulseLogo = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                withAnimation { pulseLogo = false }
+            }
         }
     }
 
     private func startTimerIfNeeded() {
         guard !timerStarted else { return }
         timerStarted = true
-        
-        // Start pulsing immediately
-        withAnimation { pulseLogo = true }
+        withAnimation { pulseLogo = true } // start pulsing immediately
     }
 }
 
@@ -713,7 +729,7 @@ private struct JoinTeamDemoView: View {
             // Member avatars
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    ForEach(0..<4) { i in
+                    ForEach(0..<4) { _ in
                         VStack {
                             Circle()
                                 .fill(Color(UIColor.systemGray4))
@@ -916,8 +932,8 @@ private struct ToggleDemoView: View {
                         .frame(width: 32, height: 32)
                         .scaleEffect(pulseLogo ? 1.08 : 1.0)
                         .animation(.easeInOut(duration: 0.25), value: pulseLogo)
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 12)
+                        .padding(.trailing, 10)
+                        .padding(.bottom, 10)
                 }
             }
             .frame(width: 280, height: 180)
@@ -979,7 +995,7 @@ private struct PortalsPreview: View {
 private struct PeoplePreview: View {
     var body: some View {
         VStack(spacing: 8) {
-            ForEach(0..<3) { i in
+            ForEach(0..<3) { _ in
                 HStack(spacing: 8) {
                     Circle()
                         .fill(Color(UIColor.systemGray5))
@@ -1006,7 +1022,89 @@ private struct PeoplePreview: View {
     }
 }
 
-// MARK: - Purpose Pitch Demo (Screen 3)
+// MARK: - Pitch screenshots demo (Screen 3)
+// Portrait purpose page screenshot with pulsing tap hint on the top image → cross-fades to landscape fullscreen screenshot
+private struct PitchScreenshotsDemoView: View {
+    let purposeImageName: String
+    let fullscreenImageName: String
+
+    @State private var showPurpose = true
+    @State private var pulse = false
+    @State private var timerStarted = false
+    @State private var timerCancellable: AnyCancellable?
+
+    // Match screen 2 sizing
+    private let maxCardWidth: CGFloat = 320
+    private let maxCardHeight: CGFloat = 360
+    private let cornerRadius: CGFloat = 16
+
+    // Adjust to align dot over the hero/top image area on your Purpose_page screenshot
+    private let dotYOffset: CGFloat = 78
+    private let dotSize: CGFloat = 44
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            // Cross-fade the two screenshots (no cropping)
+            ZStack {
+                Image(purposeImageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
+                    .opacity(showPurpose ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.35), value: showPurpose)
+
+                Image(fullscreenImageName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
+                    .opacity(showPurpose ? 0 : 1)
+                    .animation(.easeInOut(duration: 0.35), value: showPurpose)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 3)
+
+            // Pulsing tap hint (only when showing the portrait purpose page)
+            if showPurpose {
+                ZStack {
+                    Circle()
+                        .fill(Color.repGreen.opacity(0.22))
+                        .frame(width: dotSize + 10, height: dotSize + 10)
+                        .scaleEffect(pulse ? 1.12 : 0.92)
+
+                    Circle()
+                        .stroke(Color.repGreen, lineWidth: 2.5)
+                        .frame(width: dotSize, height: dotSize)
+                        .scaleEffect(pulse ? 1.15 : 1.0)
+                }
+                .animation(Animation.easeInOut(duration: 0.85).repeatForever(autoreverses: true), value: pulse)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, dotYOffset)
+                .allowsHitTesting(false)
+            }
+        }
+        .frame(maxWidth: maxCardWidth, maxHeight: maxCardHeight)
+        .onAppear { startTimerIfNeeded() }
+        .onDisappear {
+            timerCancellable?.cancel()
+            timerCancellable = nil
+        }
+        .onReceive(Timer.publish(every: 2.2, on: .main, in: .common).autoconnect()) { _ in
+            withAnimation { showPurpose.toggle() }
+            withAnimation { pulse = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                withAnimation { pulse = false }
+            }
+        }
+    }
+
+    private func startTimerIfNeeded() {
+        guard !timerStarted else { return }
+        timerStarted = true
+        withAnimation { pulse = true }
+    }
+}
+
+// MARK: - Purpose Pitch Demo (legacy, used as fallback when screenshots not provided)
 // Shows an animated flow: MainScreen → Purpose Page → Fullscreen Pitch
 private struct PurposePitchDemoView: View {
     // Animation states

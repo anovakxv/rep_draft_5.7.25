@@ -232,11 +232,8 @@ struct EditProfileView: View {
                 }
                 // NavigationLink at the top level
                 NavigationLink(
-                    destination: OnboardingView(
-                        userName: "Test User",
-                        profileImage: nil
-                    )
-                    .navigationBarBackButtonHidden(true),
+                    destination: OnboardingFlowEntryView()  // <-- No parameters needed
+                        .navigationBarBackButtonHidden(true),
                     isActive: $showOnboarding
                 ) {
                     EmptyView()

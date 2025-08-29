@@ -231,7 +231,7 @@ class ProfileViewModel: ObservableObject {
     @Published var writeTitle: String = ""
     @Published var editingWrite: WriteBlock? = nil
     @Published var availableSkills: [SkillModel] = []
-    @Published var isBlocked: Bool = false // <-- Track block status
+    @Published var isBlocked: Bool = false
 
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("userId") var loggedInUserId: Int = 0
@@ -269,7 +269,17 @@ class ProfileViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    AuthSession.handleUnauthorized("ProfileViewModel.fetchUser")
+                    return
+                }
+                if http.statusCode < 200 || http.statusCode >= 300 {
+                    DispatchQueue.main.async { self.isLoaded = true }
+                    return
+                }
+            }
             if let error = error {
                 print("User fetch error:", error)
             }
@@ -297,7 +307,16 @@ class ProfileViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    AuthSession.handleUnauthorized("ProfileViewModel.fetchPortals")
+                    return
+                }
+                if http.statusCode < 200 || http.statusCode >= 300 {
+                    return
+                }
+            }
             guard let data = data else { return }
             do {
                 let apiResponse = try JSONDecoder().decode(PortalsAPIResponse.self, from: data)
@@ -316,7 +335,16 @@ class ProfileViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    AuthSession.handleUnauthorized("ProfileViewModel.fetchGoals")
+                    return
+                }
+                if http.statusCode < 200 || http.statusCode >= 300 {
+                    return
+                }
+            }
             guard let data = data else { return }
             do {
                 let apiResponse = try JSONDecoder().decode(GoalsAPIResponse.self, from: data)
@@ -335,7 +363,16 @@ class ProfileViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    AuthSession.handleUnauthorized("ProfileViewModel.fetchWrites")
+                    return
+                }
+                if http.statusCode < 200 || http.statusCode >= 300 {
+                    return
+                }
+            }
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode([String: [WriteBlock]].self, from: data)
@@ -347,6 +384,7 @@ class ProfileViewModel: ObservableObject {
             }
         }.resume()
     }
+
 
     func addWrite() {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write") else { return }

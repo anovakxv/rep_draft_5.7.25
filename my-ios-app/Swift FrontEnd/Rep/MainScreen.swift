@@ -79,9 +79,22 @@ class PortalsViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
+                if let http = response as? HTTPURLResponse {
+                    if http.statusCode == 401 || http.statusCode == 403 {
+                        self.errorMessage = "Session expired. Please log in again."
+                        self.portals = []
+                        AuthSession.handleUnauthorized("PortalsViewModel.fetchPortals")
+                        return
+                    }
+                    if http.statusCode < 200 || http.statusCode >= 300 {
+                        self.errorMessage = "Server error (\(http.statusCode))."
+                        self.portals = []
+                        return
+                    }
+                }
                 if let error = error {
                     self.errorMessage = error.localizedDescription
                     self.portals = []
@@ -96,7 +109,7 @@ class PortalsViewModel: ObservableObject {
                     let response = try JSONDecoder().decode([String: [Portal]].self, from: data)
                     self.portals = response["result"] ?? []
                 } catch {
-                    self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                    self.errorMessage = "Failed to decode."
                     self.portals = []
                 }
             }
@@ -172,7 +185,6 @@ class PeopleViewModel: ObservableObject {
             }
         }
     }
-    // NEW: group unread flag with persistence
     @Published var hasUnreadGroupMessages: Bool = false {
         didSet {
             if oldValue != hasUnreadGroupMessages {
@@ -188,6 +200,7 @@ class PeopleViewModel: ObservableObject {
         errorMessage = nil
 
         if section == 0 {
+            // Active chats
             let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
             guard let url = URL(string: urlString) else {
                 self.errorMessage = "Invalid URL"
@@ -198,9 +211,22 @@ class PeopleViewModel: ObservableObject {
             if !jwtToken.isEmpty {
                 request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
             }
-            URLSession.shared.dataTask(with: request) { data, _, error in
+            URLSession.shared.dataTask(with: request) { data, response, error in
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    if let http = response as? HTTPURLResponse {
+                        if http.statusCode == 401 || http.statusCode == 403 {
+                            self.errorMessage = "Session expired. Please log in again."
+                            self.activeChats = []
+                            AuthSession.handleUnauthorized("PeopleViewModel.fetchPeople.active_chats")
+                            return
+                        }
+                        if http.statusCode < 200 || http.statusCode >= 300 {
+                            self.errorMessage = "Server error (\(http.statusCode))."
+                            self.activeChats = []
+                            return
+                        }
+                    }
                     if let error = error {
                         self.errorMessage = error.localizedDescription
                         self.activeChats = []
@@ -214,8 +240,7 @@ class PeopleViewModel: ObservableObject {
                     do {
                         let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
                         self.activeChats = response.result
-
-                        // IMPORTANT: only count unread if last message is from someone else.
+                        // Only count unread if last message is from someone else
                         let hasUnreadDM = response.result.contains {
                             $0.type == "direct"
                             && (($0.last_message?.read ?? "0") == "0")
@@ -229,12 +254,13 @@ class PeopleViewModel: ObservableObject {
                         self.hasUnreadDirectMessages = hasUnreadDM
                         self.hasUnreadGroupMessages = hasUnreadGroup
                     } catch {
-                        self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                        self.errorMessage = "Failed to decode."
                         self.activeChats = []
                     }
                 }
             }.resume()
         } else {
+            // People list
             let tab = section == 1 ? "ntwk" : "all"
             let limitParam = (tab == "all") ? "&limit=200" : ""
             let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
@@ -247,22 +273,38 @@ class PeopleViewModel: ObservableObject {
             if !jwtToken.isEmpty {
                 request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
             }
-            URLSession.shared.dataTask(with: request) { data, _, error in
+            URLSession.shared.dataTask(with: request) { data, response, error in
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    if let http = response as? HTTPURLResponse {
+                        if http.statusCode == 401 || http.statusCode == 403 {
+                            self.errorMessage = "Session expired. Please log in again."
+                            self.users = []
+                            AuthSession.handleUnauthorized("PeopleViewModel.fetchPeople.people_list")
+                            return
+                        }
+                        if http.statusCode < 200 || http.statusCode >= 300 {
+                            self.errorMessage = "Server error (\(http.statusCode))."
+                            self.users = []
+                            return
+                        }
+                    }
                     if let error = error {
                         self.errorMessage = error.localizedDescription
+                        self.users = []
                         return
                     }
                     guard let data = data else {
                         self.errorMessage = "No data"
+                        self.users = []
                         return
                     }
                     do {
                         let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
                         self.users = response.result
                     } catch {
-                        self.errorMessage = error.localizedDescription
+                        self.errorMessage = "Failed to decode."
+                        self.users = []
                     }
                 }
             }.resume()
@@ -290,9 +332,24 @@ class PeopleViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
+                if let http = response as? HTTPURLResponse {
+                    if http.statusCode == 401 || http.statusCode == 403 {
+                        self.errorMessage = "Session expired. Please log in again."
+                        self.searchResults = []
+                        self.isSearching = false
+                        AuthSession.handleUnauthorized("PeopleViewModel.searchPeople")
+                        return
+                    }
+                    if http.statusCode < 200 || http.statusCode >= 300 {
+                        self.errorMessage = "Server error (\(http.statusCode))."
+                        self.searchResults = []
+                        self.isSearching = false
+                        return
+                    }
+                }
                 if let error = error {
                     self.errorMessage = error.localizedDescription
                     self.searchResults = []
@@ -309,7 +366,7 @@ class PeopleViewModel: ObservableObject {
                     let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
                     self.searchResults = response.result
                 } catch {
-                    self.errorMessage = "Failed to decode: \(error.localizedDescription)"
+                    self.errorMessage = "Failed to decode."
                     self.searchResults = []
                 }
                 self.isSearching = false
@@ -761,7 +818,17 @@ struct MainScreen: View {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/me") else { return }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        URLSession.shared.dataTask(with: request) { data, _, _ in
+        URLSession.shared.dataTask(with: request) { data, response, _ in
+            if let http = response as? HTTPURLResponse {
+                if http.statusCode == 401 || http.statusCode == 403 {
+                    AuthSession.handleUnauthorized("MainScreen.fetchCurrentUser")
+                    return
+                }
+                if http.statusCode < 200 || http.statusCode >= 300 {
+                    DispatchQueue.main.async { self.currentUser = nil }
+                    return
+                }
+            }
             guard let data = data else { return }
             do {
                 let decoded = try JSONDecoder().decode(UserProfileAPIResponse.self, from: data)

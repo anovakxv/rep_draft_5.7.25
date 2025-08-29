@@ -1,5 +1,20 @@
 import SwiftUI
 
+// MARK: - AuthSession Helper
+
+enum AuthSession {
+    static func handleUnauthorized(_ context: String = "") {
+        DispatchQueue.main.async {
+            UserDefaults.standard.set("", forKey: "jwtToken")
+            UserDefaults.standard.set(0, forKey: "userId")
+            NotificationCenter.default.post(name: Notification.Name("ForceRootReload"), object: nil)
+            #if DEBUG
+            print("AuthSession.handleUnauthorized triggered from:", context)
+            #endif
+        }
+    }
+}
+
 // MARK: - GrowingTextEditor
 
 struct GrowingTextEditor: View {

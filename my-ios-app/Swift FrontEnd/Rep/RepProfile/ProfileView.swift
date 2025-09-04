@@ -696,7 +696,14 @@ struct ProfileView: View {
     var body: some View {
     NavigationStack {
         VStack(spacing: 0) {
-            NavigationHeaderView(name: viewModel.user.fullName ?? "", onBack: { dismiss() })
+            NavigationHeaderView(
+                name: viewModel.user.fullName ?? "",
+                onBack: { dismiss() },
+                showSettings: viewModel.isCurrentUser,
+                onSettings: {
+                    showSettings = true
+                }
+            )
             if viewModel.isLoaded && viewModel.user.id != 0 {
                 ScrollView {
                     ProfileMainContent(
@@ -750,32 +757,6 @@ struct ProfileView: View {
                 .interactiveDismissDisabled()
             }
         }
-        .overlay(alignment: .topTrailing) {
-            if viewModel.isCurrentUser {
-                Button {
-                    showSettings = true
-                } label: {
-                    Image(systemName: "gearshape.fill")
-                        .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) // RepGreen
-                        .font(.system(size: 22, weight: .semibold))
-                        .padding(10)
-                        .background(Color.white.opacity(0.95))
-                        .clipShape(Circle())
-                        .shadow(color: Color.black.opacity(0.08), radius: 2, x: 0, y: 1)
-                }
-                .accessibilityLabel("Open Settings")
-                .padding(.trailing, 12)
-                .padding(.top, 8)
-            }
-        }
-        // Hidden navigation to SettingsView
-        .background(
-            NavigationLink(
-                destination: SettingsView(),
-                isActive: $showSettings
-            ) { EmptyView() }
-            .hidden()
-        )
         .navigationBarHidden(true)
         .onAppear {
             viewModel.loadProfile()
@@ -807,6 +788,13 @@ struct ProfileView: View {
                 }
             }
         }
+        .background(
+            Group {
+                NavigationLink(
+                    destination: SettingsView(),
+                    isActive: $showSettings
+                ) { EmptyView() }
+                .hidden()
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .actionSheet:
@@ -996,7 +984,7 @@ struct ProfileView: View {
         }
         .navigationDestination(isPresented: $showPolicy) {
             TermsOfUseView()
-        }    
+        }
         .alert(isPresented: $showNetworkResultAlert) {
             Alert(title: Text(networkResultMessage))
         }
@@ -1322,6 +1310,8 @@ struct ProfileSegmentedPicker: View {
 struct NavigationHeaderView: View {
     let name: String
     let onBack: () -> Void
+    var showSettings: Bool = false
+    var onSettings: (() -> Void)? = nil
 
     var body: some View {
         HStack {
@@ -1334,7 +1324,16 @@ struct NavigationHeaderView: View {
             Text(name)
                 .font(.system(size: 20, weight: .bold))
             Spacer()
-            Color.clear.frame(width: 24, height: 24)
+            if showSettings, let onSettings = onSettings {
+                Button(action: onSettings) {
+                    Image(systemName: "gearshape.fill")
+                        .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365))
+                        .font(.system(size: 19, weight: .semibold))
+                }
+                .accessibilityLabel("Open Settings")
+            } else {
+                Color.clear.frame(width: 24, height: 24)
+            }
         }
         .frame(height: 44)
         .padding(.horizontal, 15)

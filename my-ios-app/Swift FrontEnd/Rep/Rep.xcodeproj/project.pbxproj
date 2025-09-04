@@ -13,6 +13,7 @@
 		0016460F2E6A1BF1007107F7 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0016460E2E6A1BF1007107F7 /* Settings.swift */; };
 		001646112E6A1BFE007107F7 /* Payments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001646102E6A1BFE007107F7 /* Payments.swift */; };
 		001646142E6A1CFE007107F7 /* Stripe in Frameworks */ = {isa = PBXBuildFile; productRef = 001646132E6A1CFE007107F7 /* Stripe */; };
+		001646162E6A2407007107F7 /* StripePaymentSheet in Frameworks */ = {isa = PBXBuildFile; productRef = 001646152E6A2407007107F7 /* StripePaymentSheet */; };
 		001825382E4C39CB00F15FAF /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001825372E4C39C600F15FAF /* Components.swift */; };
 		002C5EC22E4ABA920075E82B /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */; };
 		0042DA0A2E29AA24001D8E88 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0042DA092E29AA24001D8E88 /* OnboardingView.swift */; };
@@ -147,6 +148,7 @@
 				001646142E6A1CFE007107F7 /* Stripe in Frameworks */,
 				0054E71E2E2DDB3A00D09E4C /* Kingfisher in Frameworks */,
 				00085E112E4D1AD000F7CAA9 /* SocketIO in Frameworks */,
+				001646162E6A2407007107F7 /* StripePaymentSheet in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -271,6 +273,7 @@
 				00D465912E4ACD0F0032A43D /* FirebaseMessaging */,
 				00085E102E4D1AD000F7CAA9 /* SocketIO */,
 				001646132E6A1CFE007107F7 /* Stripe */,
+				001646152E6A2407007107F7 /* StripePaymentSheet */,
 			);
 			productName = Rep;
 			productReference = 005B632D2E16F83200A1F0C1 /* Rep.app */;
@@ -837,6 +840,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 001646122E6A1C1C007107F7 /* XCRemoteSwiftPackageReference "stripe-ios" */;
 			productName = Stripe;
+		};
+		001646152E6A2407007107F7 /* StripePaymentSheet */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 001646122E6A1C1C007107F7 /* XCRemoteSwiftPackageReference "stripe-ios" */;
+			productName = StripePaymentSheet;
 		};
 		0054E71D2E2DDB3A00D09E4C /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;

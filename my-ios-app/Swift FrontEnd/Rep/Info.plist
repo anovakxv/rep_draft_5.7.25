@@ -29,3 +29,15 @@
     </array>
 </dict>
 </plist>
+
+<key>CFBundleURLTypes</key>
+<array>
+  <dict>
+    <key>CFBundleURLName</key>
+    <string>com.networkedcapital.rep</string>
+    <key>CFBundleURLSchemes</key>
+    <array>
+      <string>rep</string>
+    </array>
+  </dict>
+</array>

@@ -9,6 +9,7 @@ import SwiftUI
 import UserNotifications
 import FirebaseCore
 import FirebaseMessaging
+import StripeCore
 
 @main
 struct RepApp: App {
@@ -50,6 +51,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+
+         // --- Stripe initialization ---
+        StripeAPI.defaultPublishableKey = "pk_test_YOUR_PUBLISHABLE_KEY"
+        
         return true
     }
 

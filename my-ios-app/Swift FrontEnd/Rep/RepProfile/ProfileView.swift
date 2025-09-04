@@ -631,6 +631,7 @@ struct ProfileView: View {
     @State private var selectedGoal: Goal? = nil
     @State private var showPolicy = false
     @State private var showFlagConfirmation = false
+    @State private var showSettings = false
 
     // --- Messaging navigation state ---
     @State private var selectedUser: User? = nil
@@ -749,6 +750,32 @@ struct ProfileView: View {
                 .interactiveDismissDisabled()
             }
         }
+        .overlay(alignment: .topTrailing) {
+            if viewModel.isCurrentUser {
+                Button {
+                    showSettings = true
+                } label: {
+                    Image(systemName: "gearshape.fill")
+                        .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) // RepGreen
+                        .font(.system(size: 22, weight: .semibold))
+                        .padding(10)
+                        .background(Color.white.opacity(0.95))
+                        .clipShape(Circle())
+                        .shadow(color: Color.black.opacity(0.08), radius: 2, x: 0, y: 1)
+                }
+                .accessibilityLabel("Open Settings")
+                .padding(.trailing, 12)
+                .padding(.top, 8)
+            }
+        }
+        // Hidden navigation to SettingsView
+        .background(
+            NavigationLink(
+                destination: SettingsView(),
+                isActive: $showSettings
+            ) { EmptyView() }
+            .hidden()
+        )
         .navigationBarHidden(true)
         .onAppear {
             viewModel.loadProfile()

@@ -53,8 +53,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
          // --- Stripe initialization ---
-        StripeAPI.defaultPublishableKey = "pk_test_YOUR_PUBLISHABLE_KEY"
-        
+        // do {
+        //    StripeAPI.defaultPublishableKey = "your_real_key_here"
+        //    print("Stripe initialized successfully")
+        // } catch {
+        //     print("Stripe initialization failed: \(error)")
+        //     // Don't block the app's functionality
+        // }
         return true
     }
 

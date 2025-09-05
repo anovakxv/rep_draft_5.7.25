@@ -173,7 +173,6 @@ struct PortalPage: View {
     // NavigationLink for EditPortal
     @State private var showEditPortal = false
 
-    @State private var selectedGoalId: Int? = nil
     @State private var chatUserId: Int? = nil
     @State private var chatUserName: String = ""
     @State private var chatUserPhotoURL: URL? = nil
@@ -288,7 +287,6 @@ struct PortalPage: View {
                 portal: portal,
                 viewModel: viewModel,
                 dismiss: dismiss,
-                selectedGoalId: $selectedGoalId,
                 userId: userId,
                 leadRepUser: { leadRepUser(from: portal) },
                 isCurrentUserLead: isCurrentUserLead(portal),
@@ -379,26 +377,11 @@ struct PortalPage: View {
     }
 
     var body: some View {
-        NavigationStack {
-            mainContent()
-                .background(
-                    NavigationLink(
-                        destination: selectedGoalId.flatMap { goalId in
-                            viewModel.portalGoals.first(where: { $0.id == goalId }).map { GoalsDetailView(initialGoal: $0) }
-                        },
-                        isActive: Binding(
-                            get: { selectedGoalId != nil },
-                            set: { isActive in if !isActive { selectedGoalId = nil } }
-                        ),
-                        label: { EmptyView() }
-                    )
-                    .hidden()
-                )
-                .navigationBarHidden(true)
-                .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
+        mainContent()
+            .navigationBarHidden(true)
+            .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
                 Button("OK", role: .cancel) { flagResultMessage = nil }
             }
-        }
     }
 }
 
@@ -408,7 +391,6 @@ struct PortalPageContent: View {
     let portal: PortalDetail
     @ObservedObject var viewModel: PortalViewModel
     let dismiss: DismissAction
-    @Binding var selectedGoalId: Int?
     let userId: Int
     let leadRepUser: () -> User?
     let isCurrentUserLead: Bool
@@ -487,8 +469,7 @@ struct PortalPageContent: View {
                         PortalSectionContent(
                             viewModel: viewModel,
                             portal: portal,
-                            section: viewModel.section,
-                            selectedGoalId: $selectedGoalId
+                            section: viewModel.section
                         )
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -688,13 +669,12 @@ struct PortalSectionContent: View {
     @ObservedObject var viewModel: PortalViewModel
     let portal: PortalDetail
     let section: Int
-    @Binding var selectedGoalId: Int?
 
     var body: some View {
         Group {
             if section == 0 {
                 // "Goal Teams" tab
-                PortalResultsSection(goals: viewModel.portalGoals, selectedGoalId: $selectedGoalId)
+                PortalResultsSection(goals: viewModel.portalGoals)
             } else if section == 1 {
                 // "Story" tab
                 PortalStorySection(portal: portal)
@@ -819,13 +799,11 @@ struct PortalStorySection: View {
 
 struct PortalResultsSection: View {
     let goals: [Goal]
-    @Binding var selectedGoalId: Int?
+    
     var body: some View {
         ForEach(goals) { goal in
             VStack {
-                Button(action: {
-                    selectedGoalId = goal.id
-                }) {
+                NavigationLink(destination: GoalsDetailView(initialGoal: goal)) {
                     GoalListItem(goal: goal)
                 }
                 .buttonStyle(PlainButtonStyle())

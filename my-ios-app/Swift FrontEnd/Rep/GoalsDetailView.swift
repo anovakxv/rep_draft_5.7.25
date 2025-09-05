@@ -45,271 +45,269 @@ struct GoalsDetailView: View {
     @State private var showDeleteAlert = false
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                VStack(spacing: 0) {
-                    // --- Custom Top Bar ---
-                    HStack {
-                        Button(action: { dismiss() }) {
-                            Image(systemName: "chevron.left")
-                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                .font(.system(size: 20))
-                        }
-                        Spacer()
-                        Text(viewModel.goal.title)
-                            .font(.system(size: 20, weight: .bold))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        Spacer()
-                        Color.clear.frame(width: 24, height: 24)
+        ZStack {
+            VStack(spacing: 0) {
+                // --- Custom Top Bar ---
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.system(size: 20))
                     }
-                    .frame(height: 44)
-                    .padding(.horizontal, 15)
-                    .background(Color.white)
-                    .overlay(
+                    Spacer()
+                    Text(viewModel.goal.title)
+                        .font(.system(size: 20, weight: .bold))
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                    Spacer()
+                    Color.clear.frame(width: 24, height: 24)
+                }
+                .frame(height: 44)
+                .padding(.horizontal, 15)
+                .background(Color.white)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                    alignment: .bottom
+                )
+
+                // Progress Bar and Metrics Section
+                VStack(alignment: .leading, spacing: 8) {
+                    ZStack(alignment: .leading) {
                         Rectangle()
-                            .frame(height: 1)
-                            .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                        alignment: .bottom
-                    )
+                            .fill(Color(UIColor.systemGray5))
+                            .frame(height: 34)
+                        Rectangle()
+                            .fill(Color.repGreen)
+                            .frame(
+                                width: max(0, min(1.0, CGFloat(viewModel.goal.progress)) * UIScreen.main.bounds.width * 0.92),
+                                height: 34
+                            )
+                    }
+                    .frame(height: 34)
+                    .padding(.vertical, 3)
+                    HStack {
+                        Text("Metric: \(viewModel.goal.metricName)")
+                        Spacer()
+                        Text("Goal Type: \(viewModel.goal.typeName)")
+                    }
+                    .font(.callout)
+                    HStack {
+                        Text("Quota: \(Int(round(viewModel.goal.quota)))")
+                        Spacer()
+                        Text("Progress: \(Int(round(viewModel.goal.filledQuota)))")
+                    }
+                    .font(.callout)
+                    if !viewModel.goal.subtitle.isEmpty {
+                        Text(viewModel.goal.subtitle)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    if !viewModel.goal.description.isEmpty {
+                        Text(viewModel.goal.description)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
 
-                    // Progress Bar and Metrics Section
-                    VStack(alignment: .leading, spacing: 8) {
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(Color(UIColor.systemGray5))
-                                .frame(height: 34)
-                            Rectangle()
-                                .fill(Color.repGreen)
-                                .frame(
-                                    width: max(0, min(1.0, CGFloat(viewModel.goal.progress)) * UIScreen.main.bounds.width * 0.92),
-                                    height: 34
-                                )
+                GoalSegmentedPicker(
+                    segments: ["Feed", "Report", "Team"],
+                    selectedIndex: $selectedSegment
+                )
+                .padding(.horizontal)
+
+                List {
+                    if selectedSegment == 0 {
+                        ForEach(viewModel.feed) { feedItem in
+                            FeedCell(
+                                feed: feedItem, 
+                                onProfileTap: {
+                                    if let userId = viewModel.getUserIdForFeed(feedItem) {
+                                        selectedProfileUserId = userId
+                                    }
+                                }
+                            )
                         }
-                        .frame(height: 34)
-                        .padding(.vertical, 3)
-                        HStack {
-                            Text("Metric: \(viewModel.goal.metricName)")
-                            Spacer()
-                            Text("Goal Type: \(viewModel.goal.typeName)")
+                    } else if selectedSegment == 1 {
+                        Group {
+                            if viewModel.goal.chartData.isEmpty {
+                                Text("No chart data available.")
+                            } else {
+                                LargeBarChartView(data: viewModel.goal.chartData, quota: viewModel.goal.quota)
+                            }
                         }
-                        .font(.callout)
-                        HStack {
-                            Text("Quota: \(Int(round(viewModel.goal.quota)))")
-                            Spacer()
-                            Text("Progress: \(Int(round(viewModel.goal.filledQuota)))")
-                        }
-                        .font(.callout)
-                        if !viewModel.goal.subtitle.isEmpty {
-                            Text(viewModel.goal.subtitle)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        if !viewModel.goal.description.isEmpty {
-                            Text(viewModel.goal.description)
-                                .font(.body)
-                                .foregroundColor(.secondary)
+                    } else if selectedSegment == 2 {
+                        ForEach(viewModel.team) { user in
+                            TeamCell(user: user)
+                                .onTapGesture {
+                                    selectedProfileUserId = user.id
+                                }
                         }
                     }
+                }
+                .listStyle(.plain)
+
+                BottomGoalBar(
+                    onAdd: { activeSheet = .action },
+                    onMessage: {
+                        openGoalTeamChat()
+                    }
+                )
+            }
+            .disabled(isCreatingTeamChat)
+
+            if isCreatingTeamChat {
+                Color.black.opacity(0.15).ignoresSafeArea()
+                ProgressView("Opening Team Chat...")
                     .padding()
-
-                    GoalSegmentedPicker(
-                        segments: ["Feed", "Report", "Team"],
-                        selectedIndex: $selectedSegment
-                    )
-                    .padding(.horizontal)
-
-                    List {
-                        if selectedSegment == 0 {
-                            ForEach(viewModel.feed) { feedItem in
-                                FeedCell(
-                                    feed: feedItem, 
-                                    onProfileTap: {
-                                        if let userId = viewModel.getUserIdForFeed(feedItem) {
-                                            selectedProfileUserId = userId
-                                        }
-                                    }
-                                )
-                            }
-                        } else if selectedSegment == 1 {
-                            Group {
-                                if viewModel.goal.chartData.isEmpty {
-                                    Text("No chart data available.")
-                                } else {
-                                    LargeBarChartView(data: viewModel.goal.chartData, quota: viewModel.goal.quota)
-                                }
-                            }
-                        } else if selectedSegment == 2 {
-                            ForEach(viewModel.team) { user in
-                                TeamCell(user: user)
-                                    .onTapGesture {
-                                        selectedProfileUserId = user.id
-                                    }
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-
-                    BottomGoalBar(
-                        onAdd: { activeSheet = .action },
-                        onMessage: {
-                            openGoalTeamChat()
-                        }
-                    )
-                }
-                .disabled(isCreatingTeamChat)
-
-                if isCreatingTeamChat {
-                    Color.black.opacity(0.15).ignoresSafeArea()
-                    ProgressView("Opening Team Chat...")
-                        .padding()
-                        .background(Color.white)
-                        .cornerRadius(12)
-                        .shadow(radius: 8)
-                }
-
-                // Hidden navigation link (moved here for clearer type inference)
-                NavigationLink(isActive: $showGoalTeamChat) {
-                    goalTeamChatDestination
-                } label: {
-                    EmptyView()
-                }
-                .hidden()
-                
-                // Profile navigation link
-                NavigationLink(
-                    destination: selectedProfileUserId.map { ProfileView(userId: $0) },
-                    isActive: Binding(
-                        get: { selectedProfileUserId != nil },
-                        set: { if !$0 { selectedProfileUserId = nil } }
-                    )
-                ) {
-                    EmptyView()
-                }
-                .hidden()
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 8)
             }
-            .background(Color.white.edgesIgnoringSafeArea(.all))
-            .navigationBarHidden(true)
-            .onAppear {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    viewModel.goal = initialGoal
-                    viewModel.load(goalId: initialGoal.id)
-                    loadReportingIncrements()
-                }
+
+            // Hidden navigation link (moved here for clearer type inference)
+            NavigationLink(isActive: $showGoalTeamChat) {
+                goalTeamChatDestination
+            } label: {
+                EmptyView()
             }
-            .sheet(item: $activeSheet) { sheet in
-                switch sheet {
-                case .action:
-                    VStack(spacing: 24) {
-                        if viewModel.goal.typeName == "Recruiting" {
-                            Button(action: {
-                                viewModel.joinRecruitingGoal(goalId: viewModel.goal.id) { success in
-                                    activeSheet = nil
-                                    if success {
-                                        viewModel.load(goalId: viewModel.goal.id)
-                                    }
-                                }
-                            }) {
-                                Text("Join Team")
-                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.vertical, 5)
-                            }
-                            
-                            // Add Invite to Team option
-                            Button(action: {
-                                activeSheet = .inviteTeam
-                            }) {
-                                Text("Invite to Team")
-                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.vertical, 5)
-                            }
-                        } else {
-                            Button(action: {
-                                activeSheet = .updateGoal
-                            }) {
-                                Text("Update Progress")
-                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-                                    .padding(.vertical, 5)
-                            }
-                        }
+            .hidden()
+            
+            // Profile navigation link
+            NavigationLink(
+                destination: selectedProfileUserId.map { ProfileView(userId: $0) },
+                isActive: Binding(
+                    get: { selectedProfileUserId != nil },
+                    set: { if !$0 { selectedProfileUserId = nil } }
+                )
+            ) {
+                EmptyView()
+            }
+            .hidden()
+        }
+        .background(Color.white.edgesIgnoringSafeArea(.all))
+        .navigationBarHidden(true)
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                viewModel.goal = initialGoal
+                viewModel.load(goalId: initialGoal.id)
+                loadReportingIncrements()
+            }
+        }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .action:
+                VStack(spacing: 24) {
+                    if viewModel.goal.typeName == "Recruiting" {
                         Button(action: {
-                            activeSheet = .editGoal
+                            viewModel.joinRecruitingGoal(goalId: viewModel.goal.id) { success in
+                                activeSheet = nil
+                                if success {
+                                    viewModel.load(goalId: viewModel.goal.id)
+                                }
+                            }
                         }) {
-                            Text("Edit Goal")
+                            Text("Join Team")
                                 .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                                 .font(.title2)
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
-                        Button(role: .destructive) {
-                            showDeleteAlert = true
-                        } label: {
-                            Text("Delete Goal")
-                                .font(.body)
+                        
+                        // Add Invite to Team option
+                        Button(action: {
+                            activeSheet = .inviteTeam
+                        }) {
+                            Text("Invite to Team")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
-                        Button(action: { activeSheet = nil }) {
-                            Text("Cancel")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding()
-                    .presentationDetents([.medium])
-                case .updateGoal:
-                    UpdateGoalSheet(
-                        goalId: viewModel.goal.id,
-                        quota: viewModel.goal.quota,
-                        metricName: viewModel.goal.metricName
-                    )
-                case .editGoal:
-                    if viewModel.goal.id != 0, viewModel.goal.creatorId == viewModel.currentUserId {
-                        EditGoalPage(
-                            existingGoal: viewModel.goal,
-                            portalId: viewModel.goal.portalId ?? 0,
-                            userId: viewModel.currentUserId,
-                            reportingIncrements: reportingIncrements.isEmpty
-                                ? [
-                                    ReportingIncrement(id: 1, title: "Monthly"),
-                                    ReportingIncrement(id: 2, title: "Weekly"),
-                                    ReportingIncrement(id: 3, title: "Daily")
-                                ]
-                                : reportingIncrements
-                        )
                     } else {
-                        Text("You do not have permission to edit this goal.")
-                            .padding()
-                    }
-                case .inviteTeam:
-                    InviteTeamSheet(
-                        goalId: viewModel.goal.id,
-                        onDone: {
-                            // Refresh goal details after inviting users
-                            viewModel.load(goalId: viewModel.goal.id)
+                        Button(action: {
+                            activeSheet = .updateGoal
+                        }) {
+                            Text("Update Progress")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 5)
                         }
+                    }
+                    Button(action: {
+                        activeSheet = .editGoal
+                    }) {
+                        Text("Edit Goal")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                    Button(role: .destructive) {
+                        showDeleteAlert = true
+                    } label: {
+                        Text("Delete Goal")
+                            .font(.body)
+                            .padding(.vertical, 5)
+                    }
+                    Button(action: { activeSheet = nil }) {
+                        Text("Cancel")
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .presentationDetents([.medium])
+            case .updateGoal:
+                UpdateGoalSheet(
+                    goalId: viewModel.goal.id,
+                    quota: viewModel.goal.quota,
+                    metricName: viewModel.goal.metricName
+                )
+            case .editGoal:
+                if viewModel.goal.id != 0, viewModel.goal.creatorId == viewModel.currentUserId {
+                    EditGoalPage(
+                        existingGoal: viewModel.goal,
+                        portalId: viewModel.goal.portalId ?? 0,
+                        userId: viewModel.currentUserId,
+                        reportingIncrements: reportingIncrements.isEmpty
+                            ? [
+                                ReportingIncrement(id: 1, title: "Monthly"),
+                                ReportingIncrement(id: 2, title: "Weekly"),
+                                ReportingIncrement(id: 3, title: "Daily")
+                            ]
+                            : reportingIncrements
                     )
+                } else {
+                    Text("You do not have permission to edit this goal.")
+                        .padding()
                 }
-            }
-            .alert("Delete Goal?", isPresented: $showDeleteAlert) {
-                Button("Delete", role: .destructive) {
-                    deleteGoal()
-                }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("Are you sure you want to delete this goal? This cannot be undone.")
-            }
-            .alert(item: $chatCreationError) { err in
-                Alert(
-                    title: Text("Chat Error"),
-                    message: Text(err),
-                    dismissButton: .default(Text("OK"))
+            case .inviteTeam:
+                InviteTeamSheet(
+                    goalId: viewModel.goal.id,
+                    onDone: {
+                        // Refresh goal details after inviting users
+                        viewModel.load(goalId: viewModel.goal.id)
+                    }
                 )
             }
+        }
+        .alert("Delete Goal?", isPresented: $showDeleteAlert) {
+            Button("Delete", role: .destructive) {
+                deleteGoal()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to delete this goal? This cannot be undone.")
+        }
+        .alert(item: $chatCreationError) { err in
+            Alert(
+                title: Text("Chat Error"),
+                message: Text(err),
+                dismissButton: .default(Text("OK"))
+            )
         }
     }
 

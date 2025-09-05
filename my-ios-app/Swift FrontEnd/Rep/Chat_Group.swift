@@ -501,107 +501,105 @@ struct GroupChatView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                GroupChatNavigationHeaderView(
-                    name: viewModel.customChatTitle ?? viewModel.groupName,
-                    onBack: { dismiss() },
-                    onPlus: { showEditSheet = true }
-                )
+        VStack(spacing: 0) {
+            GroupChatNavigationHeaderView(
+                name: viewModel.customChatTitle ?? viewModel.groupName,
+                onBack: { dismiss() },
+                onPlus: { showEditSheet = true }
+            )
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(viewModel.groupMembers) { member in
-                            VStack {
-                                GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 36)
-                                Text(initials(for: member.name))
-                                    .font(.caption2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                                    .frame(width: 40)
-                            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(viewModel.groupMembers) { member in
+                        VStack {
+                            GroupMemberAvatar(name: member.name, photoURL: member.photoURL, size: 36)
+                            Text(initials(for: member.name))
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                                .frame(width: 40)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                }
-                .background(Color.white)
-
-                GroupMessagesListView(
-                    messages: viewModel.messages,
-                    currentUserId: viewModel.currentUserId
-                )
-
-                HStack(spacing: 8) {
-                    GrowingTextEditor(
-                        text: $viewModel.inputText,
-                        minHeight: 36,
-                        maxHeight: 36 * 4
-                    )
-                    .font(.body)
-
-                    Button(action: {
-                        viewModel.sendMessage()
-                    }) {
-                        Text("Send")
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                            .padding(.vertical, 10)
-                            .padding(.horizontal, 18)
-                            .background(SwiftUI.Color.repGreen)
-                            .cornerRadius(8)
-                    }
-                    .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .opacity(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color.white)
-                .overlay(
-                    Rectangle()
-                        .frame(height: 1)
-                        .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
-                    alignment: .top
-                )
+                .padding(.vertical, 6)
             }
-            .background(Color.white.edgesIgnoringSafeArea(.all))
-            .sheet(isPresented: $showEditSheet) {
-                EditGroupChatView(
-                    chatId: viewModel.chatId,
-                    currentMembers: viewModel.groupMembers,
-                    groupName: viewModel.groupName,
-                    isNewChat: false,
-                    currentUserId: viewModel.currentUserId,
-                    isCreator: viewModel.isCreator,
-                    onSave: { _ in
-                        showEditSheet = false
-                        viewModel.fetchGroupChat()
-                    },
-                    onCancel: {
-                        showEditSheet = false
-                    },
-                    onDelete: {
-                        showEditSheet = false
-                        chatDeleted = true
-                    }
-                )
-            }
-            .navigationBarHidden(true)
-            .background(
-                NavigationLink(
-                    destination: newChatDestination,
-                    isActive: $navigateToNewChat
-                ) { EmptyView() }
-                .hidden()
+            .background(Color.white)
+
+            GroupMessagesListView(
+                messages: viewModel.messages,
+                currentUserId: viewModel.currentUserId
             )
-            .onChange(of: chatDeleted) { deleted in
-                if deleted { dismiss() }
+
+            HStack(spacing: 8) {
+                GrowingTextEditor(
+                    text: $viewModel.inputText,
+                    minHeight: 36,
+                    maxHeight: 36 * 4
+                )
+                .font(.body)
+
+                Button(action: {
+                    viewModel.sendMessage()
+                }) {
+                    Text("Send")
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 18)
+                        .background(SwiftUI.Color.repGreen)
+                        .cornerRadius(8)
+                }
+                .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
             }
-            .onDisappear {
-                // Use the ViewModel’s cleanup instead of touching a private property
-                viewModel.teardownRealtime()
-            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.white)
+            .overlay(
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                alignment: .top
+            )
+        }
+        .background(Color.white.edgesIgnoringSafeArea(.all))
+        .sheet(isPresented: $showEditSheet) {
+            EditGroupChatView(
+                chatId: viewModel.chatId,
+                currentMembers: viewModel.groupMembers,
+                groupName: viewModel.groupName,
+                isNewChat: false,
+                currentUserId: viewModel.currentUserId,
+                isCreator: viewModel.isCreator,
+                onSave: { _ in
+                    showEditSheet = false
+                    viewModel.fetchGroupChat()
+                },
+                onCancel: {
+                    showEditSheet = false
+                },
+                onDelete: {
+                    showEditSheet = false
+                    chatDeleted = true
+                }
+            )
+        }
+        .navigationBarHidden(true)
+        .background(
+            NavigationLink(
+                destination: newChatDestination,
+                isActive: $navigateToNewChat
+            ) { EmptyView() }
+            .hidden()
+        )
+        .onChange(of: chatDeleted) { deleted in
+            if deleted { dismiss() }
+        }
+        .onDisappear {
+            // Use the ViewModel’s cleanup instead of touching a private property
+            viewModel.teardownRealtime()
         }
     }
 }

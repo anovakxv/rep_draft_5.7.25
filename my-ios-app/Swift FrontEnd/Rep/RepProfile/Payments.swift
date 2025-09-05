@@ -3,7 +3,7 @@
 //
 //  Created by Adam Novak on 9.4.2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
-//
+
 import SwiftUI
 import StripePaymentSheet
 

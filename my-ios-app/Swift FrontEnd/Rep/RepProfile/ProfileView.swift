@@ -1013,30 +1013,24 @@ struct ProfileView: View {
             }
             .background(
                 Group {
-                    NavigationLink(
-                        destination:
-                            selectedUser.map { user in
-                                MessageView(
-                                    viewModel: .init(
-                                        currentUserId: viewModel.loggedInUserId,
-                                        otherUserId: user.id,
-                                        otherUserName: user.displayName,
-                                        otherUserPhotoURL: user.profilePictureURL
-                                    )
-                                )
-                            },
-                        isActive: $showMessageView
-                    ) {
-                        EmptyView()
-                    }
-                    .hidden()
-                    
                     NavigationLink(destination: SettingsView(), isActive: $showSettings) {
                         EmptyView()
                     }
                     .hidden()
                 }
             )
+            .navigationDestination(isPresented: $showMessageView) {
+                if let user = selectedUser {
+                    MessageView(
+                        viewModel: .init(
+                            currentUserId: viewModel.loggedInUserId,
+                            otherUserId: user.id,
+                            otherUserName: user.displayName,
+                            otherUserPhotoURL: user.profilePictureURL
+                        )
+                    )
+                }
+            }
         }
     }
     

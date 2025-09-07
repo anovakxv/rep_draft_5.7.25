@@ -157,6 +157,37 @@ struct GoalsDetailView: View {
                 )
             }
             .disabled(isCreatingTeamChat)
+            
+            // Floating Support Button
+            if viewModel.goal.typeName == "Fund" || viewModel.goal.typeName == "Sales" {
+                NavigationLink {
+                    PayTransactionView(
+                        portalId: viewModel.goal.portalId ?? 0,
+                        portalName: viewModel.goal.portalName ?? "Portal",
+                        goalId: viewModel.goal.id,
+                        goalName: viewModel.goal.title,
+                        transactionType: viewModel.goal.typeName == "Fund" ? .donation : .payment
+                    )
+                } label: {
+                    HStack {
+                        Image(systemName: "dollarsign.circle.fill")
+                            .font(.system(size: 22))
+                        Text(viewModel.goal.typeName == "Fund" ? "Donate" : "Support")
+                            .fontWeight(.semibold)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 14)
+                    .background(Color(red: 0.549, green: 0.78, blue: 0.365))
+                    .foregroundColor(.white)
+                    .cornerRadius(28)
+                    .shadow(radius: 6)
+                }
+                .padding(.bottom, 70) // Adjust to sit above BottomGoalBar
+                .padding(.trailing, 20)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .transition(.scale)
+                .zIndex(2)
+            }
 
             if isCreatingTeamChat {
                 Color.black.opacity(0.15).ignoresSafeArea()

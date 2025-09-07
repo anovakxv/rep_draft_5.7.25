@@ -93,7 +93,6 @@ def stripe_dashboard_link():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
     
-# Add to your Python backend (Payments.py)
 @app.route('/api/create_payment_intent', methods=['POST'])
 @authenticate
 def create_payment_intent():
@@ -102,13 +101,22 @@ def create_payment_intent():
     
     amount = data.get('amount')
     portal_id = data.get('portal_id')
+    goal_id = data.get('goal_id')  # New: Associate with a specific goal
     currency = data.get('currency', 'usd')
     message = data.get('message', '')
+    transaction_type = data.get('transaction_type', 'donation')  # New: Transaction type
     
     # Get portal's connected account ID
     portal = db.session.query(Portal).filter_by(id=portal_id).first()
     if not portal or not portal.stripe_account_id:
         return jsonify({'error': 'Portal not set up to receive payments'}), 400
+    
+    # Check if goal exists and belongs to portal
+    goal = None
+    if goal_id:
+        goal = db.session.query(Goal).filter_by(id=goal_id).first()
+        if not goal or goal.portals_id != portal_id:
+            return jsonify({'error': 'Invalid goal for this portal'}), 400
     
     try:
         # Create payment intent that sends payment to the connected account
@@ -121,21 +129,41 @@ def create_payment_intent():
             },
             metadata={
                 'portal_id': portal_id,
+                'goal_id': goal_id,
                 'user_id': user_id,
-                'message': message
+                'message': message,
+                'transaction_type': transaction_type
             }
         )
         
-        # Store donation record in your database
-        donation = Donation(
+        # Store transaction record in your database
+        transaction = Transaction(
             user_id=user_id,
             portal_id=portal_id,
+            goal_id=goal_id,
             amount=amount/100,  # Store in dollars
             message=message,
+            transaction_type=transaction_type,
             payment_intent_id=payment_intent.id,
             status='pending'
         )
-        db.session.add(donation)
+        db.session.add(transaction)
+        
+        # If this is for a goal, update goal's progress
+        if goal and transaction_type in ['donation', 'payment']:
+            # Create a progress log for the goal
+            progress_log = GoalProgressLog(
+                users_id=user_id,
+                goals_id=goal_id,
+                added_value=amount/100,  # Amount in dollars
+                note=f"{transaction_type.capitalize()} via Stripe",
+                value=(goal.filled_quota or 0) + (amount/100)
+            )
+            db.session.add(progress_log)
+            
+            # Update the goal's filled quota
+            goal.filled_quota = (goal.filled_quota or 0) + (amount/100)
+        
         db.session.commit()
         
         return jsonify({
@@ -144,5 +172,3 @@ def create_payment_intent():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 400
-        
-    

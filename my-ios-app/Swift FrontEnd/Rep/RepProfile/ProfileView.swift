@@ -1011,14 +1011,9 @@ struct ProfileView: View {
                     viewModel.fetchGoals()
                 }
             }
-            .background(
-                Group {
-                    NavigationLink(destination: SettingsView(), isActive: $showSettings) {
-                        EmptyView()
-                    }
-                    .hidden()
-                }
-            )
+            .navigationDestination(isPresented: $showSettings) {
+                SettingsView()
+            }
             .navigationDestination(isPresented: $showMessageView) {
                 if let user = selectedUser {
                     MessageView(

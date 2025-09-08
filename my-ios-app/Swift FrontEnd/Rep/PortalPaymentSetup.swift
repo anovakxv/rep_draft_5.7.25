@@ -2,7 +2,7 @@
 //  Rep
 //
 //  Created by Adam Novak on 09.08.2025
-//  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
+//  Copyright (c) 2025 Networked Capital Inc. All rights reserved
 
 import SwiftUI
 import WebKit

@@ -64,6 +64,7 @@ class EditPortalViewModel: ObservableObject {
     @Published var goals: [EditableGoal]
     @Published var selectedImages: [UIImage] = []
     @Published var mainImageIndex: Int = 0
+    @Published var portalDetail: PortalDetail? // Added to pass to subviews
 
     // Story blocks
     @Published var storyBlocks: [PortalWriteBlock] = []
@@ -81,6 +82,7 @@ class EditPortalViewModel: ObservableObject {
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     init(portal: PortalDetail, userId: Int) {
+        self.portalDetail = portal // Added
         self.portalId = portal.id
         self.userId = userId
         self.name = portal.name
@@ -455,6 +457,154 @@ struct UserSelectionRow: View {
     }
 }
 
+// MARK: - Refactored Subviews for EditPortalView
+
+struct PortalImagesSection: View {
+    @ObservedObject var viewModel: EditPortalViewModel
+    @Binding var photoPickerItems: [PhotosPickerItem]
+
+    var body: some View {
+        PhotosPicker(
+            selection: $photoPickerItems,
+            maxSelectionCount: 10 - viewModel.selectedImages.count,
+            matching: .images,
+            photoLibrary: .shared()
+        ) {
+            Text(viewModel.selectedImages.isEmpty ? "Add Images" : "Add More Images")
+                .font(.caption)
+                .foregroundColor(.blue)
+                .padding(.vertical, 8)
+        }
+        .onChange(of: photoPickerItems) { newItems in
+            viewModel.loadImages(from: newItems)
+        }
+
+        if !viewModel.selectedImages.isEmpty {
+            TabView(selection: $viewModel.mainImageIndex) {
+                ForEach(Array(viewModel.selectedImages.enumerated()), id: \.offset) { idx, image in
+                    ZStack(alignment: .topTrailing) {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(height: 180)
+                            .clipped()
+                            .cornerRadius(8)
+                            .tag(idx)
+                        if idx == 0 {
+                            Text("Main Icon")
+                                .font(.caption2)
+                                .padding(5)
+                                .background(Color.black.opacity(0.7))
+                                .foregroundColor(.white)
+                                .cornerRadius(6)
+                                .padding([.top, .leading], 8)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                        }
+                        if idx != 0 {
+                            Button(action: {
+                                viewModel.removeImage(at: idx)
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.red)
+                                    .padding(8)
+                            }
+                        }
+                    }
+                }
+            }
+            .tabViewStyle(PageTabViewStyle())
+            .frame(height: 190)
+            .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
+        } else {
+            Rectangle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(height: 180)
+                .cornerRadius(8)
+                .overlay(Text("No Images Selected").foregroundColor(.secondary))
+        }
+
+        Text("First image is used as Portal Icon")
+            .font(.caption)
+            .foregroundColor(.secondary)
+    }
+}
+
+struct PortalInfoSection: View {
+    @ObservedObject var viewModel: EditPortalViewModel
+
+    var body: some View {
+        Group {
+            TextField("Portal Name", text: $viewModel.name)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            TextField("Subtitle", text: $viewModel.subtitle)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+            TextField("About", text: $viewModel.about)
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+        }
+    }
+}
+
+struct PortalLeadsSection: View {
+    @ObservedObject var viewModel: EditPortalViewModel
+    @Binding var showAddLeadsSheet: Bool
+    let userId: Int
+
+    var body: some View {
+        Button(action: { showAddLeadsSheet = true }) {
+            HStack {
+                Text("Add Leads")
+                Spacer()
+                if !viewModel.selectedLeads.isEmpty {
+                    Text("\(viewModel.selectedLeads.count) selected")
+                        .foregroundColor(.secondary)
+                }
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.gray)
+            }
+            .padding()
+            .background(Color(UIColor.systemGray6))
+            .cornerRadius(8)
+        }
+        .sheet(isPresented: $showAddLeadsSheet) {
+            AddLeadsSheet(
+                selectedLeads: $viewModel.selectedLeads,
+                userId: userId
+            )
+        }
+    }
+}
+
+struct PaymentSettingsSection: View {
+    let portalDetail: PortalDetail?
+    let userId: Int
+    let portalId: Int
+    let portalName: String
+
+    var body: some View {
+        if portalDetail?.users_id == userId {
+            Divider()
+                .padding(.vertical, 8)
+            NavigationLink(destination: PortalPaymentSetup(portalId: portalId, portalName: portalName)) {
+                HStack {
+                    Image(systemName: "creditcard.fill")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    Text("Payment Settings")
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.gray)
+                }
+                .padding()
+                .background(Color(UIColor.systemGray6))
+                .cornerRadius(8)
+            }
+            .padding(.top, 8)
+        }
+    }
+}
+
+
 // MARK: - EditPortalView
 
 struct EditPortalView: View {
@@ -473,6 +623,7 @@ struct EditPortalView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Header
             HStack {
                 Button(action: { dismiss() }) {
                     Image(systemName: "chevron.left")
@@ -503,126 +654,18 @@ struct EditPortalView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    PhotosPicker(
-                        selection: $photoPickerItems,
-                        maxSelectionCount: 10 - viewModel.selectedImages.count,
-                        matching: .images,
-                        photoLibrary: .shared()
-                    ) {
-                        Text(viewModel.selectedImages.isEmpty ? "Add Images" : "Add More Images")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                            .padding(.vertical, 8)
-                    }
-                    .onChange(of: photoPickerItems) { newItems in
-                        viewModel.loadImages(from: newItems)
-                    }
-
-                    if !viewModel.selectedImages.isEmpty {
-                        TabView(selection: $viewModel.mainImageIndex) {
-                            ForEach(Array(viewModel.selectedImages.enumerated()), id: \.offset) { idx, image in
-                                ZStack(alignment: .topTrailing) {
-                                    Image(uiImage: image)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(height: 180)
-                                        .clipped()
-                                        .cornerRadius(8)
-                                        .tag(idx)
-                                    if idx == 0 {
-                                        Text("Main Icon")
-                                            .font(.caption2)
-                                            .padding(5)
-                                            .background(Color.black.opacity(0.7))
-                                            .foregroundColor(.white)
-                                            .cornerRadius(6)
-                                            .padding([.top, .leading], 8)
-                                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                                    }
-                                    if idx != 0 {
-                                        Button(action: {
-                                            viewModel.removeImage(at: idx)
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.red)
-                                                .padding(8)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .tabViewStyle(PageTabViewStyle())
-                        .frame(height: 190)
-                        .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
-                    } else {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.2))
-                            .frame(height: 180)
-                            .cornerRadius(8)
-                            .overlay(Text("No Images Selected").foregroundColor(.secondary))
-                    }
-
-                    Text("First image is used as Portal Icon")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    Group {
-                        TextField("Portal Name", text: $viewModel.name)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        TextField("Subtitle", text: $viewModel.subtitle)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                        TextField("About", text: $viewModel.about)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-
-                    // --- Add Leads Field ---
-                    Button(action: { showAddLeadsSheet = true }) {
-                        HStack {
-                            Text("Add Leads")
-                            Spacer()
-                            if !viewModel.selectedLeads.isEmpty {
-                                Text("\(viewModel.selectedLeads.count) selected")
-                                    .foregroundColor(.secondary)
-                            }
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        .background(Color(UIColor.systemGray6))
-                        .cornerRadius(8)
-                    }
-                    .sheet(isPresented: $showAddLeadsSheet) {
-                        AddLeadsSheet(
-                            selectedLeads: $viewModel.selectedLeads,
-                            userId: userId
-                        )
-                    }
-
-                    // Story blocks editing section
+                    // Refactored Sections
+                    PortalImagesSection(viewModel: viewModel, photoPickerItems: $photoPickerItems)
+                    PortalInfoSection(viewModel: viewModel)
+                    PortalLeadsSection(viewModel: viewModel, showAddLeadsSheet: $showAddLeadsSheet, userId: userId)
                     PortalStoryBlocksEditorView(viewModel: viewModel)
-
-                    // --- Payment setup section: add here ---
-                    if viewModel.userId == viewModel.portalId || portal.users_id == userId {
-                        Divider()
-                            .padding(.vertical, 8)
-                        
-                        NavigationLink(destination: PortalPaymentSetup(portalId: viewModel.portalId, portalName: viewModel.name)) {
-                            HStack {
-                                Image(systemName: "creditcard.fill")
-                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                                Text("Payment Settings")
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            .background(Color(UIColor.systemGray6))
-                            .cornerRadius(8)
-                        }
-                        .padding(.top, 8)
-                    }
+                    PaymentSettingsSection(
+                        portalDetail: viewModel.portalDetail,
+                        userId: userId,
+                        portalId: viewModel.portalId,
+                        portalName: viewModel.name
+                    )
+                    
                     // --- Delete Portal Button ---
                     Button(role: .destructive) {
                         showDeleteAlert = true

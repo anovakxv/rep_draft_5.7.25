@@ -601,6 +601,28 @@ struct EditPortalView: View {
                     // Story blocks editing section
                     PortalStoryBlocksEditorView(viewModel: viewModel)
 
+                    // --- Payment setup section: add here ---
+                    if viewModel.userId == viewModel.portalId || portal.users_id == userId {
+                        Divider()
+                            .padding(.vertical, 8)
+                        
+                        NavigationLink(destination: PortalPaymentSetup(portalId: viewModel.portalId, portalName: viewModel.name)) {
+                            HStack {
+                                Image(systemName: "creditcard.fill")
+                                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                Text("Payment Settings")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(.gray)
+                            }
+                            .padding()
+                            .background(Color(UIColor.systemGray6))
+                            .cornerRadius(8)
+                        }
+                        .padding(.top, 8)
+                    }
                     // --- Delete Portal Button ---
                     Button(role: .destructive) {
                         showDeleteAlert = true

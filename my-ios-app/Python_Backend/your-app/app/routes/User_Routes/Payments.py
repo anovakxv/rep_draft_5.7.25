@@ -172,3 +172,18 @@ def create_payment_intent():
         
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+@app.route('/api/portal/payment_status', methods=['GET'])
+@authenticate
+def get_portal_payment_status():
+    user_id = g.user_id
+    portal_id = request.args.get('portal_id')
+    
+    # Verify user has access to this portal
+    portal = db.session.query(Portal).filter_by(id=portal_id).first()
+    if not portal or portal.users_id != user_id:
+        return jsonify({'error': 'Not authorized'}), 403
+        
+    return jsonify({
+        'stripe_account_id': portal.stripe_account_id or '',
+        'is_connected': bool(portal.stripe_account_id),
+    })    

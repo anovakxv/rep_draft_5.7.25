@@ -76,6 +76,31 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         return true
     }
 
+    // MARK: - URL Handling for Deep Links
+
+    func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        // Handle Stripe Connect redirect
+        if url.scheme == "rep" && url.host == "stripe-connect-return" {
+            // Extract portal_id from URL query parameters
+            if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+               let queryItems = components.queryItems,
+               let portalIdString = queryItems.first(where: { $0.name == "portal_id" })?.value,
+               let portalId = Int(portalIdString) {
+                
+                // Post notification to refresh portal payment status
+                NotificationCenter.default.post(
+                    name: Notification.Name("StripeConnectCompleted"),
+                    object: nil,
+                    userInfo: ["portal_id": portalId]
+                )
+                return true // URL was handled
+            }
+        }
+        return false // URL was not handled
+    }
+
+    // MARK: - Remote Notifications
+
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         print("✅ Received APNS token")
         Messaging.messaging().apnsToken = deviceToken

@@ -122,7 +122,7 @@ struct GoalsDetailView: View {
                     if selectedSegment == 0 {
                         ForEach(viewModel.feed) { feedItem in
                             FeedCell(
-                                feed: feedItem, 
+                                feed: feedItem,
                                 onProfileTap: {
                                     if let userId = viewModel.getUserIdForFeed(feedItem) {
                                         selectedProfileUserId = userId
@@ -158,6 +158,14 @@ struct GoalsDetailView: View {
             }
             .disabled(isCreatingTeamChat)
             
+            // Hidden navigation link (moved here for clearer type inference)
+            NavigationLink(isActive: $showGoalTeamChat) {
+                goalTeamChatDestination
+            } label: {
+                EmptyView()
+            }
+            .opacity(0)
+            
             // Floating Support Button
             if viewModel.goal.typeName == "Fund" || viewModel.goal.typeName == "Sales" {
                 NavigationLink {
@@ -172,17 +180,26 @@ struct GoalsDetailView: View {
                     HStack {
                         Image(systemName: "dollarsign.circle.fill")
                             .font(.system(size: 22))
-                        Text(viewModel.goal.typeName == "Fund" ? "Donate" : "Support")
+                        Text("Support")
                             .fontWeight(.semibold)
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 14)
-                    .background(Color(red: 0.549, green: 0.78, blue: 0.365))
-                    .foregroundColor(.white)
-                    .cornerRadius(28)
-                    .shadow(radius: 6)
+                    .background(Color.white)
+                    .foregroundColor(Color.repGreen)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.repGreen, lineWidth: 2)
+                    )
+                    .cornerRadius(8)
+                    .shadow(
+                        color: Color.repGreen.opacity(0.22),
+                        radius: 4,
+                        x: -2,
+                        y: 4
+                    )
                 }
-                .padding(.bottom, 70) // Adjust to sit above BottomGoalBar
+                .padding(.bottom, 70)
                 .padding(.trailing, 20)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .transition(.scale)
@@ -198,14 +215,6 @@ struct GoalsDetailView: View {
                     .shadow(radius: 8)
             }
 
-            // Hidden navigation link (moved here for clearer type inference)
-            NavigationLink(isActive: $showGoalTeamChat) {
-                goalTeamChatDestination
-            } label: {
-                EmptyView()
-            }
-            .hidden()
-            
             // Profile navigation link
             NavigationLink(
                 destination: selectedProfileUserId.map { ProfileView(userId: $0) },
@@ -216,7 +225,7 @@ struct GoalsDetailView: View {
             ) {
                 EmptyView()
             }
-            .hidden()
+            .opacity(0)
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
@@ -551,7 +560,7 @@ class GoalsDetailViewModel: ObservableObject {
                         valueString: apiGoal.valueString ?? "",
                         chartData: apiGoal.chartData ?? [],
                         creatorId: apiGoal.creatorId ?? 0,
-                        portalId: apiGoal.portalId, 
+                        portalId: apiGoal.portalId,
                         portalName: apiGoal.portalName ?? "Organization" // Fallback value
                     )
 
@@ -708,6 +717,7 @@ struct APIGoalDetail: Codable {
     let team: [APIUser]?
     let creatorId: Int?
     let portalId: Int?
+    let portalName: String?
 }
 
 struct APIGoalProgressLog: Codable, Identifiable {
@@ -794,7 +804,7 @@ struct FeedCell: View {
                 Button(action: {
                     onProfileTap?()
                 }) {
-                    KFImage(url) 
+                    KFImage(url)
                         .resizable()
                         .scaledToFill()
                         .frame(width: 80, height: 80)
@@ -835,7 +845,7 @@ struct TeamCell: View {
     var body: some View {
         HStack {
             if let url = user.profilePictureURL {
-                KFImage(url) 
+                KFImage(url)
                     .resizable()
                     .scaledToFill()
                     .frame(width: 40, height: 40)

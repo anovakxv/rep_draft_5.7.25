@@ -52,7 +52,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         Messaging.messaging().delegate = self
         UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
 
-         // --- Stripe initialization ---
+        // Add this observer for chat cleanup
+        NotificationCenter.default.addObserver(
+            forName: .cleanupGroupChat,
+            object: nil,
+            queue: .main
+        ) { notification in
+            // Force resource cleanup
+            if let chatId = notification.userInfo?["chatId"] as? Int {
+                // Make sure we've left the room
+                RealtimeSocketManager.shared.leave(chatId: chatId)
+            }
+        }
+
+        // --- Stripe initialization --- (existing code)
         // do {
         //    StripeAPI.defaultPublishableKey = "your_real_key_here"
         //    print("Stripe initialized successfully")

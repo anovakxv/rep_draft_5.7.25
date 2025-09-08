@@ -18,7 +18,7 @@ struct GoalsDetailView: View {
     @State private var selectedProfileUserId: Int? = nil
 
     // --- Group Chat State ---
-    @State private var showGoalTeamChat = false
+    @State private var showChatSheet = false
     @State private var goalTeamChatId: Int? = nil
     @State private var isCreatingTeamChat = false
     @State private var chatCreationError: String?
@@ -122,7 +122,7 @@ struct GoalsDetailView: View {
                     if selectedSegment == 0 {
                         ForEach(viewModel.feed) { feedItem in
                             FeedCell(
-                                feed: feedItem,
+                                feed: feedItem, 
                                 onProfileTap: {
                                     if let userId = viewModel.getUserIdForFeed(feedItem) {
                                         selectedProfileUserId = userId
@@ -149,7 +149,7 @@ struct GoalsDetailView: View {
                 }
                 .listStyle(.plain)
 
-                BottomGoalBar(
+                 BottomGoalBar(
                     onAdd: { activeSheet = .action },
                     onMessage: {
                         openGoalTeamChat()
@@ -157,15 +157,7 @@ struct GoalsDetailView: View {
                 )
             }
             .disabled(isCreatingTeamChat)
-            
-            // Hidden navigation link (moved here for clearer type inference)
-            NavigationLink(isActive: $showGoalTeamChat) {
-                goalTeamChatDestination
-            } label: {
-                EmptyView()
-            }
-            .opacity(0)
-            
+
             // Floating Support Button
             if viewModel.goal.typeName == "Fund" || viewModel.goal.typeName == "Sales" {
                 NavigationLink {
@@ -204,6 +196,7 @@ struct GoalsDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .transition(.scale)
                 .zIndex(2)
+                .disabled(isCreatingTeamChat)
             }
 
             if isCreatingTeamChat {
@@ -215,7 +208,8 @@ struct GoalsDetailView: View {
                     .shadow(radius: 8)
             }
 
-            // Profile navigation link
+            // Navigation links
+                     
             NavigationLink(
                 destination: selectedProfileUserId.map { ProfileView(userId: $0) },
                 isActive: Binding(
@@ -225,7 +219,7 @@ struct GoalsDetailView: View {
             ) {
                 EmptyView()
             }
-            .opacity(0)
+            .hidden()
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
@@ -287,7 +281,10 @@ struct GoalsDetailView: View {
                             .padding(.vertical, 5)
                     }
                     Button(role: .destructive) {
-                        showDeleteAlert = true
+                        activeSheet = nil  // Dismiss sheet first
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            showDeleteAlert = true  // Then show alert
+                        }
                     } label: {
                         Text("Delete Goal")
                             .font(.body)
@@ -334,6 +331,32 @@ struct GoalsDetailView: View {
                 )
             }
         }
+        .sheet(isPresented: $showChatSheet, onDismiss: {
+            // When sheet is dismissed, clean up the chat resources
+            if let chatId = goalTeamChatId {
+                // Leave the specific chat room
+                RealtimeSocketManager.shared.leave(chatId: chatId)
+                
+                // Post notification for additional cleanup
+                NotificationCenter.default.post(
+                    name: .cleanupGroupChat,
+                    object: nil,
+                    userInfo: ["chatId": chatId]
+                )
+            }
+        }) {
+            if let chatId = goalTeamChatId {
+                GroupChatView(
+                    viewModel: GroupChatViewModel(
+                        currentUserId: viewModel.currentUserId,
+                        chatId: chatId,
+                        customChatTitle: "Goal Team: \(viewModel.goal.title)"
+                    )
+                )
+                .presentationDetents([.large]) // Full screen sheet
+                .interactiveDismissDisabled(false) // Allow swipe to dismiss
+            }
+        }
         .alert("Delete Goal?", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {
                 deleteGoal()
@@ -351,28 +374,13 @@ struct GoalsDetailView: View {
         }
     }
 
-    // Destination builder
-    @ViewBuilder
-    private var goalTeamChatDestination: some View {
-        if let chatId = goalTeamChatId {
-            GroupChatView(
-                viewModel: GroupChatViewModel(
-                    currentUserId: viewModel.currentUserId,
-                    chatId: chatId,
-                    customChatTitle: "Goal Team: \(viewModel.goal.title)"
-                )
-            )
-        } else {
-            EmptyView()
-        }
-    }
-
-    // --- Create / Open Goal Team Chat ---
+        // --- Create / Open Goal Team Chat ---
     private func openGoalTeamChat() {
         guard !isCreatingTeamChat else { return }
 
         if let _ = goalTeamChatId {
-            showGoalTeamChat = true
+            // Show sheet instead of using NavigationLink
+            showChatSheet = true
             return
         }
 
@@ -407,21 +415,26 @@ struct GoalsDetailView: View {
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                isCreatingTeamChat = false
+                self.isCreatingTeamChat = false
+                
                 if let error = error {
-                    chatCreationError = error.localizedDescription
+                    self.chatCreationError = error.localizedDescription
                     return
                 }
+                
                 guard
                     let data = data,
                     let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                     let chatsId = json["chats_id"] as? Int
                 else {
-                    chatCreationError = "Failed to create chat."
+                    self.chatCreationError = "Failed to create chat."
                     return
                 }
+                
                 self.goalTeamChatId = chatsId
-                self.showGoalTeamChat = true
+                
+                // Show sheet instead of navigation
+                self.showChatSheet = true
             }
         }.resume()
     }
@@ -462,6 +475,10 @@ struct GoalsDetailView: View {
             }
         }.resume()
     }
+}
+
+extension Notification.Name {
+    static let cleanupGroupChat = Notification.Name("cleanupGroupChat")
 }
 
 // MARK: - Goal Segmented Picker

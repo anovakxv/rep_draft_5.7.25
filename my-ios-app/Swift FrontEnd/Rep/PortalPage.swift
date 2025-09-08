@@ -154,7 +154,7 @@ struct PortalPage: View {
     @State private var selectedLead: User? = nil
 
     // Navigation/modal state
-    @State private var pendingAction: PendingAction? = nil
+    @State private var navigateToEditAfterDismiss = false
 
     // Enum for all possible sheets (EditGoal, PortalActionSheet)
     enum ActiveSheet: Identifiable {
@@ -170,13 +170,13 @@ struct PortalPage: View {
     }
     @State private var activeSheet: ActiveSheet?
 
-    // NavigationLink for EditPortal
+    // Navigation state for EditPortal
     @State private var showEditPortal = false
 
     @State private var chatUserId: Int? = nil
     @State private var chatUserName: String = ""
     @State private var chatUserPhotoURL: URL? = nil
-    @State private var showMessageView = false // <-- NEW
+    @State private var showMessageSheet = false
 
     // Device type check for robust sheet/fullScreenCover logic
     private var isPad: Bool {
@@ -189,13 +189,6 @@ struct PortalPage: View {
     }
     private func isCurrentUserLead(_ portal: PortalDetail) -> Bool {
         portal.aUsers?.contains(where: { $0.id == userId }) ?? false
-    }
-
-    enum PendingAction: Equatable {
-        case addGoal
-        case editPortal
-        case joinTeam
-        case message(User)
     }
 
     // Helper for sheet content
@@ -214,8 +207,7 @@ struct PortalPage: View {
             VStack(spacing: 24) {
                 if isCurrentUserLead(portal) {
                     Button(action: {
-                        pendingAction = .addGoal
-                        activeSheet = nil
+                        activeSheet = .addGoal
                     }) {
                         Text("Add Goal")
                             .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
@@ -225,7 +217,6 @@ struct PortalPage: View {
                     }
                 }
                 Button(action: {
-                    pendingAction = .joinTeam
                     activeSheet = nil
                 }) {
                     Text("Select Goal Team")
@@ -236,7 +227,7 @@ struct PortalPage: View {
                 }
                 if portal.users_id == userId {
                     Button(action: {
-                        pendingAction = .editPortal
+                        navigateToEditAfterDismiss = true
                         activeSheet = nil
                     }) {
                         Text("Edit Purpose")
@@ -294,79 +285,56 @@ struct PortalPage: View {
                 onMessage: {
                     if let lead = leadRepUser(from: portal) {
                         selectedLead = lead
-                        showMessageView = true
+                        showMessageSheet = true
                     } else {
                         print("No lead user found for portal!")
                     }
                 }
             )
-            // Only keep sheets for addGoal and portalActionMenu
-            .background(
-                Group {
-                    Color.clear
-                        .sheet(isPresented: Binding(
-                            get: { activeSheet == .addGoal || activeSheet == .portalActionMenu },
-                            set: { show in if !show { activeSheet = nil } }
-                        )) {
-                            if let portal = viewModel.portalDetail {
-                                activeSheetView(portal: portal)
-                            }
-                        }
-                }
-            )
-            // NavigationLink for EditPortalView
-            NavigationLink(
-                destination: EditPortalView(portal: portal, userId: userId)
-                    .interactiveDismissDisabled()
-                    .onDisappear {
-                        viewModel.fetchPortalDetail(portalId: portal.id, userId: userId)
-                    },
-                isActive: $showEditPortal
-            ) {
-                EmptyView()
-            }
-            .hidden()
-            // NavigationLink for MessageView (Chat_Individual)
-            NavigationLink(
-                destination:
-                    selectedLead.map { lead in
-                        MessageView(
-                            viewModel: MessageViewModel(
-                                currentUserId: userId,
-                                otherUserId: lead.id,
-                                otherUserName: (lead.fname ?? "") + " " + (lead.lname ?? ""),
-                                otherUserPhotoURL: lead.profilePictureURL
-                            )
-                        )
-                    },
-                isActive: $showMessageView
-            ) {
-                EmptyView()
-            }
-            .hidden()
             .onAppear {
                 viewModel.fetchPortalGoals(portalId: portalId)
                 if viewModel.reportingIncrements.isEmpty {
                     viewModel.fetchReportingIncrements()
                 }
-            }
-            .onChange(of: pendingAction) { action in
-                guard let action = action else { return }
-                switch action {
-                case .addGoal:
-                    activeSheet = .addGoal
-                case .editPortal:
+                
+                // Add NotificationCenter observer
+                NotificationCenter.default.addObserver(forName: .init("ShowEditPortalFromToolbar"), object: nil, queue: .main) { _ in
                     showEditPortal = true
-                case .joinTeam:
-                    // Implement join team logic here if needed
-                    break
-                case .message(let user):
-                    chatUserId = user.id
-                    chatUserName = (user.fname ?? "") + " " + (user.lname ?? "")
-                    chatUserPhotoURL = user.profilePictureURL
-                    showMessageView = true
                 }
-                pendingAction = nil
+            }
+            .onDisappear {
+                // Remove NotificationCenter observer
+                NotificationCenter.default.removeObserver(self, name: .init("ShowEditPortalFromToolbar"), object: nil)
+            }
+            .navigationDestination(isPresented: $showEditPortal) {
+                EditPortalView(portal: portal, userId: userId)
+                    .interactiveDismissDisabled()
+                    .onDisappear {
+                        viewModel.fetchPortalDetail(portalId: portal.id, userId: userId)
+                    }
+            }
+            .sheet(item: $activeSheet, onDismiss: {
+                if navigateToEditAfterDismiss {
+                    showEditPortal = true
+                    navigateToEditAfterDismiss = false // Reset flag
+                }
+            }) { sheetType in
+                if let portal = viewModel.portalDetail {
+                    activeSheetView(portal: portal)
+                }
+            }
+            .sheet(isPresented: $showMessageSheet) {
+                if let lead = selectedLead {
+                    MessageView(
+                        viewModel: MessageViewModel(
+                            currentUserId: userId,
+                            otherUserId: lead.id,
+                            otherUserName: (lead.fname ?? "") + " " + (lead.lname ?? ""),
+                            otherUserPhotoURL: lead.profilePictureURL
+                        )
+                    )
+                    .presentationDetents([.large])
+                }
             }
         } else {
             ProgressView()
@@ -377,11 +345,13 @@ struct PortalPage: View {
     }
 
     var body: some View {
-        mainContent()
-            .navigationBarHidden(true)
-            .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
-                Button("OK", role: .cancel) { flagResultMessage = nil }
-            }
+        NavigationStack {
+            mainContent()
+                .navigationBarHidden(true)
+                .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
+                    Button("OK", role: .cancel) { flagResultMessage = nil }
+                }
+        }
     }
 }
 
@@ -491,7 +461,7 @@ struct PortalPageContent: View {
                 Menu {
                     Button("Join Team") { onAdd() }
                     Button("Edit Portal") { 
-                        // Use parent navigation logic
+                        // Use direct navigation trigger
                         NotificationCenter.default.post(name: .init("ShowEditPortalFromToolbar"), object: nil)
                     }
                 } label: {

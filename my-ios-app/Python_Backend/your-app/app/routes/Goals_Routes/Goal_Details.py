@@ -129,6 +129,11 @@ def api_goal_details():
 
     # --- PATCH: Use correct filled_quota for non-Recruiting goals ---
     result = goal.as_dict()
+    if goal.portals_id:
+        portal = Portal.query.get(goal.portals_id)
+        result["portalName"] = portal.name if portal else None
+    else:
+        result["portalName"] = None
     if goal.goal_type == "Recruiting":
         result["filled_quota"] = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).count()
     else:

@@ -551,7 +551,8 @@ class GoalsDetailViewModel: ObservableObject {
                         valueString: apiGoal.valueString ?? "",
                         chartData: apiGoal.chartData ?? [],
                         creatorId: apiGoal.creatorId ?? 0,
-                        portalId: apiGoal.portalId
+                        portalId: apiGoal.portalId, 
+                        portalName: apiGoal.portalName ?? "Organization" // Fallback value
                     )
 
                     let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
@@ -743,13 +744,14 @@ struct Goal: Identifiable, Codable {
     var chartData: [BarChartData]
     var creatorId: Int
     var portalId: Int?
+    var portalName: String?
 
     static let placeholder = Goal(
         id: 1, title: "Goal Title", subtitle: "", description: "",
         progress: 0.5, progressPercent: 50, quota: 100, filledQuota: 50,
         metricName: "Sales", typeName: "Recruiting", reportingName: "Weekly",
         quotaString: "100", valueString: "50", chartData: [],
-        creatorId: 0, portalId: nil
+        creatorId: 0, portalId: nil, portalName: nil
     )
 }
 

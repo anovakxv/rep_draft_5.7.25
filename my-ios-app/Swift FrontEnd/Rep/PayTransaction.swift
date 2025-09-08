@@ -193,8 +193,8 @@ struct PayTransactionView: View {
         .navigationBarTitle(transactionType.title, displayMode: .inline)
         .navigationBarItems(trailing: Button("Cancel") { dismiss() })
         .alert(isPresented: Binding<Bool>(
-            get: { paymentStatus == .success },
-            set: { if !$0 { paymentStatus = .initial }}
+            get: { isSuccess },
+            set: { if !$0 { paymentStatus = .initial } }
         )) {
             Alert(
                 title: Text(transactionType.receiptTitle),
@@ -330,6 +330,11 @@ struct PayTransactionView: View {
         case .payment: return "payment"
         case .purchase: return "purchase"
         }
+    }
+
+    private var isSuccess: Bool {
+        if case .success = paymentStatus { return true }
+        return false
     }
     
     private func presentPaymentSheet() {

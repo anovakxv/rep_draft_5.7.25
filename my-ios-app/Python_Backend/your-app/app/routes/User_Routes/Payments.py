@@ -3,11 +3,15 @@
 # Created by Adam Novak: September 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db, stripe
+from app import db
+import stripe  
 from app.models.ValueMetric_Models import Goal, GoalProgressLog
 from app.models.Purpose_Models import Portal
 from app.middleware.auth import authenticate
 from app.services.stripe_service import get_or_create_stripe_customer
+import os
+
+stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 # Define the Blueprint
 payments_bp = Blueprint('payments', __name__)
@@ -153,8 +157,8 @@ def get_portal_payment_status():
 def stripe_webhook():
     payload = request.data
     sig_header = request.headers.get('Stripe-Signature')
+    stripe_webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")  # <-- Add this line
     try:
-        # You must define stripe_webhook_secret in your config
         event = stripe.Webhook.construct_event(
             payload, sig_header, stripe_webhook_secret
         )

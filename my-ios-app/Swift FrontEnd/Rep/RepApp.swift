@@ -10,6 +10,7 @@ import UserNotifications
 import FirebaseCore
 import FirebaseMessaging
 import StripeCore
+import Stripe
 
 @main
 struct RepApp: App {
@@ -65,14 +66,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
             }
         }
 
-        // --- Stripe initialization --- (existing code)
-        // do {
-        //    StripeAPI.defaultPublishableKey = "your_real_key_here"
-        //    print("Stripe initialized successfully")
-        // } catch {
-        //     print("Stripe initialization failed: \(error)")
-        //     // Don't block the app's functionality
-        // }
+      // Stripe initialization
+        StripeAPI.defaultPublishableKey = "pk_test_51S3olnLEcZxL3ukI6YT7PWpwcgpEbDyrXzUoUcTsgfbraIRiW1UnSugizO8PMkqyATYGZ4c5yF8aKXhTISej4CCi00uQJJzBpP"
+        print("Stripe initialized with publishable key.")
+
         return true
     }
 

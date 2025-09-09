@@ -21,7 +21,7 @@ struct PaymentsView: View {
                     // --- Active Subscriptions Section ---
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Active Subscriptions")
-                            .font(.title2).bold()
+                            .font(.title2).fontWeight(.bold)
 
                         if viewModel.subscriptions.isEmpty && !viewModel.isLoading {
                             Text("You have no active monthly subscriptions.")
@@ -43,7 +43,7 @@ struct PaymentsView: View {
                     // --- Payment History Section ---
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Payment History")
-                            .font(.title2).bold()
+                            .font(.title2).fontWeight(.bold)
 
                         if viewModel.history.isEmpty && !viewModel.isLoading {
                             Text("Your payment history will appear here.")
@@ -257,10 +257,10 @@ struct SubscriptionRowView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(subscription.name)
-                    .fontWeight(.semibold)
+                    .font(.body).fontWeight(.semibold)
                 Spacer()
                 Text("\(subscription.formattedAmount)/mo")
-                    .fontWeight(.bold)
+                    .font(.body).fontWeight(.bold)
                     .foregroundColor(Color.repGreen)
             }
             Text("Next payment on \(subscription.formattedNextBillingDate)")
@@ -290,16 +290,10 @@ struct TransactionHistoryRowView: View {
             }
             Spacer()
             Text(item.formattedAmount)
-                .font(.body.weight(.semibold))
+                .font(.body).fontWeight(.semibold)
         }
         .padding(.vertical, 8)
     }
-}
-
-// MARK: - Error Message Helper
-
-extension String: Identifiable {
-    public var id: String { self }
 }
 
 // MARK: - Preview

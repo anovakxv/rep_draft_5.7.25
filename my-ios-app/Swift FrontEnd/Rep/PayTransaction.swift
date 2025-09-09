@@ -80,12 +80,11 @@ struct PayTransactionView: View {
     let goalName: String
     let transactionType: TransactionType
 
-    // Monthly subscription options: amount and Stripe price ID
     let monthlyPriceOptions: [(amount: Int, priceId: String)] = [
-        (10, "price_1PXXXX10"),   // Replace with your Stripe price ID for $10/month
-        (20, "price_1PXXXX20"),   // Replace with your Stripe price ID for $20/month
-        (40, "price_1PXXXX40"),   // Replace with your Stripe price ID for $40/month
-        (100, "price_1PXXXX100")  // Replace with your Stripe price ID for $100/month
+        (10, "price_1S5Z8lLEcZxL3ukI6dh5l5PM"),   // $10/month
+        (20, "price_1S5Z9GLEcZxL3ukI9LcKmj0P"),   // $20/month
+        (40, "price_1S5Z9bLEcZxL3ukIrn8LjNGl"),   // $40/month
+        (100, "price_1S5Z9zLEcZxL3ukItz2JikK5")   // $100/month
     ]
 
     @State private var amount: String = ""
@@ -168,7 +167,7 @@ struct PayTransactionView: View {
                                     }
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(selectedPriceId == option.priceId ? Color(repGreen) : Color(UIColor.systemGray5))
+                                    .background(selectedPriceId == option.priceId ? Color.repGreen : Color(UIColor.systemGray5))
                                     .foregroundColor(selectedPriceId == option.priceId ? .white : .black)
                                     .cornerRadius(16)
                                 }
@@ -215,7 +214,7 @@ struct PayTransactionView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(Color(repGreen))
+                    .background(Color.repGreen)
                     .foregroundColor(.white)
                     .cornerRadius(10)
                     .disabled(isLoading || amount.isEmpty || (isMonthlySubscription && selectedPriceId.isEmpty))
@@ -478,12 +477,6 @@ struct PayTransactionView: View {
             }
         }
     }
-}
-
-// MARK: - Rep Green Color Helper
-
-extension Color {
-    static let repGreen = Color(red: 0.549, green: 0.78, blue: 0.365)
 }
 
 // MARK: - Preview

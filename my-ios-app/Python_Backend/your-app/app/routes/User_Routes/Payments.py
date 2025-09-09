@@ -123,7 +123,6 @@ def create_payment_intent():
         payment_intent = stripe.PaymentIntent.create(
             amount=amount,
             currency=currency,
-            application_fee_amount=int(amount * 0.05),  # 5% platform fee
             transfer_data={
                 'destination': portal.stripe_account_id,
             },
@@ -186,4 +185,30 @@ def get_portal_payment_status():
     return jsonify({
         'stripe_account_id': portal.stripe_account_id or '',
         'is_connected': bool(portal.stripe_account_id),
-    })    
+    })   
+ 
+@app.route('/stripe/webhook', methods=['POST'])
+def stripe_webhook():
+    payload = request.data
+    sig_header = request.headers.get('Stripe-Signature')
+    
+    try:
+        # Verify webhook signature
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, stripe_webhook_secret
+        )
+        
+        # Handle relevant events
+        if event['type'] == 'account.updated':
+            account = event['data']['object']
+            portal = db.session.query(Portal).filter_by(stripe_account_id=account['id']).first()
+            if portal:
+                # Update portal status based on account details
+                portal.stripe_account_status = account['details_submitted']
+                db.session.commit()
+                
+        # Handle payment_intent.succeeded, etc.
+        
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400

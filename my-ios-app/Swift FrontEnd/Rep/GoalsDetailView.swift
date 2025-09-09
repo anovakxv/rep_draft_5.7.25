@@ -43,6 +43,8 @@ struct GoalsDetailView: View {
 
     // --- Delete Alert State ---
     @State private var showDeleteAlert = false
+    @State private var showPayTransaction = false
+    @State private var showPaymentSheet = false
 
     var body: some View {
         ZStack {
@@ -160,15 +162,9 @@ struct GoalsDetailView: View {
 
             // Floating Support Button
             if viewModel.goal.typeName == "Fund" || viewModel.goal.typeName == "Sales" {
-                NavigationLink {
-                    PayTransactionView(
-                        portalId: viewModel.goal.portalId ?? 0,
-                        portalName: viewModel.goal.portalName ?? "Portal",
-                        goalId: viewModel.goal.id,
-                        goalName: viewModel.goal.title,
-                        transactionType: viewModel.goal.typeName == "Fund" ? .donation : .payment
-                    )
-                } label: {
+                Button(action: {
+                    showPaymentSheet = true // <-- Change to use sheet instead
+                }) {
                     HStack {
                         Image(systemName: "dollarsign.circle.fill")
                             .font(.system(size: 22))
@@ -371,6 +367,16 @@ struct GoalsDetailView: View {
                 message: Text(err),
                 dismissButton: .default(Text("OK"))
             )
+        }
+        .sheet(isPresented: $showPaymentSheet) {
+            PayTransactionView(
+                portalId: viewModel.goal.portalId ?? 0,
+                portalName: viewModel.goal.portalName ?? "Portal",
+                goalId: viewModel.goal.id,
+                goalName: viewModel.goal.title,
+                transactionType: viewModel.goal.typeName == "Fund" ? .donation : .payment
+            )
+            .presentationDetents([.large]) // Full screen
         }
     }
 

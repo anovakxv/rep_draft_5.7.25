@@ -327,7 +327,13 @@ struct PortalPaymentSetup: View {
                     
                     InfoRow(icon: "creditcard", title: "Secure Payments", description: "All payments are securely processed by Stripe, a PCI-compliant payment processor.")
                     
-                    InfoRow(icon: "dollarsign.circle", title: "Platform Fee", description: "Rep takes a 5% platform fee on all transactions to support our operations.")
+                    InfoRow(
+                        icon: "dollarsign.circle",
+                        title: "Transaction Fee",
+                        description: """
+                    Rep does not charge any additional platform fee. Stripe’s standard rates apply. For example: 2.9% + 30¢ per successful transaction for domestic cards, 0.8% for ACH Direct Debit. For full details, see stripe.com/pricing.
+                    """
+                    )
                     
                     InfoRow(icon: "calendar", title: "Payouts", description: "Funds will be directly deposited to your bank account based on your Stripe payout schedule.")
                     

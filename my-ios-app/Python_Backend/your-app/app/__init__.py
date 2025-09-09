@@ -78,6 +78,7 @@ def create_app():
     from app.routes.User_Routes.Get_People import people_bp as get_people_bp
     from app.routes.User_Routes.DeviceToken import user_bp as device_token_bp
     from app.routes.User_Routes.SearchPeople import search_people_bp
+    from app.routes.User_Routes.Payments import payments_bp # <-- ADDED
 
     app.register_blueprint(search_people_bp)
     app.register_blueprint(add_to_network_bp, url_prefix='/api/user')
@@ -94,6 +95,7 @@ def create_app():
     app.register_blueprint(write_bp, url_prefix='/api/user')
     app.register_blueprint(device_token_bp, url_prefix='/api/user')
     app.register_blueprint(get_people_bp)  # already has its own routes
+    app.register_blueprint(payments_bp) # <-- ADDED
 
     # --- Portal Blueprints ---
     from app.routes.Portal_Routes.Get_Portals import portal_bp as portal_list_bp

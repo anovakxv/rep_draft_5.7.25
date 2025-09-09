@@ -7,170 +7,307 @@
 import SwiftUI
 import StripePaymentSheet
 
-struct PaymentsView: View {
-    @State private var isLoading = false
-    @State private var message: String?
-    @State private var paymentSheet: PaymentSheet?
-    @AppStorage("jwtToken") private var jwtToken: String = ""
-    @State private var showingSheet = false
+// MARK: - Main View
 
-    // For showing saved payment methods (optional, can be implemented later)
-    @State private var savedPaymentMethods: [PaymentMethod] = []
+struct PaymentsView: View {
+    @StateObject private var viewModel = PaymentsViewModel()
+    @State private var showCancelAlert = false
+    @State private var subscriptionToCancel: ActiveSubscriptionItem?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                Text("Your Payment Methods")
-                    .font(.title2).bold()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+                    // --- Active Subscriptions Section ---
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Active Subscriptions")
+                            .font(.title2).bold()
 
-                Text("Add a payment method to your account to easily pay for services or make donations. All payment info is securely handled by Stripe.")
-                    .font(.body)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                        if viewModel.subscriptions.isEmpty && !viewModel.isLoading {
+                            Text("You have no active monthly subscriptions.")
+                                .foregroundColor(.secondary)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(UIColor.systemGray6))
+                                .cornerRadius(10)
+                        } else {
+                            ForEach(viewModel.subscriptions) { sub in
+                                SubscriptionRowView(subscription: sub) {
+                                    self.subscriptionToCancel = sub
+                                    self.showCancelAlert = true
+                                }
+                            }
+                        }
+                    }
 
-                // Show saved payment methods if available
-                if !savedPaymentMethods.isEmpty {
-                    ForEach(savedPaymentMethods, id: \.id) { method in
-                        PaymentMethodRow(method: method, isDefault: method.isDefault)
+                    // --- Payment History Section ---
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Payment History")
+                            .font(.title2).bold()
+
+                        if viewModel.history.isEmpty && !viewModel.isLoading {
+                            Text("Your payment history will appear here.")
+                                .foregroundColor(.secondary)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(UIColor.systemGray6))
+                                .cornerRadius(10)
+                        } else {
+                            ForEach(viewModel.history) { item in
+                                TransactionHistoryRowView(item: item)
+                            }
+                        }
                     }
                 }
-
-                Button {
-                    isLoading = true
-                    preparePaymentSheet()
-                } label: {
-                    HStack {
-                        Image(systemName: "plus.circle")
-                        Text("Add Payment Method")
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(red: 0.549, green: 0.78, blue: 0.365)) // RepGreen
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                }
-                .disabled(isLoading)
-
-                if let message = message {
-                    Text(message)
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
+                .padding()
             }
-            .padding()
+            .disabled(viewModel.isLoading)
+
+            if viewModel.isLoading {
+                ProgressView("Loading...")
+                    .padding()
+                    .background(Color.white)
+                    .cornerRadius(12)
+                    .shadow(radius: 8)
+            }
         }
-        .navigationTitle("Payment Methods")
+        .navigationTitle("Payments & Subscriptions")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            // Optionally load saved payment methods here
-            // loadSavedPaymentMethods()
+            viewModel.loadPaymentData()
+        }
+        .alert("Cancel Subscription?", isPresented: $showCancelAlert) {
+            Button("Cancel Subscription", role: .destructive) {
+                if let subId = subscriptionToCancel?.id {
+                    viewModel.cancelSubscription(subscriptionId: subId)
+                }
+            }
+            Button("Keep Subscription", role: .cancel) {}
+        } message: {
+            Text("Are you sure you want to cancel your \(subscriptionToCancel?.formattedAmount ?? "")/month subscription to \(subscriptionToCancel?.name ?? "")? This cannot be undone.")
+        }
+        .alert(item: $viewModel.errorMessage) { error in
+            Alert(title: Text("Error"), message: Text(error), dismissButton: .default(Text("OK")))
+        }
+    }
+}
+
+// MARK: - ViewModel
+
+class PaymentsViewModel: ObservableObject {
+    @Published var subscriptions: [ActiveSubscriptionItem] = []
+    @Published var history: [TransactionHistoryItem] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @AppStorage("jwtToken") private var jwtToken: String = ""
+
+    func loadPaymentData() {
+        isLoading = true
+        let group = DispatchGroup()
+
+        group.enter()
+        fetchSubscriptions {
+            group.leave()
+        }
+
+        group.enter()
+        fetchHistory {
+            group.leave()
+        }
+
+        group.notify(queue: .main) {
+            self.isLoading = false
         }
     }
 
-    private func preparePaymentSheet() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/create_setup_intent") else {
-            message = "Invalid URL"
+    func fetchSubscriptions(completion: @escaping () -> Void) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/subscriptions") else {
+            completion()
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            defer { completion() }
+            if let error = error {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Network error: \(error.localizedDescription)"
+                }
+                return
+            }
+            guard let data = data else { return }
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .secondsSince1970
+            if let decodedSubscriptions = try? decoder.decode([ActiveSubscriptionItem].self, from: data) {
+                DispatchQueue.main.async {
+                    self.subscriptions = decodedSubscriptions
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to decode subscriptions"
+                }
+            }
+        }.resume()
+    }
+
+    func fetchHistory(completion: @escaping () -> Void) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/payment_history") else {
+            completion()
+            return
+        }
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            defer { completion() }
+            if let error = error {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Network error: \(error.localizedDescription)"
+                }
+                return
+            }
+            guard let data = data else { return }
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .secondsSince1970
+            if let decodedHistory = try? decoder.decode([TransactionHistoryItem].self, from: data) {
+                DispatchQueue.main.async {
+                    self.history = decodedHistory
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to decode payment history"
+                }
+            }
+        }.resume()
+    }
+
+    func cancelSubscription(subscriptionId: String) {
+        isLoading = true
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/cancel_subscription") else {
+            errorMessage = "Invalid URL"
             isLoading = false
             return
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["subscriptionId": subscriptionId])
 
         URLSession.shared.dataTask(with: request) { data, response, error in
-            isLoading = false
-
-            guard let data = data, error == nil,
-                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let clientSecret = json["clientSecret"] as? String else {
-                message = "Failed to prepare payment method"
-                return
-            }
-
             DispatchQueue.main.async {
-                var configuration = PaymentSheet.Configuration()
-                configuration.merchantDisplayName = "Rep App"
-                configuration.allowsDelayedPaymentMethods = false
-
-                paymentSheet = PaymentSheet(
-                    setupIntentClientSecret: clientSecret,
-                    configuration: configuration
-                )
-
-                presentPaymentSheet()
+                self.isLoading = false
+                if let error = error {
+                    self.errorMessage = "Network error: \(error.localizedDescription)"
+                    return
+                }
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    self.subscriptions.removeAll { $0.id == subscriptionId }
+                } else {
+                    self.errorMessage = "Failed to cancel subscription. Please try again."
+                }
             }
         }.resume()
     }
+}
 
-    private func presentPaymentSheet() {
-        guard let paymentSheet = paymentSheet else { return }
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootVC = windowScene.windows.first?.rootViewController else {
-            message = "Unable to present payment sheet"
-            return
-        }
-        paymentSheet.present(from: rootVC) { result in
-            switch result {
-            case .completed:
-                message = "Payment method added successfully"
-                // Optionally reload saved payment methods here
-            case .canceled:
-                message = "Canceled"
-            case .failed(let error):
-                message = "Error: \(error.localizedDescription)"
-            }
-        }
+// MARK: - Data Models
+
+struct ActiveSubscriptionItem: Identifiable, Codable {
+    let id: String // Stripe Subscription ID
+    let name: String // e.g., Portal Name or Goal Name
+    let amount: Int // Amount in cents
+    let nextBillingDate: Date
+
+    var formattedAmount: String {
+        String(format: "$%.2f", Double(amount) / 100)
+    }
+    var formattedNextBillingDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: nextBillingDate)
     }
 }
 
-// Simple model for payment methods (optional, for future use)
-struct PaymentMethod: Identifiable, Codable {
-    let id: String
-    let last4: String
-    let brand: String
-    let isDefault: Bool
+struct TransactionHistoryItem: Identifiable, Codable {
+    let id: String // Stripe Payment Intent ID
+    let description: String
+    let amount: Int // Amount in cents
+    let date: Date
+
+    var formattedAmount: String {
+        String(format: "$%.2f", Double(amount) / 100)
+    }
+    var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
+    }
 }
 
-struct PaymentMethodRow: View {
-    let method: PaymentMethod
-    let isDefault: Bool
+// MARK: - Row Views
+
+struct SubscriptionRowView: View {
+    let subscription: ActiveSubscriptionItem
+    var onCancel: () -> Void
 
     var body: some View {
-        HStack {
-            Image(systemName: "creditcard")
-                .foregroundColor(.primary)
-
-            VStack(alignment: .leading) {
-                Text("\(method.brand) •••• \(method.last4)")
-                    .font(.body)
-                if isDefault {
-                    Text("Default")
-                        .font(.caption)
-                        .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) // RepGreen
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(subscription.name)
+                    .fontWeight(.semibold)
+                Spacer()
+                Text("\(subscription.formattedAmount)/mo")
+                    .fontWeight(.bold)
+                    .foregroundColor(Color.repGreen)
             }
-
-            Spacer()
-
-            // More actions menu (optional, for future use)
-            Menu {
-                Button("Set as Default") {
-                    // Call API to set as default
-                }
-
-                Button("Remove", role: .destructive) {
-                    // Call API to remove
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .foregroundColor(.gray)
-            }
+            Text("Next payment on \(subscription.formattedNextBillingDate)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Button("Cancel Subscription", role: .destructive, action: onCancel)
+                .font(.caption)
+                .padding(.top, 4)
         }
         .padding()
         .background(Color(UIColor.systemGray6))
         .cornerRadius(10)
+    }
+}
+
+struct TransactionHistoryRowView: View {
+    let item: TransactionHistoryItem
+
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(item.description)
+                    .font(.body)
+                Text(item.formattedDate)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            Spacer()
+            Text(item.formattedAmount)
+                .font(.body.weight(.semibold))
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Error Message Helper
+
+extension String: Identifiable {
+    public var id: String { self }
+}
+
+// MARK: - Preview
+
+struct PaymentsView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            PaymentsView()
+        }
     }
 }

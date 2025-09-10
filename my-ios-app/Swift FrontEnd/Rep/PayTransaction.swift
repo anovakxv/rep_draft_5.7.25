@@ -415,7 +415,22 @@ struct PayTransactionView: View {
                 }
 
                 // Open Safari to complete payment
-                UIApplication.shared.open(url)
+                if let checkoutUrl = json["checkout_url"] as? String,
+                    let url = URL(string: checkoutUrl) {
+                        print("Attempting to open checkout URL: \(checkoutUrl)")
+                        DispatchQueue.main.async {
+                            UIApplication.shared.open(url, options: [:]) { success in
+                                if !success {
+                                    print("Failed to open URL with options, trying openURL...")
+                                    if #available(iOS 10.0, *) {
+                                        UIApplication.shared.open(url)
+                                    } else {
+                                        UIApplication.shared.openURL(url)
+                                    }
+                                }
+                            }
+                        }
+                    }
             }
         }.resume()
     }

@@ -76,25 +76,45 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
     // MARK: - URL Handling for Deep Links
 
     func application(_ app: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
-        // Handle Stripe Connect redirect
+        // Stripe Connect redirect (existing)
         if url.scheme == "rep" && url.host == "stripe-connect-return" {
-            // Extract portal_id from URL query parameters
             if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
                let queryItems = components.queryItems,
                let portalIdString = queryItems.first(where: { $0.name == "portal_id" })?.value,
                let portalId = Int(portalIdString) {
-                
-                // Post notification to refresh portal payment status
                 NotificationCenter.default.post(
                     name: Notification.Name("StripeConnectCompleted"),
                     object: nil,
                     userInfo: ["portal_id": portalId]
                 )
-                return true // URL was handled
+                return true
             }
         }
-        return false // URL was not handled
+        // Stripe Checkout payment success
+        else if url.scheme == "rep" && url.host == "payment-success" {
+            if let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+               let queryItems = components.queryItems,
+               let sessionId = queryItems.first(where: { $0.name == "session_id" })?.value {
+                NotificationCenter.default.post(
+                    name: Notification.Name("PaymentCompleted"),
+                    object: nil,
+                    userInfo: ["session_id": sessionId, "status": "success"]
+                )
+                return true
+            }
+        }
+        // Stripe Checkout payment canceled
+        else if url.scheme == "rep" && url.host == "payment-canceled" {
+            NotificationCenter.default.post(
+                name: Notification.Name("PaymentCompleted"),
+                object: nil,
+                userInfo: ["status": "canceled"]
+            )
+            return true
+        }
+        return false
     }
+
 
     // MARK: - Remote Notifications
 

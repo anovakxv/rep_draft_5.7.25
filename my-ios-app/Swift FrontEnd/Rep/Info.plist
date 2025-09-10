@@ -28,14 +28,16 @@
     <!-- Stripe 3D Secure redirect support -->
     <key>CFBundleURLTypes</key>
     <array>
-      <dict>
-        <key>CFBundleURLName</key>
-        <string>com.networkedcapital.rep</string>
-        <key>CFBundleURLSchemes</key>
-        <array>
-          <string>rep</string>
-        </array>
-      </dict>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>com.networkedcapital.rep</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>rep</string>
+            </array>
+        </dict>
     </array>
 </dict>
 </plist>

@@ -5,7 +5,6 @@
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
-import StripePaymentSheet
 
 // MARK: - Transaction Types
 
@@ -89,7 +88,6 @@ struct PayTransactionView: View {
 
     @State private var amount: String = ""
     @State private var message: String = ""
-    @State private var paymentSheet: PaymentSheet?
     @State private var isLoading = false
     @State private var paymentStatus: PaymentStatus = .initial
     @State private var isMonthlySubscription = false
@@ -193,15 +191,11 @@ struct PayTransactionView: View {
                             .padding(.horizontal)
                     }
 
-                    // Submit button
+                    // Safari-based Stripe Checkout button
                     Button {
                         guard validateAmount() else { return }
                         isLoading = true
-                        if isMonthlySubscription {
-                            createSubscription()
-                        } else {
-                            preparePaymentSheet()
-                        }
+                        createCheckoutSession()
                     } label: {
                         if isLoading {
                             ProgressView()
@@ -220,6 +214,13 @@ struct PayTransactionView: View {
                     .disabled(isLoading || amount.isEmpty || (isMonthlySubscription && selectedPriceId.isEmpty))
                     .padding(.horizontal)
                     .padding(.top, 8)
+
+                    // Info about Safari redirect
+                    Text("You'll be redirected to a secure payment page to complete your \(isMonthlySubscription ? "subscription" : transactionType.title.lowercased()).")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
 
                     // If it's a donation, add a tax info note
                     if transactionType == .donation {
@@ -258,6 +259,32 @@ struct PayTransactionView: View {
                     dismissButton: .default(Text("Done")) {
                         dismiss()
                     }
+                )
+            }
+            .onAppear {
+                NotificationCenter.default.addObserver(
+                    forName: Notification.Name("PaymentCompleted"),
+                    object: nil,
+                    queue: .main
+                ) { notification in
+                    if let status = notification.userInfo?["status"] as? String {
+                        if status == "success" {
+                            if let sessionId = notification.userInfo?["session_id"] as? String {
+                                self.checkPaymentStatus(sessionId: sessionId)
+                            } else {
+                                self.paymentStatus = .success
+                            }
+                        } else if status == "canceled" {
+                            self.paymentStatus = .initial
+                        }
+                    }
+                }
+            }
+            .onDisappear {
+                NotificationCenter.default.removeObserver(
+                    self,
+                    name: Notification.Name("PaymentCompleted"),
+                    object: nil
                 )
             }
         }
@@ -322,18 +349,19 @@ struct PayTransactionView: View {
         return true
     }
 
-    // MARK: - Payment Processing
+    // MARK: - Stripe Checkout Session (Safari-based)
 
-    private func preparePaymentSheet() {
+    private func createCheckoutSession() {
         paymentStatus = .loading
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/create_payment_intent") else {
+
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/create_checkout_session") else {
             paymentStatus = .failed("Invalid URL")
             isLoading = false
             return
         }
 
         guard let amountValue = Double(amount),
-              amountValue > 0 else {
+              amountValue > 0 || isMonthlySubscription else {
             paymentStatus = .failed("Invalid amount")
             isLoading = false
             return
@@ -342,13 +370,7 @@ struct PayTransactionView: View {
         // Convert to cents
         let amountCents = Int(amountValue * 100)
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-
-        let body: [String: Any] = [
-            "amount": amountCents,
+        var requestBody: [String: Any] = [
             "portal_id": portalId,
             "goal_id": goalId,
             "currency": "usd",
@@ -356,91 +378,70 @@ struct PayTransactionView: View {
             "transaction_type": transactionTypeString
         ]
 
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                isLoading = false
-
-                if let error = error {
-                    paymentStatus = .failed("Network error: \(error.localizedDescription)")
-                    return
-                }
-
-                guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let clientSecret = json["clientSecret"] as? String else {
-                    paymentStatus = .failed("Failed to process payment request")
-                    return
-                }
-
-                var configuration = PaymentSheet.Configuration()
-                configuration.merchantDisplayName = "Rep App"
-                configuration.allowsDelayedPaymentMethods = true
-
-                paymentSheet = PaymentSheet(
-                    paymentIntentClientSecret: clientSecret,
-                    configuration: configuration
-                )
-
-                presentPaymentSheet()
-            }
-        }.resume()
-    }
-
-    // MARK: - Subscription Processing
-
-    private func createSubscription() {
-        guard !selectedPriceId.isEmpty else {
-            paymentStatus = .failed("Subscription plan not available.")
-            isLoading = false
-            return
-        }
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/create_subscription") else {
-            paymentStatus = .failed("Invalid URL")
-            isLoading = false
-            return
+        if isMonthlySubscription {
+            requestBody["is_subscription"] = true
+            requestBody["price_id"] = selectedPriceId
+        } else {
+            requestBody["amount"] = amountCents
+            requestBody["is_subscription"] = false
         }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-
-        let body: [String: Any] = [
-            "portal_id": portalId,
-            "goal_id": goalId,
-            "price_id": selectedPriceId
-        ]
-
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        request.httpBody = try? JSONSerialization.data(withJSONObject: requestBody)
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                isLoading = false
+                self.isLoading = false
 
                 if let error = error {
-                    paymentStatus = .failed("Network error: \(error.localizedDescription)")
+                    self.paymentStatus = .failed("Network error: \(error.localizedDescription)")
                     return
                 }
 
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let clientSecret = json["clientSecret"] as? String else {
-                    paymentStatus = .failed("Failed to process subscription")
+                      let checkoutUrl = json["checkout_url"] as? String,
+                      let url = URL(string: checkoutUrl) else {
+                    self.paymentStatus = .failed("Failed to create checkout session")
                     return
                 }
 
-                var configuration = PaymentSheet.Configuration()
-                configuration.merchantDisplayName = "Rep App"
-                configuration.allowsDelayedPaymentMethods = true
+                // Save session_id for status check after return
+                if let sessionId = json["session_id"] as? String {
+                    UserDefaults.standard.set(sessionId, forKey: "lastCheckoutSessionId")
+                }
 
-                paymentSheet = PaymentSheet(
-                    paymentIntentClientSecret: clientSecret,
-                    configuration: configuration
-                )
+                // Open Safari to complete payment
+                UIApplication.shared.open(url)
+            }
+        }.resume()
+    }
 
-                presentPaymentSheet()
+    private func checkPaymentStatus(sessionId: String) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/checkout_session_status?session_id=\(sessionId)") else {
+            return
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let paymentStatus = json["payment_status"] as? String {
+
+                    if paymentStatus == "paid" {
+                        self.paymentStatus = .success
+                    } else if paymentStatus == "unpaid" {
+                        self.paymentStatus = .failed("Payment was not completed")
+                    }
+                } else {
+                    self.paymentStatus = .initial
+                }
             }
         }.resume()
     }
@@ -456,26 +457,6 @@ struct PayTransactionView: View {
     private var isSuccess: Bool {
         if case .success = paymentStatus { return true }
         return false
-    }
-
-    private func presentPaymentSheet() {
-        guard let paymentSheet = paymentSheet else { return }
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootVC = windowScene.windows.first?.rootViewController else {
-            paymentStatus = .failed("Unable to present payment sheet")
-            return
-        }
-
-        paymentSheet.present(from: rootVC) { result in
-            switch result {
-            case .completed:
-                paymentStatus = .success
-            case .canceled:
-                paymentStatus = .initial
-            case .failed(let error):
-                paymentStatus = .failed("Payment failed: \(error.localizedDescription)")
-            }
-        }
     }
 }
 

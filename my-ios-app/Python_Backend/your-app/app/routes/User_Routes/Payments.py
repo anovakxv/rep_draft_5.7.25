@@ -303,3 +303,110 @@ def cancel_subscription():
         return jsonify({'status': 'success', 'message': 'Subscription canceled successfully'})
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+@payments_bp.route('/api/create_checkout_session', methods=['POST'])
+@jwt_required
+def create_checkout_session():
+    data = request.json or {}
+    user_id = g.current_user.id
+    
+    amount = data.get('amount')
+    portal_id = data.get('portal_id')
+    goal_id = data.get('goal_id')
+    currency = data.get('currency', 'usd')
+    message = data.get('message', '')
+    transaction_type = data.get('transaction_type', 'donation')
+    is_subscription = data.get('is_subscription', False)
+    price_id = data.get('price_id')
+    
+    if not amount and not price_id:
+        return jsonify({'error': 'amount or price_id is required'}), 400
+    if not portal_id:
+        return jsonify({'error': 'portal_id is required'}), 400
+        
+    portal = db.session.query(Portal).filter_by(id=portal_id).first()
+    if not portal or not portal.stripe_account_id:
+        return jsonify({'error': 'Portal not set up to receive payments'}), 400
+    
+    # Get the customer for this user
+    customer = get_or_create_stripe_customer(user_id)
+    
+    # Determine success and cancel URLs (deep links back to your app)
+    success_url = f"rep://payment-success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"rep://payment-canceled"
+    
+    try:
+        # Set up common checkout session parameters
+        session_params = {
+            'customer': customer.id,
+            'success_url': success_url,
+            'cancel_url': cancel_url,
+            'payment_method_types': ['card'],
+            'client_reference_id': str(user_id),
+            'metadata': {
+                'portal_id': str(portal_id),
+                'goal_id': str(goal_id) if goal_id else '',
+                'user_id': str(user_id),
+                'transaction_type': transaction_type
+            }
+        }
+        
+        # Handle one-time payment vs subscription
+        if is_subscription and price_id:
+            session_params['mode'] = 'subscription'
+            session_params['line_items'] = [{
+                'price': price_id,
+                'quantity': 1
+            }]
+        else:
+            session_params['mode'] = 'payment'
+            session_params['line_items'] = [{
+                'price_data': {
+                    'currency': currency,
+                    'product_data': {
+                        'name': f"{transaction_type.capitalize()} to {portal.name}",
+                        'description': f"Goal: {goal.title}" if goal_id and 'goal' in locals() and goal else "",
+                    },
+                    'unit_amount': amount,
+                },
+                'quantity': 1,
+            }]
+            
+            # Add payment_intent_data for transfers to connected account
+            session_params['payment_intent_data'] = {
+                'transfer_data': {
+                    'destination': portal.stripe_account_id,
+                },
+                'metadata': {
+                    'portal_id': str(portal_id),
+                    'goal_id': str(goal_id) if goal_id else '',
+                    'user_id': str(user_id),
+                    'message': message,
+                    'transaction_type': transaction_type
+                }
+            }
+        
+        checkout_session = stripe.checkout.Session.create(**session_params)
+        
+        return jsonify({
+            'checkout_url': checkout_session.url,
+            'session_id': checkout_session.id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@payments_bp.route('/api/checkout_session_status', methods=['GET'])
+@jwt_required
+def checkout_session_status():
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return jsonify({'error': 'session_id is required'}), 400
+    
+    try:
+        checkout_session = stripe.checkout.Session.retrieve(session_id)
+        return jsonify({
+            'status': checkout_session.status,
+            'payment_status': checkout_session.payment_status
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400        

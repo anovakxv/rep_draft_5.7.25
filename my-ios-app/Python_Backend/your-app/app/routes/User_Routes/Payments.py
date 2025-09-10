@@ -9,13 +9,24 @@ from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
-from app.services.stripe_service import get_or_create_stripe_customer
+from app.models.People_Models.user import User 
 import os
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 # Define the Blueprint
 payments_bp = Blueprint('payments', __name__)
+
+def get_or_create_stripe_customer(user_id):
+    user = db.session.query(User).filter_by(id=user_id).first()
+    if not user:
+        raise Exception("User not found")
+    if hasattr(user, "stripe_customer_id") and user.stripe_customer_id:
+        return stripe.Customer.retrieve(user.stripe_customer_id)
+    customer = stripe.Customer.create(email=user.email)
+    user.stripe_customer_id = customer.id
+    db.session.commit()
+    return customer
 
 @payments_bp.route('/api/create_setup_intent', methods=['POST'])
 @jwt_required

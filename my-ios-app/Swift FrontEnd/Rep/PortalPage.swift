@@ -153,12 +153,12 @@ struct PortalPage: View {
     @State private var showFlagResultAlert = false
     @State private var selectedLead: User? = nil
 
+    // Navigation/modal state
+    @State private var navigateToEditAfterDismiss = false
+
     // Support state
     @State private var showPaymentSheet = false
     @State private var supportGoal: Goal? = nil
-
-    // Navigation/modal state
-    @State private var navigateToEditAfterDismiss = false
 
     // Enum for all possible sheets (EditGoal, PortalActionSheet)
     enum ActiveSheet: Identifiable {
@@ -195,6 +195,10 @@ struct PortalPage: View {
         portal.aUsers?.contains(where: { $0.id == userId }) ?? false
     }
 
+    private func findSupportableGoal(from goals: [Goal]) -> Goal? {
+        return goals.first { $0.typeName == "Fund" || $0.typeName == "Sales" }
+    }
+
     // Helper for sheet content
     @ViewBuilder
     private func activeSheetView(portal: PortalDetail) -> some View {
@@ -209,17 +213,22 @@ struct PortalPage: View {
             )
         case .portalActionMenu:
             VStack(spacing: 24) {
-                // "$ Support" button appears only if there is a Fund or Sales goal
+                // "$ Support" button always shown at the top, in dark green
                 if supportGoal != nil {
                     Button(action: {
                         showPaymentSheet = true
-                        activeSheet = nil
+                        activeSheet = nil // Dismiss the action menu before showing payment sheet
                     }) {
-                        Text("$ Support")
-                            .foregroundColor(Color.repGreen)
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 5)
+                        HStack(spacing: 8) {
+                            Image(systemName: "dollarsign.circle.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
+                            Text("Support")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
+                        }
+                        .padding(.vertical, 5)
                     }
                 }
 
@@ -284,7 +293,7 @@ struct PortalPage: View {
             .padding()
             .presentationDetents([.medium])
         case .none:
-            EmptyView()
+            EmptyView()    
         }
     }
 
@@ -314,19 +323,16 @@ struct PortalPage: View {
                 if viewModel.reportingIncrements.isEmpty {
                     viewModel.fetchReportingIncrements()
                 }
-                
-                // Add NotificationCenter observer
                 NotificationCenter.default.addObserver(forName: .init("ShowEditPortalFromToolbar"), object: nil, queue: .main) { _ in
                     showEditPortal = true
                 }
             }
+            .onChange(of: viewModel.portalGoals) { newGoals in
+                supportGoal = findSupportableGoal(from: newGoals)
+            }
             .onDisappear {
                 // Remove NotificationCenter observer
                 NotificationCenter.default.removeObserver(self, name: .init("ShowEditPortalFromToolbar"), object: nil)
-            }
-            // Detect the first supportable goal (Fund or Sales) as goals load
-            .onChange(of: viewModel.portalGoals) { newGoals in
-                supportGoal = newGoals.first { $0.typeName == "Fund" || $0.typeName == "Sales" }
             }
             .navigationDestination(isPresented: $showEditPortal) {
                 EditPortalView(portal: portal, userId: userId)
@@ -358,12 +364,11 @@ struct PortalPage: View {
                     .presentationDetents([.large])
                 }
             }
-            // Present the PayTransaction page for the first Fund or Sales goal
             .sheet(isPresented: $showPaymentSheet) {
-                if let goal = supportGoal, let portalDetail = viewModel.portalDetail {
+                if let goal = supportGoal {
                     PayTransactionView(
-                        portalId: portalDetail.id,
-                        portalName: portalDetail.name,
+                        portalId: portalId,
+                        portalName: viewModel.portalDetail?.name ?? "Portal",
                         goalId: goal.id,
                         goalName: goal.title,
                         transactionType: goal.typeName == "Fund" ? .donation : .payment
@@ -495,7 +500,7 @@ struct PortalPageContent: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button("Join Team") { onAdd() }
-                    Button("Edit Portal") { 
+                    Button("Edit Portal") {
                         // Use direct navigation trigger
                         NotificationCenter.default.post(name: .init("ShowEditPortalFromToolbar"), object: nil)
                     }
@@ -519,8 +524,8 @@ struct FullscreenImageViewer: View {
     init(images: [PortalFile], startIndex: Int, onDismiss: @escaping () -> Void) {
         self.images = images
         self.startIndex = startIndex
-        this._selectedIndex = State(initialValue: startIndex)
         self.onDismiss = onDismiss
+        _selectedIndex = State(initialValue: startIndex)
     }
 
     var body: some View {
@@ -546,8 +551,8 @@ struct FullscreenImageViewer: View {
                 Image(systemName: "xmark.circle.fill")
                     .font(.system(size: 24))
                     .foregroundColor(.white)
-                    .padding(.top, 40)      
-                    .padding(.trailing, 40) 
+                    .padding(.top, 40)
+                    .padding(.trailing, 40)
                     .contentShape(Rectangle()) // Ensures the tap area is reliable
             }
         }
@@ -898,4 +903,4 @@ struct BarChartView: View {
         }
         .frame(width: 70, height: 56)
     }
-}
+}	

@@ -143,9 +143,6 @@ struct GoalsDetailView: View {
                     } else if selectedSegment == 2 {
                         ForEach(viewModel.team) { user in
                             TeamCell(user: user)
-                                .onTapGesture {
-                                    selectedProfileUserId = user.id
-                                }
                         }
                     }
                 }
@@ -182,10 +179,10 @@ struct GoalsDetailView: View {
                     )
                     .cornerRadius(8)
                         .shadow(
-                            color: Color(.sRGB, red: 0.1, green: 0.1, blue: 0.1, opacity: 0.32), 
-                            radius: 7,    
+                            color: Color(.sRGB, red: 0.1, green: 0.1, blue: 0.1, opacity: 0.30), 
+                            radius: 5,    
                             x: -3,
-                            y: 4
+                            y: 3
                     )
                 }
                 .padding(.bottom, 70)
@@ -761,7 +758,7 @@ struct APIUser: Codable, Identifiable {
 
 // MARK: - Models
 
-struct Goal: Identifiable, Codable {
+struct Goal: Identifiable, Codable, Equatable {
     var id: Int
     var title: String
     var subtitle: String
@@ -802,7 +799,7 @@ struct Feed: Identifiable {
 
 // MARK: - Bar Chart Data Model
 
-struct BarChartData: Identifiable, Codable {
+struct BarChartData: Identifiable, Codable, Equatable {
     let id: Int
     let value: Double
     let valueLabel: String
@@ -825,25 +822,15 @@ struct FeedCell: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             if let url = feed.userProfilePictureURL {
-                Button(action: {
-                    onProfileTap?()
-                }) {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 80, height: 80)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(PlainButtonStyle())
+                KFImage(url)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 80, height: 80)
+                    .clipShape(Circle())
             } else {
-                Button(action: {
-                    onProfileTap?()
-                }) {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 80, height: 80)
-                }
-                .buttonStyle(PlainButtonStyle())
+                Circle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 80, height: 80)
             }
 
             VStack(alignment: .leading, spacing: 4) {

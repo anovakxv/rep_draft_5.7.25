@@ -58,8 +58,7 @@
     <!-- Modals & Fullscreen Views -->
     <transition name="fade">
       <ActionSheetModal
-        v-if="!!activeSheet"
-        :sheet-type="activeSheet"
+        v-if="activeSheet === 'portalActionMenu'"
         :portal="portalDetail"
         :is-current-user-lead="isCurrentUserLead"
         :support-goal="supportGoal"
@@ -80,11 +79,11 @@
       />
     </transition>
 
-    <!-- Other Modals (would be separate components/routes) -->
+    <!-- PayTransaction Sheet -->
     <transition name="fade">
       <div v-if="showPaymentSheet" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="bg-white w-full max-w-md rounded-lg shadow-lg p-6 mx-4">
-          <div class="flex justify-between items-center mb-4">
+        <div class="bg-white w-full h-full flex flex-col">
+          <div class="flex justify-between items-center p-4 border-b">
             <h2 class="text-xl font-bold">Support {{ supportGoal?.title }}</h2>
             <button @click="showPaymentSheet = false" class="text-gray-400 hover:text-gray-600">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -92,8 +91,16 @@
               </svg>
             </button>
           </div>
-          <div class="space-y-4">
-            <p>Payment interface would be here</p>
+          <div class="flex-1 p-4">
+            <!-- PayTransaction component would go here -->
+            <div class="space-y-4">
+              <p>Portal: {{ portalDetail?.name }}</p>
+              <p>Goal: {{ supportGoal?.title }}</p>
+              <p>Type: {{ supportGoal?.typeName === 'Fund' ? 'Donation' : 'Payment' }}</p>
+              <p class="text-gray-500">Payment interface would be implemented here</p>
+            </div>
+          </div>
+          <div class="border-t p-4">
             <button @click="showPaymentSheet = false" class="w-full py-2 bg-green-600 text-white rounded-lg">
               Close
             </button>
@@ -102,6 +109,7 @@
       </div>
     </transition>
 
+    <!-- Message Sheet -->
     <transition name="fade">
       <div v-if="showMessageSheet" class="fixed inset-0 z-50 flex items-center justify-center">
         <div class="bg-white w-full h-full max-w-md rounded-lg shadow-lg flex flex-col">
@@ -125,6 +133,7 @@
       </div>
     </transition>
 
+    <!-- Add Goal Sheet -->
     <transition name="fade">
       <div v-if="activeSheet === 'addGoal'" class="fixed inset-0 z-50 flex items-center justify-center">
         <div class="bg-white w-full h-full flex flex-col">
@@ -200,7 +209,7 @@ interface User {
   id: number; 
   fname?: string; 
   lname?: string; 
-  profilePictureURL?: URL; 
+  profilePictureURL?: string; 
 }
 
 interface Goal { 
@@ -249,10 +258,8 @@ interface PortalDetail {
 }
 
 interface ReportingIncrement { 
-  // Reporting increment fields would be defined here
   id: number;
   name: string;
-  // Additional fields
 }
 
 interface PortalDetailResponse {
@@ -305,22 +312,22 @@ const showEditPortal = ref(false);
 // Flagging State
 const showFlagConfirmation = ref(false);
 const flagResultMessage = ref<string | null>(null);
-const showFlagResultAlert = ref(false);
 
 // Fullscreen Image Viewer State
 const isFullscreenOpen = ref(false);
 const fullscreenStartIndex = ref(0);
 
-// --- Computed Properties ---
-const supportGoal = computed(() => portalGoals.value.find(g => g.typeName === 'Fund' || g.typeName === 'Sales'));
-const isCurrentUserLead = computed(() => portalDetail.value?.aUsers?.some(u => u.id === userId) ?? false);
-const leadRepUser = computed(() => portalDetail.value?.aLeads?.[0] ?? null);
+// --- Computed Properties (matching Swift logic exactly) ---
+const supportGoal = computed(() => {
+  return portalGoals.value.find(g => g.typeName === 'Fund' || g.typeName === 'Sales');
+});
 
-// Check if device is an iPad (for modal presentation logic)
-const isPad = computed(() => {
-  // Basic detection - could be enhanced with better user agent parsing
-  const ua = navigator.userAgent;
-  return /iPad/.test(ua) || (/Macintosh/.test(ua) && 'ontouchend' in document);
+const isCurrentUserLead = computed(() => {
+  return portalDetail.value?.aUsers?.some(u => u.id === userId) ?? false;
+});
+
+const leadRepUser = computed(() => {
+  return portalDetail.value?.aLeads?.[0] ?? null;
 });
 
 // --- API Methods (from ViewModel) ---
@@ -408,8 +415,9 @@ const openMessageSheet = () => {
   }
 };
 
+// Updated to match Swift logic exactly - dismiss action sheet first, then show payment
 const openPaymentSheet = () => {
-  activeSheet.value = null;
+  activeSheet.value = null; // Dismiss the action menu first
   if (supportGoal.value) {
     showPaymentSheet.value = true;
   }
@@ -469,11 +477,10 @@ watch(showEditPortal, (newVal) => {
   }
 });
 
-// Watch for supportGoal changes as goals load
+// Watch for portalGoals changes - this matches the Swift onChange(of: viewModel.portalGoals) logic
 watch(portalGoals, (newGoals) => {
-  const foundSupportGoal = newGoals.find(g => g.typeName === "Fund" || g.typeName === "Sales");
-  // No need to update supportGoal as it's a computed property
-});
+  console.log("Portal goals updated, supportGoal:", supportGoal.value);
+}, { immediate: true });
 
 // --- Inline Child Components ---
 
@@ -517,7 +524,7 @@ const ImageTabView = defineComponent({
   props: { sections: Array as () => PortalSection[] },
   emits: ['image-tap'],
   setup(props, { emit }) {
-    const images = computed(() => props.sections.flatMap(s => s.aFiles));
+    const images = computed(() => props.sections?.flatMap(s => s.aFiles) || []);
     const currentImageIndex = ref(0);
     
     const nextImage = () => {
@@ -551,6 +558,7 @@ const ImageTabView = defineComponent({
         class: 'absolute bottom-2 left-0 right-0 flex justify-center space-x-2'
       }, images.value.map((_, idx) => 
         h('div', { 
+          key: idx,
           class: `w-2 h-2 rounded-full ${idx === currentImageIndex.value ? 'bg-white' : 'bg-gray-400'}` 
         })
       )),
@@ -558,6 +566,7 @@ const ImageTabView = defineComponent({
       // Navigation arrows (if multiple images)
       images.value.length > 1 && [
         h('button', {
+          key: 'prev',
           class: 'absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
           onClick: prevImage
         }, [
@@ -577,6 +586,7 @@ const ImageTabView = defineComponent({
           ])
         ]),
         h('button', {
+          key: 'next',
           class: 'absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
           onClick: nextImage
         }, [
@@ -610,16 +620,17 @@ const PortalSegmentedPicker = defineComponent({
     return () => h('div', { 
       class: 'flex border border-black rounded-md overflow-hidden'
     },
-      props.segments.map((segment, index) =>
+      props.segments?.map((segment, index) =>
         h('button', {
+          key: index,
           class: [
             'flex-1 py-2 text-sm font-medium transition-colors',
             props.modelValue === index ? 'bg-black text-white' : 'bg-white text-black',
-            index < props.segments.length - 1 ? 'border-r border-black' : ''
+            index < (props.segments?.length || 0) - 1 ? 'border-r border-black' : ''
           ],
           onClick: () => emit('update:modelValue', index)
         }, segment)
-      )
+      ) || []
     );
   }
 });
@@ -641,18 +652,25 @@ const PortalResultsSection = defineComponent({
     };
     
     return () => h('div', { class: 'space-y-2' }, [
-      props.goals.length > 0
-        ? props.goals.map(goal => [
-            h(RouterLink, { to: `/goal/${goal.id}`, class: 'block' }, () => GoalListItem(goal)),
-            h('div', { class: 'border-b border-gray-200' })
-          ])
+      (props.goals?.length || 0) > 0
+        ? props.goals!.map((goal, index) => [
+            h(RouterLink, { 
+              key: `link-${index}`,
+              to: `/goal/${goal.id}`, 
+              class: 'block' 
+            }, () => GoalListItem(goal)),
+            h('div', { 
+              key: `divider-${index}`,
+              class: 'border-b border-gray-200' 
+            })
+          ]).flat()
         : h('p', { class: 'text-gray-500 py-8 text-center' }, 'No goals for this portal yet.')
     ]);
   }
 });
 
 const PortalStorySection = defineComponent({
-  props: { portal: Object as () => PortalDetail },
+  props: { portal: Object as () => PortalDetail | null },
   setup(props) {
     const storyTexts = computed(() => 
       (props.portal?.aTexts || []).filter(t => (t.section || '') === 'story')
@@ -662,16 +680,31 @@ const PortalStorySection = defineComponent({
       h('h2', { class: 'font-bold text-lg' }, 'Leads'),
       h('div', { class: 'overflow-x-auto -mx-4 px-4' }, [
         h('div', { class: 'flex space-x-6 pb-2' },
-          (props.portal?.aLeads || []).map(lead =>
-            h('div', { class: 'text-center flex flex-col items-center' }, [
+          (props.portal?.aLeads || []).map((lead, index) =>
+            h('div', { 
+              key: index,
+              class: 'text-center flex flex-col items-center' 
+            }, [
               lead.profilePictureURL 
-                ? h('img', { 
-                    src: lead.profilePictureURL.toString(), 
-                    class: 'w-12 h-12 rounded-full object-cover' 
+                ? h('img', {
+                    src: lead.profilePictureURL,
+                    class: 'w-12 h-12 rounded-full object-cover'
                   })
-                : h('div', { 
-                    class: 'w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center text-white font-bold' 
-                  }, (lead.fname?.charAt(0) || '') + (lead.lname?.charAt(0) || '')),
+                : h('div', {
+                    class: 'w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center'
+                  }, [
+                    h('svg', {
+                      class: 'w-6 h-6 text-gray-500',
+                      fill: 'currentColor',
+                      viewBox: '0 0 20 20'
+                    }, [
+                      h('path', {
+                        'fill-rule': 'evenodd',
+                        d: 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z',
+                        'clip-rule': 'evenodd'
+                      })
+                    ])
+                  ]),
               h('p', { class: 'text-xs mt-2 whitespace-nowrap' }, 
                 `${lead.fname || ''} ${lead.lname ? lead.lname.charAt(0) + '.' : ''}`)
             ])
@@ -679,8 +712,11 @@ const PortalStorySection = defineComponent({
         )
       ]),
       h('div', { class: 'border-t border-gray-200 my-4' }),
-      ...storyTexts.value.map(textBlock =>
-        h('div', { class: 'space-y-2 mb-6' }, [
+      ...storyTexts.value.map((textBlock, index) =>
+        h('div', { 
+          key: index,
+          class: 'space-y-2 mb-6' 
+        }, [
           textBlock.title && h('h3', { class: 'font-semibold text-lg' }, textBlock.title),
           textBlock.text && h('p', { class: 'text-gray-700 whitespace-pre-line' }, textBlock.text)
         ])
@@ -707,18 +743,15 @@ const BottomBarView = defineComponent({
   }
 });
 
+// ActionSheetModal - EXACTLY matching Swift logic with proper button ordering
 const ActionSheetModal = defineComponent({
   props: {
-    isOpen: Boolean,
-    sheetType: String as () => ActiveSheet,
     portal: Object as () => PortalDetail | null,
     isCurrentUserLead: Boolean,
     supportGoal: Object as () => Goal | null,
   },
   emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support'],
   setup(props, { emit }) {
-    if (!props.isOpen) return () => null;
-    
     return () => h('div', { 
       class: 'fixed inset-0 bg-black bg-opacity-50 z-40 flex items-end', 
       onClick: () => emit('close') 
@@ -728,49 +761,62 @@ const ActionSheetModal = defineComponent({
         style: { maxHeight: '80vh', overflowY: 'auto' },
         onClick: (e: Event) => e.stopPropagation() 
       }, [
-        props.sheetType === 'portalActionMenu' && [
-          props.supportGoal && h('button', { 
-            class: 'action-button', 
-            onClick: () => emit('support') 
+        // "$ Support" button - always shown at the top if supportGoal exists, matching Swift EXACTLY
+        props.supportGoal && h('button', { 
+          class: 'w-full text-left py-3 text-xl font-semibold text-green-600 hover:bg-gray-50 transition-colors flex items-center space-x-2', 
+          onClick: () => emit('support') 
+        }, [
+          h('svg', {
+            xmlns: 'http://www.w3.org/2000/svg',
+            class: 'h-6 w-6 text-green-800',
+            fill: 'currentColor',
+            viewBox: '0 0 20 20'
           }, [
-            h('span', { class: 'flex items-center' }, [
-              h('span', { class: 'mr-2 text-green-600 text-2xl' }, '$'),
-              h('span', 'Support')
-            ])
+            h('path', {
+              'fill-rule': 'evenodd',
+              d: 'M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z',
+              'clip-rule': 'evenodd'
+            })
           ]),
-          
-          props.isCurrentUserLead && h('button', { 
-            class: 'action-button', 
-            onClick: () => emit('add-goal') 
-          }, 'Add Goal'),
-          
+          h('span', 'Support')
+        ]),
+        
+        // Add Goal - only if current user is lead (matches Swift isCurrentUserLead check)
+        props.isCurrentUserLead && h('button', { 
+          class: 'action-button', 
+          onClick: () => emit('add-goal') 
+        }, 'Add Goal'),
+        
+        // Select Goal Team - always shown (no action in Swift, just placeholder)
+        h('button', { 
+          class: 'action-button' 
+        }, 'Select Goal Team'),
+        
+        // Edit Purpose - only if portal belongs to current user (matches Swift: portal.users_id == userId)
+        (props.portal?.users_id === userId) && h('button', { 
+          class: 'action-button', 
+          onClick: () => emit('edit-purpose') 
+        }, 'Edit Purpose'),
+        
+        // Flag - always shown
+        h('button', { 
+          class: 'action-button text-red-500', 
+          onClick: () => emit('flag') 
+        }, 'Flag as Inappropriate'),
+        
+        // Cancel button
+        h('div', { class: 'pt-4' }, [
           h('button', { 
-            class: 'action-button' 
-          }, 'Select Goal Team'), // No action in Swift
-          
-          props.portal?.users_id === userId && h('button', { 
-            class: 'action-button', 
-            onClick: () => emit('edit-purpose') 
-          }, 'Edit Purpose'),
-          
-          h('button', { 
-            class: 'action-button text-red-500', 
-            onClick: () => emit('flag') 
-          }, 'Flag as Inappropriate'),
-          
-          h('div', { class: 'pt-4' }, [
-            h('button', { 
-              class: 'w-full text-center text-gray-600 py-2', 
-              onClick: () => emit('close') 
-            }, 'Cancel')
-          ])
-        ]
+            class: 'w-full text-center text-gray-600 py-2', 
+            onClick: () => emit('close') 
+          }, 'Cancel')
+        ])
       ])
     );
   }
 });
 
-// More advanced fullscreen viewer with zoom support
+// Fullscreen viewer with proper zoom functionality
 const FullscreenImageViewer = defineComponent({
   props: { 
     images: Array as () => PortalFile[], 
@@ -780,20 +826,17 @@ const FullscreenImageViewer = defineComponent({
   setup(props, { emit }) {
     const currentIndex = ref(props.startIndex || 0);
     const scale = ref(1);
-    const lastScale = ref(1);
     const offset = ref({ x: 0, y: 0 });
-    const lastOffset = ref({ x: 0, y: 0 });
-    const imageRef = ref<HTMLElement | null>(null);
     
     const nextImage = () => {
-      if (props.images.length > 0) {
+      if (props.images && props.images.length > 0) {
         resetZoom();
         currentIndex.value = (currentIndex.value + 1) % props.images.length;
       }
     };
     
     const prevImage = () => {
-      if (props.images.length > 0) {
+      if (props.images && props.images.length > 0) {
         resetZoom();
         currentIndex.value = (currentIndex.value - 1 + props.images.length) % props.images.length;
       }
@@ -801,9 +844,7 @@ const FullscreenImageViewer = defineComponent({
     
     const resetZoom = () => {
       scale.value = 1;
-      lastScale.value = 1;
       offset.value = { x: 0, y: 0 };
-      lastOffset.value = { x: 0, y: 0 };
     };
     
     const handleDoubleTap = () => {
@@ -811,11 +852,9 @@ const FullscreenImageViewer = defineComponent({
         resetZoom();
       } else {
         scale.value = 2.5;
-        lastScale.value = 2.5;
       }
     };
     
-    // Using transformStyle for proper scaling and translation
     const transformStyle = computed(() => {
       return `scale(${scale.value}) translate(${offset.value.x}px, ${offset.value.y}px)`;
     });
@@ -825,7 +864,7 @@ const FullscreenImageViewer = defineComponent({
     }, [
       // Header with close button and pagination info
       h('div', { class: 'flex justify-between items-center p-4 text-white' }, [
-        h('span', { class: 'text-sm' }, `${currentIndex.value + 1} / ${props.images.length}`),
+        h('span', { class: 'text-sm' }, `${currentIndex.value + 1} / ${props.images?.length || 0}`),
         h('button', { 
           class: 'text-white p-2', 
           onClick: () => emit('close') 
@@ -854,11 +893,10 @@ const FullscreenImageViewer = defineComponent({
         // Image with touch handlers
         h('div', {
           class: 'absolute inset-0 flex items-center justify-center',
-          onDblclick: handleDoubleTap,
-          ref: imageRef
+          onDblclick: handleDoubleTap
         }, [
           h('img', {
-            src: props.images[currentIndex.value]?.url,
+            src: props.images?.[currentIndex.value]?.url,
             class: 'max-w-full max-h-full object-contain',
             style: {
               transform: transformStyle.value,
@@ -868,8 +906,9 @@ const FullscreenImageViewer = defineComponent({
         ]),
         
         // Navigation arrows (if multiple images)
-        props.images.length > 1 && [
+        (props.images?.length || 0) > 1 && [
           h('button', {
+            key: 'prev',
             class: 'absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-2',
             onClick: prevImage
           }, [
@@ -889,6 +928,7 @@ const FullscreenImageViewer = defineComponent({
             ])
           ]),
           h('button', {
+            key: 'next',
             class: 'absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-2',
             onClick: nextImage
           }, [

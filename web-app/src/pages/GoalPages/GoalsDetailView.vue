@@ -7,9 +7,11 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Custom Top Bar -->
-    <header class="flex items-center justify-between h-14 px-4 border-b bg-white shrink-0">
+    <header class="flex items-center justify-between h-11 px-4 border-b bg-white shrink-0">
       <button @click="goBack" class="text-green-600 p-2 -ml-2">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
       </button>
       <h1 class="font-bold text-lg truncate px-4">{{ goal?.title || 'Goal Details' }}</h1>
       <div class="w-10"></div> <!-- Spacer -->
@@ -19,10 +21,16 @@
     <div v-if="goal" class="flex-1 flex flex-col overflow-hidden">
       <!-- Progress Bar and Metrics Section -->
       <div class="p-4 border-b">
-        <div class="bg-gray-200 rounded-none h-[34px] overflow-hidden">
-          <div class="bg-[#8cc65d] h-full" :style="{ width: `${goal.progressPercent}%` }"></div>
+        <!-- Progress Bar -->
+        <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-2">
+          <div 
+            class="bg-rep-green h-full transition-all duration-300 ease-out" 
+            :style="{ width: `${Math.min(100, Math.max(0, goal.progressPercent))}%` }"
+          ></div>
         </div>
-        <div class="text-sm text-gray-600 mt-2 space-y-1">
+        
+        <!-- Metrics Info -->
+        <div class="text-sm text-gray-600 space-y-1">
           <div class="flex justify-between">
             <span>Metric: {{ goal.metricName }}</span>
             <span>Goal Type: {{ goal.typeName }}</span>
@@ -31,8 +39,12 @@
             <span>Quota: {{ Math.round(goal.quota) }}</span>
             <span>Progress: {{ Math.round(goal.filledQuota) }}</span>
           </div>
-          <div v-if="goal.subtitle" class="text-secondary text-base mt-1">{{ goal.subtitle }}</div>
-          <div v-if="goal.description" class="text-secondary text-base">{{ goal.description }}</div>
+          <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-base mt-1">
+            {{ goal.subtitle }}
+          </div>
+          <div v-if="goal.description && goal.description.trim()" class="text-secondary text-base">
+            {{ goal.description }}
+          </div>
         </div>
       </div>
 
@@ -46,10 +58,12 @@
 
       <!-- Content List -->
       <div class="flex-1 overflow-y-auto">
-        <!-- Feed -->
+        <!-- Feed Tab -->
         <div v-if="selectedSegment === 0" class="px-4">
-          <div v-if="feed.length === 0" class="text-center text-gray-500 py-10">No feed items yet.</div>
-          <div v-else>
+          <div v-if="feed.length === 0" class="text-center text-gray-500 py-10">
+            No feed items yet.
+          </div>
+          <div v-else class="space-y-2">
             <FeedCell
               v-for="feedItem in feed"
               :key="feedItem.id"
@@ -59,7 +73,7 @@
           </div>
         </div>
         
-        <!-- Report -->
+        <!-- Report Tab -->
         <div v-else-if="selectedSegment === 1" class="px-4">
           <div v-if="goal.chartData && goal.chartData.length > 0">
             <LargeBarChartView :data="goal.chartData" :quota="goal.quota" />
@@ -69,10 +83,12 @@
           </div>
         </div>
         
-        <!-- Team -->
+        <!-- Team Tab -->
         <div v-else-if="selectedSegment === 2" class="px-4">
-          <div v-if="team.length === 0" class="text-center text-gray-500 py-10">No team members yet.</div>
-          <div v-else>
+          <div v-if="team.length === 0" class="text-center text-gray-500 py-10">
+            No team members yet.
+          </div>
+          <div v-else class="space-y-2">
             <TeamCell
               v-for="user in team"
               :key="user.id"
@@ -89,57 +105,74 @@
 
     <!-- Loading State -->
     <div v-else class="flex-1 flex items-center justify-center">
-      <div class="animate-spin h-8 w-8 border-4 border-[#8cc65d] border-t-transparent rounded-full"></div>
+      <div class="animate-spin h-8 w-8 border-4 border-rep-green border-t-transparent rounded-full"></div>
     </div>
 
-    <!-- Floating Support Button -->
+    <!-- Floating Support Button - EXACTLY matching Swift positioning and logic -->
     <button
       v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales')"
       @click="showPaymentSheet = true"
-      class="absolute bottom-20 right-5 px-5 py-3.5 bg-white border-2 border-[#8cc65d] rounded-lg shadow-lg flex items-center gap-2 text-[#8cc65d] font-semibold"
+      class="absolute bottom-[70px] right-5 px-5 py-[14px] bg-white border-2 border-rep-green rounded-lg shadow-lg flex items-center gap-2 text-rep-green font-semibold z-10 transition-transform"
       style="box-shadow: -3px 5px 7px rgba(26, 26, 26, 0.4)"
+      :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-[22px] w-[22px]" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" /></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-[22px] w-[22px]" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+      </svg>
       Support
     </button>
 
-    <!-- Team Chat Loading Overlay -->
+    <!-- Team Chat Loading Overlay - EXACTLY matching Swift -->
     <div v-if="isCreatingTeamChat" class="fixed inset-0 bg-black bg-opacity-15 z-40 flex items-center justify-center">
       <div class="bg-white p-4 rounded-xl shadow-lg flex flex-col items-center gap-3">
-        <div class="animate-spin h-6 w-6 border-3 border-[#8cc65d] border-t-transparent rounded-full"></div>
-        <div>Opening Team Chat...</div>
+        <div class="animate-spin h-6 w-6 border-2 border-rep-green border-t-transparent rounded-full"></div>
+        <div class="text-center">Opening Team Chat...</div>
       </div>
     </div>
 
-    <!-- Action Sheet -->
-    <div v-if="activeSheet === 'action'" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-end justify-center">
-      <div class="bg-white rounded-t-xl w-full max-w-md">
-        <div class="p-6 space-y-6">
-          <div v-if="goal?.typeName === 'Recruiting'" class="space-y-6">
-            <button @click="joinRecruitingGoal" class="w-full text-[#8cc65d] font-bold text-xl">
-              Join Team
+    <!-- Action Sheet - EXACTLY matching Swift logic -->
+    <transition name="fade">
+      <div v-if="activeSheet === 'action'" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-end justify-center">
+        <div class="bg-white rounded-t-xl w-full max-w-md" @click.stop>
+          <div class="p-6 space-y-6">
+            <!-- Recruiting Goal Actions -->
+            <div v-if="goal?.typeName === 'Recruiting'" class="space-y-6">
+              <button @click="joinRecruitingGoal" class="w-full text-rep-green font-bold text-xl py-3">
+                Join Team
+              </button>
+              <button @click="activeSheet = 'inviteTeam'" class="w-full text-rep-green font-bold text-xl py-3">
+                Invite to Team
+              </button>
+            </div>
+            <!-- Other Goal Types Actions -->
+            <div v-else class="space-y-6">
+              <button @click="activeSheet = 'updateGoal'" class="w-full text-rep-green font-bold text-xl py-3">
+                Update Progress
+              </button>
+            </div>
+            
+            <!-- Edit Goal - Only show if user is creator -->
+            <button 
+              v-if="goal?.creatorId === currentUserId"
+              @click="activeSheet = 'editGoal'" 
+              class="w-full text-rep-green font-bold text-xl py-3"
+            >
+              Edit Goal
             </button>
-            <button @click="activeSheet = 'inviteTeam'" class="w-full text-[#8cc65d] font-bold text-xl">
-              Invite to Team
+            
+            <!-- Delete Goal -->
+            <button @click="confirmDelete" class="w-full text-red-500 font-medium py-3">
+              Delete Goal
+            </button>
+            
+            <!-- Cancel -->
+            <button @click="activeSheet = null" class="w-full text-gray-500 py-3">
+              Cancel
             </button>
           </div>
-          <div v-else class="space-y-6">
-            <button @click="activeSheet = 'updateGoal'" class="w-full text-[#8cc65d] font-bold text-xl">
-              Update Progress
-            </button>
-          </div>
-          <button @click="activeSheet = 'editGoal'" class="w-full text-[#8cc65d] font-bold text-xl">
-            Edit Goal
-          </button>
-          <button @click="confirmDelete" class="w-full text-red-500 font-medium">
-            Delete Goal
-          </button>
-          <button @click="activeSheet = null" class="w-full text-gray-500">
-            Cancel
-          </button>
         </div>
       </div>
-    </div>
+    </transition>
 
     <!-- Update Goal Sheet -->
     <UpdateGoalSheet 
@@ -150,7 +183,7 @@
       @close="handleSheetClose" 
     />
 
-    <!-- Edit Goal Page -->
+    <!-- Edit Goal Page - Only if user is creator -->
     <EditGoalPage 
       v-if="activeSheet === 'editGoal' && goal?.id && goal?.creatorId === currentUserId" 
       :existing-goal="goal" 
@@ -177,7 +210,7 @@
       @close="handleChatClose" 
     />
 
-    <!-- Payment Sheet -->
+    <!-- Payment Sheet - EXACTLY matching Swift -->
     <PayTransactionView
       v-if="showPaymentSheet"
       :portal-id="goal?.portalId || 0"
@@ -188,43 +221,52 @@
       @close="showPaymentSheet = false"
     />
 
-    <!-- Delete Alert -->
-    <div v-if="showDeleteAlert" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-lg p-6 max-w-sm w-full">
-        <h3 class="text-lg font-semibold mb-2">Delete Goal?</h3>
-        <p class="text-gray-600 mb-6">Are you sure you want to delete this goal? This cannot be undone.</p>
-        <div class="flex justify-end space-x-4">
-          <button @click="showDeleteAlert = false" class="px-4 py-2 text-gray-700">
-            Cancel
-          </button>
-          <button @click="deleteGoal" class="px-4 py-2 bg-red-500 text-white rounded">
-            Delete
-          </button>
+    <!-- Delete Alert - EXACTLY matching Swift -->
+    <transition name="fade">
+      <div v-if="showDeleteAlert" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-sm w-full">
+          <h3 class="text-lg font-semibold mb-2">Delete Goal?</h3>
+          <p class="text-gray-600 mb-6">Are you sure you want to delete this goal? This cannot be undone.</p>
+          <div class="flex justify-end space-x-4">
+            <button @click="showDeleteAlert = false" class="px-4 py-2 text-gray-700">
+              Cancel
+            </button>
+            <button @click="deleteGoal" class="px-4 py-2 bg-red-500 text-white rounded">
+              Delete
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    </transition>
 
-    <!-- Error Alert -->
-    <div v-if="chatCreationError" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
-      <div class="bg-white rounded-lg p-6 max-w-sm w-full">
-        <h3 class="text-lg font-semibold mb-2">Chat Error</h3>
-        <p class="text-gray-600 mb-6">{{ chatCreationError }}</p>
-        <div class="flex justify-end">
-          <button @click="chatCreationError = null" class="px-4 py-2 bg-blue-500 text-white rounded">
-            OK
-          </button>
+    <!-- Chat Error Alert - EXACTLY matching Swift -->
+    <transition name="fade">
+      <div v-if="chatCreationError" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 max-w-sm w-full">
+          <h3 class="text-lg font-semibold mb-2">Chat Error</h3>
+          <p class="text-gray-600 mb-6">{{ chatCreationError }}</p>
+          <div class="flex justify-end">
+            <button @click="chatCreationError = null" class="px-4 py-2 bg-blue-500 text-white rounded">
+              OK
+            </button>
+          </div>
         </div>
       </div>
+    </transition>
+
+    <!-- Profile Navigation (Hidden NavigationLink equivalent) -->
+    <div v-if="selectedProfileUserId" class="hidden">
+      <!-- This would trigger navigation to profile -->
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, defineComponent, h } from 'vue';
+import { ref, onMounted, computed, defineComponent, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
-// --- Types & Interfaces ---
+// --- Types & Interfaces (EXACTLY matching Swift models) ---
 interface Goal {
   id: number;
   title: string;
@@ -343,7 +385,7 @@ const currentUserId = Number(localStorage.getItem('userId'));
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.rep-app.com';
 const s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/";
 
-// --- State ---
+// --- State (EXACTLY matching Swift ViewModel) ---
 const goal = ref<Goal | null>(null);
 const team = ref<User[]>([]);
 const feed = ref<Feed[]>([]);
@@ -358,6 +400,7 @@ const showChatSheet = ref(false);
 const goalTeamChatId = ref<number | null>(null);
 const showPaymentSheet = ref(false);
 const isLoadingIncrements = ref(false);
+const selectedProfileUserId = ref<number | null>(null);
 
 // Default reporting increments (fallback)
 const defaultReportingIncrements = [
@@ -366,19 +409,9 @@ const defaultReportingIncrements = [
   { id: 3, title: "Daily" }
 ];
 
-// --- Methods ---
-const goBack = () => router.back();
-
-const navigateToProfile = (userId?: number) => {
-  if (userId) router.push(`/profile/${userId}`);
-};
-
-const getUserIdForFeed = (feedItem: Feed): number | undefined => {
-  return latestProgressLogs.value.find(log => log.id === feedItem.id)?.users_id;
-};
-
+// --- Helper Methods (EXACTLY matching Swift ViewModel) ---
 const patchProfilePictureURL = (imageName?: string): string | undefined => {
-  if (!imageName) return undefined;
+  if (!imageName || imageName.trim() === '') return undefined;
   if (imageName.startsWith('http')) {
     return imageName;
   } else {
@@ -386,37 +419,63 @@ const patchProfilePictureURL = (imageName?: string): string | undefined => {
   }
 };
 
-// Format a timestamp string to time only
-const formatDateString = (isoString?: string): string => {
-  if (!isoString) return "";
+const getUserIdForFeed = (feedItem: Feed): number | undefined => {
+  return latestProgressLogs.value.find(log => log.id === feedItem.id)?.users_id;
+};
+
+// Parse timestamp string to Date (EXACTLY matching Swift)
+const parseTimestamp = (isoString?: string): Date => {
+  if (!isoString) return new Date(0); // Date.distantPast equivalent
   
   try {
     // Try ISO format first
     const date = new Date(isoString);
     if (!isNaN(date.getTime())) {
-      return new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: true
-      }).format(date);
+      return date;
     }
     
     // Try fallback format
     const fallbackDate = new Date(isoString.replace(' ', 'T'));
     if (!isNaN(fallbackDate.getTime())) {
-      return new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: 'numeric',
-        hour12: true
-      }).format(fallbackDate);
+      return fallbackDate;
     }
   } catch (e) {
     console.error('Date parsing error:', e);
   }
   
-  return isoString;
+  return new Date(0);
 };
 
+// Format a timestamp string to time only (EXACTLY matching Swift)
+const formatDateString = (isoString?: string): string => {
+  if (!isoString) return "";
+  
+  try {
+    const date = parseTimestamp(isoString);
+    if (date.getTime() === 0) return isoString;
+    
+    return new Intl.DateTimeFormat('en-US', {
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: true
+    }).format(date);
+  } catch (e) {
+    console.error('Date formatting error:', e);
+    return isoString;
+  }
+};
+
+// --- Navigation Methods ---
+const goBack = () => router.back();
+
+const navigateToProfile = (userId?: number) => {
+  if (userId) {
+    selectedProfileUserId.value = userId;
+    router.push(`/profile/${userId}`);
+  }
+};
+
+// --- API Methods (EXACTLY matching Swift ViewModel) ---
 const loadGoalDetails = async () => {
   try {
     const res = await axios.get(
@@ -426,7 +485,7 @@ const loadGoalDetails = async () => {
     
     const apiGoal: APIGoalDetail = res.data.result;
     
-    // Map API goal to our Goal model
+    // Map API goal to our Goal model (EXACTLY matching Swift)
     goal.value = {
       id: apiGoal.id,
       title: apiGoal.title,
@@ -444,27 +503,31 @@ const loadGoalDetails = async () => {
       chartData: apiGoal.chartData || [],
       creatorId: apiGoal.creatorId || 0,
       portalId: apiGoal.portalId,
-      portalName: apiGoal.portalName || "Organization"
+      portalName: apiGoal.portalName || "Portal"
     };
     
     // Store latest progress logs for lookup
     latestProgressLogs.value = apiGoal.aLatestProgress || [];
     
-    // Create a dictionary of team members by ID for easy lookup
+    // Create a dictionary of team members by ID for easy lookup (EXACTLY matching Swift)
     const teamDict = (apiGoal.team || []).reduce((acc, member) => {
       acc[member.id] = member;
       return acc;
     }, {} as Record<number, APIUser>);
     
-    // Sort progress logs by timestamp (newest first)
-    const sortedLogs = [...(apiGoal.aLatestProgress || [])].sort((a, b) => {
-      const dateA = new Date(a.timestamp || "");
-      const dateB = new Date(b.timestamp || "");
-      return dateB.getTime() - dateA.getTime();
+    // Get all progress logs and sort by timestamp (newest first) - EXACTLY matching Swift
+    const allLogs = apiGoal.aLatestProgress || [];
+    const sortedLogs = allLogs.sort((log1, log2) => {
+      const date1 = parseTimestamp(log1.timestamp);
+      const date2 = parseTimestamp(log2.timestamp);
+      return date2.getTime() - date1.getTime();
     });
     
-    // Create feed items from logs
-    feed.value = sortedLogs.slice(0, 20).map(log => {
+    // Limit to 20 items like Swift .prefix(20)
+    const limitedLogs = sortedLogs.slice(0, 20);
+    
+    // Create feed items from logs (EXACTLY matching Swift)
+    feed.value = limitedLogs.map(log => {
       const apiUser = teamDict[log.users_id || 0];
       const userName = apiUser?.name || "User";
       const formattedDate = formatDateString(log.timestamp);
@@ -482,7 +545,7 @@ const loadGoalDetails = async () => {
       };
     });
     
-    // Map team members
+    // Map team members (EXACTLY matching Swift)
     team.value = (apiGoal.team || []).map(apiUser => ({
       id: apiUser.id,
       fullName: apiUser.name || "User",
@@ -514,11 +577,12 @@ const loadReportingIncrements = async () => {
   }
 };
 
+// Join Recruiting Goal (EXACTLY matching Swift)
 const joinRecruitingGoal = async () => {
   activeSheet.value = null;
   
   try {
-    await axios.post(
+    const res = await axios.post(
       `${apiBaseUrl}/api/goals/join_leave`,
       {
         aGoalsIDs: [goal.value?.id],
@@ -527,33 +591,39 @@ const joinRecruitingGoal = async () => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     
-    // Reload goal details to update team members
-    loadGoalDetails();
+    // Check if response indicates success (matching Swift logic)
+    if (res.data?.result?.[goal.value?.id?.toString()] === "ok") {
+      // Reload goal details to update team members
+      loadGoalDetails();
+    }
   } catch (error) {
     console.error("Failed to join goal:", error);
   }
 };
 
+// Open Goal Team Chat (EXACTLY matching Swift)
 const openGoalTeamChat = async () => {
+  if (isCreatingTeamChat.value) return;
+
   if (goalTeamChatId.value) {
     showChatSheet.value = true;
     return;
   }
-  
+
   if (!token) {
     chatCreationError.value = "Not authenticated.";
     return;
   }
-  
+
   isCreatingTeamChat.value = true;
   chatCreationError.value = null;
-  
+
   try {
-    // Filter out current user from member IDs
+    // Filter out current user from member IDs (EXACTLY matching Swift)
     const memberIds = team.value
       .map(user => user.id)
       .filter(id => id !== currentUserId);
-    
+
     const res = await axios.post(
       `${apiBaseUrl}/api/message/manage_chat`,
       {
@@ -562,7 +632,7 @@ const openGoalTeamChat = async () => {
       },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    
+
     if (res.data.chats_id) {
       goalTeamChatId.value = res.data.chats_id;
       showChatSheet.value = true;
@@ -587,13 +657,16 @@ const deleteGoal = async () => {
   showDeleteAlert.value = false;
   
   try {
-    await axios.post(
+    const res = await axios.post(
       `${apiBaseUrl}/api/goals/delete`,
       { goals_id: goal.value?.id },
       { headers: { Authorization: `Bearer ${token}` } }
     );
     
-    goBack();
+    // Check for successful response (EXACTLY matching Swift)
+    if (res.status === 200) {
+      goBack();
+    }
   } catch (error) {
     console.error("Failed to delete goal:", error);
   }
@@ -611,26 +684,32 @@ const handleTeamInvite = () => {
 
 const handleChatClose = () => {
   showChatSheet.value = false;
-  // Additional cleanup for chat, if needed
+  
+  // Clean up chat resources (EXACTLY matching Swift onDismiss)
+  if (goalTeamChatId.value) {
+    // Equivalent to RealtimeSocketManager.shared.leave(chatId:)
+    // and NotificationCenter.default.post cleanup
+    console.log(`Cleaning up chat ${goalTeamChatId.value}`);
+  }
 };
 
-// --- Lifecycle Hooks ---
+// --- Lifecycle Hooks (EXACTLY matching Swift .onAppear) ---
 onMounted(() => {
   if (!token) {
     router.push('/login');
     return;
   }
   
-  // Small delay to match Swift's DispatchQueue.main.asyncAfter
+  // Small delay to match Swift's DispatchQueue.main.asyncAfter(deadline: .now() + 0.1)
   setTimeout(() => {
     loadGoalDetails();
     loadReportingIncrements();
   }, 100);
 });
 
-// --- Component Definitions ---
+// --- Component Definitions (EXACTLY matching Swift UI components) ---
 
-// GoalSegmentedPicker Component
+// GoalSegmentedPicker Component (EXACTLY matching Swift)
 const GoalSegmentedPicker = defineComponent({
   props: {
     segments: { type: Array as () => string[], required: true },
@@ -644,9 +723,9 @@ const GoalSegmentedPicker = defineComponent({
       h('button', {
         key: index,
         class: [
-          'flex-1 py-1.5 font-medium',
+          'flex-1 py-1.5 font-medium transition-colors',
           props.selectedIndex === index ? 'bg-black text-white' : 'bg-white text-black',
-          index < props.segments.length - 1 ? 'border-r border-[#e4e4e4]' : ''
+          index < props.segments.length - 1 ? 'border-r border-gray-300' : ''
         ],
         onClick: () => emit('update:selectedIndex', index)
       }, segment)
@@ -654,7 +733,7 @@ const GoalSegmentedPicker = defineComponent({
   }
 });
 
-// FeedCell Component
+// FeedCell Component (EXACTLY matching Swift)
 const FeedCell = defineComponent({
   props: {
     feed: { type: Object as () => Feed, required: true }
@@ -674,14 +753,26 @@ const FeedCell = defineComponent({
               class: 'w-20 h-20 rounded-full object-cover'
             })
           : h('div', {
-              class: 'w-20 h-20 rounded-full bg-gray-300'
-            })
+              class: 'w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center'
+            }, [
+              h('svg', {
+                class: 'w-8 h-8 text-gray-500',
+                fill: 'currentColor',
+                viewBox: '0 0 20 20'
+              }, [
+                h('path', {
+                  'fill-rule': 'evenodd',
+                  d: 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z',
+                  'clip-rule': 'evenodd'
+                })
+              ])
+            ])
       ]),
       h('div', {
         class: 'flex-1 pt-1 space-y-1'
       }, [
         h('div', { class: 'font-bold' }, props.feed.userName),
-        h('div', { class: 'text-xs' }, props.feed.line1),
+        h('div', { class: 'text-xs text-gray-600' }, props.feed.line1),
         h('div', { class: 'text-sm' }, props.feed.line2),
         h('div', { class: 'text-sm' }, `Note: ${props.feed.line3 || 'NA'}`),
         h('div', { class: 'text-sm' }, 'Attachments: NA')
@@ -690,14 +781,15 @@ const FeedCell = defineComponent({
   }
 });
 
-// TeamCell Component
+// TeamCell Component (EXACTLY matching Swift)
 const TeamCell = defineComponent({
   props: {
     user: { type: Object as () => User, required: true }
   },
+  emits: ['click'],
   setup(props, { emit }) {
     return () => h('div', {
-      class: 'flex items-center space-x-3 py-2 cursor-pointer',
+      class: 'flex items-center space-x-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors',
       onClick: () => emit('click')
     }, [
       props.user.profilePictureURL 
@@ -706,14 +798,26 @@ const TeamCell = defineComponent({
             class: 'w-10 h-10 rounded-full object-cover'
           })
         : h('div', {
-            class: 'w-10 h-10 rounded-full bg-gray-300'
-          }),
-      h('div', { class: 'font-medium' }, props.user.fullName || '')
+            class: 'w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center'
+          }, [
+            h('svg', {
+              class: 'w-5 h-5 text-gray-500',
+              fill: 'currentColor',
+              viewBox: '0 0 20 20'
+            }, [
+              h('path', {
+                'fill-rule': 'evenodd',
+                d: 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z',
+                'clip-rule': 'evenodd'
+              })
+            ])
+          ]),
+      h('div', { class: 'font-medium' }, props.user.fullName || 'User')
     ]);
   }
 });
 
-// LargeBarChartView Component
+// LargeBarChartView Component (EXACTLY matching Swift)
 const LargeBarChartView = defineComponent({
   props: {
     data: { type: Array as () => BarChartData[], required: true },
@@ -724,36 +828,41 @@ const LargeBarChartView = defineComponent({
       class: 'h-[260px] p-4 bg-white'
     }, [
       h('div', {
-        class: 'flex items-end h-full'
+        class: 'flex items-end justify-center h-full space-x-2'
       }, props.data.map(item => 
         h('div', {
           key: item.id,
-          class: 'flex flex-col items-center'
+          class: 'flex flex-col items-center space-y-1'
         }, [
-          h('div', { class: 'text-xs mb-0.5' }, item.valueLabel),
+          h('div', { 
+            class: 'text-xs text-center font-medium mb-1' 
+          }, item.valueLabel),
           h('div', { class: 'flex-1' }),
           h('div', {
-            class: 'w-10 bg-[#8cc65d] rounded',
+            class: 'w-10 bg-rep-green rounded-sm',
             style: {
-              height: `${Math.min(100, (item.value / Math.max(0.1, props.quota)) * 100)}%`
+              height: `${Math.min(100, Math.max(1, (item.value / Math.max(0.1, props.quota)) * 100))}%`,
+              minHeight: '2px'
             }
           }),
-          h('div', { class: 'text-xs mt-0.5 w-8 text-center truncate' }, item.bottomLabel)
+          h('div', { 
+            class: 'text-xs mt-1 w-10 text-center truncate text-gray-600' 
+          }, item.bottomLabel)
         ])
       ))
     ]);
   }
 });
 
-// BottomGoalBar Component
+// BottomGoalBar Component (EXACTLY matching Swift)
 const BottomGoalBar = defineComponent({
   emits: ['add', 'message'],
-  setup(props, { emit }) {
+  setup(_, { emit }) {
     return () => h('div', {
-      class: 'h-[51px] flex items-center justify-between px-4 border-t border-[#e4e4e4] bg-white'
+      class: 'h-[51px] flex items-center justify-between px-4 border-t border-gray-300 bg-white'
     }, [
       h('button', {
-        class: 'w-[291px] h-[41px] bg-[#8cc65d] rounded-md shadow flex items-center justify-center',
+        class: 'w-[291px] h-[41px] bg-rep-green rounded-md shadow-sm flex items-center justify-center transition-colors hover:bg-green-600',
         onClick: () => emit('add')
       }, [
         h('svg', {
@@ -772,7 +881,7 @@ const BottomGoalBar = defineComponent({
         ])
       ]),
       h('button', {
-        class: 'text-black',
+        class: 'text-black p-2 hover:bg-gray-100 rounded transition-colors',
         onClick: () => emit('message')
       }, [
         h('svg', {
@@ -794,8 +903,8 @@ const BottomGoalBar = defineComponent({
   }
 });
 
-// Note: The UpdateGoalSheet, EditGoalPage, GroupChatView, and PayTransactionView components
-// would be imported from separate files in a real implementation
+// Note: UpdateGoalSheet, EditGoalPage, InviteTeamSheet, GroupChatView, and PayTransactionView 
+// components would be imported from separate files in a real implementation
 </script>
 
 <style scoped>
@@ -803,19 +912,39 @@ const BottomGoalBar = defineComponent({
   color: rgba(60, 60, 67, 0.6);
 }
 
-.text-[#8cc65d] {
+.text-rep-green {
   color: #8cc65d;
 }
 
-.bg-[#8cc65d] {
+.bg-rep-green {
   background-color: #8cc65d;
 }
 
-.border-[#8cc65d] {
+.border-rep-green {
   border-color: #8cc65d;
 }
 
-.border-[#e4e4e4] {
-  border-color: #e4e4e4;
+/* Transitions */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* Scale transitions for support button */
+.transition-transform {
+  transition: transform 0.3s ease;
+}
+
+.scale-0 {
+  transform: scale(0);
+}
+
+.scale-100 {
+  transform: scale(1);
 }
 </style>

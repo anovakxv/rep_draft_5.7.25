@@ -168,23 +168,24 @@ struct GoalsDetailView: View {
                     HStack {
                         Image(systemName: "dollarsign.circle.fill")
                             .font(.system(size: 22))
+                            .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
                         Text("Support")
                             .fontWeight(.semibold)
+                            .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
                     }
                     .padding(.horizontal, 20)
                     .padding(.vertical, 14)
                     .background(Color.white)
-                    .foregroundColor(Color.repGreen)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.repGreen, lineWidth: 2)
+                            .stroke(Color.repGreen, lineWidth: 2) 
                     )
                     .cornerRadius(8)
-                    .shadow(
-                        color: Color.repGreen.opacity(0.22),
-                        radius: 4,
-                        x: -2,
-                        y: 4
+                        .shadow(
+                            color: Color(.sRGB, red: 0.1, green: 0.1, blue: 0.1, opacity: 0.32), 
+                            radius: 7,    
+                            x: -3,
+                            y: 4
                     )
                 }
                 .padding(.bottom, 70)

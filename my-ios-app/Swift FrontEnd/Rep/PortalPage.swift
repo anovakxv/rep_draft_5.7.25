@@ -153,6 +153,10 @@ struct PortalPage: View {
     @State private var showFlagResultAlert = false
     @State private var selectedLead: User? = nil
 
+    // Support state
+    @State private var showPaymentSheet = false
+    @State private var supportGoal: Goal? = nil
+
     // Navigation/modal state
     @State private var navigateToEditAfterDismiss = false
 
@@ -205,6 +209,20 @@ struct PortalPage: View {
             )
         case .portalActionMenu:
             VStack(spacing: 24) {
+                // "$ Support" button appears only if there is a Fund or Sales goal
+                if supportGoal != nil {
+                    Button(action: {
+                        showPaymentSheet = true
+                        activeSheet = nil
+                    }) {
+                        Text("$ Support")
+                            .foregroundColor(Color.repGreen)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+                }
+
                 if isCurrentUserLead(portal) {
                     Button(action: {
                         activeSheet = .addGoal
@@ -306,6 +324,10 @@ struct PortalPage: View {
                 // Remove NotificationCenter observer
                 NotificationCenter.default.removeObserver(self, name: .init("ShowEditPortalFromToolbar"), object: nil)
             }
+            // Detect the first supportable goal (Fund or Sales) as goals load
+            .onChange(of: viewModel.portalGoals) { newGoals in
+                supportGoal = newGoals.first { $0.typeName == "Fund" || $0.typeName == "Sales" }
+            }
             .navigationDestination(isPresented: $showEditPortal) {
                 EditPortalView(portal: portal, userId: userId)
                     .interactiveDismissDisabled()
@@ -332,6 +354,19 @@ struct PortalPage: View {
                             otherUserName: (lead.fname ?? "") + " " + (lead.lname ?? ""),
                             otherUserPhotoURL: lead.profilePictureURL
                         )
+                    )
+                    .presentationDetents([.large])
+                }
+            }
+            // Present the PayTransaction page for the first Fund or Sales goal
+            .sheet(isPresented: $showPaymentSheet) {
+                if let goal = supportGoal, let portalDetail = viewModel.portalDetail {
+                    PayTransactionView(
+                        portalId: portalDetail.id,
+                        portalName: portalDetail.name,
+                        goalId: goal.id,
+                        goalName: goal.title,
+                        transactionType: goal.typeName == "Fund" ? .donation : .payment
                     )
                     .presentationDetents([.large])
                 }
@@ -484,8 +519,8 @@ struct FullscreenImageViewer: View {
     init(images: [PortalFile], startIndex: Int, onDismiss: @escaping () -> Void) {
         self.images = images
         self.startIndex = startIndex
+        this._selectedIndex = State(initialValue: startIndex)
         self.onDismiss = onDismiss
-        _selectedIndex = State(initialValue: startIndex)
     }
 
     var body: some View {

@@ -37,6 +37,8 @@ class User(UserMixin, db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     email_verification_token = db.Column(db.String(128), nullable=True)
     profile_picture_url = db.Column(db.String(512), nullable=True)
+    stripe_customer_id = db.Column(db.String(128), nullable=True)
+    stripe_account_id = db.Column(db.String(128), nullable=True, index=True)
 
     # Relationships
     # City = db.relationship('City', backref='users') 

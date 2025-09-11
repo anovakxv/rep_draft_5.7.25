@@ -302,7 +302,25 @@ struct InviteCard: View {
 
             // NavigationLink to GoalsDetailView
             NavigationLink(
-                destination: selectedGoalId.map { GoalsDetailView(goalId: $0) },
+                destination: selectedGoalId.map { 
+                    GoalsDetailView(initialGoal: Goal(
+                        id: $0, 
+                        title: "", 
+                        subtitle: "", 
+                        description: "", 
+                        progress: 0, 
+                        progressPercent: 0, 
+                        quota: 0, 
+                        filledQuota: 0, 
+                        metricName: "", 
+                        typeName: "", 
+                        reportingName: "", 
+                        quotaString: "", 
+                        valueString: "", 
+                        chartData: [], 
+                        creatorId: 0
+                    ))
+                },
                 isActive: Binding(
                     get: { selectedGoalId != nil },
                     set: { if !$0 { selectedGoalId = nil } }

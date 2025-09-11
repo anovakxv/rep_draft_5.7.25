@@ -23,6 +23,7 @@ struct GoalsDetailView: View {
     @State private var isCreatingTeamChat = false
     @State private var chatCreationError: String?
     @AppStorage("jwtToken") private var jwtToken: String = ""
+    @State private var portalToNavigateTo: Int? = nil
 
     // --- Unified Sheet State ---
     private enum ActiveSheet: Identifiable {
@@ -57,10 +58,30 @@ struct GoalsDetailView: View {
                             .font(.system(size: 20))
                     }
                     Spacer()
-                    Text(viewModel.goal.title)
-                        .font(.system(size: 20, weight: .bold))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                    VStack(spacing: 2) {
+                        Text(viewModel.goal.title)
+                            .font(.system(size: 20, weight: .bold))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                        
+                        // Only show portal link if the goal has a portal
+                        if let portalId = viewModel.goal.portalId, let portalName = viewModel.goal.portalName {
+                            Button(action: {
+                                portalToNavigateTo = portalId
+                            }) {
+                                HStack(spacing: 4) {
+                                    Text(portalName)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                        .foregroundColor(.blue)
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.system(size: 10))
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
                     Spacer()
                     Color.clear.frame(width: 24, height: 24)
                 }
@@ -73,7 +94,6 @@ struct GoalsDetailView: View {
                         .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
                     alignment: .bottom
                 )
-
                 // Progress Bar and Metrics Section
                 VStack(alignment: .leading, spacing: 8) {
                     ZStack(alignment: .leading) {
@@ -209,6 +229,16 @@ struct GoalsDetailView: View {
                 isActive: Binding(
                     get: { selectedProfileUserId != nil },
                     set: { if !$0 { selectedProfileUserId = nil } }
+                )
+            ) {
+                EmptyView()
+            }
+            .hidden()
+            NavigationLink(
+                destination: portalToNavigateTo.map { PortalPage(portalId: $0, userId: viewModel.currentUserId) },
+                isActive: Binding(
+                    get: { portalToNavigateTo != nil },
+                    set: { if !$0 { portalToNavigateTo = nil } }
                 )
             ) {
                 EmptyView()

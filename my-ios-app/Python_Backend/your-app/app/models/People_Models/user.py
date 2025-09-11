@@ -39,6 +39,7 @@ class User(UserMixin, db.Model):
     profile_picture_url = db.Column(db.String(512), nullable=True)
     stripe_customer_id = db.Column(db.String(128), nullable=True)
     stripe_account_id = db.Column(db.String(128), nullable=True, index=True)
+    notification_settings = db.Column(db.JSON, nullable=True)
 
     # Relationships
     # City = db.relationship('City', backref='users') 

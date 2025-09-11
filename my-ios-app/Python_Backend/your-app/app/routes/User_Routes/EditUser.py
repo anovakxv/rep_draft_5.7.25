@@ -167,3 +167,24 @@ def api_delete_user():
     db.session.delete(user)
     db.session.commit()
     return jsonify({'result': 'ok'})
+
+@user_bp.route('/notification_settings', methods=['PATCH'])
+@jwt_required
+def update_notification_settings():
+    user_id = g.current_user.id
+    data = request.json or {}
+
+    user = db.session.query(User).filter_by(id=user_id).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    # Store notification settings in user.notification_settings JSON field
+    if not hasattr(user, 'notification_settings'):
+        # If User model doesn't have notification_settings field yet, 
+        # you'll need to add it via migration
+        return jsonify({'message': 'Notification settings will be added in a future update'}), 200
+
+    user.notification_settings = data
+    db.session.commit()
+    
+    return jsonify({'message': 'Notification settings updated successfully'})

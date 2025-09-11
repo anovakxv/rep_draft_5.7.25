@@ -233,7 +233,9 @@ struct InviteCard: View {
     let invite: GoalTeamInvite
     var onAccept: () -> Void
     var onDecline: () -> Void
-    
+
+    @State private var selectedGoalId: Int? = nil
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
@@ -249,20 +251,20 @@ struct InviteCard: View {
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 40, height: 40)
                 }
-                
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Goal Team Invite")
                         .font(.headline)
-                    
+
                     Text("\(invite.inviterDisplayName) invited you to join '\(invite.goalTitle ?? "a goal")'")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .lineLimit(2)
                 }
-                
+
                 Spacer()
             }
-            
+
             HStack(spacing: 12) {
                 Button(action: onAccept) {
                     Text("Accept")
@@ -273,7 +275,7 @@ struct InviteCard: View {
                         .background(Color.repGreen)
                         .cornerRadius(6)
                 }
-                
+
                 Button(action: onDecline) {
                     Text("Decline")
                         .fontWeight(.medium)
@@ -284,6 +286,29 @@ struct InviteCard: View {
                         .cornerRadius(6)
                 }
             }
+
+            // "View Goal" button
+            Button(action: {
+                selectedGoalId = invite.goals_id
+            }) {
+                Text("View Goal")
+                    .fontWeight(.medium)
+                    .foregroundColor(.blue)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(6)
+            }
+
+            // NavigationLink to GoalsDetailView
+            NavigationLink(
+                destination: selectedGoalId.map { GoalsDetailView(goalId: $0) },
+                isActive: Binding(
+                    get: { selectedGoalId != nil },
+                    set: { if !$0 { selectedGoalId = nil } }
+                )
+            ) { EmptyView() }
+            .hidden()
         }
         .padding(12)
         .background(Color.white)

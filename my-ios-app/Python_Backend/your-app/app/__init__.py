@@ -57,6 +57,7 @@ def create_app():
     from app.models.ValueMetric_Models import Goal, GoalMetric, GoalPreInvite, GoalProgressLog, GoalTeam, GoalType, ReportingIncrement
     from app.models.People_Models import FlaggedUser
     from app.models.People_Models.BlockedUser import BlockedUser
+    from app.models.ValueMetric_Models.Transaction import Transaction  # <-- Add this line
 
     # --- Register API Blueprints ---
     from app.routes.api import api_bp

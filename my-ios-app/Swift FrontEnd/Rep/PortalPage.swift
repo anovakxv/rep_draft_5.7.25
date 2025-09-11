@@ -9,6 +9,7 @@ import SwiftUI
 import _PhotosUI_SwiftUI
 import Combine
 import Kingfisher
+import SafariServices
 
 // MARK: - Orientation Observer
 
@@ -788,7 +789,7 @@ struct PortalStorySection: View {
                 }
             }
             Divider()
-            // Show Story Text Blocks
+            // Story Text Blocks with clickable links
             ForEach((portal.aTexts ?? []).filter { ($0.section ?? "") == "story" }) { block in
                 VStack(alignment: .leading, spacing: 4) {
                     if let title = block.title, !title.isEmpty {
@@ -797,8 +798,7 @@ struct PortalStorySection: View {
                             .fontWeight(.medium)
                     }
                     if let text = block.text, !text.isEmpty {
-                        Text(text)
-                            .font(.body)
+                        LinkableText(text: text, fontSize: 16, openInApp: true)
                     }
                 }
                 .padding(.vertical, 4)
@@ -904,3 +904,62 @@ struct BarChartView: View {
         .frame(width: 70, height: 56)
     }
 }	
+
+struct LinkableText: View {
+    let text: String
+    let fontSize: CGFloat
+    let openInApp: Bool
+    
+    @State private var showWebView = false
+    @State private var urlToOpen: URL? = nil
+    
+    init(text: String, fontSize: CGFloat = 16, openInApp: Bool = true) {
+        self.text = text
+        self.fontSize = fontSize
+        self.openInApp = openInApp
+    }
+    
+    var body: some View {
+        Text(attributedString)
+            .font(.system(size: fontSize))
+            .sheet(isPresented: $showWebView) {
+                if let url = urlToOpen {
+                    SafariView(url: url)
+                        .ignoresSafeArea()
+                        .presentationDetents([.large])
+                }
+            }
+    }
+    
+    private var attributedString: AttributedString {
+        var attributedString = AttributedString(text)
+        
+        // Find URL patterns in the text
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let matches = detector?.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+        
+        matches?.forEach { match in
+            if let range = Range(match.range, in: text), let url = match.url {
+                let linkRange = attributedString.range(of: String(text[range]))
+                if let linkRange = linkRange {
+                    attributedString[linkRange].link = url
+                    attributedString[linkRange].foregroundColor = .blue
+                    attributedString[linkRange].underlineStyle = .single
+                }
+            }
+        }
+        
+        return attributedString
+    }
+}
+
+// In-app Safari view
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+    
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        return SFSafariViewController(url: url)
+    }
+    
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+}

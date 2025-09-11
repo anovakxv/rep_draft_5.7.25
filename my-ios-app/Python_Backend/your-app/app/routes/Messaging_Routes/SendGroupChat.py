@@ -2,6 +2,7 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
+from operator import ne
 from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
@@ -12,6 +13,7 @@ from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
 from app.utils.notifications import send_fcm_notification
 from datetime import datetime
+from app.utils.notifications import send_notification
 
 user_bp = Blueprint('send_group_chat', __name__)
 
@@ -72,8 +74,9 @@ def api_send_chat_message():
                 if not u or not u.device_token:
                     continue
                 try:
-                    send_fcm_notification(
-                        u.device_token,
+                    send_notification(
+                        uid,  # The recipient's user ID
+                        "group_message",  # Notification type
                         title=f"{sender.full_name if sender else 'Someone'} in {chat_name}",
                         body=message_text,
                         data={
@@ -84,7 +87,7 @@ def api_send_chat_message():
                         }
                     )
                 except Exception as ne:
-                    print(f"[GroupChat FCM] Error sending to user {uid}: {ne}")
+                    print(f"[GroupChat Notification] Error sending to user {uid}: {ne}")
     except Exception as e:
         print(f"[GroupChat FCM] Block error: {e}")
 

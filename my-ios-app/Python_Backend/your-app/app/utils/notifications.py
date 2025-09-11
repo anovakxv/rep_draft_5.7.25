@@ -49,3 +49,55 @@ def send_fcm_notification(fcm_token, title, body, data=None):
         print("FCM v1 response:", response.status_code, response.text)
     except Exception as e:
         print(f"Error sending FCM notification: {e}")
+
+
+def should_send_notification(user_id, notif_type):
+    """
+    Check if a user has enabled notifications for a specific type.
+    """
+    from app.models.People_Models.user import User
+    from app import db
+
+    user = db.session.query(User).filter_by(id=user_id).first()
+    if not user:
+        return False
+
+    # Default to enabled if settings aren't specified
+    if not hasattr(user, 'notification_settings') or not user.notification_settings:
+        return True
+
+    settings = user.notification_settings
+
+    # Check master notification toggle
+    if not settings.get('pushNotificationsEnabled', True):
+        return False
+
+    # Check specific notification type
+    if notif_type == 'direct_message' and not settings.get('notifDirectMessages', True):
+        return False
+    elif notif_type == 'group_message' and not settings.get('notifGroupMessages', True):
+        return False
+    elif notif_type == 'goal_invite' and not settings.get('notifGoalInvites', True):
+        return False
+
+    return True
+
+def send_notification(user_id, notif_type, title, body, data=None):
+    """
+    Send a notification to a user after checking their preferences.
+    """
+    from app.models.People_Models.user import User
+    from app import db
+
+    # Skip if user has disabled this notification type
+    if not should_send_notification(user_id, notif_type):
+        print(f"Notification skipped: user {user_id} has disabled {notif_type} notifications")
+        return
+
+    # Get user's device token
+    user = db.session.query(User).filter_by(id=user_id).first()
+    if not user or not user.device_token:
+        return
+
+    # Send the actual notification
+    send_fcm_notification(user.device_token, title, body, data)

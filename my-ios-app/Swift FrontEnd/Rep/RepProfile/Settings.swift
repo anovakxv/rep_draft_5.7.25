@@ -6,10 +6,17 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 struct SettingsView: View {
     @AppStorage("jwtToken") private var jwtToken: String = ""
     @AppStorage("userId") private var userId: Int = 0
+
+    // Notification settings
+    @AppStorage("pushNotificationsEnabled") private var pushNotificationsEnabled: Bool = true
+    @AppStorage("notifDirectMessages") private var notifDirectMessages: Bool = true
+    @AppStorage("notifGroupMessages") private var notifGroupMessages: Bool = true
+    @AppStorage("notifGoalInvites") private var notifGoalInvites: Bool = true
 
     @StateObject private var editProfileVM = ProfileInfoViewModel(
         profileInfo: ProfileInfo(
@@ -60,8 +67,25 @@ struct SettingsView: View {
                 }
 
                 Section(header: Text("Notifications")) {
-                    Toggle(isOn: .constant(true)) {
-                        Text("Push Notifications")
+                    Toggle("Push Notifications", isOn: $pushNotificationsEnabled)
+                        .onChange(of: pushNotificationsEnabled) { enabled in
+                            if enabled {
+                                requestNotificationPermissions()
+                            } else {
+                                UIApplication.shared.unregisterForRemoteNotifications()
+                            }
+                            updateNotificationSettings()
+                        }
+
+                    if pushNotificationsEnabled {
+                        Toggle("Direct Messages", isOn: $notifDirectMessages)
+                            .onChange(of: notifDirectMessages) { _ in updateNotificationSettings() }
+
+                        Toggle("Group Messages", isOn: $notifGroupMessages)
+                            .onChange(of: notifGroupMessages) { _ in updateNotificationSettings() }
+
+                        Toggle("Goal Team Invites", isOn: $notifGoalInvites)
+                            .onChange(of: notifGoalInvites) { _ in updateNotificationSettings() }
                     }
                 }
 
@@ -97,6 +121,38 @@ struct SettingsView: View {
                 TermsOfUseView()
             }
         }
+    }
+
+    private func requestNotificationPermissions() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+            if granted {
+                DispatchQueue.main.async {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            }
+        }
+    }
+
+    private func updateNotificationSettings() {
+        guard !jwtToken.isEmpty, userId > 0 else { return }
+
+        let settings: [String: Bool] = [
+            "pushNotificationsEnabled": pushNotificationsEnabled,
+            "notifDirectMessages": notifDirectMessages,
+            "notifGroupMessages": notifGroupMessages,
+            "notifGoalInvites": notifGoalInvites
+        ]
+
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/user/notification_settings") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PATCH"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONEncoder().encode(settings)
+
+        URLSession.shared.dataTask(with: request) { _, _, _ in
+            // No response handling needed for settings update
+        }.resume()
     }
 }
 

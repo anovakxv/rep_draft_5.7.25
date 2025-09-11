@@ -9,7 +9,7 @@ from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.utils.auth import jwt_required
-from app.utils.notifications import send_fcm_notification  # existing import
+from app.utils.notifications import send_notification
 
 goals_bp = Blueprint('goal_team', __name__)
 
@@ -57,8 +57,9 @@ def invite_goal_team(goal_id):
                         "inviter_id": str(user_id)
                     }
                     print(f"Sending goal team invite notification to user {u_id}")
-                    send_fcm_notification(
-                        invited_user.device_token,
+                    send_notification(
+                        u_id,  # The recipient's user ID
+                        "goal_invite",  # Notification type
                         title=title,
                         body=body,
                         data=payload

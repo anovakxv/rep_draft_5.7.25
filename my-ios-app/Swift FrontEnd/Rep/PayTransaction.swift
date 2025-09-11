@@ -178,7 +178,7 @@ struct PayTransactionView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text(transactionType.messageLabel).font(.headline)
                         TextEditor(text: $message)
-                            .frame(height: 100)
+                            .frame(height: 44)
                             .padding(4)
                             .background(Color(UIColor.systemGray6))
                             .cornerRadius(8)

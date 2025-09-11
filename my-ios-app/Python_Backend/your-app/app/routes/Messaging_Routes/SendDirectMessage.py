@@ -12,7 +12,8 @@ from app.utils.auth import jwt_required
 from app.models.People_Models.BlockedUser import BlockedUser
 from datetime import datetime
 
-from app.utils.notifications import send_fcm_notification  # existing import
+from app.utils.notifications import send_fcm_notification  
+from app.utils.notifications import send_notification
 
 user_bp = Blueprint('send_message', __name__)
 
@@ -76,9 +77,10 @@ def api_send_message():
     print(f"Recipient device_token: {device_token}")
     if device_token:
         try:
-            print(f"About to send FCM notification to device_token={device_token}")
-            send_fcm_notification(
-                device_token,
+            print(f"About to send notification to device_token={device_token}")
+            send_notification(
+                to_user_id,  # The recipient's user ID
+                "direct_message",  # Notification type
                 title=f"New message from {sender.full_name if sender else 'Someone'}",
                 body=message_text,
                 data={
@@ -88,7 +90,7 @@ def api_send_message():
                 }
             )
         except Exception as e:
-            print(f"FCM notification error: {e}")
+            print(f"Notification error: {e}")
     else:
         print(f"No device token for user_id={to_user_id}")
 

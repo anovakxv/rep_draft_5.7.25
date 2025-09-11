@@ -10,6 +10,8 @@ from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
 from app.models.People_Models.user import User 
+from datetime import datetime
+from app.models.ValueMetric_Models.Transaction import Transaction 
 import os
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
@@ -47,38 +49,65 @@ def create_connect_account():
     portal_id = data.get('portal_id')
     redirect_url = data.get('redirect_url')
 
+    print(f"[Connect] Received data: {data}, user_id: {user_id}")
+
+    if not portal_id or not redirect_url:
+        print("[Connect] Missing portal_id or redirect_url")
+        return jsonify({'error': 'portal_id and redirect_url are required'}), 400
+
     portal = db.session.query(Portal).filter_by(id=portal_id).first()
-    if not portal or str(portal.users_id) != str(user_id):
+    print(f"[Connect] Portal found: {portal is not None}, portal.users_id: {getattr(portal, 'users_id', None)}")
+
+    if not portal:
+        print("[Connect] Portal not found for portal_id:", portal_id)
+        return jsonify({'error': 'Portal not found'}), 400
+
+    if str(portal.users_id) != str(user_id):
+        print(f"[Connect] Not authorized: portal.users_id={portal.users_id}, user_id={user_id}")
         return jsonify({'error': 'Not authorized'}), 403
 
     try:
+        # If portal already has a Stripe account, return onboarding link
+        if portal.stripe_account_id:
+            print(f"[Connect] Portal already has Stripe account: {portal.stripe_account_id}")
+            account_link = stripe.AccountLink.create(
+                account=portal.stripe_account_id,
+                refresh_url=redirect_url,
+                return_url=redirect_url,
+                type="account_onboarding"
+            )
+            print(f"[Connect] Returning existing onboarding link: {account_link.url}")
+            return jsonify({'onboarding_url': account_link.url})
+
+        print("[Connect] Creating new Stripe Express account...")
         account = stripe.Account.create(
             type="express",
             country="US",
-            email=g.current_user.email,
+            email=portal.email if hasattr(portal, 'email') else None,
             capabilities={
-                "card_payments": {"requested": True},
                 "transfers": {"requested": True},
+                "card_payments": {"requested": True}
             },
-            metadata={
-                "portal_id": portal_id,
-                "user_id": user_id
-            }
+            business_type="individual"
         )
+        print(f"[Connect] Created Stripe account: {account.id}")
+
         portal.stripe_account_id = account.id
         db.session.commit()
+        print(f"[Connect] Saved Stripe account ID to portal: {portal.stripe_account_id}")
 
         account_link = stripe.AccountLink.create(
             account=account.id,
-            refresh_url=f"{request.host_url}api/stripe_connect_refresh?portal_id={portal_id}",
+            refresh_url=redirect_url,
             return_url=redirect_url,
-            type="account_onboarding",
+            type="account_onboarding"
         )
-        return jsonify({
-            'url': account_link.url,
-            'account_id': account.id
-        })
+        print(f"[Connect] Created onboarding link: {account_link.url}")
+
+        return jsonify({'onboarding_url': account_link.url})
+
     except Exception as e:
+        print(f"[Connect] Stripe error: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @payments_bp.route('/api/stripe_dashboard_link', methods=['POST'])
@@ -103,6 +132,7 @@ def stripe_dashboard_link():
 def create_payment_intent():
     data = request.json or {}
     user_id = g.current_user.id
+    print(f"[PaymentIntent] Received data: {data}, user_id: {user_id}")
 
     amount = data.get('amount')
     portal_id = data.get('portal_id')
@@ -111,27 +141,36 @@ def create_payment_intent():
     message = data.get('message', '')
     transaction_type = data.get('transaction_type', 'donation')
 
-    if not amount or not portal_id:
-        return jsonify({'error': 'amount and portal_id are required'}), 400
+    print(f"[PaymentIntent] amount: {amount}, portal_id: {portal_id}, goal_id: {goal_id}, currency: {currency}, transaction_type: {transaction_type}")
+
+    if not amount:
+        print("[PaymentIntent] Missing amount")
+        return jsonify({'error': 'amount is required'}), 400
+    if not portal_id:
+        print("[PaymentIntent] Missing portal_id")
+        return jsonify({'error': 'portal_id is required'}), 400
 
     portal = db.session.query(Portal).filter_by(id=portal_id).first()
+    print(f"[PaymentIntent] Portal found: {portal is not None}, stripe_account_id: {getattr(portal, 'stripe_account_id', None)}")
+
     if not portal or not portal.stripe_account_id:
+        print("[PaymentIntent] Portal not set up to receive payments")
         return jsonify({'error': 'Portal not set up to receive payments'}), 400
+
+    customer = get_or_create_stripe_customer(user_id)
+    print(f"[PaymentIntent] Stripe customer: {customer.id}")
 
     goal = None
     if goal_id:
         goal = db.session.query(Goal).filter_by(id=goal_id).first()
-        if not goal or str(goal.portals_id) != str(portal_id):
-            return jsonify({'error': 'Invalid goal for this portal'}), 400
+        print(f"[PaymentIntent] Goal found: {goal is not None}")
 
     try:
-        # Ensure we attach the PaymentIntent to the customer so history works
-        customer = get_or_create_stripe_customer(user_id)
-
+        print("[PaymentIntent] Creating Stripe PaymentIntent...")
         payment_intent = stripe.PaymentIntent.create(
             amount=amount,
             currency=currency,
-            customer=customer.id,  # important so /api/payment_history can find it
+            customer=customer.id,
             transfer_data={'destination': portal.stripe_account_id},
             metadata={
                 'portal_id': str(portal_id),
@@ -141,6 +180,28 @@ def create_payment_intent():
                 'transaction_type': transaction_type
             }
         )
+        print(f"[PaymentIntent] Created intent: {payment_intent.id}")
+        
+        # Record transaction in DB (with pending status)
+        transaction = Transaction(
+            user_id=user_id,
+            portal_id=portal_id,
+            goal_id=goal_id if goal_id else None,
+            amount=amount,
+            currency=currency,
+            transaction_type=transaction_type,
+            message=message,
+            stripe_payment_intent_id=payment_intent.id,
+            status='pending',
+            created_at=datetime.utcnow()
+        )
+        db.session.add(transaction)
+        db.session.commit()
+        
+        return jsonify({'clientSecret': payment_intent.client_secret})
+    except Exception as e:
+        print(f"[PaymentIntent] Stripe error: {str(e)}")
+        return jsonify({'error': str(e)}), 400
 
         # Optionally record transaction + goal progress in DB (left commented for now)
         # transaction = Transaction(...)
@@ -150,10 +211,6 @@ def create_payment_intent():
         #     db.session.add(progress_log)
         #     goal.filled_quota = (goal.filled_quota or 0) + (amount/100)
         # db.session.commit()
-
-        return jsonify({'clientSecret': payment_intent.client_secret})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 400
 
 @payments_bp.route('/api/portal/payment_status', methods=['GET'])
 @jwt_required
@@ -179,6 +236,7 @@ def stripe_webhook():
         event = stripe.Webhook.construct_event(
             payload, sig_header, stripe_webhook_secret
         )
+        print(f"[Webhook] Processing event: {event['type']}")
 
         if event['type'] == 'account.updated':
             account = event['data']['object']
@@ -186,12 +244,139 @@ def stripe_webhook():
             if portal:
                 portal.stripe_account_status = account.get('details_submitted', False)
                 db.session.commit()
+                print(f"[Webhook] Updated portal {portal.id} account status")
+        
+        # Handle successful payments
+        elif event['type'] == 'payment_intent.succeeded':
+            payment_intent = event['data']['object']
+            print(f"[Webhook] Payment succeeded: {payment_intent.id}")
+            
+            # Check if we already processed this payment
+            existing_transaction = db.session.query(Transaction).filter_by(
+                stripe_payment_intent_id=payment_intent.id
+            ).first()
+            
+            if existing_transaction:
+                if existing_transaction.status == 'completed':
+                    print(f"[Webhook] Transaction {existing_transaction.id} already processed")
+                    return jsonify({'status': 'success'})
+                existing_transaction.status = 'completed'
+                db.session.commit()
+                transaction = existing_transaction
+            else:
+                # Create new transaction record
+                try:
+                    goal_id = payment_intent.metadata.get('goal_id')
+                    user_id = payment_intent.metadata.get('user_id')
+                    portal_id = payment_intent.metadata.get('portal_id')
+                    message = payment_intent.metadata.get('message', '')
+                    transaction_type = payment_intent.metadata.get('transaction_type', 'donation')
+                    
+                    if not user_id or not portal_id:
+                        print(f"[Webhook] Missing metadata: user_id={user_id}, portal_id={portal_id}")
+                        return jsonify({'error': 'Missing metadata'}), 400
+                    
+                    # Create transaction record
+                    transaction = Transaction(
+                        user_id=user_id,
+                        portal_id=portal_id,
+                        goal_id=goal_id if goal_id else None,
+                        amount=payment_intent.amount,
+                        currency=payment_intent.currency,
+                        transaction_type=transaction_type,
+                        message=message,
+                        stripe_payment_intent_id=payment_intent.id,
+                        status='completed',
+                        created_at=datetime.fromtimestamp(payment_intent.created)
+                    )
+                    db.session.add(transaction)
+                    db.session.commit()
+                    print(f"[Webhook] Created transaction {transaction.id}")
+                except Exception as e:
+                    print(f"[Webhook] Error creating transaction: {str(e)}")
+                    db.session.rollback()
+                    return jsonify({'error': str(e)}), 500
+            
+            # Update goal progress if this was for a goal
+            if transaction.goal_id and transaction.transaction_type in ['donation', 'payment']:
+                try:
+                    goal = db.session.query(Goal).filter_by(id=transaction.goal_id).first()
+                    if goal and goal.goal_type in ['Fund', 'Sales']:
+                        # Convert cents to dollars/units for goal progress
+                        amount_in_units = transaction.amount / 100
+                        
+                        # Create progress log
+                        progress_log = GoalProgressLog(
+                            users_id=transaction.user_id,
+                            goals_id=transaction.goal_id,
+                            added_value=amount_in_units,
+                            note=f"{transaction.transaction_type.capitalize()} via Stripe: {transaction.message}",
+                            value=(goal.filled_quota or 0) + amount_in_units
+                        )
+                        db.session.add(progress_log)
+                        
+                        # Update goal's filled_quota
+                        goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
+                        db.session.commit()
+                        print(f"[Webhook] Updated goal {goal.id} progress: +{amount_in_units} units")
+                except Exception as e:
+                    print(f"[Webhook] Error updating goal progress: {str(e)}")
+                    db.session.rollback()
+                    return jsonify({'error': str(e)}), 500
 
-        # Add handlers for:
-        # - payment_intent.succeeded
-        # - invoice.payment_succeeded
+        # Handle subscription payments
+        elif event['type'] == 'invoice.payment_succeeded':
+            invoice = event['data']['object']
+            print(f"[Webhook] Invoice payment succeeded: {invoice.id}")
+            
+            # Only process invoices with subscriptions
+            if invoice.subscription:
+                subscription = stripe.Subscription.retrieve(invoice.subscription)
+                
+                goal_id = subscription.metadata.get('goal_id')
+                user_id = subscription.metadata.get('user_id')
+                portal_id = subscription.metadata.get('portal_id')
+                
+                if goal_id and user_id and portal_id:
+                    # Create transaction record for the subscription payment
+                    transaction = Transaction(
+                        user_id=user_id,
+                        portal_id=portal_id,
+                        goal_id=goal_id,
+                        amount=invoice.amount_paid,
+                        currency=invoice.currency,
+                        transaction_type='subscription',
+                        message=f"Monthly subscription payment",
+                        stripe_payment_intent_id=invoice.payment_intent,
+                        status='completed',
+                        created_at=datetime.fromtimestamp(invoice.created)
+                    )
+                    db.session.add(transaction)
+                    
+                    # Update goal progress
+                    goal = db.session.query(Goal).filter_by(id=goal_id).first()
+                    if goal and goal.goal_type in ['Fund', 'Sales']:
+                        # Convert cents to dollars/units for goal progress
+                        amount_in_units = invoice.amount_paid / 100
+                        
+                        # Create progress log
+                        progress_log = GoalProgressLog(
+                            users_id=user_id,
+                            goals_id=goal_id,
+                            added_value=amount_in_units,
+                            note=f"Monthly subscription payment",
+                            value=(goal.filled_quota or 0) + amount_in_units
+                        )
+                        db.session.add(progress_log)
+                        
+                        # Update goal's filled_quota
+                        goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
+                        db.session.commit()
+                        print(f"[Webhook] Updated goal {goal.id} progress from subscription: +{amount_in_units} units")
+
         return jsonify({'status': 'success'})
     except Exception as e:
+        print(f"[Webhook] Error: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @payments_bp.route('/api/create_subscription', methods=['POST'])
@@ -320,7 +505,8 @@ def cancel_subscription():
 def create_checkout_session():
     data = request.json or {}
     user_id = g.current_user.id
-    
+    print(f"[Checkout] Received data: {data}, user_id: {user_id}")
+
     amount = data.get('amount')
     portal_id = data.get('portal_id')
     goal_id = data.get('goal_id')
@@ -329,25 +515,35 @@ def create_checkout_session():
     transaction_type = data.get('transaction_type', 'donation')
     is_subscription = data.get('is_subscription', False)
     price_id = data.get('price_id')
-    
+
+    print(f"[Checkout] amount: {amount}, portal_id: {portal_id}, goal_id: {goal_id}, currency: {currency}, transaction_type: {transaction_type}, is_subscription: {is_subscription}, price_id: {price_id}")
+
     if not amount and not price_id:
+        print("[Checkout] Missing amount or price_id")
         return jsonify({'error': 'amount or price_id is required'}), 400
     if not portal_id:
+        print("[Checkout] Missing portal_id")
         return jsonify({'error': 'portal_id is required'}), 400
-        
+
     portal = db.session.query(Portal).filter_by(id=portal_id).first()
+    print(f"[Checkout] Portal found: {portal is not None}, stripe_account_id: {getattr(portal, 'stripe_account_id', None)}")
+
     if not portal or not portal.stripe_account_id:
+        print("[Checkout] Portal not set up to receive payments")
         return jsonify({'error': 'Portal not set up to receive payments'}), 400
-    
-    # Get the customer for this user
+
     customer = get_or_create_stripe_customer(user_id)
-    
-    # Determine success and cancel URLs (deep links back to your app)
+    print(f"[Checkout] Stripe customer: {customer.id}")
+
     success_url = f"rep://payment-success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"rep://payment-canceled"
-    
+
+    goal = None
+    if goal_id:
+        goal = db.session.query(Goal).filter_by(id=goal_id).first()
+        print(f"[Checkout] Goal found: {goal is not None}")
+
     try:
-        # Set up common checkout session parameters
         session_params = {
             'customer': customer.id,
             'success_url': success_url,
@@ -361,29 +557,28 @@ def create_checkout_session():
                 'transaction_type': transaction_type
             }
         }
-        
-        # Handle one-time payment vs subscription
+
         if is_subscription and price_id:
+            print("[Checkout] Creating subscription checkout session")
             session_params['mode'] = 'subscription'
             session_params['line_items'] = [{
                 'price': price_id,
                 'quantity': 1
             }]
         else:
+            print("[Checkout] Creating payment checkout session")
             session_params['mode'] = 'payment'
             session_params['line_items'] = [{
                 'price_data': {
                     'currency': currency,
                     'product_data': {
                         'name': f"{transaction_type.capitalize()} to {portal.name}",
-                        'description': f"Goal: {goal.title}" if goal_id and 'goal' in locals() and goal else "",
+                        'description': f"Goal: {goal.title}" if goal else "",
                     },
                     'unit_amount': amount,
                 },
                 'quantity': 1,
             }]
-            
-            # Add payment_intent_data for transfers to connected account
             session_params['payment_intent_data'] = {
                 'transfer_data': {
                     'destination': portal.stripe_account_id,
@@ -396,14 +591,17 @@ def create_checkout_session():
                     'transaction_type': transaction_type
                 }
             }
-        
+
+        print(f"[Checkout] Stripe session params: {session_params}")
         checkout_session = stripe.checkout.Session.create(**session_params)
-        
+        print(f"[Checkout] Created session: {checkout_session.id}, url: {checkout_session.url}")
+
         return jsonify({
             'checkout_url': checkout_session.url,
             'session_id': checkout_session.id
         })
     except Exception as e:
+        print(f"[Checkout] Stripe error: {str(e)}")
         return jsonify({'error': str(e)}), 400
 
 @payments_bp.route('/api/checkout_session_status', methods=['GET'])

@@ -5,6 +5,7 @@
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
+import WebKit
 
 // MARK: - Transaction Types
 
@@ -95,6 +96,10 @@ struct PayTransactionView: View {
     @AppStorage("jwtToken") private var jwtToken: String = ""
     @Environment(\.dismiss) private var dismiss
 
+    // For Stripe Checkout WebView
+    @State private var showWebView = false
+    @State private var webViewURL: URL? = nil
+
     // MARK: - Payment Status
 
     enum PaymentStatus {
@@ -136,20 +141,18 @@ struct PayTransactionView: View {
                             TextField("0.00", text: $amount)
                                 .keyboardType(.decimalPad)
                                 .font(.title)
-                                .disabled(isMonthlySubscription) // Disable manual entry for subscriptions
+                                .disabled(isMonthlySubscription)
                         }
                         .padding()
                         .background(Color(UIColor.systemGray6))
                         .cornerRadius(8)
 
-                        // Quick amounts (customizable per transaction type)
                         if !isMonthlySubscription {
                             quickAmountsView
                         }
                     }
                     .padding(.horizontal)
 
-                    // Monthly subscription toggle and options
                     Toggle("Make this a monthly recurring payment", isOn: $isMonthlySubscription)
                         .padding(.horizontal)
 
@@ -174,7 +177,6 @@ struct PayTransactionView: View {
                         .padding(.horizontal)
                     }
 
-                    // Optional message
                     VStack(alignment: .leading, spacing: 8) {
                         Text(transactionType.messageLabel).font(.headline)
                         TextEditor(text: $message)
@@ -191,7 +193,7 @@ struct PayTransactionView: View {
                             .padding(.horizontal)
                     }
 
-                    // Safari-based Stripe Checkout button
+                    // Stripe Checkout button (now opens in-app web view)
                     Button {
                         guard validateAmount() else { return }
                         isLoading = true
@@ -215,14 +217,12 @@ struct PayTransactionView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                    // Info about Safari redirect
                     Text("You'll be redirected to a secure payment page to complete your \(isMonthlySubscription ? "subscription" : transactionType.title.lowercased()).")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    // If it's a donation, add a tax info note
                     if transactionType == .donation {
                         Text("Your donation may be tax deductible. A receipt will be emailed to you.")
                             .font(.caption)
@@ -287,6 +287,18 @@ struct PayTransactionView: View {
                     object: nil
                 )
             }
+            .fullScreenCover(isPresented: $showWebView) {
+                NavigationView {
+                    if let url = webViewURL {
+                        SafariWebView(url: url, onDismiss: {
+                            self.showWebView = false
+                        })
+                        .navigationBarTitleDisplayMode(.inline)
+                    } else {
+                        Text("Loading...")
+                    }
+                }
+            }
         }
     }
 
@@ -349,7 +361,7 @@ struct PayTransactionView: View {
         return true
     }
 
-    // MARK: - Stripe Checkout Session (Safari-based)
+    // MARK: - Stripe Checkout Session (In-app WebView)
 
     private func createCheckoutSession() {
         paymentStatus = .loading
@@ -367,7 +379,6 @@ struct PayTransactionView: View {
             return
         }
 
-        // Convert to cents
         let amountCents = Int(amountValue * 100)
 
         var requestBody: [String: Any] = [
@@ -409,28 +420,13 @@ struct PayTransactionView: View {
                     return
                 }
 
-                // Save session_id for status check after return
                 if let sessionId = json["session_id"] as? String {
                     UserDefaults.standard.set(sessionId, forKey: "lastCheckoutSessionId")
                 }
 
-                // Open Safari to complete payment
-                if let checkoutUrl = json["checkout_url"] as? String,
-                    let url = URL(string: checkoutUrl) {
-                        print("Attempting to open checkout URL: \(checkoutUrl)")
-                        DispatchQueue.main.async {
-                            UIApplication.shared.open(url, options: [:]) { success in
-                                if !success {
-                                    print("Failed to open URL with options, trying openURL...")
-                                    if #available(iOS 10.0, *) {
-                                        UIApplication.shared.open(url)
-                                    } else {
-                                        UIApplication.shared.openURL(url)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                // Present Stripe Checkout in-app web view
+                self.webViewURL = url
+                self.showWebView = true
             }
         }.resume()
     }

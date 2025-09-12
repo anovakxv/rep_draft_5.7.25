@@ -380,6 +380,23 @@ def api_delete_portal():
     if not check_portal_editor_permission(user_id, portal_id):
         return jsonify({'error': 'Permission denied'}), 403
 
+    # --- Delete related data ---
+    # Delete portal texts
+    PortalText.query.filter_by(portal_id=portal_id).delete(synchronize_session=False)
+    # Delete portal users
+    PortalUser.query.filter_by(portal_id=portal_id).delete(synchronize_session=False)
+    # Delete portal graphic sections and their links
+    graphic_sections = PortalGraphicSection.query.filter_by(portals_id=portal_id).all()
+    for section in graphic_sections:
+        # Delete S3 links for this section
+        PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=section.id).delete(synchronize_session=False)
+        # Delete S3Content files for this section
+        S3Content.query.filter_by(tbl_id=section.id, tbl_index=6).delete(synchronize_session=False)
+        db.session.delete(section)
+    # Delete goals associated with this portal
+    Goal.query.filter_by(portals_id=portal_id).delete(synchronize_session=False)
+
+    # Finally, delete the portal itself
     db.session.delete(portal)
     db.session.commit()
 

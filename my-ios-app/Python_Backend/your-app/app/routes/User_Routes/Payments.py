@@ -77,7 +77,7 @@ def create_connect_account():
                 type="account_onboarding"
             )
             print(f"[Connect] Returning existing onboarding link: {account_link.url}")
-            return jsonify({'onboarding_url': account_link.url})
+            return jsonify({'url': account_link.url})
 
         print("[Connect] Creating new Stripe Express account...")
         account = stripe.Account.create(
@@ -104,7 +104,7 @@ def create_connect_account():
         )
         print(f"[Connect] Created onboarding link: {account_link.url}")
 
-        return jsonify({'onboarding_url': account_link.url})
+        return jsonify({'url': account_link.url})
 
     except Exception as e:
         print(f"[Connect] Stripe error: {str(e)}")

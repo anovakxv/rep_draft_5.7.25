@@ -241,7 +241,7 @@ def get_pending_invites():
         "timestamp": team.timestamp.isoformat() if team.timestamp else None,
         "goalTitle": goal.title,
         "inviterName": f"{user.fname or ''} {user.lname or ''}".strip(),
-        "inviterPhotoURL": user.profile_photo_url or user.imageName or ""
+        "inviterPhotoURL": getattr(user, "profile_photo_url", None)
     } for team, goal, user in pending_invites]
 
     return jsonify({"invites": result})

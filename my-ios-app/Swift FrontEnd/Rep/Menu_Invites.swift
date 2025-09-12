@@ -275,25 +275,7 @@ struct InviteCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 // Enhanced profile picture loading
-                if let url = invite.patchedInviterProfilePictureURL {
-                    KFImage(url)
-                        .placeholder {
-                            Circle()
-                                .fill(Color.gray.opacity(0.3))
-                                .frame(width: 40, height: 40)
-                        }
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 40, height: 40)
-                        .clipShape(Circle())
-                        .onAppear {
-                            print("🖼️ Loading profile image from URL: \(url.absoluteString)")
-                        }
-                } else {
-                    Circle()
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 40, height: 40)
-                }
+                // Profile picture removed for now
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Goal Team Invite")

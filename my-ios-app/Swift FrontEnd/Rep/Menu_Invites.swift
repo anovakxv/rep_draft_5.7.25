@@ -27,12 +27,20 @@ struct GoalTeamInvite: Identifiable, Codable, Equatable {
         inviterName ?? "Someone"
     }
 
-    var inviterProfilePictureURL: URL? {
+    // Improved patching logic with direct S3 base URL reference
+    var patchedInviterProfilePictureURL: URL? {
         guard let urlString = inviterPhotoURL, !urlString.isEmpty else { return nil }
+        
+        // Debug print to see the actual URL value
+        print("Profile URL before patching: \(urlString)")
+        
         if urlString.starts(with: "http") {
             return URL(string: urlString)
         } else {
-            return URL(string: "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/\(urlString)")
+            let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+            let fullURL = s3BaseURL + urlString
+            print("Profile URL after patching: \(fullURL)")
+            return URL(string: fullURL)
         }
     }
 }
@@ -75,6 +83,11 @@ class GoalTeamInvitesManager: ObservableObject {
                 do {
                     let response = try JSONDecoder().decode(GoalTeamInvitesResponse.self, from: data)
                     self?.pendingInvites = response.invites.filter { $0.confirmed == 0 }
+                    
+                    // Debug: Print the received invites to check photo URLs
+                    for invite in response.invites {
+                        print("Invite from: \(invite.inviterName ?? "Unknown"), Photo URL: \(invite.inviterPhotoURL ?? "None")")
+                    }
                 } catch {
                     print("Error decoding invites:", error)
                 }
@@ -151,6 +164,8 @@ struct InvitesView: View {
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
     @State private var responseMessage: String? = nil
     @State private var showAlert = false
+    @State private var selectedGoalId: Int? = nil
+    @State private var showGoalSheet = false // New state for sheet
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
@@ -210,6 +225,12 @@ struct InvitesView: View {
                                         responseMessage = success ? "Invite declined" : "Failed to decline invite"
                                         showAlert = true
                                     }
+                                },
+                                onViewGoal: {
+                                    print("📱 View Goal tapped for goal ID: \(invite.goals_id)")
+                                    selectedGoalId = invite.goals_id
+                                    // Show the sheet instead of using NavigationLink
+                                    showGoalSheet = true
                                 }
                             )
                         }
@@ -220,12 +241,27 @@ struct InvitesView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            // Mark all invites as read when viewing the invites screen
             invitesManager.markAllInvitesRead()
+            invitesManager.fetchPendingInvites() // Ensure we fetch fresh data
         }
         .alert(isPresented: $showAlert, content: {
             Alert(title: Text(responseMessage ?? ""))
         })
+        // Use a sheet instead of NavigationLink for more reliable navigation
+        .fullScreenCover(isPresented: $showGoalSheet, onDismiss: {
+            // Reset navigation state when sheet is dismissed
+            selectedGoalId = nil
+            print("📱 Goal sheet dismissed")
+        }) {
+            if let goalId = selectedGoalId {
+                NavigationView {
+                    GoalsDetailView(initialGoal: Goal.placeholder.withId(goalId))
+                        .onAppear {
+                            print("📱 GoalsDetailView appeared with ID: \(goalId)")
+                        }
+                }
+            }
+        }
     }
 }
 
@@ -233,19 +269,26 @@ struct InviteCard: View {
     let invite: GoalTeamInvite
     var onAccept: () -> Void
     var onDecline: () -> Void
-
-    @State private var selectedGoalId: Int? = nil
+    var onViewGoal: () -> Void // <-- Added callback for navigation
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                // Inviter photo
-                if let url = invite.inviterProfilePictureURL {
+                // Enhanced profile picture loading
+                if let url = invite.patchedInviterProfilePictureURL {
                     KFImage(url)
+                        .placeholder {
+                            Circle()
+                                .fill(Color.gray.opacity(0.3))
+                                .frame(width: 40, height: 40)
+                        }
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 40, height: 40)
                         .clipShape(Circle())
+                        .onAppear {
+                            print("🖼️ Loading profile image from URL: \(url.absoluteString)")
+                        }
                 } else {
                     Circle()
                         .fill(Color.gray.opacity(0.3))
@@ -288,9 +331,7 @@ struct InviteCard: View {
             }
 
             // "View Goal" button
-            Button(action: {
-                selectedGoalId = invite.goals_id
-            }) {
+            Button(action: onViewGoal) {
                 Text("View Goal")
                     .fontWeight(.medium)
                     .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
@@ -299,18 +340,6 @@ struct InviteCard: View {
                     .background(Color.gray.opacity(0.1))
                     .cornerRadius(6)
             }
-
-            // NavigationLink to GoalsDetailView
-            NavigationLink(
-                destination: selectedGoalId.map { 
-                    GoalsDetailView(initialGoal: Goal.placeholder.withId($0))
-                },
-                isActive: Binding(
-                    get: { selectedGoalId != nil },
-                    set: { if !$0 { selectedGoalId = nil } }
-                )
-            ) { EmptyView() }
-            .hidden()
         }
         .padding(12)
         .background(Color.white)

@@ -148,6 +148,7 @@ struct PortalPage: View {
     let portalId: Int
     let userId: Int
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.presentationMode) private var presentationMode
 
     @State private var showFlagConfirmation = false
     @State private var flagResultMessage: String? = nil
@@ -388,6 +389,7 @@ struct PortalPage: View {
     var body: some View {
         NavigationStack {
             mainContent()
+                .navigationBarBackButtonHidden(true)
                 .navigationBarHidden(true)
                 .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
                     Button("OK", role: .cancel) { flagResultMessage = nil }

@@ -112,6 +112,13 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
             )
             return true
         }
+        else if url.scheme == "rep" && url.host == "payment-settings-return" {
+            NotificationCenter.default.post(
+                name: Notification.Name("PaymentSettingsCompleted"),
+                object: nil
+            )
+            return true
+        }
         return false
     }
 

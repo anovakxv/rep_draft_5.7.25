@@ -35,6 +35,7 @@ struct GoalsDetailView: View {
         var id: Int { hashValue }
     }
     @State private var activeSheet: ActiveSheet?
+    @State private var showPortalSheet = false 
 
     // --- Reporting Increments State ---
     @State private var reportingIncrements: [ReportingIncrement] = []
@@ -68,15 +69,16 @@ struct GoalsDetailView: View {
                         if let portalId = viewModel.goal.portalId, let portalName = viewModel.goal.portalName {
                             Button(action: {
                                 portalToNavigateTo = portalId
+                                showPortalSheet = true // Show as sheet instead of using NavigationLink
                             }) {
                                 HStack(spacing: 4) {
                                     Text(portalName)
                                         .font(.caption)
                                         .lineLimit(1)
-                                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
+                                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
                                     Image(systemName: "arrow.up.right")
                                         .font(.system(size: 10))
-                                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
+                                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
                                 }
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -234,14 +236,10 @@ struct GoalsDetailView: View {
                 EmptyView()
             }
             .hidden()
-            NavigationLink(
-                destination: portalToNavigateTo.map { PortalPage(portalId: $0, userId: viewModel.currentUserId) },
-                isActive: Binding(
-                    get: { portalToNavigateTo != nil },
-                    set: { if !$0 { portalToNavigateTo = nil } }
-                )
-            ) {
-                EmptyView()
+            .fullScreenCover(isPresented: $showPortalSheet) {
+                if let portalId = portalToNavigateTo {
+                    PortalPage(portalId: portalId, userId: viewModel.currentUserId)
+                }
             }
             .hidden()
         }
@@ -814,12 +812,12 @@ struct Goal: Identifiable, Codable, Equatable {
         quotaString: "100", valueString: "50", chartData: [],
         creatorId: 0, portalId: nil, portalName: nil
     )
-    extension Goal {
-        func withId(_ id: Int) -> Goal {
-            var copy = self
-            copy.id = id
-            return copy
-        }
+}
+extension Goal {
+    func withId(_ id: Int) -> Goal {
+        var copy = self
+        copy.id = id
+        return copy
     }
 }
 

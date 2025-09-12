@@ -151,7 +151,10 @@ class WKWebViewController: UIViewController, WKNavigationDelegate {
             action: #selector(closeWebView)
         )
         navigationItem.leftBarButtonItem = closeButton
-        
+
+        // Set the color for the button
+        navigationController?.navigationBar.tintColor = UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0) // main light green
+
         // Load the URL
         let request = URLRequest(url: url)
         webView.load(request)

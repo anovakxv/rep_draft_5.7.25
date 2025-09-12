@@ -94,6 +94,23 @@ struct PaymentsView: View {
         .onAppear {
             viewModel.loadPaymentData()
             print("DIAGNOSTICS: jwtToken available: \(!viewModel.jwtToken.isEmpty)")
+
+            // Listen for payment settings completion deep link
+            NotificationCenter.default.addObserver(
+                forName: Notification.Name("PaymentSettingsCompleted"),
+                object: nil,
+                queue: .main
+            ) { _ in
+                print("Received PaymentSettingsCompleted notification")
+                viewModel.loadPaymentData()
+            }
+        }
+        .onDisappear {
+            NotificationCenter.default.removeObserver(
+                self,
+                name: Notification.Name("PaymentSettingsCompleted"),
+                object: nil
+            )
         }
         .alert("Cancel Subscription?", isPresented: $showCancelAlert) {
             Button("Cancel Subscription", role: .destructive) {
@@ -250,6 +267,7 @@ class PaymentsViewModel: ObservableObject {
 
     func openStripeCustomerPortal() {
         print("openStripeCustomerPortal called")
+        print("userId: \(userId)")
         guard userId != 0 else {
             self.errorMessage = "No user ID found."
             print("No user ID found.")

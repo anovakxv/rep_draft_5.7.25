@@ -93,8 +93,7 @@ struct PaymentsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.loadPaymentData()
-            print("DIAGNOSTICS: jwtToken available: \(!viewModel.jwtToken.isEmpty)")
-
+            
             // Listen for payment settings completion deep link
             NotificationCenter.default.addObserver(
                 forName: Notification.Name("PaymentSettingsCompleted"),

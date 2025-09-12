@@ -56,7 +56,7 @@ struct SettingsView: View {
 
                 Section(header: Text("Payments")) {
                     NavigationLink {
-                        PaymentSettingsView()
+                        PaymentsView() // <-- Now navigates to your full Payments page!
                     } label: {
                         HStack {
                             Image(systemName: "creditcard")
@@ -153,60 +153,5 @@ struct SettingsView: View {
         URLSession.shared.dataTask(with: request) { _, _, _ in
             // No response handling needed for settings update
         }.resume()
-    }
-}
-
-// MARK: - Payment Settings (Stripe stub for now)
-struct PaymentSettingsView: View {
-    @State private var isLoading = false
-    @State private var statusMessage: String?
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Text("Payments & Payouts")
-                .font(.title2).bold()
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text("Connect your payment method and set up payouts. You’ll be able to submit and receive payments through Rep.")
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Placeholder buttons to be wired to Stripe
-            Button {
-                statusMessage = "Stripe setup coming soon."
-            } label: {
-                HStack {
-                    Image(systemName: "link")
-                    Text("Set Up Payments")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(10)
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                statusMessage = "Open Stripe Dashboard (coming soon)."
-            } label: {
-                HStack {
-                    Image(systemName: "arrow.up.right.square")
-                    Text("Manage Payouts")
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(10)
-            }
-            .buttonStyle(.plain)
-
-            if let msg = statusMessage {
-                Text(msg).foregroundColor(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding()
-        .navigationTitle("Payments")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }

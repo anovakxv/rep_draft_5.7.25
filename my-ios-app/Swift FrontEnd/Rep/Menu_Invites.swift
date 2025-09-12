@@ -293,7 +293,7 @@ struct InviteCard: View {
             }) {
                 Text("View Goal")
                     .fontWeight(.medium)
-                    .foregroundColor(.blue)
+                    .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .background(Color.gray.opacity(0.1))
@@ -303,23 +303,7 @@ struct InviteCard: View {
             // NavigationLink to GoalsDetailView
             NavigationLink(
                 destination: selectedGoalId.map { 
-                    GoalsDetailView(initialGoal: Goal(
-                        id: $0, 
-                        title: "", 
-                        subtitle: "", 
-                        description: "", 
-                        progress: 0, 
-                        progressPercent: 0, 
-                        quota: 0, 
-                        filledQuota: 0, 
-                        metricName: "", 
-                        typeName: "", 
-                        reportingName: "", 
-                        quotaString: "", 
-                        valueString: "", 
-                        chartData: [], 
-                        creatorId: 0
-                    ))
+                    GoalsDetailView(initialGoal: Goal.placeholder.withId($0))
                 },
                 isActive: Binding(
                     get: { selectedGoalId != nil },

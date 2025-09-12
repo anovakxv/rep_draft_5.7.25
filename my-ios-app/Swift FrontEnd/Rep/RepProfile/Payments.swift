@@ -7,8 +7,6 @@
 import SwiftUI
 import StripePaymentSheet
 
-// MARK: - Main View
-
 struct PaymentsView: View {
     @StateObject private var viewModel = PaymentsViewModel()
     @State private var showCancelAlert = false
@@ -18,6 +16,26 @@ struct PaymentsView: View {
         ZStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
+                    // --- Payments Manage Section ---
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Payment Settings")
+                            .font(.title2).fontWeight(.bold)
+
+                        Button(action: {
+                            print("Manage Payments button tapped")
+                            viewModel.openStripeCustomerPortal()
+                        }) {
+                            HStack {
+                                Image(systemName: "creditcard")
+                                Text("Manage Payments")
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color(UIColor.systemGray6))
+                            .cornerRadius(10)
+                        }
+                    }
+
                     // --- Active Subscriptions Section ---
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Active Subscriptions")
@@ -75,6 +93,7 @@ struct PaymentsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.loadPaymentData()
+            print("DIAGNOSTICS: jwtToken available: \(!viewModel.jwtToken.isEmpty)")
         }
         .alert("Cancel Subscription?", isPresented: $showCancelAlert) {
             Button("Cancel Subscription", role: .destructive) {
@@ -89,6 +108,18 @@ struct PaymentsView: View {
         .alert(item: $viewModel.errorMessage) { error in
             Alert(title: Text("Error"), message: Text(error), dismissButton: .default(Text("OK")))
         }
+        .fullScreenCover(isPresented: $viewModel.showWebView) {
+            NavigationView {
+                if let url = viewModel.webViewURL {
+                    SafariWebView(url: url, onDismiss: {
+                        viewModel.showWebView = false
+                    })
+                    .navigationBarTitleDisplayMode(.inline)
+                } else {
+                    Text("Loading...")
+                }
+            }
+        }
     }
 }
 
@@ -99,7 +130,10 @@ class PaymentsViewModel: ObservableObject {
     @Published var history: [TransactionHistoryItem] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-    @AppStorage("jwtToken") private var jwtToken: String = ""
+    @Published var showWebView = false
+    @Published var webViewURL: URL? = nil
+    @AppStorage("jwtToken") var jwtToken: String = ""
+    @AppStorage("userId") var userId: Int = 0
 
     func loadPaymentData() {
         isLoading = true
@@ -207,6 +241,72 @@ class PaymentsViewModel: ObservableObject {
                     self.subscriptions.removeAll { $0.id == subscriptionId }
                 } else {
                     self.errorMessage = "Failed to cancel subscription. Please try again."
+                }
+            }
+        }.resume()
+    }
+
+    // MARK: - Stripe Flow Actions
+
+    func openStripeCustomerPortal() {
+        print("openStripeCustomerPortal called")
+        guard userId != 0 else {
+            self.errorMessage = "No user ID found."
+            print("No user ID found.")
+            return
+        }
+        
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/create_customer_portal") else {
+            print("Invalid URL for create_customer_portal")
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "return_url": "rep://payment-settings-return"
+        ])
+        
+        print("Sending Stripe customer portal API request to \(url)")
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            print("Stripe customer portal API called")
+            
+            if let error = error {
+                print("Error calling customer portal API: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    self.errorMessage = "Network error: \(error.localizedDescription)"
+                }
+                return
+            }
+            
+            guard let data = data else {
+                print("No data returned from customer portal API")
+                return
+            }
+            
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                print("Customer portal API response:", json)
+                
+                if let portalURL = json["url"] as? String, let url = URL(string: portalURL) {
+                    DispatchQueue.main.async {
+                        self.webViewURL = url
+                        self.showWebView = true
+                        print("WebView should open with URL:", url)
+                    }
+                } else {
+                    print("No URL in customer portal API response")
+                    if let errorMessage = json["error"] as? String {
+                        DispatchQueue.main.async {
+                            self.errorMessage = errorMessage
+                        }
+                    }
+                }
+            } else {
+                print("Failed to parse customer portal API response")
+                DispatchQueue.main.async {
+                    self.errorMessage = "Could not connect to payment system"
                 }
             }
         }.resume()

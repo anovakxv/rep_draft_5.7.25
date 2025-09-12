@@ -73,10 +73,10 @@ struct GoalsDetailView: View {
                                     Text(portalName)
                                         .font(.caption)
                                         .lineLimit(1)
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
                                     Image(systemName: "arrow.up.right")
                                         .font(.system(size: 10))
-                                        .foregroundColor(.blue)
+                                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
                                 }
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -814,6 +814,13 @@ struct Goal: Identifiable, Codable, Equatable {
         quotaString: "100", valueString: "50", chartData: [],
         creatorId: 0, portalId: nil, portalName: nil
     )
+    extension Goal {
+        func withId(_ id: Int) -> Goal {
+            var copy = self
+            copy.id = id
+            return copy
+        }
+    }
 }
 
 struct Feed: Identifiable {

@@ -212,6 +212,25 @@ def create_payment_intent():
         #     goal.filled_quota = (goal.filled_quota or 0) + (amount/100)
         # db.session.commit()
 
+@payments_bp.route('/api/create_customer_portal', methods=['POST'])
+@jwt_required
+def create_customer_portal():
+    user_id = g.current_user.id
+    data = request.json or {}
+    return_url = data.get('return_url', 'https://rep-june2025.onrender.com/payment-return?status=success')
+
+    # Get or create Stripe customer for the user
+    customer = get_or_create_stripe_customer(user_id)
+
+    try:
+        session = stripe.billing_portal.Session.create(
+            customer=customer.id,
+            return_url=return_url
+        )
+        return jsonify({'url': session.url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 @payments_bp.route('/api/portal/payment_status', methods=['GET'])
 @jwt_required
 def get_portal_payment_status():

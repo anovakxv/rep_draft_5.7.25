@@ -71,9 +71,9 @@ def create_connect_account():
         if portal.stripe_account_id:
             print(f"[Connect] Portal already has Stripe account: {portal.stripe_account_id}")
             account_link = stripe.AccountLink.create(
-                account=portal.stripe_account_id,
-                refresh_url=redirect_url,
-                return_url=redirect_url,
+                account=portal.stripe_account_id,  # Use the existing account ID from the portal
+                refresh_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=refresh",
+                return_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=success",
                 type="account_onboarding"
             )
             print(f"[Connect] Returning existing onboarding link: {account_link.url}")
@@ -98,8 +98,8 @@ def create_connect_account():
 
         account_link = stripe.AccountLink.create(
             account=account.id,
-            refresh_url=redirect_url,
-            return_url=redirect_url,
+            refresh_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=refresh",
+            return_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=success",
             type="account_onboarding"
         )
         print(f"[Connect] Created onboarding link: {account_link.url}")
@@ -535,8 +535,8 @@ def create_checkout_session():
     customer = get_or_create_stripe_customer(user_id)
     print(f"[Checkout] Stripe customer: {customer.id}")
 
-    success_url = f"rep://payment-success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"rep://payment-canceled"
+    success_url = f"https://rep-june2025.onrender.com/payment-return?status=success&session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"https://rep-june2025.onrender.com/payment-return?status=canceled"
 
     goal = None
     if goal_id:
@@ -619,3 +619,59 @@ def checkout_session_status():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 400        
+
+@payments_bp.route('/stripe-connect-return', methods=['GET'])
+def stripe_connect_return():
+    portal_id = request.args.get('portal_id')
+    status = request.args.get('status')
+    
+    # Create a redirect to your app using a custom scheme
+    redirect_url = f"rep://stripe-connect-return?portal_id={portal_id}&status={status}"
+    
+    # Return a simple HTML page that will redirect to your app
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Redirecting to Rep</title>
+        <meta http-equiv="refresh" content="0;url={redirect_url}" />
+    </head>
+    <body>
+        <p>Redirecting to Rep app...</p>
+        <p>If you are not redirected, <a href="{redirect_url}">click here</a>.</p>
+        <script>
+            window.location.href = "{redirect_url}";
+        </script>
+    </body>
+    </html>
+    """
+
+@payments_bp.route('/payment-return', methods=['GET'])
+def payment_return():
+    status = request.args.get('status')
+    session_id = request.args.get('session_id', '')
+    
+    # Create a redirect to your app using a custom scheme
+    if status == "success":
+        redirect_url = f"rep://payment-success?session_id={session_id}"
+    else:
+        redirect_url = f"rep://payment-canceled"
+    
+    # Return a simple HTML page that will redirect to your app
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Redirecting to Rep</title>
+        <meta http-equiv="refresh" content="0;url={redirect_url}" />
+    </head>
+    <body>
+        <p>Redirecting to Rep app...</p>
+        <p>If you are not redirected, <a href="{redirect_url}">click here</a>.</p>
+        <script>
+            window.location.href = "{redirect_url}";
+        </script>
+    </body>
+    </html>
+    """
+

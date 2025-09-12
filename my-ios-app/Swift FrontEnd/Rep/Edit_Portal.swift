@@ -654,18 +654,16 @@ struct EditPortalView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    // Refactored Sections
                     PortalImagesSection(viewModel: viewModel, photoPickerItems: $photoPickerItems)
                     PortalInfoSection(viewModel: viewModel)
                     PortalLeadsSection(viewModel: viewModel, showAddLeadsSheet: $showAddLeadsSheet, userId: userId)
-                    PortalStoryBlocksEditorView(viewModel: viewModel)
                     PaymentSettingsSection(
                         portalDetail: viewModel.portalDetail,
                         userId: userId,
                         portalId: viewModel.portalId,
                         portalName: viewModel.name
                     )
-                    
+                    PortalStoryBlocksEditorView(viewModel: viewModel)
                     // --- Delete Portal Button ---
                     Button(role: .destructive) {
                         showDeleteAlert = true

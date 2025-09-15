@@ -19,7 +19,8 @@ class GoalProgressLog(db.Model):
     user = db.relationship('User', backref='goal_progress_logs')
     # goal = db.relationship('Goal', backref='progress_logs')
     # File attachments relationship (if you have a GoalProgressFile model)
-    # progress_files = db.relationship('GoalProgressFile', backref='progress_log', lazy='dynamic')
+    
+    progress_files = db.relationship('GoalProgressFile', backref='progress_log', lazy='dynamic')
 
     def __repr__(self):
         return f"<GoalProgressLog id={self.id} goal_id={self.goals_id} user_id={self.users_id}>"
@@ -36,7 +37,9 @@ class GoalProgressLog(db.Model):
             "aAttachments": [
                 {
                     "id": f.id,
-                    "file_path": f.file_path,
+                    "file_url": f.file_url,
+                    "file_name": f.file_name,
+                    "is_image": f.is_image,
                     "note": f.note
                 } for f in self.progress_files
             ] if hasattr(self, "progress_files") else []

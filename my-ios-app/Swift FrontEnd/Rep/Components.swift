@@ -171,14 +171,40 @@ class WKWebViewController: UIViewController, WKNavigationDelegate {
     
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
         if let navURL = navigationAction.request.url {
-            if navURL.scheme == "rep" {
+            // Detect Stripe payment return
+            if navURL.absoluteString.contains("/payment-return?status=success") {
+                let components = URLComponents(url: navURL, resolvingAgainstBaseURL: false)
+                let sessionId = components?.queryItems?.first(where: { $0.name == "session_id" })?.value ?? ""
+                #if DEBUG
+                print("[WKWebViewController] Posting PaymentCompleted notification: success, session_id:", sessionId)
+                #endif
+                NotificationCenter.default.post(
+                    name: Notification.Name("PaymentCompleted"),
+                    object: nil,
+                    userInfo: ["status": "success", "session_id": sessionId]
+                )
+                closeWebView()
+                decisionHandler(.cancel)
+                return
+            } else if navURL.absoluteString.contains("/payment-return?status=canceled") {
+                #if DEBUG
+                print("[WKWebViewController] Posting PaymentCompleted notification: canceled")
+                #endif
+                NotificationCenter.default.post(
+                    name: Notification.Name("PaymentCompleted"),
+                    object: nil,
+                    userInfo: ["status": "canceled"]
+                )
+                closeWebView()
+                decisionHandler(.cancel)
+                return
+            } else if navURL.scheme == "rep" {
                 UIApplication.shared.open(navURL, options: [:], completionHandler: nil)
                 closeWebView()
                 decisionHandler(.cancel)
                 return
             }
         }
-        // Allow all other navigation by default
         decisionHandler(.allow)
     }
 }

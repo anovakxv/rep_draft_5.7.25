@@ -1337,10 +1337,6 @@ struct ActiveChatList: View {
                             }
 
                             Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
-                                .font(.system(size: 14, weight: .semibold))
                         }
                         .padding(.vertical, 12)
                         .padding(.horizontal, 16)

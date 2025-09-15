@@ -100,10 +100,18 @@ def api_goal_details():
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
     chart_data = goal.chart_data(increment=increment, num_periods=4)
 
-    # --- PATCH: Add team and feed info ---
+    # PATCH: Include all users who appear in progress logs, not just team members
     team_members = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).all()
     team_user_ids = set([goal.users_id] + [tm.users_id2 for tm in team_members])
-    users = User.query.filter(User.id.in_(team_user_ids)).all()
+
+    # Get all user IDs from progress logs
+    logs = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).limit(20).all()
+    progress_log_user_ids = set([log.users_id for log in logs if log.users_id])
+
+    # Union team and progress log user IDs
+    all_user_ids = team_user_ids.union(progress_log_user_ids)
+    users = User.query.filter(User.id.in_(all_user_ids)).all()
+
     team = [
         {
             "id": u.id,

@@ -256,7 +256,12 @@ struct GoalsDetailView: View {
             switch sheet {
             case .action:
                 VStack(spacing: 24) {
-                    if viewModel.goal.typeName == "Recruiting" {
+                    // Check if user is already on the team
+                    let isOnTeam = viewModel.team.contains(where: { $0.id == viewModel.currentUserId })
+                    let isCreator = viewModel.goal.creatorId == viewModel.currentUserId
+                    
+                    // Show "Join Team" only if user is not already on the team
+                    if !isOnTeam && !isCreator {
                         Button(action: {
                             viewModel.joinRecruitingGoal(goalId: viewModel.goal.id) { success in
                                 activeSheet = nil
@@ -271,8 +276,10 @@ struct GoalsDetailView: View {
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
-                        
-                        // Add Invite to Team option
+                    }
+                    
+                    // Show "Invite to Team" only if user is on the team or is creator
+                    if isOnTeam || isCreator {
                         Button(action: {
                             activeSheet = .inviteTeam
                         }) {
@@ -282,7 +289,10 @@ struct GoalsDetailView: View {
                                 .fontWeight(.bold)
                                 .padding(.vertical, 5)
                         }
-                    } else {
+                    }
+                    
+                    // Update Progress for non-Recruiting goals
+                    if viewModel.goal.typeName != "Recruiting" {
                         Button(action: {
                             activeSheet = .updateGoal
                         }) {
@@ -303,9 +313,9 @@ struct GoalsDetailView: View {
                             .padding(.vertical, 5)
                     }
                     Button(role: .destructive) {
-                        activeSheet = nil  // Dismiss sheet first
+                        activeSheet = nil
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            showDeleteAlert = true  // Then show alert
+                            showDeleteAlert = true
                         }
                     } label: {
                         Text("Delete Goal")
@@ -614,7 +624,7 @@ class GoalsDetailViewModel: ObservableObject {
                     )
 
                     let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
-                
+
                     // Store latest progress logs for lookup
                     self.latestProgressLogs = apiGoal.aLatestProgress ?? []
 
@@ -628,7 +638,7 @@ class GoalsDetailViewModel: ObservableObject {
                     let limitedLogs = sortedLogs.prefix(20)
                     self.feed = limitedLogs.compactMap { log in
                         let apiUser = teamDict[log.users_id ?? 0]
-                        let userName = apiUser?.name ?? "User"
+                        let userName = apiUser?.name ?? "Unknown User"
                         let formattedDate = Self.formatDateString(log.timestamp)
                         let profilePictureURL = self.patchProfilePictureURL(apiUser?.imageName)
                         let attachments = log.aAttachments?.compactMap { attachment -> Attachment? in
@@ -643,12 +653,16 @@ class GoalsDetailViewModel: ObservableObject {
                             )
                         } ?? []
                         
+                        // Show only the individual transaction value, not the cumulative
+                        let transactionValue = log.added_value ?? 0
+                        let valueString = "Value: \(Int(round(transactionValue)))"
+                        
                         return Feed(
                             id: log.id,
                             userImageName: "profile_placeholder",
                             userName: userName,
                             line1: formattedDate,
-                            line2: "Value: \(Int(round(log.value ?? 0)))",
+                            line2: valueString,
                             line3: log.note ?? "",
                             line4: "",
                             userProfilePictureURL: profilePictureURL,
@@ -916,6 +930,14 @@ struct FeedCell: View {
                                 VStack(alignment: .center) {
                                     if attachment.isImage {
                                         KFImage(attachment.url)
+                                            .placeholder {
+                                                Rectangle()
+                                                    .fill(Color.gray.opacity(0.2))
+                                                    .frame(width: 100, height: 100)
+                                            }
+                                            .onFailure { error in
+                                                print("🔴 Image load error: \(error.localizedDescription) for URL: \(attachment.url)")
+                                            }
                                             .resizable()
                                             .scaledToFill()
                                             .frame(width: 100, height: 100)

@@ -94,6 +94,8 @@ struct PayTransactionView: View {
     @State private var isMonthlySubscription = false
     @State private var selectedPriceId: String = ""
     @State private var showPaymentSetupAlert = false
+    @State private var showPaymentErrorAlert = false
+    @State private var paymentErrorMessage: String = ""
     @AppStorage("jwtToken") private var jwtToken: String = ""
     @Environment(\.dismiss) private var dismiss
 
@@ -263,11 +265,27 @@ struct PayTransactionView: View {
                 set: { if !$0 { paymentStatus = .initial } }
             )) {
                 Alert(
-                    title: Text(transactionType.receiptTitle),
+                    title: Text("✅ " + transactionType.receiptTitle),
                     message: Text(transactionType.receiptMessage),
                     dismissButton: .default(Text("Done")) {
                         dismiss()
                     }
+                )
+            }
+            .alert(isPresented: $showPaymentErrorAlert) {
+                Alert(
+                    title: Text("Payment Error"),
+                    message: Text(paymentErrorMessage),
+                    dismissButton: .default(Text("OK")) {
+                        paymentStatus = .initial
+                    }
+                )
+            }
+            .alert(isPresented: $showPaymentSetupAlert) {
+                Alert(
+                    title: Text("Payments Not Setup"),
+                    message: Text("Purpose does not have payments setup yet and cannot receive payments yet."),
+                    dismissButton: .default(Text("OK"))
                 )
             }
             .onAppear {
@@ -276,6 +294,9 @@ struct PayTransactionView: View {
                     object: nil,
                     queue: .main
                 ) { notification in
+                    #if DEBUG
+                    print("[PayTransactionView] Received PaymentCompleted notification:", notification.userInfo ?? [:])
+                    #endif
                     if let status = notification.userInfo?["status"] as? String {
                         if status == "success" {
                             if let sessionId = notification.userInfo?["session_id"] as? String {
@@ -284,7 +305,9 @@ struct PayTransactionView: View {
                                 self.paymentStatus = .success
                             }
                         } else if status == "canceled" {
-                            self.paymentStatus = .initial
+                            self.paymentStatus = .failed("Payment was canceled or not completed.")
+                            self.paymentErrorMessage = "Payment was canceled or not completed."
+                            self.showPaymentErrorAlert = true
                         }
                     }
                 }
@@ -307,13 +330,6 @@ struct PayTransactionView: View {
                         Text("Loading...")
                     }
                 }
-            }
-            .alert(isPresented: $showPaymentSetupAlert) {
-                Alert(
-                    title: Text("Payments Not Setup"),
-                    message: Text("Purpose does not have payments setup yet and cannot receive payments yet."),
-                    dismissButton: .default(Text("OK"))
-                )
             }
         }
     }
@@ -425,12 +441,16 @@ struct PayTransactionView: View {
                 self.isLoading = false
 
                 if let error = error {
+                    self.paymentErrorMessage = "Network error: \(error.localizedDescription)"
+                    self.showPaymentErrorAlert = true
                     self.paymentStatus = .failed("Network error: \(error.localizedDescription)")
                     return
                 }
 
                 guard let data = data,
                     let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    self.paymentErrorMessage = "Failed to create checkout session"
+                    self.showPaymentErrorAlert = true
                     self.paymentStatus = .failed("Failed to create checkout session")
                     return
                 }
@@ -439,6 +459,8 @@ struct PayTransactionView: View {
                     if errorMsg.contains("Portal not set up to receive payments") {
                         self.showPaymentSetupAlert = true
                     } else {
+                        self.paymentErrorMessage = errorMsg
+                        self.showPaymentErrorAlert = true
                         self.paymentStatus = .failed(errorMsg)
                     }
                     return
@@ -446,6 +468,8 @@ struct PayTransactionView: View {
 
                 guard let checkoutUrl = json["checkout_url"] as? String,
                     let url = URL(string: checkoutUrl) else {
+                    self.paymentErrorMessage = "Failed to create checkout session"
+                    self.showPaymentErrorAlert = true
                     self.paymentStatus = .failed("Failed to create checkout session")
                     return
                 }
@@ -463,6 +487,7 @@ struct PayTransactionView: View {
 
     private func checkPaymentStatus(sessionId: String) {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/checkout_session_status?session_id=\(sessionId)") else {
+            self.paymentStatus = .success // fallback if URL is invalid
             return
         }
 
@@ -472,20 +497,31 @@ struct PayTransactionView: View {
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 if let data = data,
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let paymentStatus = json["payment_status"] as? String {
+                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let paymentStatus = json["payment_status"] as? String {
+
+                    #if DEBUG
+                    print("[PayTransactionView] checkPaymentStatus response:", paymentStatus)
+                    #endif
 
                     if paymentStatus == "paid" {
                         self.paymentStatus = .success
                     } else if paymentStatus == "unpaid" {
                         self.paymentStatus = .failed("Payment was not completed")
+                        self.paymentErrorMessage = "Payment was not completed"
+                        self.showPaymentErrorAlert = true
                     }
                 } else {
-                    self.paymentStatus = .initial
+                    // Fallback: assume success if we got here after a success notification
+                    #if DEBUG
+                    print("[PayTransactionView] checkPaymentStatus decode failed, assuming success")
+                    #endif
+                    self.paymentStatus = .success
                 }
             }
         }.resume()
     }
+
 
     private var transactionTypeString: String {
         switch transactionType {

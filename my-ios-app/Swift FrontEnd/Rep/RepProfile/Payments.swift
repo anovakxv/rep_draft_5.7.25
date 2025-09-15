@@ -17,25 +17,74 @@ struct PaymentsView: View {
         ZStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
-                    // --- Payments Manage Section ---
+                    // --- Your Payment Methods Section ---
                     VStack(alignment: .leading, spacing: 16) {
-                        Text("Payment Settings")
+                        Text("Your Payment Methods")
                             .font(.title2).fontWeight(.bold)
 
                         Button(action: {
-                            print("Manage Payments button tapped")
                             viewModel.openStripeCustomerPortal()
                         }) {
                             HStack {
                                 Image(systemName: "creditcard")
                                     .foregroundColor(Color(red: 0.0, green: 0.4, blue: 0.0))
-                                Text("Manage Payments")
+                                Text("Edit Payment Methods")
                                     .foregroundColor(Color(red: 0.0, green: 0.4, blue: 0.0))
                                 Spacer()
+                                Image(systemName: "arrow.up.right.square")
+                                    .foregroundColor(Color(red: 0.0, green: 0.4, blue: 0.0))
                             }
                             .padding()
                             .background(Color(UIColor.systemGray6))
                             .cornerRadius(10)
+                        }
+                        
+                        Text("Your saved payment cards are used for your donations, payments, and subscriptions.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            
+                        // Add explanation about personal payment information
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("About Your Payment Information")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                            
+                            Text("Your payment information is securely stored with Stripe. You can add, remove, or update your payment cards at any time.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                        .background(Color(UIColor.systemGray6))
+                        .cornerRadius(10)
+                        .padding(.top, 8)
+                    }
+
+                    // --- Payment Help Section ---
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Payment Support")
+                            .font(.title2).fontWeight(.bold)
+                        
+                        VStack(alignment: .leading, spacing: 12) {
+                            Button(action: {
+                                viewModel.openStripeSupport()
+                            }) {
+                                HStack {
+                                    Image(systemName: "questionmark.circle")
+                                        .foregroundColor(.blue)
+                                    Text("Request Refund or Payment Help")
+                                        .foregroundColor(.blue)
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right.square")
+                                        .foregroundColor(.blue)
+                                }
+                                .padding()
+                                .background(Color(UIColor.systemGray6))
+                                .cornerRadius(10)
+                            }
+                            
+                            Text("For payment disputes, refund requests, or other payment issues, contact Stripe support directly.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
 
@@ -58,6 +107,10 @@ struct PaymentsView: View {
                                     self.showCancelAlert = true
                                 }
                             }
+                            
+                            Text("You can cancel your subscriptions directly in the app. Changes take effect at the end of the current billing period.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
                     }
 
@@ -116,7 +169,6 @@ struct PaymentsView: View {
                 object: nil,
                 queue: .main
             ) { _ in
-                print("Received PaymentSettingsCompleted notification")
                 viewModel.loadPaymentData()
             }
         }
@@ -147,6 +199,7 @@ struct PaymentsView: View {
                         viewModel.showWebView = false
                     })
                     .navigationBarTitleDisplayMode(.inline)
+                    .navigationTitle(viewModel.webViewTitle)
                 } else {
                     Text("Loading...")
                 }
@@ -164,6 +217,7 @@ class PaymentsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var showWebView = false
     @Published var webViewURL: URL? = nil
+    @Published var webViewTitle: String = ""
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("userId") var userId: Int = 0
 
@@ -281,16 +335,12 @@ class PaymentsViewModel: ObservableObject {
     // MARK: - Stripe Flow Actions
 
     func openStripeCustomerPortal() {
-        print("openStripeCustomerPortal called")
-        print("userId: \(userId)")
         guard userId != 0 else {
             self.errorMessage = "No user ID found."
-            print("No user ID found.")
             return
         }
         
         guard let url = URL(string: "\(APIConfig.baseURL)/api/create_customer_portal") else {
-            print("Invalid URL for create_customer_portal")
             return
         }
         
@@ -302,47 +352,48 @@ class PaymentsViewModel: ObservableObject {
             "return_url": "rep://payment-settings-return"
         ])
         
-        print("Sending Stripe customer portal API request to \(url)")
         URLSession.shared.dataTask(with: request) { data, response, error in
-            print("Stripe customer portal API called")
-            
             if let error = error {
-                print("Error calling customer portal API: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.errorMessage = "Network error: \(error.localizedDescription)"
                 }
                 return
             }
             
-            guard let data = data else {
-                print("No data returned from customer portal API")
-                return
-            }
+            guard let data = data else { return }
             
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                print("Customer portal API response:", json)
-                
                 if let portalURL = json["url"] as? String, let url = URL(string: portalURL) {
                     DispatchQueue.main.async {
+                        self.webViewTitle = "Your Payment Methods"
                         self.webViewURL = url
                         self.showWebView = true
-                        print("WebView should open with URL:", url)
                     }
-                } else {
-                    print("No URL in customer portal API response")
-                    if let errorMessage = json["error"] as? String {
-                        DispatchQueue.main.async {
-                            self.errorMessage = errorMessage
-                        }
+                } else if let errorMessage = json["error"] as? String {
+                    DispatchQueue.main.async {
+                        self.errorMessage = errorMessage
                     }
                 }
             } else {
-                print("Failed to parse customer portal API response")
                 DispatchQueue.main.async {
                     self.errorMessage = "Could not connect to payment system"
                 }
             }
         }.resume()
+    }
+    
+    // Function to open Stripe support for refunds and other issues
+    func openStripeSupport() {
+        // Direct link to Stripe support or help center
+        if let url = URL(string: "https://support.stripe.com/") {
+            DispatchQueue.main.async {
+                self.webViewTitle = "Stripe Support"
+                self.webViewURL = url
+                self.showWebView = true
+            }
+        } else {
+            self.errorMessage = "Could not open support page"
+        }
     }
 }
 

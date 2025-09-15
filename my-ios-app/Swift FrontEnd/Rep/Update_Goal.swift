@@ -147,15 +147,23 @@ struct UpdateGoalSheet: View {
         for (index, image) in selectedImages.enumerated() {
             if let imageData = image.jpegData(compressionQuality: 0.8) {
                 httpBody.append("--\(boundary)\r\n".data(using: .utf8)!)
-                httpBody.append("Content-Disposition: form-data; name=\"files\"; filename=\"image\(index).jpg\"\r\n".data(using: .utf8)!)
+                httpBody.append("Content-Disposition: form-data; name=\"files[\(index)]\"; filename=\"image\(index).jpg\"\r\n".data(using: .utf8)!)
                 httpBody.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
                 httpBody.append(imageData)
                 httpBody.append("\r\n".data(using: .utf8)!)
 
-                // Add note for this image
+                // Use indexed field name for notes
                 httpBody.append("--\(boundary)\r\n".data(using: .utf8)!)
-                httpBody.append("Content-Disposition: form-data; name=\"sources_notes\"\r\n\r\n".data(using: .utf8)!)
+                httpBody.append("Content-Disposition: form-data; name=\"sources_notes[\(index)]\"\r\n\r\n".data(using: .utf8)!)
                 httpBody.append("\(index < attachmentNotes.count ? attachmentNotes[index] : "")\r\n".data(using: .utf8)!)
+            }
+        }
+
+        // Add debug logging
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            print("📤 Upload Response Code: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+            if let data = data, let responseStr = String(data: data, encoding: .utf8) {
+                print("📤 Upload Response: \(responseStr)")
             }
         }
 

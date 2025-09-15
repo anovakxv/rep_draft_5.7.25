@@ -47,12 +47,13 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Image(systemName: "person.crop.circle")
-                                .foregroundColor(.primary)
+                                .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
                             Text("Edit Profile")
+                                .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
                         }
                     }
                     .buttonStyle(.plain)
-                }
+                }    
 
                 Section(header: Text("Payments")) {
                     NavigationLink {
@@ -60,8 +61,9 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Image(systemName: "creditcard")
-                                .foregroundColor(.primary)
+                                .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
                             Text("Payment & Payouts")
+                                .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
                         }
                     }
                 }

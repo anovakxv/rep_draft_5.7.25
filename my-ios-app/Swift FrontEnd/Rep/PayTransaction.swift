@@ -81,10 +81,10 @@ struct PayTransactionView: View {
     let transactionType: TransactionType
 
     let monthlyPriceOptions: [(amount: Int, priceId: String)] = [
+        (5, "price_1S7ZjaLEcZxL3ukIOG5Hf8vo"),   // $5/month
         (10, "price_1S5Z8lLEcZxL3ukI6dh5l5PM"),   // $10/month
         (20, "price_1S5Z9GLEcZxL3ukI9LcKmj0P"),   // $20/month
-        (40, "price_1S5Z9bLEcZxL3ukIrn8LjNGl"),   // $40/month
-        (100, "price_1S5Z9zLEcZxL3ukItz2JikK5")   // $100/month
+        (40, "price_1S5Z9bLEcZxL3ukIrn8LjNGl")   // $40/month
     ]
 
     @State private var amount: String = ""
@@ -93,6 +93,7 @@ struct PayTransactionView: View {
     @State private var paymentStatus: PaymentStatus = .initial
     @State private var isMonthlySubscription = false
     @State private var selectedPriceId: String = ""
+    @State private var showPaymentSetupAlert = false
     @AppStorage("jwtToken") private var jwtToken: String = ""
     @Environment(\.dismiss) private var dismiss
 
@@ -195,18 +196,22 @@ struct PayTransactionView: View {
                     }
 
                     // Stripe Checkout button (now opens in-app web view)
-                    Button {
+                    Button(action: {
                         guard validateAmount() else { return }
                         isLoading = true
                         createCheckoutSession()
-                    } label: {
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Text(isMonthlySubscription
-                                ? "Subscribe $\(formattedAmount)/mo"
-                                : "\(transactionType.ctaText) $\(formattedAmount)")
+                    }) {
+                        ZStack {
+                            if isLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                Text(isMonthlySubscription
+                                    ? "Subscribe $\(formattedAmount)/mo"
+                                    : "\(transactionType.ctaText) $\(formattedAmount)")
+                                    .frame(maxWidth: .infinity)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity)
@@ -302,6 +307,13 @@ struct PayTransactionView: View {
                         Text("Loading...")
                     }
                 }
+            }
+            .alert(isPresented: $showPaymentSetupAlert) {
+                Alert(
+                    title: Text("Payments Not Setup"),
+                    message: Text("Purpose does not have payments setup yet and cannot receive payments yet."),
+                    dismissButton: .default(Text("OK"))
+                )
             }
         }
     }
@@ -418,9 +430,22 @@ struct PayTransactionView: View {
                 }
 
                 guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let checkoutUrl = json["checkout_url"] as? String,
-                      let url = URL(string: checkoutUrl) else {
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    self.paymentStatus = .failed("Failed to create checkout session")
+                    return
+                }
+
+                if let errorMsg = json["error"] as? String {
+                    if errorMsg.contains("Portal not set up to receive payments") {
+                        self.showPaymentSetupAlert = true
+                    } else {
+                        self.paymentStatus = .failed(errorMsg)
+                    }
+                    return
+                }
+
+                guard let checkoutUrl = json["checkout_url"] as? String,
+                    let url = URL(string: checkoutUrl) else {
                     self.paymentStatus = .failed("Failed to create checkout session")
                     return
                 }

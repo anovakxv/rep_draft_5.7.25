@@ -197,13 +197,13 @@ struct GoalsDetailView: View {
                     .background(Color.white)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.repGreen, lineWidth: 2) 
+                            .stroke(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)), lineWidth: 2) 
                     )
                     .cornerRadius(8)
                         .shadow(
                             color: Color(.sRGB, red: 0.1, green: 0.1, blue: 0.1, opacity: 0.30), 
-                            radius: 5,    
-                            x: -3,
+                            radius: 4,    
+                            x: 3,
                             y: 3
                     )
                 }

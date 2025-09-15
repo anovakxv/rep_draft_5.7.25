@@ -38,7 +38,13 @@ struct UpdateGoalSheet: View {
                     Button {
                         showImagePicker = true
                     } label: {
-                        Label("Add Photo", systemImage: "photo")
+                        Label {
+                            Text("Add Photo (optional)")
+                                .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) // light rep green
+                        } icon: {
+                            Image(systemName: "photo")
+                                .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) // light rep green
+                        }
                     }
 
                     // Show selected images

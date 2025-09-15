@@ -852,7 +852,7 @@ struct Feed: Identifiable {
     let line3: String
     let line4: String
     let userProfilePictureURL: URL?
-    let attachments: [Attachment] = []
+    let attachments: [Attachment] 
 }
 struct Attachment: Identifiable {
     let id: Int

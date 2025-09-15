@@ -88,7 +88,6 @@
 		005B63612E16F88600A1F0C1 /* Edit_Portal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Edit_Portal.swift; sourceTree = "<group>"; };
 		005B63622E16F88600A1F0C1 /* GoalListItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalListItem.swift; sourceTree = "<group>"; };
 		005B63632E16F88600A1F0C1 /* GoalsDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsDetailView.swift; sourceTree = "<group>"; };
-		005B63642E16F88600A1F0C1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		005B63652E16F88600A1F0C1 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		005B63662E16F88600A1F0C1 /* MainScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainScreen.swift; sourceTree = "<group>"; };
 		005B63672E16F88600A1F0C1 /* PortalItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PortalItem.swift; sourceTree = "<group>"; };
@@ -113,7 +112,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		003D02C12E4BE75E00880967 /* Exceptions for "Rep" folder in "Rep" target */ = {
+		006D963C2E77BFF8007521F7 /* Exceptions for "Rep" folder in "Rep" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -126,7 +125,7 @@
 		005B632F2E16F83200A1F0C1 /* Rep */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				003D02C12E4BE75E00880967 /* Exceptions for "Rep" folder in "Rep" target */,
+				006D963C2E77BFF8007521F7 /* Exceptions for "Rep" folder in "Rep" target */,
 			);
 			path = Rep;
 			sourceTree = "<group>";
@@ -197,7 +196,6 @@
 				005B63622E16F88600A1F0C1 /* GoalListItem.swift */,
 				00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */,
 				005B63632E16F88600A1F0C1 /* GoalsDetailView.swift */,
-				005B63642E16F88600A1F0C1 /* Info.plist */,
 				002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */,
 				005B63652E16F88600A1F0C1 /* LoginView.swift */,
 				005B63662E16F88600A1F0C1 /* MainScreen.swift */,
@@ -601,7 +599,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.40;
+				CURRENT_PROJECT_VERSION = 1.44.4;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -622,7 +620,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.40;
+				MARKETING_VERSION = 1.44.4;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -642,7 +640,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.40;
+				CURRENT_PROJECT_VERSION = 1.44.4;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -663,7 +661,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.40;
+				MARKETING_VERSION = 1.44.4;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;

@@ -792,7 +792,7 @@ struct PortalStorySection: View {
             }
             Divider()
             // Story Text Blocks with clickable links
-            ForEach((portal.aTexts ?? []).filter { ($0.section ?? "") == "story" }) { block in
+            ForEach((portal.aTexts ?? []).filter { ($0.section ?? "") == "story" }, id: \.id) { block in
                 VStack(alignment: .leading, spacing: 4) {
                     if let title = block.title, !title.isEmpty {
                         Text(title)
@@ -800,7 +800,7 @@ struct PortalStorySection: View {
                             .fontWeight(.medium)
                     }
                     if let text = block.text, !text.isEmpty {
-                        LinkableText(text: text, fontSize: 16, openInApp: true)
+                        LinkableText(text: text, fontSize: 16)
                     }
                 }
                 .padding(.vertical, 4)
@@ -911,57 +911,42 @@ struct LinkableText: View {
     let text: String
     let fontSize: CGFloat
     let openInApp: Bool
-    
-    @State private var showWebView = false
-    @State private var urlToOpen: URL? = nil
-    
+
     init(text: String, fontSize: CGFloat = 16, openInApp: Bool = true) {
         self.text = text
         self.fontSize = fontSize
         self.openInApp = openInApp
     }
-    
+
     var body: some View {
         Text(attributedString)
             .font(.system(size: fontSize))
-            .sheet(isPresented: $showWebView) {
-                if let url = urlToOpen {
-                    SafariView(url: url)
-                        .ignoresSafeArea()
-                        .presentationDetents([.large])
+            .onTapGesture {
+                if let url = firstURL {
+                    UIApplication.shared.open(url)
                 }
             }
     }
-    
+
     private var attributedString: AttributedString {
         var attributedString = AttributedString(text)
-        
-        // Find URL patterns in the text
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let matches = detector?.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
-        
         matches?.forEach { match in
             if let range = Range(match.range, in: text), let url = match.url {
                 let linkRange = attributedString.range(of: String(text[range]))
                 if let linkRange = linkRange {
-                    attributedString[linkRange].link = url
                     attributedString[linkRange].foregroundColor = .blue
                     attributedString[linkRange].underlineStyle = .single
                 }
             }
         }
-        
         return attributedString
     }
-}
 
-// In-app Safari view
-struct SafariView: UIViewControllerRepresentable {
-    let url: URL
-    
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        return SFSafariViewController(url: url)
+    private var firstURL: URL? {
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        let matches = detector?.matches(in: text, options: [], range: NSRange(location: 0, length: text.utf16.count))
+        return matches?.first?.url
     }
-    
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct UpdateGoalSheet: View {
     let goalId: Int
@@ -18,6 +19,11 @@ struct UpdateGoalSheet: View {
     @State private var errorMessage: String?
     @Environment(\.dismiss) private var dismiss
 
+    // Attachment state
+    @State private var selectedImages: [UIImage] = []
+    @State private var showImagePicker = false
+    @State private var attachmentNotes: [String] = []
+
     var body: some View {
         NavigationStack {
             Form {
@@ -27,6 +33,31 @@ struct UpdateGoalSheet: View {
                     TextField("Amount to add", text: $addedValue)
                         .keyboardType(.decimalPad)
                     TextField("Note (optional)", text: $note)
+                }
+                Section(header: Text("Attachments")) {
+                    Button {
+                        showImagePicker = true
+                    } label: {
+                        Label("Add Photo", systemImage: "photo")
+                    }
+
+                    // Show selected images
+                    ForEach(selectedImages.indices, id: \.self) { index in
+                        HStack {
+                            Image(uiImage: selectedImages[index])
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 60)
+                            TextField("Note for image", text: bindingForNote(at: index))
+                            Button(action: {
+                                selectedImages.remove(at: index)
+                                attachmentNotes.remove(at: index)
+                            }) {
+                                Image(systemName: "trash")
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
                 }
                 Section {
                     Button("Submit Update") {
@@ -47,6 +78,26 @@ struct UpdateGoalSheet: View {
                     Button("Cancel") { dismiss() }
                 }
             }
+            .sheet(isPresented: $showImagePicker) {
+                ImagePicker(selectedImages: $selectedImages, attachmentNotes: $attachmentNotes)
+            }
+        }
+    }
+
+    // Helper to bind notes array safely
+    private func bindingForNote(at index: Int) -> Binding<String> {
+        if attachmentNotes.indices.contains(index) {
+            return Binding(
+                get: { attachmentNotes[index] },
+                set: { attachmentNotes[index] = $0 }
+            )
+        } else {
+            // If index doesn't exist, append empty string
+            attachmentNotes.append("")
+            return Binding(
+                get: { attachmentNotes[index] },
+                set: { attachmentNotes[index] = $0 }
+            )
         }
     }
 
@@ -58,13 +109,8 @@ struct UpdateGoalSheet: View {
         isSubmitting = true
         errorMessage = nil
 
-        let params: [String: Any] = [
-            "goals_id": goalId,
-            "added_value": value,
-            "note": note
-        ]
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/update_filled_quota"),
-              let body = try? JSONSerialization.data(withJSONObject: params) else {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/update_filled_quota") else {
             errorMessage = "Invalid request."
             isSubmitting = false
             return
@@ -72,11 +118,44 @@ struct UpdateGoalSheet: View {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
         if let token = UserDefaults.standard.string(forKey: "jwtToken") {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        request.httpBody = body
+
+        let httpBody = NSMutableData()
+
+        // Add text fields
+        let fields: [String: String] = [
+            "goals_id": "\(goalId)",
+            "added_value": "\(value)",
+            "note": note
+        ]
+        for (key, value) in fields {
+            httpBody.append("--\(boundary)\r\n".data(using: .utf8)!)
+            httpBody.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            httpBody.append("\(value)\r\n".data(using: .utf8)!)
+        }
+
+        // Add images
+        for (index, image) in selectedImages.enumerated() {
+            if let imageData = image.jpegData(compressionQuality: 0.8) {
+                httpBody.append("--\(boundary)\r\n".data(using: .utf8)!)
+                httpBody.append("Content-Disposition: form-data; name=\"files\"; filename=\"image\(index).jpg\"\r\n".data(using: .utf8)!)
+                httpBody.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+                httpBody.append(imageData)
+                httpBody.append("\r\n".data(using: .utf8)!)
+
+                // Add note for this image
+                httpBody.append("--\(boundary)\r\n".data(using: .utf8)!)
+                httpBody.append("Content-Disposition: form-data; name=\"sources_notes\"\r\n\r\n".data(using: .utf8)!)
+                httpBody.append("\(index < attachmentNotes.count ? attachmentNotes[index] : "")\r\n".data(using: .utf8)!)
+            }
+        }
+
+        // Close the HTTP body
+        httpBody.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = httpBody as Data
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
@@ -101,5 +180,52 @@ struct UpdateGoalSheet: View {
                 dismiss()
             }
         }.resume()
+    }
+}
+
+// MARK: - Image Picker
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var selectedImages: [UIImage]
+    @Binding var attachmentNotes: [String]
+    @Environment(\.presentationMode) var presentationMode
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.selectionLimit = 5
+        config.filter = .images
+
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: ImagePicker
+
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            parent.presentationMode.wrappedValue.dismiss()
+
+            for result in results {
+                result.itemProvider.loadObject(ofClass: UIImage.self) { (image, error) in
+                    if let image = image as? UIImage {
+                        DispatchQueue.main.async {
+                            self.parent.selectedImages.append(image)
+                            self.parent.attachmentNotes.append("")
+                        }
+                    }
+                }
+            }
+        }
     }
 }

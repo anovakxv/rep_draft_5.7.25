@@ -109,6 +109,25 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
+            .toolbarBackground(Color.white, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button(action: { dismiss() }) {
+                        HStack {
+                            Image(systemName: "chevron.left")
+                                .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) 
+                            Text("Back")
+                                .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) 
+                        }
+                    }
+                }
+                ToolbarItem(placement: .principal) {
+                    Text("Settings")
+                        .font(.headline)
+                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
+                }
+            }
             .onAppear {
                 if userId > 0 {
                     editProfileVM.fetchProfile(for: userId)

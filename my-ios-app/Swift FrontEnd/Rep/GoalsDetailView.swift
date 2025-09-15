@@ -631,6 +631,18 @@ class GoalsDetailViewModel: ObservableObject {
                         let userName = apiUser?.name ?? "User"
                         let formattedDate = Self.formatDateString(log.timestamp)
                         let profilePictureURL = self.patchProfilePictureURL(apiUser?.imageName)
+                        let attachments = log.aAttachments?.compactMap { attachment -> Attachment? in
+                            guard let urlString = attachment.file_url,
+                                let url = URL(string: urlString) else { return nil }
+                            return Attachment(
+                                id: attachment.id,
+                                url: url,
+                                isImage: attachment.is_image ?? false,
+                                fileName: attachment.file_name ?? "File",
+                                note: attachment.note ?? ""
+                            )
+                        } ?? []
+                        
                         return Feed(
                             id: log.id,
                             userImageName: "profile_placeholder",
@@ -639,7 +651,8 @@ class GoalsDetailViewModel: ObservableObject {
                             line2: "Value: \(Int(round(log.value ?? 0)))",
                             line3: log.note ?? "",
                             line4: "",
-                            userProfilePictureURL: profilePictureURL
+                            userProfilePictureURL: profilePictureURL,
+                            attachments: attachments
                         )
                     }
 
@@ -776,6 +789,15 @@ struct APIGoalProgressLog: Codable, Identifiable {
     let note: String?
     let value: Double?
     let timestamp: String?
+    let aAttachments: [APIAttachment]?
+}
+
+struct APIAttachment: Codable, Identifiable {
+    let id: Int
+    let file_url: String?
+    let file_name: String?
+    let is_image: Bool?
+    let note: String?
 }
 
 struct APIUser: Codable, Identifiable {
@@ -830,6 +852,14 @@ struct Feed: Identifiable {
     let line3: String
     let line4: String
     let userProfilePictureURL: URL?
+    let attachments: [Attachment] = []
+}
+struct Attachment: Identifiable {
+    let id: Int
+    let url: URL
+    let isImage: Bool
+    let fileName: String
+    let note: String
 }
 
 // MARK: - Bar Chart Data Model
@@ -877,8 +907,48 @@ struct FeedCell: View {
                     .font(.subheadline)
                 Text("Note: \(feed.line3.isEmpty ? "NA" : feed.line3)")
                     .font(.subheadline)
-                Text("Attachments: NA")
-                    .font(.subheadline)
+                
+                // Display attachments if any
+                if !feed.attachments.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(feed.attachments) { attachment in
+                                VStack(alignment: .center) {
+                                    if attachment.isImage {
+                                        KFImage(attachment.url)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 100, height: 100)
+                                            .cornerRadius(8)
+                                    } else {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(Color(.systemGray5))
+                                                .frame(width: 100, height: 100)
+                                            
+                                            VStack {
+                                                Image(systemName: "doc.fill")
+                                                    .font(.system(size: 32))
+                                                
+                                                Text(attachment.fileName)
+                                                    .font(.caption)
+                                                    .lineLimit(1)
+                                            }
+                                        }
+                                    }
+                                    
+                                    if !attachment.note.isEmpty {
+                                        Text(attachment.note)
+                                            .font(.caption)
+                                            .lineLimit(2)
+                                            .frame(width: 100)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
             }
             .padding(.top, 4)
         }

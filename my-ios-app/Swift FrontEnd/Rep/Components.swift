@@ -136,26 +136,29 @@ class WKWebViewController: UIViewController, WKNavigationDelegate {
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+
         // Set up the WKWebView
         webView = WKWebView(frame: view.bounds)
         webView.navigationDelegate = self
         webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(webView)
-        
-        // Add close button
-        let closeButton = UIBarButtonItem(
-            title: "Back to Rep",
-            style: .plain,
-            target: self,
-            action: #selector(closeWebView)
-        )
-        navigationItem.leftBarButtonItem = closeButton
 
-        // Set the color for the button
-        navigationController?.navigationBar.tintColor = UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0) // main light green
+        // Custom back button: chevron.left with "Rep" in light green
+        let backButton = UIBarButtonItem()
+        let chevronImage = UIImage(systemName: "chevron.left", withConfiguration: UIImage.SymbolConfiguration(weight: .bold)) // bolder chevron
+        let button = UIButton(type: .system)
+        button.setImage(chevronImage, for: .normal)
+        button.setTitle(" Rep", for: .normal)
+        button.setTitleColor(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0), for: .normal) // light green
+        button.tintColor = UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0) // light green
+        button.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        button.addTarget(self, action: #selector(closeWebView), for: .touchUpInside)
+        backButton.customView = button
+        navigationItem.leftBarButtonItem = backButton
 
-        // Load the URL
+        navigationItem.title = ""
+
+        // Load the initial URL only once
         let request = URLRequest(url: url)
         webView.load(request)
     }
@@ -166,15 +169,16 @@ class WKWebViewController: UIViewController, WKNavigationDelegate {
         }
     }
     
-    // Handle redirect to our app scheme
     func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-        if let url = navigationAction.request.url, url.scheme == "rep" {
-            // Handle the deep link - this is our success return URL
-            UIApplication.shared.open(url, options: [:], completionHandler: nil)
-            closeWebView()
-            decisionHandler(.cancel)
-            return
+        if let navURL = navigationAction.request.url {
+            if navURL.scheme == "rep" {
+                UIApplication.shared.open(navURL, options: [:], completionHandler: nil)
+                closeWebView()
+                decisionHandler(.cancel)
+                return
+            }
         }
+        // Allow all other navigation by default
         decisionHandler(.allow)
     }
 }

@@ -11,6 +11,7 @@ struct PaymentsView: View {
     @StateObject private var viewModel = PaymentsViewModel()
     @State private var showCancelAlert = false
     @State private var subscriptionToCancel: ActiveSubscriptionItem?
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
@@ -27,7 +28,9 @@ struct PaymentsView: View {
                         }) {
                             HStack {
                                 Image(systemName: "creditcard")
+                                    .foregroundColor(Color(red: 0.0, green: 0.4, blue: 0.0))
                                 Text("Manage Payments")
+                                    .foregroundColor(Color(red: 0.0, green: 0.4, blue: 0.0))
                                 Spacer()
                             }
                             .padding()
@@ -91,6 +94,19 @@ struct PaymentsView: View {
         }
         .navigationTitle("Payments & Subscriptions")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    HStack {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) 
+                        Text("Back")
+                            .foregroundColor(Color(red: 0.549, green: 0.78, blue: 0.365)) 
+                    }
+                }
+            }
+        }
         .onAppear {
             viewModel.loadPaymentData()
             

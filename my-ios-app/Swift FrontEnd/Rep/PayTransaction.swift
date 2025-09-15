@@ -116,11 +116,12 @@ struct PayTransactionView: View {
                     VStack(spacing: 8) {
                         Text("\(transactionType.title) to \(portalName)")
                             .font(.title2.bold())
+                            .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
 
                         if !goalName.isEmpty {
                             Text("For: \(goalName)")
                                 .font(.headline)
-                                .foregroundColor(.primary)
+                                .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) 
                                 .multilineTextAlignment(.center)
                         }
 
@@ -217,16 +218,16 @@ struct PayTransactionView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
 
-                    Text("You'll be redirected to a secure payment page to complete your \(isMonthlySubscription ? "subscription" : transactionType.title.lowercased()).")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    Text("Payment info is handled directly through Stripe, a secure online payments platform. You'll be redirected to a secure payment page to complete your \(isMonthlySubscription ? "subscription" : transactionType.title.lowercased()).")
+                        .font(.body) // Increased font size
+                        .foregroundColor(.black) // Black text
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
                     if transactionType == .donation {
-                        Text("Your donation may be tax deductible. A receipt will be emailed to you.")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        Text("If your payment is a donation, it may be tax deductible. A receipt will be emailed to you.")
+                            .font(.body) // Increased font size
+                            .foregroundColor(.black) // Black text
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
@@ -241,12 +242,15 @@ struct PayTransactionView: View {
                     Button(action: { dismiss() }) {
                         HStack {
                             Image(systemName: "chevron.left")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0))) // light green
                             Text("Back")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0))) // light green
                         }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Cancel") { dismiss() }
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0))) // light green
                 }
             }
             .alert(isPresented: Binding<Bool>(
@@ -335,6 +339,7 @@ struct PayTransactionView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(Color(UIColor.systemGray5))
+        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
         .cornerRadius(16)
     }
 

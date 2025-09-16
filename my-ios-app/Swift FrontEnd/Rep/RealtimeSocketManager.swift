@@ -80,6 +80,28 @@ final class RealtimeSocketManager {
         }
     }
 
+    func cleanupAllHandlers() {
+        // Completely reset all handlers to prevent duplicates
+        if let socket = socket {
+            socket.off("group_message")
+            socket.off("group_message_notification")
+            socket.off("direct_message")
+            socket.off("direct_message_notification")
+            
+            // Only if we're still connected, re-register core handlers
+            if socket.status == .connected && handlersRegistered {
+                registerEventHandlersIfNeeded()
+            }
+        }
+        
+        // Reset state trackers
+        dmObservers = []
+        groupObservers = []
+        groupNotifObservers = []
+        
+        print("🧹 (Realtime) All handlers cleaned up")
+    }
+
     // MARK: - Build / Lifecycle
 
     private func buildManager(baseURL: String, token: String) {

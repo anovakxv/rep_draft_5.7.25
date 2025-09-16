@@ -192,6 +192,8 @@ class GroupChatViewModel: ObservableObject {
     private var groupObsId: UUID?
     private var groupNotifObsId: UUID?
     private var messageFetchTask: Task<Void, Never>?
+    private var updateDebouncer: Timer?
+    private var isRefreshing = false
 
     init(currentUserId: Int, chatId: Int, customChatTitle: String? = nil) {
         self.currentUserId = currentUserId
@@ -209,27 +211,32 @@ class GroupChatViewModel: ObservableObject {
     }
 
     func teardownRealtime() {
-        // First, remove our message observer
+        print("🚫 Aggressive teardown for chat \(chatId)")
+        
+        // First cancel any pending updates
+        updateDebouncer?.invalidate()
+        updateDebouncer = nil
+        
+        // Remove our message observers
         if let id = groupObsId {
             RealtimeSocketManager.shared.removeGroupMessageObserver(id)
             groupObsId = nil
         }
         
-        // Remove any notification observer
         if let id = groupNotifObsId {
             RealtimeSocketManager.shared.removeGroupMessageNotificationObserver(id)
             groupNotifObsId = nil
         }
         
-        // Then explicitly leave the chat room
-        RealtimeSocketManager.shared.leave(chatId: chatId)
-        
         // Cancel any pending message fetch tasks
         messageFetchTask?.cancel()
         messageFetchTask = nil
         
-        // For debug tracking (safe to remove in production)
-        print("🧹 Group chat \(chatId) resources cleaned up")
+        // Explicitly leave the chat room
+        RealtimeSocketManager.shared.leave(chatId: chatId)
+        
+        // Explicitly request socket manager to clean up all handlers
+        RealtimeSocketManager.shared.cleanupAllHandlers()
     }
 
     private func setupRealtime() {
@@ -305,23 +312,51 @@ class GroupChatViewModel: ObservableObject {
     }
 
     func fetchGroupChat() {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group_chat?chats_id=\(chatId)&limit=50") else { return }
+        // Prevent overlapping refreshes
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        
+        // Cancel any existing debouncer
+        updateDebouncer?.invalidate()
+        
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group_chat?chats_id=\(chatId)&limit=50") else {
+            isRefreshing = false
+            return
+        }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            guard let data = data, error == nil else { return }
-            if let apiResult = try? JSONDecoder().decode(GroupChatAPIResponse.self, from: data) {
-                DispatchQueue.main.async {
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isRefreshing = false
+                
+                guard let data = data, error == nil else { return }
+                if let apiResult = try? JSONDecoder().decode(GroupChatAPIResponse.self, from: data) {
+                    // Capture old state for comparison
+                    let oldMembers = self.groupMembers.map { $0.id }
+                    let oldName = self.groupName
+                    
+                    // Update state
                     self.groupName = apiResult.result.chat.name
                     self.groupMembers = apiResult.result.users
                     // Ensure ascending order (oldest -> newest)
                     self.messages = apiResult.result.messages.sorted { $0.timestamp < $1.timestamp }
                     self.chatCreatorId = apiResult.result.chat.createdBy
                     self.isCreator = (apiResult.result.chat.createdBy == self.currentUserId)
-                    // NEW: ask MainScreen to refresh active chats
-                    NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+                    
+                    // Only notify of state changes if something actually changed
+                    let newMembers = self.groupMembers.map { $0.id }
+                    if oldMembers != newMembers || oldName != self.groupName {
+                        // Debounce MainScreen refresh to prevent flickering
+                        self.updateDebouncer?.invalidate()
+                        self.updateDebouncer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: false) { _ in
+                            NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+                        }
+                    }
                 }
             }
         }.resume()
@@ -702,6 +737,7 @@ struct EditGroupChatView: View {
                                     .foregroundColor(.green)
                                 Spacer()
                             }
+                            .id("pending-\(id)") // Add stable ID to prevent flickering
                         }
                         HStack {
                             Button {

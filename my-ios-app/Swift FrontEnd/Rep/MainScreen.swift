@@ -630,11 +630,16 @@ struct MainScreen: View {
                 isCreator: true,
                 onSave: { createdId in
                     showCreateGroupChatSheet = false
+                    
+                    // Force refresh active chats regardless of whether we navigate to the chat
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        peopleVM.fetchPeople(userId: userId, section: 0)
+                    }
+                    
                     guard let createdId else { return }
                     RealtimeSocketManager.shared.join(chatId: createdId)
                     newGroupChatId = createdId
                     navigateToGroupChat = true
-                    peopleVM.fetchPeople(userId: userId, section: 0)
                 },
                 onCancel: {
                     showCreateGroupChatSheet = false

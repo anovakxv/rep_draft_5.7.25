@@ -62,7 +62,7 @@ def api_goal_details():
     print(f"[DEBUG] Chart increment selected: {increment}")
 
     # --- PATCH: Chart Data Grouping ---
-    def patched_chart_data(self, increment='day', num_periods=4):
+    def patched_chart_data(self, increment='day', num_periods=7):
         from collections import OrderedDict
         logs = self.progress_logs.order_by(GoalProgressLog.timestamp.asc()).all()
         cumulative = 0
@@ -98,7 +98,7 @@ def api_goal_details():
         print(f"[DEBUG] Chart data output: {chart_data}")
         return chart_data
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
-    chart_data = goal.chart_data(increment=increment, num_periods=4)
+    chart_data = goal.chart_data(increment=increment, num_periods=7)
 
     # PATCH: Include all users who appear in progress logs, not just team members
     team_members = GoalTeam.query.filter_by(goals_id=goal.id, confirmed=1).all()
@@ -122,18 +122,7 @@ def api_goal_details():
     ]
 
     logs = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).limit(20).all()
-    a_latest_progress = [
-        {
-            "id": log.id,
-            "users_id": log.users_id,
-            "added_value": log.added_value,
-            "note": log.note,
-            "value": log.value,
-            "timestamp": log.timestamp.isoformat() if log.timestamp else None,
-            "user_imageName": getattr(log.user, 'profile_picture_url', '') or "profile_placeholder"
-        }
-        for log in logs
-    ]
+    a_latest_progress = [log.as_dict() for log in logs]
 
     # --- PATCH: Use correct filled_quota for non-Recruiting goals ---
     result = goal.as_dict()

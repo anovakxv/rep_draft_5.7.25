@@ -96,6 +96,7 @@ struct PayTransactionView: View {
     @State private var showPaymentSetupAlert = false
     @State private var showPaymentErrorAlert = false
     @State private var paymentErrorMessage: String = ""
+    @State private var showSuccessBanner = false
     @AppStorage("jwtToken") private var jwtToken: String = ""
     @Environment(\.dismiss) private var dismiss
 
@@ -260,18 +261,6 @@ struct PayTransactionView: View {
                         .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0))) // light green
                 }
             }
-            .alert(isPresented: Binding<Bool>(
-                get: { isSuccess },
-                set: { if !$0 { paymentStatus = .initial } }
-            )) {
-                Alert(
-                    title: Text("✅ " + transactionType.receiptTitle),
-                    message: Text(transactionType.receiptMessage),
-                    dismissButton: .default(Text("Done")) {
-                        dismiss()
-                    }
-                )
-            }
             .alert(isPresented: $showPaymentErrorAlert) {
                 Alert(
                     title: Text("Payment Error"),
@@ -303,6 +292,12 @@ struct PayTransactionView: View {
                                 self.checkPaymentStatus(sessionId: sessionId)
                             } else {
                                 self.paymentStatus = .success
+                                self.showSuccessBanner = true
+                                // Auto-dismiss after showing banner
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                                    self.showSuccessBanner = false
+                                    self.dismiss()
+                                }
                             }
                         } else if status == "canceled" {
                             self.paymentStatus = .failed("Payment was canceled or not completed.")
@@ -331,6 +326,34 @@ struct PayTransactionView: View {
                     }
                 }
             }
+            .overlay(
+                Group {
+                    if showSuccessBanner {
+                        VStack {
+                            Spacer()
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(Color(red: 0.0, green: 0.4, blue: 0.0))
+                                    .font(.system(size: 28))
+                                Text(transactionType.receiptTitle)
+                                    .font(.title3.bold())
+                                    .foregroundColor(Color(red: 0.0, green: 0.4, blue: 0.0))
+                                    .padding(.vertical, 8)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(Color.white)
+                            .cornerRadius(16)
+                            .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 2)
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 40)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .zIndex(100)
+                        }
+                    }
+                }
+                .animation(.easeInOut, value: showSuccessBanner)
+            )
         }
     }
 
@@ -487,7 +510,13 @@ struct PayTransactionView: View {
 
     private func checkPaymentStatus(sessionId: String) {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/checkout_session_status?session_id=\(sessionId)") else {
-            self.paymentStatus = .success // fallback if URL is invalid
+            // Show success banner and dismiss
+            self.paymentStatus = .success
+            self.showSuccessBanner = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                self.showSuccessBanner = false
+                self.dismiss()
+            }
             return
         }
 
@@ -506,6 +535,12 @@ struct PayTransactionView: View {
 
                     if paymentStatus == "paid" {
                         self.paymentStatus = .success
+                        // Show success banner and dismiss
+                        self.showSuccessBanner = true
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            self.showSuccessBanner = false
+                            self.dismiss()
+                        }
                     } else if paymentStatus == "unpaid" {
                         self.paymentStatus = .failed("Payment was not completed")
                         self.paymentErrorMessage = "Payment was not completed"
@@ -517,57 +552,22 @@ struct PayTransactionView: View {
                     print("[PayTransactionView] checkPaymentStatus decode failed, assuming success")
                     #endif
                     self.paymentStatus = .success
+                    // Show success banner and dismiss
+                    self.showSuccessBanner = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                        self.showSuccessBanner = false
+                        self.dismiss()
+                    }
                 }
             }
         }.resume()
     }
-
 
     private var transactionTypeString: String {
         switch transactionType {
         case .donation: return "donation"
         case .payment: return "payment"
         case .purchase: return "purchase"
-        }
-    }
-
-    private var isSuccess: Bool {
-        if case .success = paymentStatus { return true }
-        return false
-    }
-}
-
-// MARK: - Preview
-
-struct PayTransactionView_Previews: PreviewProvider {
-    static var previews: some View {
-        Group {
-            PayTransactionView(
-                portalId: 1,
-                portalName: "Save the Whales",
-                goalId: 2,
-                goalName: "Annual Fundraiser",
-                transactionType: .donation
-            )
-            .previewDisplayName("Donation")
-
-            PayTransactionView(
-                portalId: 3,
-                portalName: "Tech Startup Inc.",
-                goalId: 4,
-                goalName: "Product Development",
-                transactionType: .payment
-            )
-            .previewDisplayName("Payment")
-
-            PayTransactionView(
-                portalId: 5,
-                portalName: "Artisan Goods Co.",
-                goalId: 6,
-                goalName: "Limited Edition Products",
-                transactionType: .purchase
-            )
-            .previewDisplayName("Purchase")
         }
     }
 }

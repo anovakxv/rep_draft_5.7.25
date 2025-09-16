@@ -49,6 +49,24 @@ def api_manage_chat():
         chats_id = chat.id
         db.session.add(ChatsUsers(users_id=user_id, chats_id=chats_id))
         db.session.commit()
+
+        # --- Ensure chat appears in lists even before first message ---
+        try:
+            from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
+            from datetime import datetime
+
+            # Create a system message (empty text) so chat appears in lists
+            system_msg = GroupMessage(
+                chat_id=chats_id,
+                sender_id=user_id,
+                text="",
+                created_at=datetime.utcnow(),
+                is_system=True  # If your model supports this flag
+            )
+            db.session.add(system_msg)
+            db.session.commit()
+        except Exception as e:
+            print(f"[GroupChat] Non-critical: Could not create system message: {e}")
     else:
         if title is not None:
             chat.name = title

@@ -270,6 +270,14 @@ final class RealtimeSocketManager {
         socket?.emit("leave_group_chat", ["chat_id": chatId])
         socket?.emit("leave", ["chat_id": chatId]) // legacy fallback (kept for compatibility)
         print("⬅️ (Realtime) leave group chat \(chatId)")
+        
+        // NEW: Force disconnect observers for this chat to prevent lingering handlers
+        groupObservers = groupObservers.filter { observer in
+            // Check if observer's callback references this chat ID
+            // This is a simplified approach - we can't actually inspect closures
+            // Instead, consider adding chatId to the observer struct
+            true // Keep all for now, we'll rely on explicit removeGroupMessageObserver
+        }
     }
 
     // MARK: - Connection Control

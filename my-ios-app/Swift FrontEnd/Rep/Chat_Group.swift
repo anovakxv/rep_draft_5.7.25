@@ -595,11 +595,13 @@ struct GroupChatView: View {
             .hidden()
         )
         .onChange(of: chatDeleted) { deleted in
-            if deleted { dismiss() }
+            if deleted {
+                viewModel.teardownRealtime() // Explicit cleanup on delete
+                dismiss()
+            }
         }
         .onDisappear {
-            // Use the ViewModel’s cleanup instead of touching a private property
-            viewModel.teardownRealtime()
+            viewModel.teardownRealtime() // Explicit cleanup on exit
         }
     }
 }

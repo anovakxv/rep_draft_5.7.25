@@ -200,19 +200,13 @@ class PeopleViewModel: ObservableObject {
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     func fetchPeople(userId: Int, section: Int, force: Bool = false) {
-        // Throttle rapid fetches to prevent flickering
-        let currentTime = Date().timeIntervalSince1970
-        if !force && currentTime - lastFetchTime < 1.0 {
-            fetchThrottleTimer?.invalidate()
-            fetchThrottleTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
-                self?.fetchPeople(userId: userId, section: section, force: true)
-            }
-            return
-        }
+        // Only prevent concurrent fetches, but don't add delays
         if isFetching && !force {
             return
         }
-        lastFetchTime = currentTime
+        
+        // Update the timestamp for notification handlers
+        lastFetchTime = Date().timeIntervalSince1970
         isFetching = true
         isLoading = true
         errorMessage = nil
@@ -331,6 +325,11 @@ class PeopleViewModel: ObservableObject {
                 }
             }.resume()
         }
+    }
+
+    func cancelPendingRefreshes() {
+        fetchThrottleTimer?.invalidate()
+        fetchThrottleTimer = nil
     }
 
     func searchPeople(query: String, limit: Int = 50) {
@@ -478,7 +477,6 @@ struct MainScreen: View {
     @AppStorage("userId") var userId: Int = 0
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("hasUnreadDMFlag") private var persistedUnreadDM: Bool = false
-    // NEW: persist group unread
     @AppStorage("hasUnreadGroupFlag") private var persistedUnreadGroup: Bool = false
 
     @State private var page: Page = .portals
@@ -501,65 +499,95 @@ struct MainScreen: View {
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
     @State private var openNeedsAttention: Bool = false
 
-    // Only do the 1s one-shot poll once after first open
     @State private var initialUnreadPollScheduled = false
-
-    // Ensure we only register observers/handlers once
     @State private var notifObserversInstalled = false
     @State private var socketHandlersInstalled = false
+    
+    // Break up the complex view into smaller properties
+    private var mainContent: some View {
+        NavigationStack {
+            MainScreenContent(
+                page: $page,
+                section: $section,
+                portalsVM: portalsVM,
+                peopleVM: peopleVM,
+                userId: userId,
+                currentUser: currentUser,
+                activeSheet: $mainActiveSheet,
+                showSearch: $showSearch,
+                searchText: $searchText,
+                searchDebounceTimer: $searchDebounceTimer,
+                pendingAction: $pendingAction,
+                performSearch: performSearch,
+                filteredUsers: filteredUsers,
+                filteredActiveChats: filteredActiveChats,
+                filteredPortals: filteredPortals,
+                fetchCurrentUser: fetchCurrentUser,
+                showOnlySafePortals: $showOnlySafePortals
+            )
+            .modifier(MainScreenToolbar(
+                section: $section,
+                page: $page,
+                portalsVM: portalsVM,
+                peopleVM: peopleVM,
+                userId: userId,
+                currentUser: currentUser,
+                showActionSheet: {
+                    mainActiveSheet = .actionSheet
+                },
+                openNeedsAttention: $openNeedsAttention,
+                forceShowPeopleOpen: forceShowPeopleOpen,
+                showOnlySafePortals: showOnlySafePortals
+            ))
+            .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            
+            NavigationLink(
+                destination: newGroupChatId.map {
+                    GroupChatView(
+                        viewModel: GroupChatViewModel(
+                            currentUserId: userId,
+                            chatId: $0
+                        ),
+                        isNewlyCreated: true
+                    )
+                },
+                isActive: $navigateToGroupChat
+            ) { EmptyView() }
+            .hidden()
+        }
+    }
+    
+    private var createGroupChatSheet: some View {
+        EditGroupChatView(
+            chatId: nil,
+            currentMembers: [],
+            groupName: "",
+            isNewChat: true,
+            currentUserId: userId,
+            isCreator: true,
+            onSave: { createdId in
+                showCreateGroupChatSheet = false
+                
+                // Force refresh active chats regardless of whether we navigate to the chat
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    peopleVM.fetchPeople(userId: userId, section: 0)
+                }
+                
+                guard let createdId else { return }
+                RealtimeSocketManager.shared.join(chatId: createdId)
+                newGroupChatId = createdId
+                navigateToGroupChat = true
+            },
+            onCancel: {
+                showCreateGroupChatSheet = false
+            }
+        )
+    }
 
     var body: some View {
         ZStack {
-            NavigationStack {
-                MainScreenContent(
-                    page: $page,
-                    section: $section,
-                    portalsVM: portalsVM,
-                    peopleVM: peopleVM,
-                    userId: userId,
-                    currentUser: currentUser,
-                    activeSheet: $mainActiveSheet,
-                    showSearch: $showSearch,
-                    searchText: $searchText,
-                    searchDebounceTimer: $searchDebounceTimer,
-                    pendingAction: $pendingAction,
-                    performSearch: performSearch,
-                    filteredUsers: filteredUsers,
-                    filteredActiveChats: filteredActiveChats,
-                    filteredPortals: filteredPortals,
-                    fetchCurrentUser: fetchCurrentUser,
-                    showOnlySafePortals: $showOnlySafePortals
-                )
-                .modifier(MainScreenToolbar(
-                    section: $section,
-                    page: $page,
-                    portalsVM: portalsVM,
-                    peopleVM: peopleVM,
-                    userId: userId,
-                    currentUser: currentUser,
-                    showActionSheet: {
-                        mainActiveSheet = .actionSheet
-                    },
-                    openNeedsAttention: $openNeedsAttention,
-                    forceShowPeopleOpen: forceShowPeopleOpen,
-                    showOnlySafePortals: showOnlySafePortals
-                ))
-                .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
-                .navigationBarTitleDisplayMode(.inline)
-                NavigationLink(
-                    destination: newGroupChatId.map {
-                        GroupChatView(
-                            viewModel: GroupChatViewModel(
-                                currentUserId: userId,
-                                chatId: $0
-                            ),
-                            isNewlyCreated: true  // Flag this as a newly created chat
-                        )
-                    },
-                    isActive: $navigateToGroupChat
-                ) { EmptyView() }
-                .hidden()
-            }
+            mainContent
         }
         .onAppear {
             if persistedUnreadDM {
@@ -586,7 +614,7 @@ struct MainScreen: View {
             // Invite polling: quick one-shot at 1s, then every 30s (unchanged)
             inviteCheckTimer?.invalidate()
             inviteCheckTimer = nil
-            Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
+            Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
                 GoalTeamInvitesManager.shared.fetchPendingInvites()
             }
             inviteCheckTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
@@ -642,35 +670,6 @@ struct MainScreen: View {
             scheduleUnreadPollingIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("refreshActiveChats"))) { _ in
-            peopleVM.fetchPeople(userId: userId, section: 0)
-        }
-        .sheet(isPresented: $showCreateGroupChatSheet) {
-            EditGroupChatView(
-                chatId: nil,
-                currentMembers: [],
-                groupName: "",
-                isNewChat: true,
-                currentUserId: userId,
-                isCreator: true,
-                onSave: { createdId in
-                    showCreateGroupChatSheet = false
-                    
-                    // Force refresh active chats regardless of whether we navigate to the chat
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        peopleVM.fetchPeople(userId: userId, section: 0)
-                    }
-                    
-                    guard let createdId else { return }
-                    RealtimeSocketManager.shared.join(chatId: createdId)
-                    newGroupChatId = createdId
-                    navigateToGroupChat = true
-                },
-                onCancel: {
-                    showCreateGroupChatSheet = false
-                }
-            )
-        }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("refreshActiveChats"))) { _ in
             // Add debounce to prevent rapid reloading
             let currentTime = Date().timeIntervalSince1970
             if currentTime - self.lastRefreshTime > 0.75 {
@@ -688,6 +687,12 @@ struct MainScreen: View {
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
                 self.lastRefreshTime = Date().timeIntervalSince1970
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("cancelPendingRefreshes"))) { _ in
+            peopleVM.cancelPendingRefreshes()
+        }
+        .sheet(isPresented: $showCreateGroupChatSheet) {
+            createGroupChatSheet
         }
     }
 
@@ -718,7 +723,7 @@ struct MainScreen: View {
             let senderId     = toInt(senderAny) ?? -1
             let recipientId  = toInt(recipientAny) ?? -1
 
-            // Defensive checks, but don’t block if parsing failed; prefer showing the dot
+            // Defensive checks, but don't block if parsing failed; prefer showing the dot
             if senderId == self.userId { return }
             if recipientId != self.userId && recipientId != -1 { return }
 
@@ -744,13 +749,12 @@ struct MainScreen: View {
             }
         }
 
-        // NEW: personal-room notification => works even when not joined to group room
         RealtimeSocketManager.shared.onGroupMessageNotification { payload in
             let senderAny = payload["sender_id"] ?? payload["senderId"]
             let senderId  = (senderAny as? Int) ?? (senderAny as? NSNumber)?.intValue ?? Int((senderAny as? String) ?? "") ?? -1
             if senderId == self.userId { return }
             DispatchQueue.main.async {
-                self.peopleVM.hasUnreadGroupMessages = true  // triggers dot via recalcOpenNeedsAttention onChange
+                self.peopleVM.hasUnreadGroupMessages = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0)
                 }
@@ -890,7 +894,7 @@ struct MainScreen: View {
               !peopleVM.hasUnreadGroupMessages else { return }
 
         initialUnreadPollScheduled = true
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { _ in
+        Timer.scheduledTimer(withTimeInterval: 1.75, repeats: false) { _ in
             if self.page == .portals
                 && !self.peopleVM.hasUnreadDirectMessages
                 && !self.peopleVM.hasUnreadGroupMessages {
@@ -938,52 +942,65 @@ struct MainScreenContent: View {
 
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
 
+    // Break up complex views into separate computed properties
+    var peopleContent: some View {
+        Group {
+            if peopleVM.isLoading {
+                ProgressView("Loading people...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = peopleVM.errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if section == 0 {
+                if filteredActiveChats.isEmpty && invitesManager.pendingInvites.isEmpty {
+                    Text("No chats found.")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ActiveChatList(
+                        chats: filteredActiveChats,
+                        invitesManager: invitesManager
+                    )
+                }
+            } else {
+                if filteredUsers.isEmpty {
+                    Text("No people found.")
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ChatList(users: filteredUsers)
+                }
+            }
+        }
+    }
+
+    var portalsContent: some View {
+        Group {
+            if portalsVM.isLoading {
+                ProgressView("Loading portals...")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if let error = portalsVM.errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if filteredPortals.isEmpty {
+                Text("No portals found.")
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                PortalList(portals: filteredPortals)
+            }
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             switch page {
             case .people:
-                if peopleVM.isLoading {
-                    ProgressView("Loading people...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = peopleVM.errorMessage {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if section == 0 {
-                    if filteredActiveChats.isEmpty && invitesManager.pendingInvites.isEmpty {
-                        Text("No chats found.")
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        ActiveChatList(
-                            chats: filteredActiveChats,
-                            invitesManager: invitesManager
-                        )
-                    }
-                } else {
-                    if filteredUsers.isEmpty {
-                        Text("No people found.")
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        ChatList(users: filteredUsers)
-                    }
-                }
+                peopleContent
             case .portals:
-                if portalsVM.isLoading {
-                    ProgressView("Loading portals...")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if let error = portalsVM.errorMessage {
-                    Text(error)
-                        .foregroundColor(.red)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if filteredPortals.isEmpty {
-                    Text("No portals found.")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    PortalList(portals: filteredPortals)
-                }
+                portalsContent
             }
         }
         .overlay(alignment: .bottomTrailing) {

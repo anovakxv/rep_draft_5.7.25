@@ -544,12 +544,8 @@ struct GroupChatView: View {
     @StateObject var viewModel: GroupChatViewModel
     @State private var isNewlyCreatedChat: Bool
 
-    init(viewModel: GroupChatViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
-    }
     init(viewModel: GroupChatViewModel, isNewlyCreated: Bool = false) {
         _viewModel = StateObject(wrappedValue: viewModel)
-        // Initialize the flag
         _isNewlyCreatedChat = State(initialValue: isNewlyCreated)
     }
 
@@ -675,41 +671,25 @@ struct GroupChatView: View {
             }
         }
         .onDisappear {
-            print("📤 GroupChat onDisappear - aggressive cleanup")
+            print("📤 GroupChat onDisappear")
             
-            // First do regular cleanup
+            // Do basic cleanup of the current view
             viewModel.teardownRealtime()
             
-            // Force reset state
-            navigateToNewChat = false
-            chatDeleted = false
-            newChatId = nil
+            // Check if we just created a group chat (from either flag)
+            let justCreated = isNewlyCreatedChat || UserDefaults.standard.bool(forKey: "justCreatedGroupChat")
             
-            // Use different timing strategy for new vs existing chats
-            if isNewlyCreatedChat {
-                // For newly created chats, use a longer delay and ONE refresh
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    RealtimeSocketManager.shared.resetAllConnections()
-                    
-                    // Use a single, delayed refresh with a special notification
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        NotificationCenter.default.post(
-                            name: Notification.Name("oneTimeRefreshActiveChats"), 
-                            object: nil
-                        )
-                    }
-                }
-            } else {
-                // For existing chats, use the current strategy
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    RealtimeSocketManager.shared.resetAllConnections()
-                    
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                        NotificationCenter.default.post(
-                            name: Notification.Name("refreshActiveChats"), 
-                            object: nil
-                        )
-                    }
+            if justCreated {
+                // Reset the flag
+                UserDefaults.standard.set(false, forKey: "justCreatedGroupChat")
+                
+                // Add a slight delay then do ONE single refresh
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+                    print("📊 Triggering single refresh after new group chat")
+                    NotificationCenter.default.post(
+                        name: Notification.Name("refreshActiveChats"), 
+                        object: nil
+                    )
                 }
             }
         }
@@ -893,14 +873,22 @@ struct EditGroupChatView: View {
                     errorMessage = ErrorMessage(message: "Failed to create chat. (\(http.statusCode))")
                 } else if let data = data {
                     if let decoded = try? JSONDecoder().decode([String: AnyDecodable].self, from: data) {
+                        var chatId: Int? = nil
                         if let chatDict = decoded["chat"]?.value as? [String: Any],
-                           let chatId = chatDict["id"] as? Int {
-                            onSave(chatId)
-                        } else if let chatId = decoded["chats_id"]?.value as? Int {
-                            onSave(chatId)
-                        } else {
-                            onSave(nil)
+                        let id = chatDict["id"] as? Int {
+                            chatId = id
+                        } else if let id = decoded["chats_id"]?.value as? Int {
+                            chatId = id
                         }
+                        
+                        // IMPORTANT: Cancel any pending notifications
+                        NotificationCenter.default.post(name: Notification.Name("cancelPendingRefreshes"), object: nil)
+                        
+                        // Instead of immediately refreshing, set a flag to handle refresh in onDisappear
+                        UserDefaults.standard.set(true, forKey: "justCreatedGroupChat")
+                        
+                        // Return the chat ID
+                        onSave(chatId)
                     } else {
                         onSave(nil)
                     }

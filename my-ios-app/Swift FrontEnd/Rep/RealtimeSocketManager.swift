@@ -102,6 +102,37 @@ final class RealtimeSocketManager {
         print("🧹 (Realtime) All handlers cleaned up")
     }
 
+    func resetAllConnections() {
+        print("🔄 Resetting all socket connections")
+        // First clear all event handlers
+        if let socket = socket {
+            socket.off("group_message")
+            socket.off("group_message_notification")
+            socket.off("direct_message")
+            socket.off("direct_message_notification")
+        }
+        
+        // Reset all observers
+        dmObservers = []
+        groupObservers = []
+        groupNotifObservers = []
+        
+        // Disconnect completely
+        socket?.disconnect()
+        
+        // Reconnect after brief pause
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self, let socket = self.socket else { return }
+            socket.connect()
+            
+            // Register handlers after reconnect
+            socket.once("connect") { [weak self] _, _ in
+                self?.handlersRegistered = false
+                self?.registerEventHandlersIfNeeded()
+            }
+        }
+    }
+
     // MARK: - Build / Lifecycle
 
     private func buildManager(baseURL: String, token: String) {

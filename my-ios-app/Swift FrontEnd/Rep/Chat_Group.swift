@@ -669,20 +669,24 @@ struct GroupChatView: View {
             }
         }
         .onDisappear {
-            // More aggressive cleanup sequence
             print("📤 GroupChat onDisappear - aggressive cleanup")
             
-            // First disconnect from all socket events to avoid race conditions
+            // First do regular cleanup
             viewModel.teardownRealtime()
             
-            // Force reset state (prevents stale navigation state)
+            // Force reset state
             navigateToNewChat = false
             chatDeleted = false
             newChatId = nil
             
-            // Delay MainScreen refresh slightly to allow cleanup to complete
+            // IMPORTANT: Reset all socket connections when exiting group chat
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+                RealtimeSocketManager.shared.resetAllConnections()
+                
+                // Then re-fetch people after socket reset (only once)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                    NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+                }
             }
         }
     }
@@ -730,14 +734,20 @@ struct EditGroupChatView: View {
                         let currentIds = Set(baseMembers.map { $0.id })
                         let pendingIds = Set(selectedMembersToAdd.keys).subtracting(currentIds)
                         ForEach(Array(pendingIds), id: \.self) { id in
-                            HStack {
-                                Image(systemName: "person.crop.circle.badge.plus")
-                                    .foregroundColor(.green)
-                                Text("Will add \(selectedMembersToAdd[id] ?? "User")")
-                                    .foregroundColor(.green)
-                                Spacer()
+                            // Wrap each row in a stable container
+                            ZStack {
+                                HStack {
+                                    Image(systemName: "person.crop.circle.badge.plus")
+                                        .foregroundColor(.green)
+                                    Text("Will add \(selectedMembersToAdd[id] ?? "User")")
+                                        .foregroundColor(.green)
+                                    Spacer()
+                                }
                             }
-                            .id("pending-\(id)") // Add stable ID to prevent flickering
+                            .id("pending-\(id)")  // Existing stable ID
+                            .transaction { t in
+                                t.animation = nil  // Disable animations for this view
+                            }
                         }
                         HStack {
                             Button {
@@ -824,6 +834,12 @@ struct EditGroupChatView: View {
                     },
                     onCancel: { }
                 )
+            }
+        }
+        .onChange(of: selectedMembersToAdd) { _ in
+            // Force view stability when selection changes
+            withAnimation(nil) {
+                // This empty block disables animations during dictionary updates
             }
         }
     }

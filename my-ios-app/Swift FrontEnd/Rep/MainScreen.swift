@@ -178,6 +178,10 @@ class PeopleViewModel: ObservableObject {
     @Published var searchResults: [User] = []
     @Published var isSearching: Bool = false
 
+    private var fetchThrottleTimer: Timer?
+    private var lastFetchTime: TimeInterval = 0
+    private var isFetching = false
+
     @Published var hasUnreadDirectMessages: Bool = false {
         didSet {
             if oldValue != hasUnreadDirectMessages {
@@ -195,7 +199,21 @@ class PeopleViewModel: ObservableObject {
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
-    func fetchPeople(userId: Int, section: Int) {
+    func fetchPeople(userId: Int, section: Int, force: Bool = false) {
+        // Throttle rapid fetches to prevent flickering
+        let currentTime = Date().timeIntervalSince1970
+        if !force && currentTime - lastFetchTime < 1.0 {
+            fetchThrottleTimer?.invalidate()
+            fetchThrottleTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: false) { [weak self] _ in
+                self?.fetchPeople(userId: userId, section: section, force: true)
+            }
+            return
+        }
+        if isFetching && !force {
+            return
+        }
+        lastFetchTime = currentTime
+        isFetching = true
         isLoading = true
         errorMessage = nil
 
@@ -205,6 +223,7 @@ class PeopleViewModel: ObservableObject {
             guard let url = URL(string: urlString) else {
                 self.errorMessage = "Invalid URL"
                 self.isLoading = false
+                self.isFetching = false
                 return
             }
             var request = URLRequest(url: url)
@@ -214,6 +233,7 @@ class PeopleViewModel: ObservableObject {
             URLSession.shared.dataTask(with: request) { data, response, error in
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    self.isFetching = false
                     if let http = response as? HTTPURLResponse {
                         if http.statusCode == 401 || http.statusCode == 403 {
                             self.errorMessage = "Session expired. Please log in again."
@@ -267,6 +287,7 @@ class PeopleViewModel: ObservableObject {
             guard let url = URL(string: urlString) else {
                 errorMessage = "Invalid URL"
                 isLoading = false
+                isFetching = false
                 return
             }
             var request = URLRequest(url: url)
@@ -276,6 +297,7 @@ class PeopleViewModel: ObservableObject {
             URLSession.shared.dataTask(with: request) { data, response, error in
                 DispatchQueue.main.async {
                     self.isLoading = false
+                    self.isFetching = false
                     if let http = response as? HTTPURLResponse {
                         if http.statusCode == 401 || http.statusCode == 403 {
                             self.errorMessage = "Session expired. Please log in again."

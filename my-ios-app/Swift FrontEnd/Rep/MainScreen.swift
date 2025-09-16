@@ -7,8 +7,6 @@
 import SwiftUI
 import Kingfisher
 
-@State private var lastRefreshTime: TimeInterval = 0
-
 // MARK: - API Responses
 
 struct UsersAPIResponse: Decodable {
@@ -467,6 +465,7 @@ struct MainScreen: View {
     @State private var newGroupChatId: Int? = nil
     @State private var navigateToGroupChat = false
     @State private var showCreateGroupChatSheet = false
+    @State private var lastRefreshTime: TimeInterval = 0
 
     @State private var mainActiveSheet: MainScreenContent.ActiveSheet?
     @State private var showSearch = false

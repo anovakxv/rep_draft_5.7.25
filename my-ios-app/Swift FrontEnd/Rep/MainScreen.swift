@@ -552,7 +552,8 @@ struct MainScreen: View {
                             viewModel: GroupChatViewModel(
                                 currentUserId: userId,
                                 chatId: $0
-                            )
+                            ),
+                            isNewlyCreated: true  // Flag this as a newly created chat
                         )
                     },
                     isActive: $navigateToGroupChat
@@ -675,6 +676,17 @@ struct MainScreen: View {
             if currentTime - self.lastRefreshTime > 0.75 {
                 self.lastRefreshTime = currentTime
                 peopleVM.fetchPeople(userId: userId, section: 0)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("oneTimeRefreshActiveChats"))) { _ in
+            // Bypass the regular debounce mechanism for one-time refreshes
+            print("📋 Processing one-time refresh")
+            self.lastRefreshTime = Date().timeIntervalSince1970
+            peopleVM.fetchPeople(userId: userId, section: 0, force: true)
+            
+            // Block any subsequent refreshes for 2 seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                self.lastRefreshTime = Date().timeIntervalSince1970
             }
         }
     }

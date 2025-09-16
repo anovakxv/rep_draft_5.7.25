@@ -542,9 +542,15 @@ private struct GroupMessagesListView: View {
 
 struct GroupChatView: View {
     @StateObject var viewModel: GroupChatViewModel
+    @State private var isNewlyCreatedChat: Bool
 
     init(viewModel: GroupChatViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
+    }
+    init(viewModel: GroupChatViewModel, isNewlyCreated: Bool = false) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+        // Initialize the flag
+        _isNewlyCreatedChat = State(initialValue: isNewlyCreated)
     }
 
     @Environment(\.dismiss) private var dismiss
@@ -679,13 +685,31 @@ struct GroupChatView: View {
             chatDeleted = false
             newChatId = nil
             
-            // IMPORTANT: Reset all socket connections when exiting group chat
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                RealtimeSocketManager.shared.resetAllConnections()
-                
-                // Then re-fetch people after socket reset (only once)
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
-                    NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+            // Use different timing strategy for new vs existing chats
+            if isNewlyCreatedChat {
+                // For newly created chats, use a longer delay and ONE refresh
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    RealtimeSocketManager.shared.resetAllConnections()
+                    
+                    // Use a single, delayed refresh with a special notification
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        NotificationCenter.default.post(
+                            name: Notification.Name("oneTimeRefreshActiveChats"), 
+                            object: nil
+                        )
+                    }
+                }
+            } else {
+                // For existing chats, use the current strategy
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    RealtimeSocketManager.shared.resetAllConnections()
+                    
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) {
+                        NotificationCenter.default.post(
+                            name: Notification.Name("refreshActiveChats"), 
+                            object: nil
+                        )
+                    }
                 }
             }
         }

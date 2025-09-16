@@ -190,6 +190,8 @@ class GroupChatViewModel: ObservableObject {
 
     // NEW: keep track of the socket observer to avoid duplicates
     private var groupObsId: UUID?
+    private var groupNotifObsId: UUID?
+    private var messageFetchTask: Task<Void, Never>?
 
     init(currentUserId: Int, chatId: Int, customChatTitle: String? = nil) {
         self.currentUserId = currentUserId
@@ -206,20 +208,45 @@ class GroupChatViewModel: ObservableObject {
         }
     }
 
-    // NEW: explicit cleanup API for the view to call
     func teardownRealtime() {
+        // First, remove our message observer
         if let id = groupObsId {
             RealtimeSocketManager.shared.removeGroupMessageObserver(id)
             groupObsId = nil
         }
+        
+        // Remove any notification observer
+        if let id = groupNotifObsId {
+            RealtimeSocketManager.shared.removeGroupMessageNotificationObserver(id)
+            groupNotifObsId = nil
+        }
+        
+        // Then explicitly leave the chat room
         RealtimeSocketManager.shared.leave(chatId: chatId)
+        
+        // Cancel any pending message fetch tasks
+        messageFetchTask?.cancel()
+        messageFetchTask = nil
+        
+        // For debug tracking (safe to remove in production)
+        print("🧹 Group chat \(chatId) resources cleaned up")
     }
 
     private func setupRealtime() {
         guard !jwtToken.isEmpty else { return }
         RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken, userId: currentUserId)
 
-        // Store observer id so we can remove it later (avoid duplicates)
+        // Remove any existing observers before adding new ones (prevents duplicates)
+        if let id = groupObsId {
+            RealtimeSocketManager.shared.removeGroupMessageObserver(id)
+            groupObsId = nil
+        }
+        if let id = groupNotifObsId {
+            RealtimeSocketManager.shared.removeGroupMessageNotificationObserver(id)
+            groupNotifObsId = nil
+        }
+
+        // Add new group message observer
         groupObsId = RealtimeSocketManager.shared.onGroupMessage { [weak self] payload in
             guard let self = self else { return }
             print("🧩 (GroupRT) Incoming group_message payload:", payload)
@@ -232,7 +259,7 @@ class GroupChatViewModel: ObservableObject {
             guard incomingChatId == self.chatId else { return }
 
             if let data = try? JSONSerialization.data(withJSONObject: payload),
-               let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
+            let msg = try? JSONDecoder().decode(GroupMessage.self, from: data) {
                 DispatchQueue.main.async {
                     if !self.messages.contains(where: { $0.id == msg.id }) {
                         if let idx = self.messages.firstIndex(where: { $0.id < 0 && $0.text == msg.text && $0.senderId == msg.senderId }) {
@@ -250,6 +277,11 @@ class GroupChatViewModel: ObservableObject {
             }
         }
 
+        // Add new group message notification observer (if needed for future use)
+        groupNotifObsId = RealtimeSocketManager.shared.onGroupMessageNotification { [weak self] payload in
+            // Handle notification if needed
+        }
+
         // Delay join slightly to avoid racing the socket handshake
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             guard let self = self else { return }
@@ -257,6 +289,7 @@ class GroupChatViewModel: ObservableObject {
             print("➡️ (GroupRT) Requested join for chat_\(self.chatId)")
         }
     }
+
     // NEW: silence unused param warning (we still accept the id for future use)
     private func markCurrentChatReadIfNeeded(latestMessageId _: Int) {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group_chat?chats_id=\(chatId)&limit=1") else { return }
@@ -601,7 +634,21 @@ struct GroupChatView: View {
             }
         }
         .onDisappear {
-            viewModel.teardownRealtime() // Explicit cleanup on exit
+            // More aggressive cleanup sequence
+            print("📤 GroupChat onDisappear - aggressive cleanup")
+            
+            // First disconnect from all socket events to avoid race conditions
+            viewModel.teardownRealtime()
+            
+            // Force reset state (prevents stale navigation state)
+            navigateToNewChat = false
+            chatDeleted = false
+            newChatId = nil
+            
+            // Delay MainScreen refresh slightly to allow cleanup to complete
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+            }
         }
     }
 }

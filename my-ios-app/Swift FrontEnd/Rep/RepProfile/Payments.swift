@@ -465,12 +465,15 @@ struct TransactionHistoryRowView: View {
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(item.description)
                     .font(.body)
                 Text(item.formattedDate)
                     .font(.caption)
                     .foregroundColor(.secondary)
+                Text("Stripe Transaction ID: \(item.id)")
+                    .font(.caption2)
+                    .foregroundColor(.gray)
             }
             Spacer()
             Text(item.formattedAmount)

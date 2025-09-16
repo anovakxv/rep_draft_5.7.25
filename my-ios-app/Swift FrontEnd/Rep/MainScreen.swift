@@ -7,6 +7,8 @@
 import SwiftUI
 import Kingfisher
 
+@State private var lastRefreshTime: TimeInterval = 0
+
 // MARK: - API Responses
 
 struct UsersAPIResponse: Decodable {
@@ -646,9 +648,12 @@ struct MainScreen: View {
                 }
             )
         }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            if !jwtToken.isEmpty && userId != 0 {
-                RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken, userId: userId)
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("refreshActiveChats"))) { _ in
+            // Add debounce to prevent rapid reloading
+            let currentTime = Date().timeIntervalSince1970
+            if currentTime - self.lastRefreshTime > 0.75 {
+                self.lastRefreshTime = currentTime
+                peopleVM.fetchPeople(userId: userId, section: 0)
             }
         }
     }

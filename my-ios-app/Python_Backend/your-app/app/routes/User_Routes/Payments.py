@@ -333,7 +333,7 @@ def stripe_webhook():
                             users_id=transaction.user_id,
                             goals_id=transaction.goal_id,
                             added_value=amount_in_units,
-                            note=f"{transaction.transaction_type.capitalize()}: {transaction.message}",
+                            note=f"({transaction.transaction_type.capitalize()}) {transaction.message}",
                             value=(goal.filled_quota or 0) + amount_in_units
                         )
                         db.session.add(progress_log)

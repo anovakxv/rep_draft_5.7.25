@@ -347,12 +347,11 @@ struct PayTransactionView: View {
                             .shadow(color: Color.black.opacity(0.12), radius: 8, x: 0, y: 2)
                             .padding(.horizontal, 24)
                             .padding(.bottom, 40)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
                             .zIndex(100)
                         }
+                        .opacity(showSuccessBanner ? 1 : 0) // <-- Simple opacity, no animation context leak
                     }
                 }
-                .animation(.easeInOut, value: showSuccessBanner)
             )
         }
     }

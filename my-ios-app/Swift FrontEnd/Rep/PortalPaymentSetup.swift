@@ -16,49 +16,50 @@ class PortalPaymentViewModel: ObservableObject {
     @Published var accountId: String? = nil
     @Published var showWebView = false
     @Published var webViewURL: URL? = nil
-    @Published var accountFullySetup = false 
+    @Published var accountFullySetup = false
 
     let portalId: Int
     let portalName: String
-    
+
     @AppStorage("jwtToken") private var jwtToken: String = ""
-    
+
     init(portalId: Int, portalName: String) {
         self.portalId = portalId
         self.portalName = portalName
         checkConnectionStatus()
     }
-    
+
     func checkConnectionStatus() {
         isLoading = true
-        
+
         guard let url = URL(string: "\(APIConfig.baseURL)/api/portal/payment_status?portal_id=\(portalId)") else {
             self.errorMessage = "Invalid URL"
             self.isLoading = false
             return
         }
-        
+
         var request = URLRequest(url: url)
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        
+
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
-                
+
                 if let error = error {
                     self.errorMessage = "Error checking payment status: \(error.localizedDescription)"
                     return
                 }
-                
+
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     self.errorMessage = "Invalid response from server"
                     return
                 }
-                
+
                 if let accountId = json["stripe_account_id"] as? String, !accountId.isEmpty {
                     self.isConnected = true
                     self.accountId = accountId
+                    self.accountFullySetup = json["account_status"] as? Bool ?? false
                 } else {
                     self.isConnected = false
                     self.accountFullySetup = false
@@ -66,40 +67,39 @@ class PortalPaymentViewModel: ObservableObject {
             }
         }.resume()
     }
-    
+
     func createConnectAccount() {
         isLoading = true
-        
+
         guard let url = URL(string: "\(APIConfig.baseURL)/api/create_connect_account") else {
             self.errorMessage = "Invalid URL"
             self.isLoading = false
             return
         }
-        
-        // Use the correct scheme (rep) for deep linking
+
         let redirectURL = "rep://stripe-connect-return?portal_id=\(portalId)"
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        
+
         let body: [String: Any] = [
             "portal_id": portalId,
             "redirect_url": redirectURL
         ]
-        
+
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
+
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
-                
+
                 if let error = error {
                     self.errorMessage = "Error creating account: \(error.localizedDescription)"
                     return
                 }
-                
+
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let stripeURL = json["url"] as? String,
@@ -107,51 +107,51 @@ class PortalPaymentViewModel: ObservableObject {
                     self.errorMessage = "Invalid response from server"
                     return
                 }
-                
+
                 if let accountId = json["account_id"] as? String {
                     self.accountId = accountId
                 }
-                
+
                 self.webViewURL = url
                 self.showWebView = true
             }
         }.resume()
     }
-    
+
     func getStripeDashboardLink() {
         guard let accountId = accountId else {
             self.errorMessage = "No Stripe account found"
             return
         }
-        
+
         isLoading = true
-        
+
         guard let url = URL(string: "\(APIConfig.baseURL)/api/stripe_dashboard_link") else {
             self.errorMessage = "Invalid URL"
             self.isLoading = false
             return
         }
-        
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        
+
         let body: [String: Any] = [
             "account_id": accountId
         ]
-        
+
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
+
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
-                
+
                 if let error = error {
                     self.errorMessage = "Error getting dashboard link: \(error.localizedDescription)"
                     return
                 }
-                
+
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let dashboardURL = json["url"] as? String,
@@ -159,17 +159,16 @@ class PortalPaymentViewModel: ObservableObject {
                     self.errorMessage = "Invalid response from server"
                     return
                 }
-                
+
                 self.webViewURL = url
                 self.showWebView = true
             }
         }.resume()
     }
-    
+
     func handleWebViewDismiss() {
         showWebView = false
         webViewURL = nil
-        // Check status again to see if connection was successful
         checkConnectionStatus()
     }
 }
@@ -179,11 +178,11 @@ class PortalPaymentViewModel: ObservableObject {
 struct PortalPaymentSetup: View {
     @StateObject private var viewModel: PortalPaymentViewModel
     @Environment(\.dismiss) private var dismiss
-    
+
     init(portalId: Int, portalName: String) {
         _viewModel = StateObject(wrappedValue: PortalPaymentViewModel(portalId: portalId, portalName: portalName))
     }
-    
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -192,61 +191,45 @@ struct PortalPaymentSetup: View {
                     Text("Payment Settings")
                         .font(.title)
                         .fontWeight(.bold)
-                    
+
                     Text("Set up your portal to receive payments")
                         .font(.body)
                         .foregroundColor(.secondary)
                 }
                 .padding(.bottom)
-                
+
                 // Status Card
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Image(systemName: viewModel.isConnected && viewModel.accountFullySetup ? "checkmark.circle.fill" : "exclamationmark.circle")
-                            .foregroundColor(viewModel.isConnected && viewModel.accountFullySetup ? .green : .orange)
+                        Image(systemName: viewModel.isConnected ? "checkmark.circle.fill" : "exclamationmark.circle")
+                            .foregroundColor(viewModel.isConnected ? .green : .orange)
                             .font(.title2)
 
-                        Text(viewModel.isConnected && viewModel.accountFullySetup ? "Connected to Stripe" : (viewModel.isConnected ? "Stripe Setup Incomplete" : "Not Connected to Stripe"))
+                        Text(viewModel.isConnected ? "Stripe Connected" : "Not Connected to Stripe")
                             .font(.headline)
 
                         Spacer()
                     }
 
                     Text(
-                        viewModel.isConnected && viewModel.accountFullySetup ?
-                        "Your portal is connected to Stripe and can receive payments. You can manage your account through the Stripe Dashboard." :
-                        (viewModel.isConnected ?
-                            "Your Stripe account setup is incomplete. Please finish setting up your account to receive payments." :
-                            "Connect your portal to Stripe to receive donations, payments, and purchases from users.")
+                        viewModel.isConnected ?
+                        "Your portal is connected to Stripe. Click below to manage your account or complete verification steps if needed." :
+                        "Connect your portal to Stripe to receive donations, payments, and purchases from users."
                     )
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                    if viewModel.isConnected && viewModel.accountFullySetup {
+                    if viewModel.isConnected {
                         Button(action: {
                             viewModel.getStripeDashboardLink()
                         }) {
                             HStack {
                                 Image(systemName: "arrow.up.right.square")
-                                Text("Go to Stripe Dashboard")
+                                Text("Manage Stripe Account")
                                 Spacer()
                             }
                             .padding()
                             .background(Color(UIColor.systemGray6))
-                            .cornerRadius(8)
-                        }
-                    } else if viewModel.isConnected && !viewModel.accountFullySetup {
-                        Button(action: {
-                            viewModel.createConnectAccount()
-                        }) {
-                            HStack {
-                                Image(systemName: "link")
-                                Text("Finish Stripe Setup")
-                                Spacer()
-                            }
-                            .padding()
-                            .background(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .foregroundColor(.white)
                             .cornerRadius(8)
                         }
                     } else {
@@ -268,30 +251,30 @@ struct PortalPaymentSetup: View {
                 .padding()
                 .background(Color(UIColor.systemGray6))
                 .cornerRadius(12)
-                
+
                 // Payment Info
                 VStack(alignment: .leading, spacing: 16) {
                     Text("About Payments")
                         .font(.headline)
-                    
+
                     InfoRow(icon: "creditcard", title: "Secure Payments", description: "All payments are securely processed by Stripe, a PCI-compliant payment processor.")
-                    
+
                     InfoRow(
                         icon: "dollarsign.circle",
                         title: "Transaction Fee",
                         description: """
-                    Rep does not charge any additional platform fee. Stripe’s standard rates apply. For example: 2.9% + 30¢ per successful transaction for domestic cards, 0.8% for ACH Direct Debit. For full details, see stripe.com/pricing.
-                    """
+Rep does not charge any additional platform fee. Stripe’s standard rates apply. For example: 2.9% + 30¢ per successful transaction for domestic cards, 0.8% for ACH Direct Debit. For full details, see stripe.com/pricing.
+"""
                     )
-                    
+
                     InfoRow(icon: "calendar", title: "Payouts", description: "Funds will be directly deposited to your bank account based on your Stripe payout schedule.")
-                    
+
                     InfoRow(icon: "doc.text", title: "Tax Information", description: "You'll need to provide tax information in your Stripe account to receive payments.")
                 }
                 .padding()
                 .background(Color(UIColor.systemGray6))
                 .cornerRadius(12)
-                
+
                 if let errorMessage = viewModel.errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
@@ -329,8 +312,7 @@ struct PortalPaymentSetup: View {
         }
         .onAppear {
             viewModel.checkConnectionStatus()
-            
-            // Listen for Stripe Connect completion
+
             NotificationCenter.default.addObserver(
                 forName: Notification.Name("StripeConnectCompleted"),
                 object: nil,
@@ -358,18 +340,18 @@ struct InfoRow: View {
     let icon: String
     let title: String
     let description: String
-    
+
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
                 .foregroundColor(.primary)
                 .frame(width: 24, height: 24)
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                
+
                 Text(description)
                     .font(.caption)
                     .foregroundColor(.secondary)

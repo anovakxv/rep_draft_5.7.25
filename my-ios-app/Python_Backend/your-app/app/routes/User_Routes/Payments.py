@@ -241,9 +241,13 @@ def get_portal_payment_status():
     if not portal or str(portal.users_id) != str(user_id):
         return jsonify({'error': 'Not authorized'}), 403
 
+    # This field is already being updated by your account.updated webhook
+    account_status = portal.stripe_account_status if hasattr(portal, 'stripe_account_status') else False
+
     return jsonify({
         'stripe_account_id': portal.stripe_account_id or '',
         'is_connected': bool(portal.stripe_account_id),
+        'account_status': account_status  # New field, doesn't break existing code
     })
 
 @payments_bp.route('/stripe/webhook', methods=['POST'])

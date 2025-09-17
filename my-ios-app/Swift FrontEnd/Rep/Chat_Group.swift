@@ -211,11 +211,7 @@ class GroupChatViewModel: ObservableObject {
     }
 
     func teardownRealtime() {
-        print("🚫 Aggressive teardown for chat \(chatId)")
-        
-        // First cancel any pending updates
-        updateDebouncer?.invalidate()
-        updateDebouncer = nil
+        print("🧹 Basic teardown for chat \(chatId)")
         
         // Remove our message observers
         if let id = groupObsId {
@@ -228,15 +224,8 @@ class GroupChatViewModel: ObservableObject {
             groupNotifObsId = nil
         }
         
-        // Cancel any pending message fetch tasks
-        messageFetchTask?.cancel()
-        messageFetchTask = nil
-        
-        // Explicitly leave the chat room
+        // Leave the chat room
         RealtimeSocketManager.shared.leave(chatId: chatId)
-        
-        // Explicitly request socket manager to clean up all handlers
-        RealtimeSocketManager.shared.cleanupAllHandlers()
     }
 
     private func setupRealtime() {
@@ -672,20 +661,7 @@ struct GroupChatView: View {
         }
         .onDisappear {
             print("📤 GroupChat onDisappear")
-            
-            // Standard cleanup (like in production)
             viewModel.teardownRealtime()
-            
-            // Only for newly created chats, do ONE delayed refresh with a longer delay
-            if isNewlyCreatedChat {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-                    // Using the specific notification name from production code
-                    NotificationCenter.default.post(
-                        name: Notification.Name("oneTimeRefreshActiveChats"),
-                        object: nil
-                    )
-                }
-            }
         }
     }
 }
@@ -873,6 +849,14 @@ struct EditGroupChatView: View {
                             chatId = id
                         } else if let id = decoded["chats_id"]?.value as? Int {
                             chatId = id
+                        }
+                        
+                        // --- SUGGESTED: Schedule a delayed one-time refresh for active chats ---
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            NotificationCenter.default.post(
+                                name: Notification.Name("oneTimeRefreshActiveChats"),
+                                object: nil
+                            )
                         }
                         
                         // Return the chat ID

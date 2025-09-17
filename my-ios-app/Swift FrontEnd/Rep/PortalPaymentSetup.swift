@@ -16,7 +16,8 @@ class PortalPaymentViewModel: ObservableObject {
     @Published var accountId: String? = nil
     @Published var showWebView = false
     @Published var webViewURL: URL? = nil
-    
+    @Published var accountFullySetup = false 
+
     let portalId: Int
     let portalName: String
     
@@ -60,6 +61,7 @@ class PortalPaymentViewModel: ObservableObject {
                     self.accountId = accountId
                 } else {
                     self.isConnected = false
+                    self.accountFullySetup = false
                 }
             }
         }.resume()
@@ -200,23 +202,27 @@ struct PortalPaymentSetup: View {
                 // Status Card
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Image(systemName: viewModel.isConnected ? "checkmark.circle.fill" : "exclamationmark.circle")
-                            .foregroundColor(viewModel.isConnected ? .green : .orange)
+                        Image(systemName: viewModel.isConnected && viewModel.accountFullySetup ? "checkmark.circle.fill" : "exclamationmark.circle")
+                            .foregroundColor(viewModel.isConnected && viewModel.accountFullySetup ? .green : .orange)
                             .font(.title2)
-                        
-                        Text(viewModel.isConnected ? "Connected to Stripe" : "Not Connected to Stripe")
+
+                        Text(viewModel.isConnected && viewModel.accountFullySetup ? "Connected to Stripe" : (viewModel.isConnected ? "Stripe Setup Incomplete" : "Not Connected to Stripe"))
                             .font(.headline)
-                        
+
                         Spacer()
                     }
-                    
-                    Text(viewModel.isConnected ? 
-                        "Your portal is connected to Stripe and can receive payments. You can manage your account through the Stripe Dashboard." : 
-                        "Connect your portal to Stripe to receive donations, payments, and purchases from users.")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    if viewModel.isConnected {
+
+                    Text(
+                        viewModel.isConnected && viewModel.accountFullySetup ?
+                        "Your portal is connected to Stripe and can receive payments. You can manage your account through the Stripe Dashboard." :
+                        (viewModel.isConnected ?
+                            "Your Stripe account setup is incomplete. Please finish setting up your account to receive payments." :
+                            "Connect your portal to Stripe to receive donations, payments, and purchases from users.")
+                    )
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+
+                    if viewModel.isConnected && viewModel.accountFullySetup {
                         Button(action: {
                             viewModel.getStripeDashboardLink()
                         }) {
@@ -227,6 +233,20 @@ struct PortalPaymentSetup: View {
                             }
                             .padding()
                             .background(Color(UIColor.systemGray6))
+                            .cornerRadius(8)
+                        }
+                    } else if viewModel.isConnected && !viewModel.accountFullySetup {
+                        Button(action: {
+                            viewModel.createConnectAccount()
+                        }) {
+                            HStack {
+                                Image(systemName: "link")
+                                Text("Finish Stripe Setup")
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .foregroundColor(.white)
                             .cornerRadius(8)
                         }
                     } else {

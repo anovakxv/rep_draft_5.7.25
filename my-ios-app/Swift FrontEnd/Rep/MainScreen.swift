@@ -551,7 +551,7 @@ struct MainScreen: View {
                             currentUserId: userId,
                             chatId: $0
                         ),
-                        isNewlyCreated: true
+                        isNewlyCreated: false  // <- Change to false as we're handling refresh separately
                     )
                 },
                 isActive: $navigateToGroupChat

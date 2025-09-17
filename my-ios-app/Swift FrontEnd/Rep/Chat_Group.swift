@@ -673,21 +673,15 @@ struct GroupChatView: View {
         .onDisappear {
             print("📤 GroupChat onDisappear")
             
-            // Do basic cleanup of the current view
+            // Standard cleanup (like in production)
             viewModel.teardownRealtime()
             
-            // Check if we just created a group chat (from either flag)
-            let justCreated = isNewlyCreatedChat || UserDefaults.standard.bool(forKey: "justCreatedGroupChat")
-            
-            if justCreated {
-                // Reset the flag
-                UserDefaults.standard.set(false, forKey: "justCreatedGroupChat")
-                
-                // Add a slight delay then do ONE single refresh
+            // Only for newly created chats, do ONE delayed refresh with a longer delay
+            if isNewlyCreatedChat {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-                    print("📊 Triggering single refresh after new group chat")
+                    // Using the specific notification name from production code
                     NotificationCenter.default.post(
-                        name: Notification.Name("refreshActiveChats"), 
+                        name: Notification.Name("oneTimeRefreshActiveChats"),
                         object: nil
                     )
                 }
@@ -880,12 +874,6 @@ struct EditGroupChatView: View {
                         } else if let id = decoded["chats_id"]?.value as? Int {
                             chatId = id
                         }
-                        
-                        // IMPORTANT: Cancel any pending notifications
-                        NotificationCenter.default.post(name: Notification.Name("cancelPendingRefreshes"), object: nil)
-                        
-                        // Instead of immediately refreshing, set a flag to handle refresh in onDisappear
-                        UserDefaults.standard.set(true, forKey: "justCreatedGroupChat")
                         
                         // Return the chat ID
                         onSave(chatId)

@@ -253,7 +253,9 @@ class PeopleViewModel: ObservableObject {
                     }
                     do {
                         let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
-                        self.activeChats = response.result
+                        withTransaction(Transaction(animation: nil)) {
+                            self.activeChats = response.result
+                        }
                         // Only count unread if last message is from someone else
                         let hasUnreadDM = response.result.contains {
                             $0.type == "direct"

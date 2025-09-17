@@ -81,10 +81,10 @@ struct PayTransactionView: View {
     let transactionType: TransactionType
 
     let monthlyPriceOptions: [(amount: Int, priceId: String)] = [
-        (5, "price_1S7ZjaLEcZxL3ukIOG5Hf8vo"),   // $5/month
-        (10, "price_1S5Z8lLEcZxL3ukI6dh5l5PM"),   // $10/month
-        (20, "price_1S5Z9GLEcZxL3ukI9LcKmj0P"),   // $20/month
-        (40, "price_1S5Z9bLEcZxL3ukIrn8LjNGl")   // $40/month
+        (5, "price_1S8BJNLEcZxL3ukIiYVOMyHD"),   // $5/month
+        (10, "price_1S8BJeLEcZxL3ukI3fpsE25j"),   // $10/month
+        (20, "price_1S8BJuLEcZxL3ukIwJshQJp6"),   // $20/month
+        (40, "price_1S8BK9LEcZxL3ukISu3iPeLK")   // $40/month
     ]
 
     @State private var amount: String = ""

@@ -67,7 +67,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, MessagingDelegate {
         }
 
       // Stripe initialization
-        StripeAPI.defaultPublishableKey = "pk_test_51S3olnLEcZxL3ukI6YT7PWpwcgpEbDyrXzUoUcTsgfbraIRiW1UnSugizO8PMkqyATYGZ4c5yF8aKXhTISej4CCi00uQJJzBpP"
+        StripeAPI.defaultPublishableKey = "pk_live_51S3olnLEcZxL3ukIwVaVl6RIa688W82Twb5t7vo2aYH0iB6VPQCeDlxvPsWRId3tNLZjfxQ0KFEa9mPnamPi0Ldx00PIMHn3If"
         print("Stripe initialized with publishable key.")
 
         return true

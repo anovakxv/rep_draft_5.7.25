@@ -125,10 +125,65 @@ final class RealtimeSocketManager {
             guard let self = self, let socket = self.socket else { return }
             socket.connect()
             
-            // Register handlers after reconnect
-            socket.once("connect") { [weak self] _, _ in
+            // FIXED: Use enum-based API that works with your Socket.IO version
+            var connectHandler: UUID?
+            connectHandler = socket.on(clientEvent: .connect) { [weak self] _, _ in
                 self?.handlersRegistered = false
                 self?.registerEventHandlersIfNeeded()
+                
+                // Remove handler after it fires once (mimics once behavior)
+                if let id = connectHandler {
+                    socket.off(id: id)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Nuclear Reset (more complete reset)
+    
+    func nuclearReset() {
+        print("☢️ NUCLEAR RESET: Completely resetting all socket connections")
+        
+        // 1. Clear all observers
+        dmObservers.removeAll()
+        groupObservers.removeAll()
+        groupNotifObservers.removeAll()
+        
+        // 2. Remove all event listeners (including system events)
+        socket?.removeAllHandlers()
+        
+        // 3. Disconnect completely
+        socket?.disconnect()
+        isConnected = false
+        handlersRegistered = false
+        
+        // 4. Reconnect and set up a one-time handler for clean initialization
+        if let baseURL = lastBaseURL, let token = lastToken, let userId = lastUserId {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self else { return }
+                
+                // Reconnect
+                self.socket?.connect()
+                
+                // Use the enum-based API with proper memory management
+                var connectHandler: UUID?
+                connectHandler = self.socket?.on(clientEvent: .connect) { [weak self] _, _ in
+                    guard let self = self else { return }
+                    
+                    // Set up handlers
+                    self.handlersRegistered = false
+                    self.registerEventHandlersIfNeeded()
+                    
+                    // Rejoin user room if needed
+                    if let userId = self.lastUserId {
+                        self.joinUserRoom(userId: userId)
+                    }
+                    
+                    // Remove handler after it fires once (mimics once behavior)
+                    if let id = connectHandler {
+                        self.socket?.off(id: id)
+                    }
+                }
             }
         }
     }
@@ -319,7 +374,7 @@ final class RealtimeSocketManager {
         print("➡️ (Realtime) join group chat \(chatId)")
     }
 
-    func leave(chatId: Int) {
+    func leave(chatId: Int, withCleanup: Bool = false) {
         // First, emit both legacy and new events to leave room
         socket?.emit("leave_group_chat", ["chat_id": chatId])
         socket?.emit("leave", ["chat_id": chatId])
@@ -333,24 +388,61 @@ final class RealtimeSocketManager {
             return payloadChatId == chatId
         }
         
-        // Remove any observer whose callback was likely for this chat
-        // This is an approximation since we can't inspect closures directly
-        for observer in groupObservers {
-            if let payload = ["chat_id": chatId] as? [String: Any], 
-            payloadMatchesChat(payload, chatId: chatId) {
-                removeGroupMessageObserver(observer.id)
+        // If doing full cleanup, remove all observers for this chat
+        if withCleanup {
+            for observer in groupObservers {
+                if let payload = ["chat_id": chatId] as? [String: Any], 
+                   payloadMatchesChat(payload, chatId: chatId) {
+                    removeGroupMessageObserver(observer.id)
+                }
             }
-        }
-        
-        // Also reset all pending handlers to avoid any race conditions
-        socket?.off("group_message")
-        
-        // Re-register group message event (with new closures)
-        if handlersRegistered, let socket = socket {
-            socket.on("group_message") { [weak self] data, _ in
-                guard let self = self else { return }
-                guard let dict = data.first as? [String: Any] else { return }
-                self.groupObservers.forEach { $0.cb(dict) }
+            
+            // Also remove notification observers for this chat if needed
+            for observer in groupNotifObservers {
+                if let payload = ["chat_id": chatId] as? [String: Any],
+                   payloadMatchesChat(payload, chatId: chatId) {
+                    removeGroupMessageNotificationObserver(observer.id)
+                }
+            }
+            
+            // Reset handlers to avoid race conditions
+            socket?.off("group_message")
+            socket?.off("group_message_notification")
+            
+            // Re-register handlers if needed
+            if handlersRegistered, let socket = socket {
+                socket.on("group_message") { [weak self] data, _ in
+                    guard let self = self else { return }
+                    guard let dict = data.first as? [String: Any] else { return }
+                    self.groupObservers.forEach { $0.cb(dict) }
+                }
+                
+                socket.on("group_message_notification") { [weak self] data, _ in
+                    guard let self = self else { return }
+                    guard let dict = data.first as? [String: Any] else { return }
+                    self.groupNotifObservers.forEach { $0.cb(dict) }
+                }
+            }
+        } else {
+            // Standard cleanup (backwards compatible)
+            // Remove any observer whose callback was likely for this chat
+            for observer in groupObservers {
+                if let payload = ["chat_id": chatId] as? [String: Any], 
+                   payloadMatchesChat(payload, chatId: chatId) {
+                    removeGroupMessageObserver(observer.id)
+                }
+            }
+            
+            // Also reset all pending handlers to avoid any race conditions
+            socket?.off("group_message")
+            
+            // Re-register group message event (with new closures)
+            if handlersRegistered, let socket = socket {
+                socket.on("group_message") { [weak self] data, _ in
+                    guard let self = self else { return }
+                    guard let dict = data.first as? [String: Any] else { return }
+                    self.groupObservers.forEach { $0.cb(dict) }
+                }
             }
         }
     }

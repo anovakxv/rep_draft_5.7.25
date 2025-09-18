@@ -177,10 +177,15 @@ class PeopleViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchResults: [User] = []
     @Published var isSearching: Bool = false
+    @Published var skipNextAnimations: Bool = false
 
     private var fetchThrottleTimer: Timer?
     private var lastFetchTime: TimeInterval = 0
     private var isFetching = false
+
+    private var activeRefreshTask: Task<Void, Never>?
+    private var lastRefreshRequestTime: Date = .distantPast
+    private let minimumRefreshInterval: TimeInterval = 0.75  
 
     @Published var hasUnreadDirectMessages: Bool = false {
         didSet {
@@ -200,136 +205,55 @@ class PeopleViewModel: ObservableObject {
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     func fetchPeople(userId: Int, section: Int, force: Bool = false) {
-        // Only prevent concurrent fetches, but don't add delays
+        // Cancel any previous refresh task
+        activeRefreshTask?.cancel()
+        
+        // For section 0 (active chats), implement strict refresh control
+        if section == 0 {
+            let now = Date()
+            let timeSinceLastRequest = now.timeIntervalSince(lastRefreshRequestTime)
+            
+            // If we've refreshed very recently and this isn't forced, skip it
+            if timeSinceLastRequest < minimumRefreshInterval && !force {
+                print("⏱️ Skipping refresh - too soon (interval: \(timeSinceLastRequest)s)")
+                return
+            }
+            
+            // Update the timestamp for this request
+            lastRefreshRequestTime = now
+            
+            // Create a new task that will handle the refresh
+            activeRefreshTask = Task { 
+                // Small delay to allow quick cancellation if another request comes in
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+                
+                // If task was cancelled during delay, exit
+                if Task.isCancelled {
+                    print("❌ Refresh task cancelled")
+                    return
+                }
+                
+                // Perform the actual fetch on the main thread
+                await MainActor.run {
+                    performActiveChatsFetch(userId: userId, force: force)
+                }
+            }
+            return
+        }
+        
+        // For other sections, use the existing logic
         if isFetching && !force {
             return
         }
         
-        // Update the timestamp for notification handlers
+        // Update timestamp for notification handlers
         lastFetchTime = Date().timeIntervalSince1970
-        isFetching = true
-        isLoading = true
-        errorMessage = nil
-
-        if section == 0 {
-            // Active chats
-            let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
-            guard let url = URL(string: urlString) else {
-                self.errorMessage = "Invalid URL"
-                self.isLoading = false
-                self.isFetching = false
-                return
-            }
-            var request = URLRequest(url: url)
-            if !jwtToken.isEmpty {
-                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-            }
-            URLSession.shared.dataTask(with: request) { data, response, error in
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.isFetching = false
-                    if let http = response as? HTTPURLResponse {
-                        if http.statusCode == 401 || http.statusCode == 403 {
-                            self.errorMessage = "Session expired. Please log in again."
-                            self.activeChats = []
-                            AuthSession.handleUnauthorized("PeopleViewModel.fetchPeople.active_chats")
-                            return
-                        }
-                        if http.statusCode < 200 || http.statusCode >= 300 {
-                            self.errorMessage = "Server error (\(http.statusCode))."
-                            self.activeChats = []
-                            return
-                        }
-                    }
-                    if let error = error {
-                        self.errorMessage = error.localizedDescription
-                        self.activeChats = []
-                        return
-                    }
-                    guard let data = data else {
-                        self.errorMessage = "No data"
-                        self.activeChats = []
-                        return
-                    }
-                    do {
-                        let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
-                        withTransaction(Transaction(animation: nil)) {
-                            self.activeChats = response.result
-                        }
-                        // Only count unread if last message is from someone else
-                        let hasUnreadDM = response.result.contains {
-                            $0.type == "direct"
-                            && (($0.last_message?.read ?? "0") == "0")
-                            && (($0.last_message?.sender_id ?? -1) != userId)
-                        }
-                        let hasUnreadGroup = response.result.contains {
-                            $0.type == "group"
-                            && (($0.last_message?.read ?? "0") == "0")
-                            && (($0.last_message?.sender_id ?? -1) != userId)
-                        }
-                        self.hasUnreadDirectMessages = hasUnreadDM
-                        self.hasUnreadGroupMessages = hasUnreadGroup
-                    } catch {
-                        self.errorMessage = "Failed to decode."
-                        self.activeChats = []
-                    }
-                }
-            }.resume()
-        } else {
-            // People list
-            let tab = section == 1 ? "ntwk" : "all"
-            let limitParam = (tab == "all") ? "&limit=200" : ""
-            let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
-            guard let url = URL(string: urlString) else {
-                errorMessage = "Invalid URL"
-                isLoading = false
-                isFetching = false
-                return
-            }
-            var request = URLRequest(url: url)
-            if !jwtToken.isEmpty {
-                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-            }
-            URLSession.shared.dataTask(with: request) { data, response, error in
-                DispatchQueue.main.async {
-                    self.isLoading = false
-                    self.isFetching = false
-                    if let http = response as? HTTPURLResponse {
-                        if http.statusCode == 401 || http.statusCode == 403 {
-                            self.errorMessage = "Session expired. Please log in again."
-                            self.users = []
-                            AuthSession.handleUnauthorized("PeopleViewModel.fetchPeople.people_list")
-                            return
-                        }
-                        if http.statusCode < 200 || http.statusCode >= 300 {
-                            self.errorMessage = "Server error (\(http.statusCode))."
-                            self.users = []
-                            return
-                        }
-                    }
-                    if let error = error {
-                        self.errorMessage = error.localizedDescription
-                        self.users = []
-                        return
-                    }
-                    guard let data = data else {
-                        self.errorMessage = "No data"
-                        self.users = []
-                        return
-                    }
-                    do {
-                        let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
-                        self.users = response.result
-                    } catch {
-                        self.errorMessage = "Failed to decode."
-                        self.users = []
-                    }
-                }
-            }.resume()
-        }
+        performPeopleFetch(userId: userId, section: section)
     }
 
     func cancelPendingRefreshes() {
+        activeRefreshTask?.cancel()
+        activeRefreshTask = nil
         fetchThrottleTimer?.invalidate()
         fetchThrottleTimer = nil
     }
@@ -400,6 +324,148 @@ class PeopleViewModel: ObservableObject {
     func clearSearch() {
         searchResults = []
         isSearching = false
+    }
+
+    private func performActiveChatsFetch(userId: Int, force: Bool) {
+        // Prevent concurrent fetches
+        if isFetching && !force {
+            return
+        }
+        
+        isFetching = true
+        isLoading = true
+        errorMessage = nil
+        
+        // Active chats fetch code
+        let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
+        guard let url = URL(string: urlString) else {
+            self.errorMessage = "Invalid URL"
+            self.isLoading = false
+            self.isFetching = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.isFetching = false
+                if let http = response as? HTTPURLResponse {
+                    if http.statusCode == 401 || http.statusCode == 403 {
+                        self.errorMessage = "Session expired. Please log in again."
+                        self.activeChats = []
+                        AuthSession.handleUnauthorized("PeopleViewModel.fetchPeople.active_chats")
+                        return
+                    }
+                    if http.statusCode < 200 || http.statusCode >= 300 {
+                        self.errorMessage = "Server error (\(http.statusCode))."
+                        self.activeChats = []
+                        return
+                    }
+                }
+                if let error = error {
+                    self.errorMessage = error.localizedDescription
+                    self.activeChats = []
+                    return
+                }
+                guard let data = data else {
+                    self.errorMessage = "No data"
+                    self.activeChats = []
+                    return
+                }
+                do {
+                    let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
+                    if self.skipNextAnimations {
+                        withTransaction(Transaction(animation: nil)) {
+                            self.activeChats = response.result
+                        }
+                        self.skipNextAnimations = false
+                    } else {
+                        self.activeChats = response.result
+                    }
+                    // Only count unread if last message is from someone else
+                    let hasUnreadDM = response.result.contains {
+                        $0.type == "direct"
+                        && (($0.last_message?.read ?? "0") == "0")
+                        && (($0.last_message?.sender_id ?? -1) != userId)
+                    }
+                    let hasUnreadGroup = response.result.contains {
+                        $0.type == "group"
+                        && (($0.last_message?.read ?? "0") == "0")
+                        && (($0.last_message?.sender_id ?? -1) != userId)
+                    }
+                    self.hasUnreadDirectMessages = hasUnreadDM
+                    self.hasUnreadGroupMessages = hasUnreadGroup
+                } catch {
+                    self.errorMessage = "Failed to decode."
+                    self.activeChats = []
+                }
+            }
+        }.resume()
+    }
+
+    // New helper method for people list fetches
+    private func performPeopleFetch(userId: Int, section: Int) {
+        isFetching = true
+        isLoading = true
+        errorMessage = nil
+        
+        // People list fetch code
+        let tab = section == 1 ? "ntwk" : "all"
+        let limitParam = (tab == "all") ? "&limit=200" : ""
+        let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
+        guard let url = URL(string: urlString) else {
+            errorMessage = "Invalid URL"
+            isLoading = false
+            isFetching = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.isFetching = false
+                if let http = response as? HTTPURLResponse {
+                    if http.statusCode == 401 || http.statusCode == 403 {
+                        self.errorMessage = "Session expired. Please log in again."
+                        self.users = []
+                        AuthSession.handleUnauthorized("PeopleViewModel.fetchPeople.people_list")
+                        return
+                    }
+                    if http.statusCode < 200 || http.statusCode >= 300 {
+                        self.errorMessage = "Server error (\(http.statusCode))."
+                        self.users = []
+                        return
+                    }
+                }
+                if let error = error {
+                    self.errorMessage = error.localizedDescription
+                    self.users = []
+                    return
+                }
+                guard let data = data else {
+                    self.errorMessage = "No data"
+                    self.users = []
+                    return
+                }
+                do {
+                    let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
+                    self.users = response.result
+                } catch {
+                    self.errorMessage = "Failed to decode."
+                    self.users = []
+                }
+            }
+        }.resume()
     }
 }
 
@@ -545,14 +611,20 @@ struct MainScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             
             NavigationLink(
-                destination: newGroupChatId.map {
-                    GroupChatView(
-                        viewModel: GroupChatViewModel(
-                            currentUserId: userId,
-                            chatId: $0
-                        ),
-                        isNewlyCreated: false  // <- Change to false as we're handling refresh separately
-                    )
+                destination: newGroupChatId.map { chatId in
+                    ZStack {
+                        Color.white.ignoresSafeArea() // Prevent transparent background
+                        GroupChatView(
+                            viewModel: GroupChatViewModel(
+                                currentUserId: userId,
+                                chatId: chatId
+                            )
+                        )
+                        .onDisappear {
+                            // Force cleanup when navigating back
+                            RealtimeSocketManager.shared.nuclearReset()
+                        }
+                    }
                 },
                 isActive: $navigateToGroupChat
             ) { EmptyView() }
@@ -571,15 +643,23 @@ struct MainScreen: View {
             onSave: { createdId in
                 showCreateGroupChatSheet = false
                 
-                // Force refresh active chats regardless of whether we navigate to the chat
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                    peopleVM.fetchPeople(userId: userId, section: 0)
+                // Reset socket connections immediately after creation
+                RealtimeSocketManager.shared.nuclearReset()
+                
+                // Force refresh active chats
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    peopleVM.skipNextAnimations = true
+                    peopleVM.fetchPeople(userId: userId, section: 0, force: true)
                 }
                 
+                // Navigate if needed
                 guard let createdId else { return }
-                RealtimeSocketManager.shared.join(chatId: createdId)
-                newGroupChatId = createdId
-                navigateToGroupChat = true
+                
+                // Delay navigation slightly to allow cleanup
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    newGroupChatId = createdId
+                    navigateToGroupChat = true
+                }
             },
             onCancel: {
                 showCreateGroupChatSheet = false
@@ -641,8 +721,19 @@ struct MainScreen: View {
                 peopleVM.fetchPeople(userId: userId, section: newSection)
             }
         }
-        .onChange(of: page) { _ in
+        .onChange(of: page) { newPage in
             scheduleUnreadPollingIfNeeded()
+            
+            // Nuclear reset when switching tabs
+            if newPage == .portals {
+                print("☢️ Nuclear reset triggered by tab switch")
+                RealtimeSocketManager.shared.nuclearReset()
+                
+                // Give time for socket to reconnect before fetching data
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                }
+            }
         }
         .onChange(of: pendingAction) { action in
             guard let action = action else { return }
@@ -680,15 +771,22 @@ struct MainScreen: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("oneTimeRefreshActiveChats"))) { _ in
-            // Bypass the regular debounce mechanism for one-time refreshes
-            print("📋 Processing one-time refresh")
-            self.lastRefreshTime = Date().timeIntervalSince1970
-            peopleVM.fetchPeople(userId: userId, section: 0, force: true)
+            print("☢️ Processing one-time refresh with NUCLEAR cleanup")
             
-            // Block any subsequent refreshes for 2 seconds
-            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-                self.lastRefreshTime = Date().timeIntervalSince1970
+            // Cancel any pending refresh tasks first
+            peopleVM.cancelPendingRefreshes()
+            
+            // Nuclear reset of all socket connections
+            RealtimeSocketManager.shared.nuclearReset()
+            
+            // Schedule a single refresh with animation suppression after a delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                peopleVM.skipNextAnimations = true
+                peopleVM.fetchPeople(userId: userId, section: 0, force: true)
             }
+            
+            // Block any subsequent refreshes for 3 seconds
+            self.lastRefreshTime = Date().timeIntervalSince1970 + 3.0
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("cancelPendingRefreshes"))) { _ in
             peopleVM.cancelPendingRefreshes()

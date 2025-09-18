@@ -826,22 +826,7 @@ struct ProfileView: View {
                                     .fontWeight(.bold)
                                     .padding(.vertical, 5)
                             }
-                            Button(action: {
-                                pendingAction = .logout
-                                activeSheet = nil
-                            }) {
-                                Text("Logout")
-                                    .foregroundColor(.red)
-                                    .font(.body)
-                                    .padding(.vertical, 5)
-                            }
-                        }
-                        Button(action: { showPolicy = true }) {
-                            Text("Policy")
-                                .foregroundColor(.black)
-                                .font(.body)
-                                .fontWeight(.regular)
-                                .padding(.vertical, 5)
+                            // Removed "Logout" and "Policy" buttons from here
                         }
                         Button(action: { activeSheet = nil }) {
                             Text("Cancel")

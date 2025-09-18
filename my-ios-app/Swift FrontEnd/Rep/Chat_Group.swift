@@ -838,7 +838,9 @@ struct EditGroupChatView: View {
                 }
             )
             .onAppear {
-                editedName = groupName
+                if !isNewChat {
+                    editedName = groupName
+                }
             }
             // Use separate sheet modifiers instead of one enum-based sheet
             .sheet(isPresented: $showAddMembersSheet) {

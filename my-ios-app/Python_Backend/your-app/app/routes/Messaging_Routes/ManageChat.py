@@ -47,6 +47,9 @@ def api_manage_chat():
         db.session.add(chat)
         db.session.commit()
         chats_id = chat.id
+        if title is not None:  # Ensure title is set even on creation
+            chat.name = title
+            db.session.commit()
         db.session.add(ChatsUsers(users_id=user_id, chats_id=chats_id))
         db.session.commit()
 

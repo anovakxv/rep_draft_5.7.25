@@ -155,9 +155,20 @@ class PortalPaymentViewModel: ObservableObject {
                 }
 
                 guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let dashboardURL = json["url"] as? String,
-                      let url = URL(string: dashboardURL) else {
+                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                    self.errorMessage = "Invalid response from server"
+                    return
+                }
+
+                if let errorMessage = json["error"] as? String {
+                    // Show error and fallback to onboarding
+                    self.errorMessage = "Stripe error: \(errorMessage)\nPlease complete your Stripe setup."
+                    self.createConnectAccount()
+                    return
+                }
+
+                guard let dashboardURL = json["url"] as? String,
+                    let url = URL(string: dashboardURL) else {
                     self.errorMessage = "Invalid response from server"
                     return
                 }
@@ -224,11 +235,17 @@ struct PortalPaymentSetup: View {
 
                     if viewModel.isConnected {
                         Button(action: {
-                            viewModel.getStripeDashboardLink()
+                            // If account is fully setup, use dashboard link
+                            if viewModel.accountFullySetup {
+                                viewModel.getStripeDashboardLink()
+                            } else {
+                                // Otherwise, use the onboarding flow again
+                                viewModel.createConnectAccount()
+                            }
                         }) {
                             HStack {
                                 Image(systemName: "arrow.up.right.square")
-                                Text("Manage Stripe Account")
+                                Text(viewModel.accountFullySetup ? "Manage Stripe Account" : "Complete Stripe Setup")
                                 Spacer()
                             }
                             .padding()

@@ -273,8 +273,8 @@ struct PayTransactionView: View {
             }
             .alert(isPresented: $showPaymentSetupAlert) {
                 Alert(
-                    title: Text("Payments Not Setup"),
-                    message: Text("Purpose does not have payments setup yet and cannot receive payments yet."),
+                    title: Text("Payments Not Ready"),
+                    message: Text("This organization hasn't completed their payment setup yet and cannot receive payments at this time."),
                     dismissButton: .default(Text("OK"))
                 )
             }
@@ -480,7 +480,14 @@ struct PayTransactionView: View {
                 }
 
                 if let errorMsg = json["error"] as? String {
-                    if errorMsg.contains("Portal not set up to receive payments") {
+                    // Check for any payment setup issues
+                    if errorMsg.contains("Portal not set up to receive payments") || 
+                        errorMsg.contains("account is not fully onboarded") ||
+                        errorMsg.contains("account is not activated") ||
+                        errorMsg.contains("charges_enabled") ||
+                        errorMsg.contains("transfers_enabled") ||
+                        errorMsg.contains("missing the required capabilities") || // Add this line
+                        errorMsg.contains("required capabilities: transfers") {   // Add this line
                         self.showPaymentSetupAlert = true
                     } else {
                         self.paymentErrorMessage = errorMsg

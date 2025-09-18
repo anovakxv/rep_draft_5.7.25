@@ -211,32 +211,12 @@ class GroupChatViewModel: ObservableObject {
     }
 
     func teardownRealtime() {
-        print("🧹 Complete teardown for chat \(chatId)")
-        
-        // 1. Cancel any pending fetches
-        messageFetchTask?.cancel()
-        messageFetchTask = nil
-        updateDebouncer?.invalidate()
-        updateDebouncer = nil
-        
-        // 2. Remove observers first
         if let id = groupObsId {
             RealtimeSocketManager.shared.removeGroupMessageObserver(id)
             groupObsId = nil
         }
-        
-        if let id = groupNotifObsId {
-            RealtimeSocketManager.shared.removeGroupMessageNotificationObserver(id)
-            groupNotifObsId = nil
-        }
-        
-        // 3. Leave the chat room with explicit cleanup
-        RealtimeSocketManager.shared.leave(chatId: chatId, withCleanup: true)
-        
-        // 4. Force notification to refresh OPEN tab once
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            NotificationCenter.default.post(name: Notification.Name("oneTimeRefreshActiveChats"), object: nil)
-        }
+        RealtimeSocketManager.shared.leave(chatId: chatId)
+        print("🧹 Standard cleanup for chat \(chatId)")
     }
 
     private func setupRealtime() {
@@ -671,21 +651,13 @@ struct GroupChatView: View {
             }
         }
         .onDisappear {
-            print("📤 GroupChat onDisappear - NUCLEAR CLEANUP")
+            // Use the ViewModel's cleanup but don't do a nuclear reset
             viewModel.teardownRealtime()
             
-            // Delay slightly to ensure any pending operations complete
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
-                // Complete nuclear reset of all socket connections
-                RealtimeSocketManager.shared.nuclearReset()
-                
-                // Block all refreshes for 2 seconds
-                NotificationCenter.default.post(name: Notification.Name("cancelPendingRefreshes"), object: nil)
-                
-                // Force refresh the active chats list with animation suppression
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    NotificationCenter.default.post(name: Notification.Name("oneTimeRefreshActiveChats"), object: nil)
-                }
+            // Request a gentle refresh of the active chats
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                // Refresh active chats list without animation
+                NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
             }
         }
     }

@@ -621,8 +621,19 @@ struct MainScreen: View {
                             )
                         )
                         .onDisappear {
-                            // Force cleanup when navigating back
-                            RealtimeSocketManager.shared.nuclearReset()
+                            print("📤 Group chat disappeared - applying targeted cleanup")
+                            
+                            // Block immediate refreshes
+                            self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
+                            
+                            // Cancel pending refresh tasks
+                            peopleVM.cancelPendingRefreshes()
+                            
+                            // Schedule a non-flickering refresh (WITHOUT nuclear reset)
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                peopleVM.skipNextAnimations = true
+                                peopleVM.fetchPeople(userId: userId, section: section, force: true)
+                            }
                         }
                     }
                 },
@@ -643,11 +654,14 @@ struct MainScreen: View {
             onSave: { createdId in
                 showCreateGroupChatSheet = false
                 
-                // Reset socket connections immediately after creation
-                RealtimeSocketManager.shared.nuclearReset()
+                // Block refreshes briefly
+                self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
                 
-                // Force refresh active chats
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // Cancel any pending refreshes
+                peopleVM.cancelPendingRefreshes()
+                
+                // Use animation suppression for refresh without nuclear reset
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
                     peopleVM.skipNextAnimations = true
                     peopleVM.fetchPeople(userId: userId, section: 0, force: true)
                 }
@@ -655,7 +669,6 @@ struct MainScreen: View {
                 // Navigate if needed
                 guard let createdId else { return }
                 
-                // Delay navigation slightly to allow cleanup
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     newGroupChatId = createdId
                     navigateToGroupChat = true
@@ -771,22 +784,21 @@ struct MainScreen: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("oneTimeRefreshActiveChats"))) { _ in
-            print("☢️ Processing one-time refresh with NUCLEAR cleanup")
+            print("🔄 Processing one-time refresh (gentle version)")
             
-            // Cancel any pending refresh tasks first
+            // Block any subsequent refreshes for a short period
+            self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
+            
+            // Cancel any pending refresh tasks
             peopleVM.cancelPendingRefreshes()
             
-            // Nuclear reset of all socket connections
-            RealtimeSocketManager.shared.nuclearReset()
-            
-            // Schedule a single refresh with animation suppression after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                peopleVM.skipNextAnimations = true
-                peopleVM.fetchPeople(userId: userId, section: 0, force: true)
+            // Schedule a single refresh with animation suppression
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+                withTransaction(Transaction(animation: nil)) {
+                    peopleVM.skipNextAnimations = true
+                    peopleVM.fetchPeople(userId: userId, section: section, force: true)
+                }
             }
-            
-            // Block any subsequent refreshes for 3 seconds
-            self.lastRefreshTime = Date().timeIntervalSince1970 + 3.0
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("cancelPendingRefreshes"))) { _ in
             peopleVM.cancelPendingRefreshes()

@@ -17,6 +17,7 @@ class PortalPaymentViewModel: ObservableObject {
     @Published var showWebView = false
     @Published var webViewURL: URL? = nil
     @Published var accountFullySetup = false
+    @Published var webViewTitle: String = ""
 
     let portalId: Int
     let portalName: String
@@ -112,6 +113,7 @@ class PortalPaymentViewModel: ObservableObject {
                     self.accountId = accountId
                 }
 
+                self.webViewTitle = "Stripe's Secure Website:"
                 self.webViewURL = url
                 self.showWebView = true
             }
@@ -160,6 +162,7 @@ class PortalPaymentViewModel: ObservableObject {
                     return
                 }
 
+                self.webViewTitle = "Stripe's Secure Website:"
                 self.webViewURL = url
                 self.showWebView = true
             }
@@ -305,6 +308,7 @@ Rep does not charge any additional platform fee. Stripe’s standard rates apply
                     })
                     .ignoresSafeArea()
                     .navigationBarTitleDisplayMode(.inline)
+                    .navigationTitle(viewModel.webViewTitle) // <-- Pass the title here
                 } else {
                     Text("Loading...")
                 }

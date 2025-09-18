@@ -365,7 +365,7 @@ class PaymentsViewModel: ObservableObject {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let portalURL = json["url"] as? String, let url = URL(string: portalURL) {
                     DispatchQueue.main.async {
-                        self.webViewTitle = "Your Payment Methods"
+                        self.webViewTitle = "Stripe's Secure Website:"
                         self.webViewURL = url
                         self.showWebView = true
                     }
@@ -387,7 +387,7 @@ class PaymentsViewModel: ObservableObject {
         // Direct link to Stripe support or help center
         if let url = URL(string: "https://support.stripe.com/") {
             DispatchQueue.main.async {
-                self.webViewTitle = "Stripe Support"
+                self.webViewTitle = "Stripe's Support Website:"
                 self.webViewURL = url
                 self.showWebView = true
             }

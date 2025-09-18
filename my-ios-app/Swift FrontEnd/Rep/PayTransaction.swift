@@ -103,6 +103,7 @@ struct PayTransactionView: View {
     // For Stripe Checkout WebView
     @State private var showWebView = false
     @State private var webViewURL: URL? = nil
+    @State private var webViewTitle: String = ""
 
     // MARK: - Payment Status
 
@@ -321,6 +322,7 @@ struct PayTransactionView: View {
                             self.showWebView = false
                         })
                         .navigationBarTitleDisplayMode(.inline)
+                        .navigationTitle(webViewTitle)
                     } else {
                         Text("Loading...")
                     }
@@ -363,19 +365,19 @@ struct PayTransactionView: View {
         switch transactionType {
         case .donation:
             HStack {
-                ForEach([5, 10, 25, 50], id: \.self) { value in
+                ForEach([10, 20, 50, 100], id: \.self) { value in
                     quickAmountButton(value)
                 }
             }
         case .payment:
             HStack {
-                ForEach([20, 50, 100, 200], id: \.self) { value in
+                ForEach([10, 20, 50, 100], id: \.self) { value in
                     quickAmountButton(value)
                 }
             }
         case .purchase:
             HStack {
-                ForEach([25, 50, 75, 100], id: \.self) { value in
+                ForEach([10, 20, 50, 100], id: \.self) { value in
                     quickAmountButton(value)
                 }
             }
@@ -502,6 +504,7 @@ struct PayTransactionView: View {
 
                 // Present Stripe Checkout in-app web view
                 self.webViewURL = url
+                self.webViewTitle = "Stripe's Secure Website:"
                 self.showWebView = true
             }
         }.resume()

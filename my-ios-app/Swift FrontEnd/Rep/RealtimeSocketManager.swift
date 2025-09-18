@@ -19,6 +19,9 @@ final class RealtimeSocketManager {
 
     // Pending (desired) identity for (re)join
     private var pendingUserId: Int?
+    
+    // NEW: Room reconnection blocking to prevent socket flooding
+    private var blockedRooms = [String: Date]()
 
     // MARK: - Observer storage (multicast, non-breaking)
     private struct DMObserver {
@@ -345,6 +348,14 @@ final class RealtimeSocketManager {
     }
 
     func join(chatId: Int) {
+        let roomName = "chat_\(chatId)"
+        
+        // Check if room is blocked from reconnection
+        if let blockedUntil = blockedRooms[roomName], Date() < blockedUntil {
+            print("🚫 Blocked reconnection attempt to \(roomName)")
+            return
+        }
+        
         socket?.emit("join_group_chat", ["chat_id": chatId])
         socket?.emit("join", ["chat_id": chatId]) // legacy fallback (kept for compatibility)
         print("➡️ (Realtime) join group chat \(chatId)")
@@ -354,6 +365,35 @@ final class RealtimeSocketManager {
         socket?.emit("leave_group_chat", ["chat_id": chatId])
         socket?.emit("leave", ["chat_id": chatId]) // legacy fallback (kept for compatibility)
         print("⬅️ (Realtime) leave group chat \(chatId)")
+    }
+    
+    // NEW: Enhanced leave method that properly cleans up socket connections
+    func leaveGroupChat(chatId: Int) {
+        print("⬅️ (Realtime) Explicitly leaving group chat \(chatId)")
+        
+        // Leave using both old and new event names
+        socket?.emit("leave_group_chat", ["chat_id": chatId])
+        socket?.emit("leave", ["chat_id": chatId])
+        socket?.emit("leave_room", ["room": "chat_\(chatId)"])
+        
+        // Also explicitly disconnect from any pending connections to this room
+        let roomName = "chat_\(chatId)"
+        socket?.off(roomName)
+        socket?.off("message:\(roomName)")
+        socket?.off("typing:\(roomName)")
+        
+        // Block this room from immediate reconnection
+        blockReconnectFor(room: roomName, seconds: 3.0)
+    }
+    
+    // NEW: Block immediate reconnection to a room
+    func blockReconnectFor(room: String, seconds: TimeInterval) {
+        blockedRooms[room] = Date().addingTimeInterval(seconds)
+        print("🔒 Blocking reconnection to \(room) for \(seconds) seconds")
+        
+        // Cleanup old entries
+        let now = Date()
+        blockedRooms = blockedRooms.filter { now < $0.value }
     }
 
     // MARK: - Connection Control

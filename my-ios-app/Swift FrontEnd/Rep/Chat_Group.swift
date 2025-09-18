@@ -182,6 +182,9 @@ class GroupChatViewModel: ObservableObject {
     @Published var chatCreatorId: Int?
     @Published var isCreator: Bool = false
 
+    private var loadMessagesTask: Task<Void, Never>?
+    private var refreshTimer: Timer?
+
     let currentUserId: Int
     let chatId: Int
     let customChatTitle: String?
@@ -211,12 +214,19 @@ class GroupChatViewModel: ObservableObject {
     }
 
     func teardownRealtime() {
-        if let id = groupObsId {
-            RealtimeSocketManager.shared.removeGroupMessageObserver(id)
-            groupObsId = nil
-        }
-        RealtimeSocketManager.shared.leave(chatId: chatId)
-        print("🧹 Standard cleanup for chat \(chatId)")
+        // First leave any rooms we joined
+        RealtimeSocketManager.shared.leaveGroupChat(chatId: chatId)
+        
+        // Cancel any pending tasks
+        loadMessagesTask?.cancel()
+        loadMessagesTask = nil
+        
+        // Stop any refresh timers
+        refreshTimer?.invalidate()
+        refreshTimer = nil
+        
+        // Block socket reconnection attempts for this chat
+        RealtimeSocketManager.shared.blockReconnectFor(room: "chat_\(chatId)", seconds: 5)
     }
 
     private func setupRealtime() {
@@ -651,13 +661,15 @@ struct GroupChatView: View {
             }
         }
         .onDisappear {
-            // Use the ViewModel's cleanup but don't do a nuclear reset
+            print("📤 GroupChatView onDisappear - performing complete teardown")
             viewModel.teardownRealtime()
             
-            // Request a gentle refresh of the active chats
+            // Cancel any pending refresh notifications
+            NotificationCenter.default.post(name: Notification.Name("cancelPendingRefreshes"), object: nil)
+            
+            // Schedule a single non-flickering refresh after a delay
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                // Refresh active chats list without animation
-                NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
+                NotificationCenter.default.post(name: Notification.Name("oneTimeRefreshActiveChats"), object: nil)
             }
         }
     }

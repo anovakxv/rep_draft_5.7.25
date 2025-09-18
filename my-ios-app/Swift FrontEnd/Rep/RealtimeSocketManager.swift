@@ -363,9 +363,8 @@ final class RealtimeSocketManager {
     // MARK: - Room Management
 
     private func joinUserRoom(userId: Int) {
-        // Prefer explicit event; fallback legacy 'join'
+        // Prefer explicit event
         socket?.emit("join_user_room", ["user_id": userId])
-        socket?.emit("join", ["room": "user_\(userId)"]) // backward compatibility
         print("➡️ (Realtime) join_user_room user_\(userId)")
     }
 
@@ -385,13 +384,11 @@ final class RealtimeSocketManager {
         }
         
         socket?.emit("join_group_chat", ["chat_id": chatId])
-        socket?.emit("join", ["chat_id": chatId]) // legacy fallback (kept for compatibility)
         print("➡️ (Realtime) join group chat \(chatId)")
     }
 
     func leave(chatId: Int) {
         socket?.emit("leave_group_chat", ["chat_id": chatId])
-        socket?.emit("leave", ["chat_id": chatId]) // legacy fallback (kept for compatibility)
         print("⬅️ (Realtime) leave group chat \(chatId)")
     }
     

@@ -609,37 +609,18 @@ struct MainScreen: View {
             ))
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
-            
-            NavigationLink(
-                destination: newGroupChatId.map { chatId in
-                    ZStack {
-                        Color.white.ignoresSafeArea() // Prevent transparent background
-                        GroupChatView(
-                            viewModel: GroupChatViewModel(
-                                currentUserId: userId,
-                                chatId: chatId
-                            )
+            .navigationDestination(isPresented: $navigateToGroupChat) {
+                if let chatId = newGroupChatId {
+                    GroupChatView(
+                        viewModel: GroupChatViewModel(
+                            currentUserId: userId,
+                            chatId: chatId
                         )
-                        .onDisappear {
-                            print("📤 Group chat disappeared - applying targeted cleanup")
-                            
-                            // Block immediate refreshes
-                            self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
-                            
-                            // Cancel pending refresh tasks
-                            peopleVM.cancelPendingRefreshes()
-                            
-                            // Schedule a non-flickering refresh (WITHOUT nuclear reset)
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                peopleVM.skipNextAnimations = true
-                                peopleVM.fetchPeople(userId: userId, section: section, force: true)
-                            }
-                        }
-                    }
-                },
-                isActive: $navigateToGroupChat
-            ) { EmptyView() }
-            .hidden()
+                    )
+                } else {
+                    EmptyView()
+                }
+            }
         }
     }
     
@@ -653,25 +634,34 @@ struct MainScreen: View {
             isCreator: true,
             onSave: { createdId in
                 showCreateGroupChatSheet = false
-                
-                // Block refreshes briefly
-                self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
-                
-                // Cancel any pending refreshes
-                peopleVM.cancelPendingRefreshes()
-                
-                // Use animation suppression for refresh without nuclear reset
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-                    peopleVM.skipNextAnimations = true
-                    peopleVM.fetchPeople(userId: userId, section: 0, force: true)
-                }
-                
-                // Navigate if needed
+
+                // Navigate & show chat immediately if we have the id
                 guard let createdId else { return }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+
+                // Optimistic insertion: add a temporary ActiveChat so the list reflects it before server round-trip
+                if !peopleVM.activeChats.contains(where: { $0.id == "group-\(createdId)" }) {
+                    let optimistic = ActiveChat(
+                        id: "group-\(createdId)",
+                        type: "group",
+                        user: nil,
+                        chat: ChatModel(id: createdId, name: nil),
+                        last_message: nil,
+                        last_message_time: nil
+                    )
+                    // Insert at top (common UX for newly created chat)
+                    peopleVM.activeChats.insert(optimistic, at: 0)
+                }
+
+                // Immediate navigation (no artificial delay)
+                DispatchQueue.main.async {
                     newGroupChatId = createdId
                     navigateToGroupChat = true
+                }
+
+                // Schedule a forced refresh a bit later to hydrate real metadata without flicker
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    peopleVM.skipNextAnimations = true
+                    peopleVM.fetchPeople(userId: userId, section: 0, force: true)
                 }
             },
             onCancel: {
@@ -1086,7 +1076,6 @@ struct MainScreenContent: View {
             }
         }
     }
-
     var portalsContent: some View {
         Group {
             if portalsVM.isLoading {

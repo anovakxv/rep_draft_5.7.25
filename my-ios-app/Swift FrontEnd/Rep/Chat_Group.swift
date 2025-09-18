@@ -20,8 +20,24 @@ struct AnyDecodable: Decodable {
             value = dictVal.mapValues { $0.value }
         } else if let arrVal = try? container.decode([AnyDecodable].self) {
             value = arrVal.map { $0.value }
+        } else {
+            throw DecodingError.typeMismatch(AnyDecodable.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Unsupported type in AnyDecodable"))
+        }
+    }
+}
 
-// MARK: - ErrorMessage for Identifiable error alerts
+// MARK: - Shared Profile Picture Helper
+
+fileprivate let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
+
+fileprivate func patchProfilePictureURL(_ imageName: String?) -> URL? {
+    guard let imageName = imageName, !imageName.isEmpty else { return nil }
+    if imageName.starts(with: "http") {
+        return URL(string: imageName)
+    } else {
+        return URL(string: s3BaseURL + imageName)
+    }
+}
 
 struct ErrorMessage: Identifiable {
     let id = UUID()
@@ -163,6 +179,7 @@ class GroupChatViewModel: ObservableObject {
     @Published var groupName: String = ""
     @Published var chatCreatorId: Int?
     @Published var isCreator: Bool = false
+    @Published var errorMessage: ErrorMessage?
 
     private var loadMessagesTask: Task<Void, Never>?
     private var refreshTimer: Timer?
@@ -248,27 +265,6 @@ class GroupChatViewModel: ObservableObject {
     // Legacy compatibility
     func teardownRealtime() { deactivate(reason: "legacy_teardown") }
 
-    deinit {
-        if let id = groupObsId {
-            RealtimeSocketManager.shared.removeGroupMessageObserver(id)
-            groupObsId = nil
-        }
-        RealtimeSocketManager.shared.unregisterActiveChat(chatId: chatId)
-    }
-
-    func teardownRealtime() {
-        // First leave any rooms we joined
-        RealtimeSocketManager.shared.unregisterActiveChat(chatId: chatId)
-        
-        // Cancel any pending tasks
-        loadMessagesTask?.cancel()
-        loadMessagesTask = nil
-        
-        // Stop any refresh timers
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-    }
-
     private func setupRealtime() {
         guard !jwtToken.isEmpty else { return }
         RealtimeSocketManager.shared.connect(baseURL: APIConfig.baseURL, token: jwtToken, userId: currentUserId)
@@ -335,9 +331,8 @@ class GroupChatViewModel: ObservableObject {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
         URLSession.shared.dataTask(with: request) { _, _, _ in
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
-            }
+            // The server marks the chat as read. No client-side action needed here.
+            // The active chats list will be refreshed when the user navigates back.
         }.resume()
     }
 
@@ -359,34 +354,36 @@ class GroupChatViewModel: ObservableObject {
         }
         
         URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
-            guard let self = self else { return }
-            
+            // Ensure we are still on the main thread for UI updates
             DispatchQueue.main.async {
+                guard let self = self else { return }
+                
+                print("✅ Fetch completion for chat_\(self.chatId)")
                 self.isRefreshing = false
                 
-                guard let data = data, error == nil else { return }
-                if let apiResult = try? JSONDecoder().decode(GroupChatAPIResponse.self, from: data) {
-                    // Capture old state for comparison
-                    let oldMembers = self.groupMembers.map { $0.id }
-                    let oldName = self.groupName
+                if let error = error {
+                    self.errorMessage = ErrorMessage(message: "Network error: \(error.localizedDescription)")
+                    return
+                }
+                
+                guard let data = data else {
+                    self.errorMessage = ErrorMessage(message: "No data received from server.")
+                    return
+                }
+                
+                do {
+                    let decodedResponse = try JSONDecoder().decode(GroupChatAPIResponse.self, from: data)
+                    self.messages = decodedResponse.result.messages.sorted { $0.timestamp < $1.timestamp }
+                    self.groupMembers = decodedResponse.result.users
+                    self.groupName = decodedResponse.result.chat.name
+                    self.chatCreatorId = decodedResponse.result.chat.createdBy
+                    self.isCreator = (self.currentUserId == self.chatCreatorId)
                     
-                    // Update state
-                    self.groupName = apiResult.result.chat.name
-                    self.groupMembers = apiResult.result.users
-                    // Ensure ascending order (oldest -> newest)
-                    self.messages = apiResult.result.messages.sorted { $0.timestamp < $1.timestamp }
-                    self.chatCreatorId = apiResult.result.chat.createdBy
-                    self.isCreator = (apiResult.result.chat.createdBy == self.currentUserId)
-                    
-                    // Only notify of state changes if something actually changed
-                    let newMembers = self.groupMembers.map { $0.id }
-                    if oldMembers != newMembers || oldName != self.groupName {
-                        // Debounce MainScreen refresh to prevent flickering
-                        self.updateDebouncer?.invalidate()
-                        self.updateDebouncer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: false) { _ in
-                            NotificationCenter.default.post(name: Notification.Name("refreshActiveChats"), object: nil)
-                        }
+                    if let latest = self.messages.last {
+                        self.markCurrentChatReadIfNeeded(latestMessageId: latest.id)
                     }
+                } catch {
+                    self.errorMessage = ErrorMessage(message: "Failed to decode chat data: \(error.localizedDescription)")
                 }
             }
         }.resume()

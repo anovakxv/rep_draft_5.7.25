@@ -11,6 +11,7 @@ final class RealtimeSocketManager {
 
     private(set) var isConnected = false
     private var handlersRegistered = false
+    private var activelyViewingChats = Set<Int>()
 
     // Track last successful connection parameters for reuse / dedupe
     private var lastBaseURL: String?
@@ -40,6 +41,27 @@ final class RealtimeSocketManager {
     private var dmObservers: [DMObserver] = []
     private var groupObservers: [GroupObserver] = []
     private var groupNotifObservers: [GroupNotifObserver] = []
+
+    // MARK: - Chat Registration for Socket Gatekeeper
+    
+    func registerActiveChat(chatId: Int) {
+        let inserted = activelyViewingChats.insert(chatId).inserted
+        if inserted {
+            print("📝 Registered active viewing of chat_\(chatId)")
+        } else {
+            print("📝 (idempotent) chat_\(chatId) already registered active")
+        }
+    }
+
+    func unregisterActiveChat(chatId: Int) {
+        if activelyViewingChats.contains(chatId) {
+            activelyViewingChats.remove(chatId)
+            print("📝 Unregistered active viewing of chat_\(chatId) (passive)")
+        } else {
+            print("📝 (idempotent) chat_\(chatId) not in active set; nothing to unregister")
+        }
+        // NOTE: We do NOT leave or block here anymore. Actual room leave is coordinated by the view model deactivate() after a short grace period to avoid churn during transient SwiftUI rebuilds.
+    }
 
     // MARK: - Public Connect
 
@@ -349,6 +371,12 @@ final class RealtimeSocketManager {
 
     func join(chatId: Int) {
         let roomName = "chat_\(chatId)"
+        
+        // Only allow join if actively viewing or not previously blocked
+        guard activelyViewingChats.contains(chatId) else {
+            print("🛑 Prevented join for non-active chat_\(chatId)")
+            return
+        }
         
         // Check if room is blocked from reconnection
         if let blockedUntil = blockedRooms[roomName], Date() < blockedUntil {

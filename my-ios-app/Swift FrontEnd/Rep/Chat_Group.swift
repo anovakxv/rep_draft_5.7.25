@@ -198,24 +198,85 @@ class GroupChatViewModel: ObservableObject {
     private var updateDebouncer: Timer?
     private var isRefreshing = false
 
-    init(currentUserId: Int, chatId: Int, customChatTitle: String? = nil) {
+    private var isPreviewInstance: Bool = false
+    private(set) var isActive: Bool = false
+    private var pendingLeaveWork: DispatchWorkItem?
+
+    init(currentUserId: Int, chatId: Int, customChatTitle: String? = nil, isPreview: Bool = false) {
         self.currentUserId = currentUserId
         self.chatId = chatId
         self.customChatTitle = customChatTitle
+        self.isPreviewInstance = isPreview
+        if isPreview {
+            print("👀 GroupChatViewModel init (preview) chat_\(chatId)")
+        } else {
+            print("✨ GroupChatViewModel init chat_\(chatId)")
+        }
+    }
+
+    deinit {
+        print("🧹 GroupChatViewModel deinit chat_\(chatId) active=\(isActive)")
+        if isActive { performImmediateCleanup() }
+    }
+
+    func activate() {
+        guard !isPreviewInstance else { return }
+        pendingLeaveWork?.cancel(); pendingLeaveWork = nil
+        guard !isActive else {
+            print("⚙️ activate() ignored (already active) chat_\(chatId)")
+            return
+        }
+        isActive = true
+        print("🚀 activate() chat_\(chatId)")
+        RealtimeSocketManager.shared.registerActiveChat(chatId: chatId)
         fetchGroupChat()
         setupRealtime()
     }
+
+    func deactivate(reason: String = "onDisappear") {
+        guard isActive else {
+            print("⚙️ deactivate() ignored (already inactive) chat_\(chatId)")
+            return
+        }
+        isActive = false
+        print("🛑 deactivate() chat_\(chatId) reason=\(reason) – scheduling delayed leave")
+        RealtimeSocketManager.shared.unregisterActiveChat(chatId: chatId)
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            if !self.isActive { // still inactive after grace period
+                print("📤 leaving chat_\(self.chatId) after grace period")
+                RealtimeSocketManager.shared.leaveGroupChat(chatId: self.chatId)
+                self.performImmediateCleanup()
+            } else {
+                print("♻️ Skip leave for chat_\(self.chatId) – reactivated during grace period")
+            }
+        }
+        pendingLeaveWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4, execute: work)
+    }
+
+    private func performImmediateCleanup() {
+        if let id = groupObsId { RealtimeSocketManager.shared.removeGroupMessageObserver(id); groupObsId = nil }
+        if let id = groupNotifObsId { RealtimeSocketManager.shared.removeGroupMessageNotificationObserver(id); groupNotifObsId = nil }
+        loadMessagesTask?.cancel(); loadMessagesTask = nil
+        refreshTimer?.invalidate(); refreshTimer = nil
+        updateDebouncer?.invalidate(); updateDebouncer = nil
+    }
+
+    // Legacy compatibility
+    func teardownRealtime() { deactivate(reason: "legacy_teardown") }
 
     deinit {
         if let id = groupObsId {
             RealtimeSocketManager.shared.removeGroupMessageObserver(id)
             groupObsId = nil
         }
+        RealtimeSocketManager.shared.unregisterActiveChat(chatId: chatId)
     }
 
     func teardownRealtime() {
         // First leave any rooms we joined
-        RealtimeSocketManager.shared.leaveGroupChat(chatId: chatId)
+        RealtimeSocketManager.shared.unregisterActiveChat(chatId: chatId)
         
         // Cancel any pending tasks
         loadMessagesTask?.cancel()
@@ -224,9 +285,6 @@ class GroupChatViewModel: ObservableObject {
         // Stop any refresh timers
         refreshTimer?.invalidate()
         refreshTimer = nil
-        
-        // Block socket reconnection attempts for this chat
-        RealtimeSocketManager.shared.blockReconnectFor(room: "chat_\(chatId)", seconds: 5)
     }
 
     private func setupRealtime() {
@@ -279,9 +337,9 @@ class GroupChatViewModel: ObservableObject {
             // Handle notification if needed
         }
 
-        // Delay join slightly to avoid racing the socket handshake
+        // Delay join slightly to avoid racing the socket handshake; only if still active
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            guard let self = self else { return }
+            guard let self = self, self.isActive else { return }
             RealtimeSocketManager.shared.join(chatId: self.chatId)
             print("➡️ (GroupRT) Requested join for chat_\(self.chatId)")
         }
@@ -654,15 +712,16 @@ struct GroupChatView: View {
             ) { EmptyView() }
             .hidden()
         )
+        .onAppear { viewModel.activate() }
         .onChange(of: chatDeleted) { deleted in
             if deleted {
-                viewModel.teardownRealtime() // Explicit cleanup on delete
+                viewModel.deactivate(reason: "chat_deleted")
                 dismiss()
             }
         }
         .onDisappear {
             print("📤 GroupChatView onDisappear - performing complete teardown")
-            viewModel.teardownRealtime()
+            viewModel.deactivate(reason: "onDisappear")
             
             // Cancel any pending refresh notifications
             NotificationCenter.default.post(name: Notification.Name("cancelPendingRefreshes"), object: nil)

@@ -1684,7 +1684,8 @@ struct ActiveChatList: View {
                                 viewModel: GroupChatViewModel(
                                     currentUserId: currentUserId,
                                     chatId: gid,
-                                    customChatTitle: group.chat?.name
+                                    customChatTitle: group.chat?.name,
+                                    isPreview: false // 👈 Use real instance for navigation
                                 )
                             )
                         )

@@ -55,6 +55,10 @@ extension APIConfig {
     }
 }
 
+extension Notification.Name {
+    static let oneTimeRefreshActiveChats = Notification.Name("oneTimeRefreshActiveChats")
+}
+
 // MARK: - Group Message Model
 
 struct GroupMessage: Identifiable, Decodable {
@@ -707,16 +711,11 @@ struct GroupChatView: View {
             }
         }
         .onDisappear {
-            print("📤 GroupChatView onDisappear - performing complete teardown")
+            print("📤 GroupChatView onDisappear")
             viewModel.deactivate(reason: "onDisappear")
             
-            // Cancel any pending refresh notifications
-            NotificationCenter.default.post(name: Notification.Name("cancelPendingRefreshes"), object: nil)
-            
-            // Schedule a single non-flickering refresh after a delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                NotificationCenter.default.post(name: Notification.Name("oneTimeRefreshActiveChats"), object: nil)
-            }
+            // Post a notification to trigger an immediate, non-animated refresh
+            NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
         }
     }
 }

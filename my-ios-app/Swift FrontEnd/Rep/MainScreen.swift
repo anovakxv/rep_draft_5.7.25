@@ -54,11 +54,14 @@ class PortalsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchResults: [Portal] = []
     @Published var isSearching: Bool = false
+    private var isInitialFetch = true
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
-    func fetchPortals(userId: Int, section: Int, safeOnly: Bool = false) {
-        isLoading = true
+    func fetchPortals(userId: Int, section: Int, safeOnly: Bool = false, isTabSwitch: Bool = false) {
+        if !isTabSwitch {
+            isLoading = true
+        }
         errorMessage = nil
         let tab: String
         switch section {
@@ -107,7 +110,13 @@ class PortalsViewModel: ObservableObject {
                 }
                 do {
                     let response = try JSONDecoder().decode([String: [Portal]].self, from: data)
-                    self.portals = response["result"] ?? []
+                    if isTabSwitch {
+                        withAnimation(nil) {
+                            self.portals = response["result"] ?? []
+                        }
+                    } else {
+                        self.portals = response["result"] ?? []
+                    }
                 } catch {
                     self.errorMessage = "Failed to decode."
                     self.portals = []
@@ -204,35 +213,32 @@ class PeopleViewModel: ObservableObject {
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
-    func fetchPeople(userId: Int, section: Int, force: Bool = false) {
+    func fetchPeople(userId: Int, section: Int, force: Bool = false, isTabSwitch: Bool = false) {
         // Cancel any previous refresh task
         activeRefreshTask?.cancel()
-        
+
         // For section 0 (active chats), implement strict refresh control
         if section == 0 {
             let now = Date()
             let timeSinceLastRequest = now.timeIntervalSince(lastRefreshRequestTime)
-            
-            // If we've refreshed very recently and this isn't forced, skip it
-            if timeSinceLastRequest < minimumRefreshInterval && !force {
+
+            // If we've refreshed very recently and this isn't a manual tab switch or forced, skip it
+            if timeSinceLastRequest < minimumRefreshInterval && !force && !isTabSwitch {
                 print("⏱️ Skipping refresh - too soon (interval: \(timeSinceLastRequest)s)")
                 return
             }
-            
+
             // Update the timestamp for this request
             lastRefreshRequestTime = now
-            
+
             // Create a new task that will handle the refresh
-            activeRefreshTask = Task { 
-                // Small delay to allow quick cancellation if another request comes in
-                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-                
-                // If task was cancelled during delay, exit
+            activeRefreshTask = Task {
+                // If task was cancelled, exit
                 if Task.isCancelled {
                     print("❌ Refresh task cancelled")
                     return
                 }
-                
+
                 // Perform the actual fetch on the main thread
                 await MainActor.run {
                     performActiveChatsFetch(userId: userId, force: force)
@@ -240,12 +246,12 @@ class PeopleViewModel: ObservableObject {
             }
             return
         }
-        
+
         // For other sections, use the existing logic
         if isFetching && !force {
             return
         }
-        
+
         // Update timestamp for notification handlers
         lastFetchTime = Date().timeIntervalSince1970
         performPeopleFetch(userId: userId, section: section)
@@ -333,7 +339,9 @@ class PeopleViewModel: ObservableObject {
         }
         
         isFetching = true
-        isLoading = true
+        if !skipNextAnimations {
+            isLoading = true
+        }
         errorMessage = nil
         
         // Active chats fetch code
@@ -380,7 +388,7 @@ class PeopleViewModel: ObservableObject {
                 do {
                     let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
                     if self.skipNextAnimations {
-                        withTransaction(Transaction(animation: nil)) {
+                        withAnimation(nil) {
                             self.activeChats = response.result
                         }
                         self.skipNextAnimations = false
@@ -669,20 +677,20 @@ struct MainScreen: View {
             if persistedUnreadDM {
                 peopleVM.hasUnreadDirectMessages = true
                 if userId != 0 && !jwtToken.isEmpty {
-                    peopleVM.fetchPeople(userId: userId, section: 0)
+                    peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
                 }
             }
             if persistedUnreadGroup {
                 peopleVM.hasUnreadGroupMessages = true
                 if userId != 0 && !jwtToken.isEmpty {
-                    peopleVM.fetchPeople(userId: userId, section: 0)
+                    peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
                 }
             }
             guard !jwtToken.isEmpty, userId != 0 else { return }
             if page == .portals {
                 portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
             } else {
-                peopleVM.fetchPeople(userId: userId, section: section)
+                peopleVM.fetchPeople(userId: userId, section: section, isTabSwitch: true)
             }
             fetchCurrentUser()
             setupSocketNotifications()
@@ -710,9 +718,9 @@ struct MainScreen: View {
         }
         .onChange(of: section) { newSection in
             if page == .portals {
-                portalsVM.fetchPortals(userId: userId, section: newSection, safeOnly: showOnlySafePortals)
+                portalsVM.fetchPortals(userId: userId, section: newSection, safeOnly: showOnlySafePortals, isTabSwitch: true)
             } else {
-                peopleVM.fetchPeople(userId: userId, section: newSection)
+                peopleVM.fetchPeople(userId: userId, section: newSection, isTabSwitch: true)
             }
         }
         .onChange(of: page) { newPage in
@@ -724,9 +732,7 @@ struct MainScreen: View {
                 RealtimeSocketManager.shared.nuclearReset()
                 
                 // Give time for socket to reconnect before fetching data
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                }
+                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals, isTabSwitch: true)
             }
         }
         .onChange(of: pendingAction) { action in
@@ -761,7 +767,7 @@ struct MainScreen: View {
             let currentTime = Date().timeIntervalSince1970
             if currentTime - self.lastRefreshTime > 0.75 {
                 self.lastRefreshTime = currentTime
-                peopleVM.fetchPeople(userId: userId, section: 0)
+                peopleVM.fetchPeople(userId: userId, section: 0, force: true)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("oneTimeRefreshActiveChats"))) { _ in
@@ -774,12 +780,8 @@ struct MainScreen: View {
             peopleVM.cancelPendingRefreshes()
             
             // Schedule a single refresh with animation suppression
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
-                withTransaction(Transaction(animation: nil)) {
-                    peopleVM.skipNextAnimations = true
-                    peopleVM.fetchPeople(userId: userId, section: section, force: true)
-                }
-            }
+            peopleVM.skipNextAnimations = true
+            peopleVM.fetchPeople(userId: userId, section: 0, force: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("cancelPendingRefreshes"))) { _ in
             peopleVM.cancelPendingRefreshes()
@@ -825,7 +827,7 @@ struct MainScreen: View {
                 self.peopleVM.hasUnreadDirectMessages = true
                 // Reconcile after brief delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                    self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
             }
         }
@@ -837,7 +839,7 @@ struct MainScreen: View {
             DispatchQueue.main.async {
                 self.peopleVM.hasUnreadGroupMessages = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                    self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
             }
         }
@@ -849,7 +851,7 @@ struct MainScreen: View {
             DispatchQueue.main.async {
                 self.peopleVM.hasUnreadGroupMessages = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                    self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
             }
         }
@@ -933,7 +935,7 @@ struct MainScreen: View {
         if section != 0 {
             section = 0
         } else {
-            peopleVM.fetchPeople(userId: userId, section: 0)
+            peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
         }
     }
 
@@ -992,7 +994,7 @@ struct MainScreen: View {
                 && !self.peopleVM.hasUnreadDirectMessages
                 && !self.peopleVM.hasUnreadGroupMessages {
                 print("🕑 One-shot unread poll (1s)")
-                self.peopleVM.fetchPeople(userId: self.userId, section: 0)
+                self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
             }
         }
     }
@@ -1313,9 +1315,9 @@ struct MainScreenToolbar: ViewModifier {
                             } else {
                                 section = idx
                                 if page == .portals {
-                                    portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals)
+                                    portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
                                 } else {
-                                    peopleVM.fetchPeople(userId: userId, section: idx)
+                                    peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
                                 }
                             }
                         }

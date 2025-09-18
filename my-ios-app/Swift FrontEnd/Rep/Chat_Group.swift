@@ -20,24 +20,6 @@ struct AnyDecodable: Decodable {
             value = dictVal.mapValues { $0.value }
         } else if let arrVal = try? container.decode([AnyDecodable].self) {
             value = arrVal.map { $0.value }
-        } else {
-            value = ()
-        }
-    }
-}
-
-// MARK: - Shared Profile Picture Helper
-
-fileprivate let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
-
-fileprivate func patchProfilePictureURL(_ imageName: String?) -> URL? {
-    guard let imageName = imageName, !imageName.isEmpty else { return nil }
-    if imageName.starts(with: "http") {
-        return URL(string: imageName)
-    } else {
-        return URL(string: s3BaseURL + imageName)
-    }
-}
 
 // MARK: - ErrorMessage for Identifiable error alerts
 

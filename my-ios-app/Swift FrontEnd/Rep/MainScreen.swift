@@ -640,16 +640,16 @@ struct MainScreen: View {
             isNewChat: true,
             currentUserId: userId,
             isCreator: true,
-            onSave: { newChatId in
+            onSave: { newChatId, chatName in  // Add chatName parameter
                 showCreateGroupChatSheet = false
                 guard let newChatId = newChatId else { return }
 
-                // Optimistically add to the list
+                // Optimistically add to the list with the correct name
                 let newOptimisticChat = ActiveChat(
                     id: "group-\(newChatId)",
                     type: "group",
                     user: nil,
-                    chat: ChatModel(id: newChatId, name: "New Chat"),
+                    chat: ChatModel(id: newChatId, name: chatName ?? "New Chat"),  // Use provided name
                     last_message: nil,
                     last_message_time: ISO8601DateFormatter().string(from: Date())
                 )

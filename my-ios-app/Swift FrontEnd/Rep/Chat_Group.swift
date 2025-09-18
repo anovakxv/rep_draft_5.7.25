@@ -682,7 +682,7 @@ struct GroupChatView: View {
                 isNewChat: false,
                 currentUserId: viewModel.currentUserId,
                 isCreator: viewModel.isCreator,
-                onSave: { _ in
+                onSave: { _, _ in
                     showEditSheet = false
                     viewModel.fetchGroupChat()
                 },
@@ -727,7 +727,7 @@ struct EditGroupChatView: View {
     let isNewChat: Bool
     let currentUserId: Int
     let isCreator: Bool
-    var onSave: (Int?) -> Void
+    var onSave: (Int?, String?) -> Void
     var onCancel: () -> Void
     var onDelete: (() -> Void)? = nil
 
@@ -886,7 +886,7 @@ struct EditGroupChatView: View {
         }
         let allIds = [currentUserId] + Array(selectedMembersToAdd.keys)
         let body: [String: Any] = [
-            "name": editedName,
+            "title": editedName, 
             "aAddIDs": allIds,
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
@@ -918,7 +918,7 @@ struct EditGroupChatView: View {
                 do {
                     let response = try JSONDecoder().decode(CreateChatResponse.self, from: data)
                     // Call the onSave closure with the new chat ID
-                    self.onSave(response.chats_id)
+                    self.onSave(response.chats_id, self.editedName)
                 } catch {
                     self.errorMessage = ErrorMessage(message: "Error parsing server response: \(error.localizedDescription)")
                 }
@@ -949,7 +949,7 @@ struct EditGroupChatView: View {
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     errorMessage = ErrorMessage(message: "Failed to remove member. (\(http.statusCode))")
                 } else {
-                    onSave(nil)
+                    onSave(nil, editedName)
                 }
             }
         }.resume()
@@ -980,7 +980,7 @@ struct EditGroupChatView: View {
                 } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     errorMessage = ErrorMessage(message: "Failed to save changes. (\(http.statusCode))")
                 } else {
-                    onSave(nil)
+                    onSave(nil, editedName)
                 }
             }
         }.resume()

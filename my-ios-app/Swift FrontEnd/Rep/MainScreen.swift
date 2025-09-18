@@ -632,36 +632,27 @@ struct MainScreen: View {
             isNewChat: true,
             currentUserId: userId,
             isCreator: true,
-            onSave: { createdId in
+            onSave: { newChatId in
                 showCreateGroupChatSheet = false
+                guard let newChatId = newChatId else { return }
 
-                // Navigate & show chat immediately if we have the id
-                guard let createdId else { return }
-
-                // Optimistic insertion: add a temporary ActiveChat so the list reflects it before server round-trip
-                if !peopleVM.activeChats.contains(where: { $0.id == "group-\(createdId)" }) {
-                    let optimistic = ActiveChat(
-                        id: "group-\(createdId)",
-                        type: "group",
-                        user: nil,
-                        chat: ChatModel(id: createdId, name: nil),
-                        last_message: nil,
-                        last_message_time: nil
-                    )
-                    // Insert at top (common UX for newly created chat)
-                    peopleVM.activeChats.insert(optimistic, at: 0)
+                // Optimistically add to the list
+                let newOptimisticChat = ActiveChat(
+                    id: "group-\(newChatId)",
+                    type: "group",
+                    user: nil,
+                    chat: ChatModel(id: newChatId, name: "New Chat"),
+                    last_message: nil,
+                    last_message_time: ISO8601DateFormatter().string(from: Date())
+                )
+                if !peopleVM.activeChats.contains(where: { $0.id == newOptimisticChat.id }) {
+                    peopleVM.activeChats.insert(newOptimisticChat, at: 0)
                 }
 
-                // Immediate navigation (no artificial delay)
+                // Set the ID and trigger navigation
                 DispatchQueue.main.async {
-                    newGroupChatId = createdId
-                    navigateToGroupChat = true
-                }
-
-                // Schedule a forced refresh a bit later to hydrate real metadata without flicker
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    peopleVM.skipNextAnimations = true
-                    peopleVM.fetchPeople(userId: userId, section: 0, force: true)
+                    self.newGroupChatId = newChatId
+                    self.navigateToGroupChat = true
                 }
             },
             onCancel: {

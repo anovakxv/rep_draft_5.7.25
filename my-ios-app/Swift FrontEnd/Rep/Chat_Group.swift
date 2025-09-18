@@ -338,39 +338,47 @@ class GroupChatViewModel: ObservableObject {
 
     func fetchGroupChat() {
         // Prevent overlapping refreshes
-        guard !isRefreshing else { return }
+        guard !isRefreshing else {
+            print("⚠️ Already refreshing chat \(chatId), skipping.")
+            return
+        }
         isRefreshing = true
-        
+        print("⏳ Starting fetch for chat_\(chatId)")
+
         // Cancel any existing debouncer
         updateDebouncer?.invalidate()
-        
+
         guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group_chat?chats_id=\(chatId)&limit=50") else {
-            isRefreshing = false
+            DispatchQueue.main.async {
+                self.isRefreshing = false
+            }
             return
         }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        
+
         URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
             // Ensure we are still on the main thread for UI updates
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                
+
+                // ALWAYS ensure isRefreshing is reset
+                defer { self.isRefreshing = false }
+
                 print("✅ Fetch completion for chat_\(self.chatId)")
-                self.isRefreshing = false
-                
+
                 if let error = error {
                     self.errorMessage = ErrorMessage(message: "Network error: \(error.localizedDescription)")
                     return
                 }
-                
+
                 guard let data = data else {
                     self.errorMessage = ErrorMessage(message: "No data received from server.")
                     return
                 }
-                
+
                 do {
                     let decodedResponse = try JSONDecoder().decode(GroupChatAPIResponse.self, from: data)
                     self.messages = decodedResponse.result.messages.sorted { $0.timestamp < $1.timestamp }
@@ -378,7 +386,7 @@ class GroupChatViewModel: ObservableObject {
                     self.groupName = decodedResponse.result.chat.name
                     self.chatCreatorId = decodedResponse.result.chat.createdBy
                     self.isCreator = (self.currentUserId == self.chatCreatorId)
-                    
+
                     if let latest = self.messages.last {
                         self.markCurrentChatReadIfNeeded(latestMessageId: latest.id)
                     }
@@ -387,8 +395,8 @@ class GroupChatViewModel: ObservableObject {
                 }
             }
         }.resume()
-    }
-
+    }    
+    
     func sendMessage() {
         let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -877,45 +885,41 @@ struct EditGroupChatView: View {
         }
         let allIds = [currentUserId] + Array(selectedMembersToAdd.keys)
         let body: [String: Any] = [
-            "title": editedName,
-            "aAddIDs": allIds
+            "name": editedName,
+            "aAddIDs": allIds,
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                isLoading = false
+                self.isLoading = false
                 if let error = error {
-                    errorMessage = ErrorMessage(message: error.localizedDescription)
-                } else if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-                    errorMessage = ErrorMessage(message: "Failed to create chat. (\(http.statusCode))")
-                } else if let data = data {
-                    if let decoded = try? JSONDecoder().decode([String: AnyDecodable].self, from: data) {
-                        var chatId: Int? = nil
-                        if let chatDict = decoded["chat"]?.value as? [String: Any],
-                        let id = chatDict["id"] as? Int {
-                            chatId = id
-                        } else if let id = decoded["chats_id"]?.value as? Int {
-                            chatId = id
-                        }
+                    self.errorMessage = ErrorMessage(message: "Failed to create chat: \(error.localizedDescription)")
+                    return
+                }
 
-                        // --- SCHEDULE ONE-TIME REFRESH AFTER CREATION ---
-                        if let chatId = chatId {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                                NotificationCenter.default.post(
-                                    name: Notification.Name("oneTimeRefreshActiveChats"),
-                                    object: nil
-                                )
-                            }
-                            // Return the chat ID to the parent view
-                            onSave(chatId)
-                        } else {
-                            onSave(nil)
-                        }
-                    } else {
-                        onSave(nil)
-                    }
-                } else {
-                    onSave(nil)
+                // Check for a valid HTTP response and status code
+                guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                    let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                    self.errorMessage = ErrorMessage(message: "Invalid server response. Status code: \(statusCode)")
+                    return
+                }
+
+                guard let data = data, !data.isEmpty else {
+                    self.errorMessage = ErrorMessage(message: "No data received from server.")
+                    return
+                }
+
+                // The backend returns a dictionary with a 'chats_id' key.
+                struct CreateChatResponse: Decodable {
+                    let chats_id: Int
+                }
+
+                do {
+                    let response = try JSONDecoder().decode(CreateChatResponse.self, from: data)
+                    // Call the onSave closure with the new chat ID
+                    self.onSave(response.chats_id)
+                } catch {
+                    self.errorMessage = ErrorMessage(message: "Error parsing server response: \(error.localizedDescription)")
                 }
             }
         }.resume()

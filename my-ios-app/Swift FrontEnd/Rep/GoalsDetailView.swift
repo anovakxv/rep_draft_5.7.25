@@ -655,8 +655,12 @@ class GoalsDetailViewModel: ObservableObject {
                         
                         // Show only the individual transaction value, not the cumulative
                         let transactionValue = log.added_value ?? 0
-                        let valueString = "Value: $\(Int(round(transactionValue)))"
-                        
+                        let valueString: String
+                        if self.goal.typeName == "Fund" || self.goal.typeName == "Sales" {
+                            valueString = "Value: $\(Int(round(transactionValue)))"
+                        } else {
+                            valueString = "Value: \(Int(round(transactionValue)))"
+                        }
                         return Feed(
                             id: log.id,
                             userImageName: "profile_placeholder",

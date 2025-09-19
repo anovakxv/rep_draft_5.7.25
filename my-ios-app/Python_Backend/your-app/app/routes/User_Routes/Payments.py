@@ -241,13 +241,30 @@ def get_portal_payment_status():
     if not portal or str(portal.users_id) != str(user_id):
         return jsonify({'error': 'Not authorized'}), 403
 
-    # This field is already being updated by your account.updated webhook
+    # Default to database value
     account_status = portal.stripe_account_status if hasattr(portal, 'stripe_account_status') else False
+    
+    # If portal has a Stripe account, check its real-time status
+    if portal.stripe_account_id:
+        try:
+            # Get the latest account info directly from Stripe
+            stripe_account = stripe.Account.retrieve(portal.stripe_account_id)
+            
+            # An account is FULLY setup if BOTH details_submitted AND charges_enabled are true
+            account_status = stripe_account.get('details_submitted', False) and stripe_account.get('charges_enabled', False)
+            
+            # Log for debugging
+            print(f"[Payment Status] Portal {portal_id}: details_submitted={stripe_account.get('details_submitted', False)}, charges_enabled={stripe_account.get('charges_enabled', False)}")
+            
+        except Exception as e:
+            # On error, fall back to database value
+            print(f"[Payment Status] Error checking Stripe account {portal.stripe_account_id}: {str(e)}")
+            # No change to account_status - keep using database value
 
     return jsonify({
         'stripe_account_id': portal.stripe_account_id or '',
         'is_connected': bool(portal.stripe_account_id),
-        'account_status': account_status  # New field, doesn't break existing code
+        'account_status': account_status
     })
 
 @payments_bp.route('/stripe/webhook', methods=['POST'])
@@ -265,10 +282,12 @@ def stripe_webhook():
             account = event['data']['object']
             portal = db.session.query(Portal).filter_by(stripe_account_id=account['id']).first()
             if portal:
-                portal.stripe_account_status = account.get('details_submitted', False)
+                # Use the same logic as the payment_status endpoint
+                portal.stripe_account_status = account.get('details_submitted', False) and account.get('charges_enabled', False)
+                # Enhanced logging for debugging
+                print(f"[Webhook] Updated portal {portal.id} account status: details_submitted={account.get('details_submitted', False)}, charges_enabled={account.get('charges_enabled', False)}")
                 db.session.commit()
-                print(f"[Webhook] Updated portal {portal.id} account status")
-        
+
         # Handle successful payments
         elif event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']

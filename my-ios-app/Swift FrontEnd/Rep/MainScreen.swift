@@ -54,6 +54,9 @@ class PortalsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchResults: [Portal] = []
     @Published var isSearching: Bool = false
+    @Published private var backgroundPortalsTab0: [Portal] = []
+    @Published private var backgroundPortalsTab1: [Portal] = []
+    @Published private var backgroundPortalsTab2: [Portal] = []
     private var isInitialFetch = true
 
     @AppStorage("jwtToken") var jwtToken: String = ""
@@ -177,6 +180,57 @@ class PortalsViewModel: ObservableObject {
         searchResults = []
         isSearching = false
     }
+    func getBackgroundPortals(for section: Int) -> [Portal] {
+        switch section {
+        case 0: return backgroundPortalsTab0
+        case 1: return backgroundPortalsTab1
+        case 2: return backgroundPortalsTab2
+        default: return []
+        }
+    }
+
+    func loadBackgroundData(from section: Int, to targetSection: Int, userId: Int, safeOnly: Bool) {
+        // Don't overwrite current tab
+        if section == targetSection { return }
+        
+        let tab: String
+        switch targetSection {
+        case 0: tab = "open"
+        case 1: tab = "ntwk"
+        case 2: tab = "all"
+        default: tab = "open"
+        }
+        
+        let limitParam = (tab == "all") ? "&limit=200" : ""
+        let safeParam = safeOnly ? "&safe_only=true" : ""
+        let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)\(safeParam)"
+        
+        guard let url = URL(string: urlString) else { return }
+        var request = URLRequest(url: url)
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        
+        URLSession.shared.dataTask(with: request) { data, response, error in
+            if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
+            guard let data = data else { return }
+            
+            do {
+                let response = try JSONDecoder().decode([String: [Portal]].self, from: data)
+                DispatchQueue.main.async {
+                    let result = response["result"] ?? []
+                    switch targetSection {
+                    case 0: self.backgroundPortalsTab0 = result
+                    case 1: self.backgroundPortalsTab1 = result
+                    case 2: self.backgroundPortalsTab2 = result
+                    default: break
+                    }
+                }
+            } catch {
+                print("Background decode error: \(error.localizedDescription)")
+            }
+        }.resume()
+    }
 }
 
 class PeopleViewModel: ObservableObject {
@@ -187,6 +241,9 @@ class PeopleViewModel: ObservableObject {
     @Published var searchResults: [User] = []
     @Published var isSearching: Bool = false
     @Published var skipNextAnimations: Bool = false
+    @Published private var backgroundUsersTab1: [User] = []
+    @Published private var backgroundUsersTab2: [User] = []
+    @Published private var backgroundActiveChats: [ActiveChat] = []
 
     private var fetchThrottleTimer: Timer?
     private var lastFetchTime: TimeInterval = 0
@@ -194,7 +251,7 @@ class PeopleViewModel: ObservableObject {
 
     private var activeRefreshTask: Task<Void, Never>?
     private var lastRefreshRequestTime: Date = .distantPast
-    private let minimumRefreshInterval: TimeInterval = 0.25  
+    private let minimumRefreshInterval: TimeInterval = 0.25
 
     @Published var hasUnreadDirectMessages: Bool = false {
         didSet {
@@ -332,6 +389,72 @@ class PeopleViewModel: ObservableObject {
     func clearSearch() {
         searchResults = []
         isSearching = false
+    }
+
+    func getBackgroundData(for section: Int) -> [User] {
+        if section == 0 { return [] } // Active chats use different data structure
+        return section == 1 ? backgroundUsersTab1 : backgroundUsersTab2
+    }
+
+    func getBackgroundActiveChats() -> [ActiveChat] {
+        return backgroundActiveChats
+    }
+
+    func loadBackgroundData(from section: Int, to targetSection: Int, userId: Int) {
+        // Don't overwrite current tab
+        if section == targetSection { return }
+        
+        if targetSection == 0 {
+            // Load active chats in background
+            let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
+            guard let url = URL(string: urlString) else { return }
+            var request = URLRequest(url: url)
+            if !jwtToken.isEmpty {
+                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+            }
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
+                guard let data = data else { return }
+                
+                do {
+                    let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
+                    DispatchQueue.main.async {
+                        self.backgroundActiveChats = response.result
+                    }
+                } catch {
+                    print("Background decode error: \(error.localizedDescription)")
+                }
+            }.resume()
+        } else {
+            // Load users in background
+            let tab = targetSection == 1 ? "ntwk" : "all"
+            let limitParam = (tab == "all") ? "&limit=200" : ""
+            let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
+            guard let url = URL(string: urlString) else { return }
+            var request = URLRequest(url: url)
+            if !jwtToken.isEmpty {
+                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+            }
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
+                guard let data = data else { return }
+                
+                do {
+                    let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
+                    DispatchQueue.main.async {
+                        if targetSection == 1 {
+                            self.backgroundUsersTab1 = response.result
+                        } else {
+                            self.backgroundUsersTab2 = response.result
+                        }
+                    }
+                } catch {
+                    print("Background decode error: \(error.localizedDescription)")
+                }
+            }.resume()
+        }
     }
 
     private func performActiveChatsFetch(userId: Int, force: Bool) {
@@ -708,6 +831,16 @@ struct MainScreen: View {
             }
             recalcOpenNeedsAttention()
             scheduleUnreadPollingIfNeeded()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                // Start background loading the other tabs
+                if page == .portals {
+                    portalsVM.loadBackgroundData(from: section, to: (section + 1) % 3, userId: userId, safeOnly: showOnlySafePortals)
+                    portalsVM.loadBackgroundData(from: section, to: (section + 2) % 3, userId: userId, safeOnly: showOnlySafePortals)
+                } else {
+                    peopleVM.loadBackgroundData(from: section, to: (section + 1) % 3, userId: userId)
+                    peopleVM.loadBackgroundData(from: section, to: (section + 2) % 3, userId: userId)
+                }
+            }
         }
         .onDisappear {
             inviteCheckTimer?.invalidate()
@@ -720,9 +853,47 @@ struct MainScreen: View {
         }
         .onChange(of: section) { newSection in
             if page == .portals {
+                // If we have background data for this section, use it first
+                let backgroundData = portalsVM.getBackgroundPortals(for: newSection)
+                if !backgroundData.isEmpty {
+                    // Instantly show background data
+                    portalsVM.portals = backgroundData
+                }
+                
+                // Then refresh to get the latest data
                 portalsVM.fetchPortals(userId: userId, section: newSection, safeOnly: showOnlySafePortals, isTabSwitch: true)
+                
+                // Start loading the other sections in the background
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    portalsVM.loadBackgroundData(from: newSection, to: (newSection + 1) % 3, userId: userId, safeOnly: showOnlySafePortals)
+                    portalsVM.loadBackgroundData(from: newSection, to: (newSection + 2) % 3, userId: userId, safeOnly: showOnlySafePortals)
+                }
             } else {
+                // People page handling
+                if newSection == 0 {
+                    // Active chats section
+                    let backgroundChats = peopleVM.getBackgroundActiveChats()
+                    if !backgroundChats.isEmpty {
+                        // Instantly show background data
+                        peopleVM.activeChats = backgroundChats
+                    }
+                } else {
+                    // Network or All users section
+                    let backgroundUsers = peopleVM.getBackgroundData(for: newSection)
+                    if !backgroundUsers.isEmpty {
+                        // Instantly show background data
+                        peopleVM.users = backgroundUsers
+                    }
+                }
+                
+                // Then refresh to get the latest data
                 peopleVM.fetchPeople(userId: userId, section: newSection, isTabSwitch: true)
+                
+                // Start loading the other sections in the background
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    peopleVM.loadBackgroundData(from: newSection, to: (newSection + 1) % 3, userId: userId)
+                    peopleVM.loadBackgroundData(from: newSection, to: (newSection + 2) % 3, userId: userId)
+                }
             }
         }
         .onChange(of: page) { newPage in
@@ -730,7 +901,43 @@ struct MainScreen: View {
             
             if newPage == .portals {
                 print("🔄 Refreshing portals after tab switch")
+                
+                // If we have background data for this section, use it first
+                let backgroundData = portalsVM.getBackgroundPortals(for: section)
+                if !backgroundData.isEmpty {
+                    // Instantly show background data
+                    portalsVM.portals = backgroundData
+                }
+                
+                // Then refresh to get the latest data
                 portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals, isTabSwitch: true)
+                
+                // Start preloading data for other tabs
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    portalsVM.loadBackgroundData(from: section, to: (section + 1) % 3, userId: userId, safeOnly: showOnlySafePortals)
+                    portalsVM.loadBackgroundData(from: section, to: (section + 2) % 3, userId: userId, safeOnly: showOnlySafePortals)
+                }
+            } else {
+                // People page, similar logic
+                if section == 0 {
+                    let backgroundChats = peopleVM.getBackgroundActiveChats()
+                    if !backgroundChats.isEmpty {
+                        peopleVM.activeChats = backgroundChats
+                    }
+                } else {
+                    let backgroundUsers = peopleVM.getBackgroundData(for: section)
+                    if !backgroundUsers.isEmpty {
+                        peopleVM.users = backgroundUsers
+                    }
+                }
+                
+                peopleVM.fetchPeople(userId: userId, section: section, isTabSwitch: true)
+                
+                // Start preloading data for other tabs
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    peopleVM.loadBackgroundData(from: section, to: (section + 1) % 3, userId: userId)
+                    peopleVM.loadBackgroundData(from: section, to: (section + 2) % 3, userId: userId)
+                }
             }
         }
         .onChange(of: pendingAction) { action in

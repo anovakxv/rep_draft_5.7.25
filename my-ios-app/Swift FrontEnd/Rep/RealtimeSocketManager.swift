@@ -163,31 +163,6 @@ final class RealtimeSocketManager {
             }
         }
     }
-    
-    // MARK: - Nuclear Reset (more complete reset)
-    
-    func nuclearReset() {
-        print("🔄 Resetting socket connections (targeted version)")
-        
-        // Leave all group chats but keep event handlers
-        // (Critical: don't remove event handlers for direct/group message notifications)
-        socket?.disconnect()
-        
-        // Reconnect after brief pause
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            
-            // Reconnect the socket
-            self.socket?.connect()
-            
-            // Rejoin user room if needed
-            if let userId = self.lastUserId {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                    self?.joinUserRoom(userId: userId)
-                }
-            }
-        }
-    }
 
     // MARK: - Build / Lifecycle
 

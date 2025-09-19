@@ -194,7 +194,7 @@ class PeopleViewModel: ObservableObject {
 
     private var activeRefreshTask: Task<Void, Never>?
     private var lastRefreshRequestTime: Date = .distantPast
-    private let minimumRefreshInterval: TimeInterval = 0.75  
+    private let minimumRefreshInterval: TimeInterval = 0.25  
 
     @Published var hasUnreadDirectMessages: Bool = false {
         didSet {
@@ -257,9 +257,11 @@ class PeopleViewModel: ObservableObject {
         performPeopleFetch(userId: userId, section: section)
     }
 
-    func cancelPendingRefreshes() {
-        activeRefreshTask?.cancel()
-        activeRefreshTask = nil
+    func cancelPendingRefreshes(section: Int) {
+        // Only cancel if conflicting with current section
+        if section == 0 && activeRefreshTask != nil {
+            activeRefreshTask?.cancel()
+        }
         fetchThrottleTimer?.invalidate()
         fetchThrottleTimer = nil
     }
@@ -726,12 +728,8 @@ struct MainScreen: View {
         .onChange(of: page) { newPage in
             scheduleUnreadPollingIfNeeded()
             
-            // Nuclear reset when switching tabs
             if newPage == .portals {
-                print("☢️ Nuclear reset triggered by tab switch")
-                RealtimeSocketManager.shared.nuclearReset()
-                
-                // Give time for socket to reconnect before fetching data
+                print("🔄 Refreshing portals after tab switch")
                 portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals, isTabSwitch: true)
             }
         }
@@ -777,14 +775,14 @@ struct MainScreen: View {
             self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
             
             // Cancel any pending refresh tasks
-            peopleVM.cancelPendingRefreshes()
+            peopleVM.cancelPendingRefreshes(section: section)
             
             // Schedule a single refresh with animation suppression
             peopleVM.skipNextAnimations = true
             peopleVM.fetchPeople(userId: userId, section: 0, force: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("cancelPendingRefreshes"))) { _ in
-            peopleVM.cancelPendingRefreshes()
+            peopleVM.cancelPendingRefreshes(section: section)
         }
         .sheet(isPresented: $showCreateGroupChatSheet) {
             createGroupChatSheet

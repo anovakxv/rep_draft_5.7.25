@@ -518,7 +518,7 @@ def get_subscriptions():
                 'id': sub.id,
                 'name': display_name,
                 'amount': sub.plan.amount,
-                'nextBillingDate': sub.current_period_end
+                'nextBillingDate': int(sub.current_period_end) if sub.current_period_end else 0  # Always integer
             })
         return jsonify(results)
     except Exception as e:

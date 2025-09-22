@@ -10,8 +10,20 @@ from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.utils.auth import jwt_required
 from app.utils.notifications import send_notification
+import time
 
 goals_bp = Blueprint('goal_team', __name__)
+
+# Cache storage for pending invites
+_invite_cache = {}  # {user_id: {"data": result, "timestamp": time, "count": hits}}
+_CACHE_TTL = 120  # 2 minutes between full DB queries
+
+# Helper function to invalidate invite cache for a user
+def invalidate_invite_cache(user_id):
+    """Remove a user's cache entry when their invites change"""
+    if user_id in _invite_cache:
+        del _invite_cache[user_id]
+        print(f"Cache invalidated for user {user_id} due to invite changes")
 
 # --- GET: List all team members for a goal ---
 @goals_bp.route('/<int:goal_id>/team', methods=['GET'])
@@ -84,6 +96,10 @@ def invite_goal_team(goal_id):
                 print(f"Socket emit goal_team_invite error: {e}")
 
     db.session.commit()
+    
+    # Invalidate cache for all invitees
+    for u_id in users:
+        invalidate_invite_cache(u_id)
 
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
     return jsonify({"result": results, "team": [tm.as_dict() for tm in team]})
@@ -179,6 +195,12 @@ def update_goal_team(goal_id):
             )
     except Exception as e:
         print(f"Socket emit goal_team_invite_update error: {e}")
+    
+    # Invalidate cache for the current user
+    invalidate_invite_cache(user_id)
+    # Invalidate cache for the inviter if different
+    if inviter_id and inviter_id != user_id:
+        invalidate_invite_cache(inviter_id)
 
     return jsonify({"result": results, "team": [tm.as_dict() for tm in team]})
 
@@ -211,6 +233,10 @@ def remove_goal_team(goal_id, user_id):
         socketio.emit("goal_team_invite_update", payload, room=f"user_{inviter_id}")
     except Exception as e:
         print(f"Socket emit goal_team_invite_update (remove) error: {e}")
+    
+    # Invalidate caches for both invitee and inviter
+    invalidate_invite_cache(invitee_id)
+    invalidate_invite_cache(inviter_id)
 
     team = GoalTeam.query.filter_by(goals_id=goal_id).all()
     return jsonify({"result": "removed", "team": [tm.as_dict() for tm in team]})
@@ -220,7 +246,24 @@ def remove_goal_team(goal_id, user_id):
 @jwt_required
 def get_pending_invites():
     user_id = g.current_user.id
-
+    current_time = time.time()
+    
+    # Check if we have cached data and if it's recent
+    if user_id in _invite_cache:
+        cache_entry = _invite_cache[user_id]
+        time_since_last_query = current_time - cache_entry["timestamp"]
+        
+        # Increment request count for analytics
+        cache_entry["count"] = cache_entry.get("count", 0) + 1
+        
+        # If cache is fresh, return it immediately
+        if time_since_last_query < _CACHE_TTL:
+            # Log excessive requests (optional)
+            if cache_entry["count"] % 10 == 0:  # Log every 10th hit
+                print(f"⚠️ High frequency invite polling: user {user_id}, {cache_entry['count']} requests in {time_since_last_query:.1f}s")
+            return jsonify({"invites": cache_entry["data"]})
+    
+    # Cache miss or expired, perform database query
     pending_invites = (
         db.session.query(GoalTeam, Goal, User)
         .join(Goal, GoalTeam.goals_id == Goal.id)
@@ -244,7 +287,31 @@ def get_pending_invites():
         "inviterPhotoURL": getattr(user, "profile_photo_url", None)
     } for team, goal, user in pending_invites]
 
+    # Update cache
+    _invite_cache[user_id] = {
+        "data": result,
+        "timestamp": current_time,
+        "count": 1
+    }
+    
+    # Clean old cache entries periodically
+    if current_time % 60 < 1:  # ~once per minute
+        clean_old_cache_entries()
+    
     return jsonify({"invites": result})
+
+def clean_old_cache_entries():
+    """Remove cache entries older than 10 minutes"""
+    current_time = time.time()
+    stale_threshold = current_time - 600  # 10 minutes
+    
+    stale_keys = [
+        user_id for user_id, entry in _invite_cache.items() 
+        if entry["timestamp"] < stale_threshold
+    ]
+    
+    for key in stale_keys:
+        del _invite_cache[key]
 
 # --- POST: Mark all pending invites as read for current user ---
 @goals_bp.route('/pending_invites/mark_read', methods=['POST'])
@@ -289,5 +356,12 @@ def mark_all_pending_invites_read():
                 )
     except Exception as e:
         print(f"Socket emit mark_read error: {e}")
+    
+    # Invalidate cache for current user
+    invalidate_invite_cache(user_id)
+    # Invalidate cache for all inviters
+    for inviter_id in inviter_ids:
+        if inviter_id != user_id:
+            invalidate_invite_cache(inviter_id)
 
     return jsonify({"result": "ok", "updated": len(invites)})

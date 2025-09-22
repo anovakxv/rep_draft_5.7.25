@@ -371,54 +371,88 @@ def stripe_webhook():
             invoice = event['data']['object']
             print(f"[Webhook] Invoice payment succeeded: {invoice.id}")
             
-            # Only process invoices with subscriptions
-            if invoice.subscription:
-                subscription = stripe.Subscription.retrieve(invoice.subscription)
-                
-                goal_id = subscription.metadata.get('goal_id')
-                user_id = subscription.metadata.get('user_id')
-                portal_id = subscription.metadata.get('portal_id')
-                
-                if goal_id and user_id and portal_id:
-                    # Create transaction record for the subscription payment
-                    transaction = Transaction(
-                        user_id=user_id,
-                        portal_id=portal_id,
-                        goal_id=goal_id,
-                        amount=invoice.amount_paid,
-                        currency=invoice.currency,
-                        transaction_type='subscription',
-                        message=f"Monthly subscription payment",
-                        stripe_payment_intent_id=invoice.payment_intent,
-                        status='completed',
-                        created_at=datetime.fromtimestamp(invoice.created)
-                    )
-                    db.session.add(transaction)
+            try:
+                # Only process invoices with subscriptions
+                if invoice.subscription:
+                    print(f"[Webhook] Processing subscription: {invoice.subscription}")
+                    subscription = stripe.Subscription.retrieve(invoice.subscription)
+                    print(f"[Webhook] Subscription metadata: {subscription.metadata}")
                     
-                    # Update goal progress
-                    goal = db.session.query(Goal).filter_by(id=goal_id).first()
-                    if goal and goal.goal_type in ['Fund', 'Sales']:
-                        # Convert cents to dollars/units for goal progress
-                        amount_in_units = invoice.amount_paid / 100
+                    # Try to get metadata from subscription first
+                    goal_id = subscription.metadata.get('goal_id')
+                    user_id = subscription.metadata.get('user_id')
+                    portal_id = subscription.metadata.get('portal_id')
+                    
+                    # Fallback to payment intent if metadata is missing
+                    if (not goal_id or not user_id or not portal_id) and invoice.payment_intent:
+                        print(f"[Webhook] Missing metadata, trying payment intent")
+                        payment_intent = stripe.PaymentIntent.retrieve(invoice.payment_intent)
+                        goal_id = goal_id or payment_intent.metadata.get('goal_id')
+                        user_id = user_id or payment_intent.metadata.get('user_id')
+                        portal_id = portal_id or payment_intent.metadata.get('portal_id')
+                    
+                    # Process if we have the minimum required data
+                    if user_id and portal_id:
+                        # Check if already processed
+                        existing_transaction = db.session.query(Transaction).filter_by(
+                            stripe_payment_intent_id=invoice.payment_intent,
+                            transaction_type='subscription'
+                        ).first()
                         
-                        # Create progress log
-                        progress_log = GoalProgressLog(
-                            users_id=user_id,
-                            goals_id=goal_id,
-                            added_value=amount_in_units,
-                            note=f"Monthly subscription payment",
-                            value=(goal.filled_quota or 0) + amount_in_units
+                        if existing_transaction:
+                            print(f"[Webhook] Subscription payment already processed: {existing_transaction.id}")
+                            return jsonify({'status': 'success'})
+                        
+                        # Create transaction record
+                        transaction = Transaction(
+                            user_id=user_id,
+                            portal_id=portal_id,
+                            goal_id=goal_id if goal_id else None,
+                            amount=invoice.amount_paid,
+                            currency=invoice.currency,
+                            transaction_type='subscription',
+                            message="Monthly subscription payment",
+                            stripe_payment_intent_id=invoice.payment_intent,
+                            status='completed',
+                            created_at=datetime.fromtimestamp(invoice.created)
                         )
-                        db.session.add(progress_log)
+                        db.session.add(transaction)
                         
-                        # Update goal's filled_quota
-                        goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
+                        # Update goal progress if goal_id exists
+                        if goal_id:
+                            goal = db.session.query(Goal).filter_by(id=goal_id).first()
+                            if goal and goal.goal_type in ['Fund', 'Sales']:
+                                # Convert cents to dollars/units for goal progress
+                                amount_in_units = invoice.amount_paid / 100
+                                
+                                # Create progress log
+                                progress_log = GoalProgressLog(
+                                    users_id=user_id,
+                                    goals_id=goal_id,
+                                    added_value=amount_in_units,
+                                    note="Monthly subscription payment",
+                                    value=(goal.filled_quota or 0) + amount_in_units
+                                )
+                                db.session.add(progress_log)
+                                
+                                # Update goal's filled_quota
+                                goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
+                        
                         db.session.commit()
-                        print(f"[Webhook] Updated goal {goal.id} progress from subscription: +{amount_in_units} units")
+                        print(f"[Webhook] Processed subscription payment successfully")
+                    else:
+                        print(f"[Webhook] Could not process subscription - missing required metadata")
+            except Exception as e:
+                print(f"[Webhook] Error processing subscription: {str(e)}")
+                import traceback
+                traceback.print_exc()
 
         return jsonify({'status': 'success'})
+    # Add this except block that was missing
     except Exception as e:
         print(f"[Webhook] Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 400
 
 @payments_bp.route('/api/create_subscription', methods=['POST'])
@@ -607,6 +641,16 @@ def create_checkout_session():
                 'price': price_id,
                 'quantity': 1
             }]
+             # FIX: Add subscription_data with metadata to ensure it's attached to the created subscription
+            session_params['subscription_data'] = {
+                'metadata': {
+                    'portal_id': str(portal_id),
+                    'goal_id': str(goal_id) if goal_id else '',
+                    'user_id': str(user_id),
+                    'message': message,
+                    'transaction_type': transaction_type
+                }
+            }
         else:
             print("[Checkout] Creating payment checkout session")
             session_params['mode'] = 'payment'

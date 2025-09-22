@@ -215,9 +215,20 @@ struct InvitesView: View {
                             InviteCard(
                                 invite: invite,
                                 onAccept: {
-                                    invitesManager.respondToInvite(goalId: invite.goals_id, action: "accept") { success in
+                                    let goalId = invite.goals_id
+                                    invitesManager.respondToInvite(goalId: goalId, action: "accept") { success in
                                         responseMessage = success ? "You've joined the goal team!" : "Failed to accept invite"
-                                        showAlert = true
+                                        // Add a slight delay to avoid UI update conflicts
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                            showAlert = true
+                                            invitesManager.fetchPendingInvites()
+                                            // If no more invites, dismiss after alert
+                                            if invitesManager.pendingInvites.isEmpty {
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                                    dismiss()
+                                                }
+                                            }
+                                        }
                                     }
                                 },
                                 onDecline: {

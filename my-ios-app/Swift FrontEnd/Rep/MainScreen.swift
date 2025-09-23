@@ -1669,13 +1669,17 @@ struct ActiveChatList: View {
     @State private var selectedProfileId: Int?
     @State private var selectedDirectUserId: Int?
     @State private var selectedGroupChatId: Int?
+    @State private var showInvitesSheet = false 
     @AppStorage("userId") var currentUserId: Int = 0
 
     var body: some View {
         ZStack {
             List {
                 if invitesManager.pendingInvites.count > 0 {
-                    NavigationLink(destination: InvitesView()) {
+                    // CHANGED: From NavigationLink to Button
+                    Button {
+                        showInvitesSheet = true  // Show sheet instead of navigating
+                    } label: {
                         HStack {
                             Image(systemName: "bell.fill")
                                 .font(.system(size: 20))
@@ -1885,6 +1889,12 @@ struct ActiveChatList: View {
                 ),
                 label: { EmptyView() }
             )
+        }
+        .sheet(isPresented: $showInvitesSheet) {
+            InvitesView(onDismiss: {
+                // This will be called when the user is done with invites
+                invitesManager.fetchPendingInvites()
+            })
         }
     }
 }

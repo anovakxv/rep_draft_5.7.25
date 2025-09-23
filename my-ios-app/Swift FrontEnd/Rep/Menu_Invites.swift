@@ -4,11 +4,10 @@
 //  Created by Adam Novak: August 2025
 //  Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 
-// MARK: - Goal Team Invite Model
-
 import SwiftUI
 import Kingfisher
 
+// Original models remain the same
 struct GoalTeamInvite: Identifiable, Codable, Equatable {
     let id: Int
     let goals_id: Int
@@ -27,19 +26,13 @@ struct GoalTeamInvite: Identifiable, Codable, Equatable {
         inviterName ?? "Someone"
     }
 
-    // Improved patching logic with direct S3 base URL reference
     var patchedInviterProfilePictureURL: URL? {
         guard let urlString = inviterPhotoURL, !urlString.isEmpty else { return nil }
-        
-        // Debug print to see the actual URL value
-        print("Profile URL before patching: \(urlString)")
-        
         if urlString.starts(with: "http") {
             return URL(string: urlString)
         } else {
             let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
             let fullURL = s3BaseURL + urlString
-            print("Profile URL after patching: \(fullURL)")
             return URL(string: fullURL)
         }
     }
@@ -49,7 +42,6 @@ struct GoalTeamInvitesResponse: Codable {
     let invites: [GoalTeamInvite]
 }
 
-// Singleton manager to handle invites across the app
 class GoalTeamInvitesManager: ObservableObject {
     static let shared = GoalTeamInvitesManager()
     
@@ -59,9 +51,7 @@ class GoalTeamInvitesManager: ObservableObject {
     @AppStorage("jwtToken") private var jwtToken: String = ""
     @AppStorage("userId") private var userId: Int = 0
     
-    private init() {
-        // Initialize with empty data
-    }
+    private init() { }
     
     func fetchPendingInvites() {
         guard !jwtToken.isEmpty, userId != 0 else { return }
@@ -78,16 +68,10 @@ class GoalTeamInvitesManager: ObservableObject {
         URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 self?.isLoading = false
-                
                 guard let data = data else { return }
                 do {
                     let response = try JSONDecoder().decode(GoalTeamInvitesResponse.self, from: data)
                     self?.pendingInvites = response.invites.filter { $0.confirmed == 0 }
-                    
-                    // Debug: Print the received invites to check photo URLs
-                    for invite in response.invites {
-                        print("Invite from: \(invite.inviterName ?? "Unknown"), Photo URL: \(invite.inviterPhotoURL ?? "None")")
-                    }
                 } catch {
                     print("Error decoding invites:", error)
                 }
@@ -111,33 +95,21 @@ class GoalTeamInvitesManager: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         
-        let body: [String: Any] = [
-            "action": action, // "accept" or "decline"
-            "users": [userId]
-        ]
-        
+        let body: [String: Any] = ["action": action, "users": [userId]]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                guard let httpResponse = response as? HTTPURLResponse else {
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200...299).contains(httpResponse.statusCode) else {
                     completion(false)
                     return
                 }
-                
-                let success = httpResponse.statusCode >= 200 && httpResponse.statusCode < 300
-                
-                if success {
-                    // Remove the invite from the list
-                    self?.pendingInvites.removeAll { $0.goals_id == goalId }
-                }
-                
-                completion(success)
+                completion(true)
             }
         }.resume()
     }
 
-    // MARK: - Mark all invites as read when viewing
     func markAllInvitesRead(completion: (() -> Void)? = nil) {
         guard !jwtToken.isEmpty, userId != 0 else {
             completion?()
@@ -150,9 +122,8 @@ class GoalTeamInvitesManager: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+        URLSession.shared.dataTask(with: request) { [weak self] _, _, _ in
             DispatchQueue.main.async {
-                // Refresh invites after marking as read
                 self?.fetchPendingInvites()
                 completion?()
             }
@@ -160,117 +131,162 @@ class GoalTeamInvitesManager: ObservableObject {
     }
 }
 
+// UPDATED FOR SHEET PRESENTATION
 struct InvitesView: View {
-    @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
-    @State private var responseMessage: String? = nil
+    // The callback passed from MainScreen
+    var onDismiss: () -> Void
+    
+    // Keep the manager, but only to get initial data - no reactivity
+    @State private var invites: [GoalTeamInvite] = []
+    @State private var isLoading = true
+    @State private var processingInviteId: Int? = nil
+    
+    @State private var alertMessage: String? = nil
     @State private var showAlert = false
     @State private var selectedGoalId: Int? = nil
-    @State private var showGoalSheet = false // New state for sheet
+    @State private var showGoalSheet = false
+    
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        VStack {
-            // Header
-            ZStack {
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .foregroundColor(Color.repGreen)
-                            .font(.system(size: 20))
+        // Wrap in NavigationView for sheet presentation
+        NavigationView {
+            VStack {
+                // Header - Updated for modal sheet presentation
+                ZStack {
+                    HStack {
+                        Button(action: {
+                            // First dismiss the view
+                            dismiss()
+                            
+                            // After a brief delay, call onDismiss to refresh parent
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                onDismiss()
+                            }
+                        }) {
+                            // Changed to X for modal sheet dismissal
+                            Image(systemName: "xmark")
+                                .foregroundColor(Color.repGreen)
+                                .font(.system(size: 20))
+                        }
+                        .padding(.leading)
+                        Spacer()
                     }
-                    .padding(.leading)
-                    Spacer()
+                    Text("Invitations").font(.headline).fontWeight(.semibold)
                 }
+                .padding(.vertical, 12)
+                .background(Color.white)
+                .overlay(Rectangle().frame(height: 1).foregroundColor(Color(UIColor.systemGray5)), alignment: .bottom)
                 
-                Text("Invitations")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-            }
-            .padding(.vertical, 12)
-            .background(Color.white)
-            .overlay(
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(Color(UIColor.systemGray5)),
-                alignment: .bottom
-            )
-            
-            if invitesManager.isLoading {
-                ProgressView()
+                // Content
+                if isLoading {
+                    ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if invites.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "checkmark.circle").font(.system(size: 60)).foregroundColor(.gray)
+                        Text("No pending invitations").font(.title3).foregroundColor(.secondary)
+                    }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if invitesManager.pendingInvites.isEmpty {
-                VStack(spacing: 16) {
-                    Image(systemName: "checkmark.circle")
-                        .font(.system(size: 60))
-                        .foregroundColor(.gray)
-                    Text("No pending invitations")
-                        .font(.title3)
-                        .foregroundColor(.secondary)
+                } else {
+                    // Ultra-simple static list
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            ForEach(invites) { invite in
+                                InviteCard(
+                                    invite: invite,
+                                    isProcessing: processingInviteId == invite.id,
+                                    onAccept: { handleAccept(invite) },
+                                    onDecline: { handleDecline(invite) },
+                                    onViewGoal: {
+                                        selectedGoalId = invite.goals_id
+                                        showGoalSheet = true
+                                    }
+                                )
+                            }
+                        }
+                        .padding()
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 16) {
-                        ForEach(invitesManager.pendingInvites) { invite in
-                            InviteCard(
-                                invite: invite,
-                                onAccept: {
-                                    let goalId = invite.goals_id
-                                    invitesManager.respondToInvite(goalId: goalId, action: "accept") { success in
-                                        responseMessage = success ? "You've joined the goal team!" : "Failed to accept invite"
-                                        // Add a slight delay to avoid UI update conflicts
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                            showAlert = true
-                                            invitesManager.fetchPendingInvites()
-                                            // If no more invites, dismiss after alert
-                                            if invitesManager.pendingInvites.isEmpty {
-                                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                                    dismiss()
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                onDecline: {
-                                    invitesManager.respondToInvite(goalId: invite.goals_id, action: "decline") { success in
-                                        responseMessage = success ? "Invite declined" : "Failed to decline invite"
-                                        showAlert = true
-                                    }
-                                },
-                                onViewGoal: {
-                                    print("📱 View Goal tapped for goal ID: \(invite.goals_id)")
-                                    selectedGoalId = invite.goals_id
-                                    // Show the sheet instead of using NavigationLink
-                                    showGoalSheet = true
-                                }
-                            )
+            }
+            .navigationBarHidden(true)
+            .onAppear {
+                // Perform one-time loading on appear
+                isLoading = true
+                GoalTeamInvitesManager.shared.markAllInvitesRead()
+                
+                // Get data from manager (copy locally)
+                invites = GoalTeamInvitesManager.shared.pendingInvites
+                isLoading = false
+            }
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text(alertMessage ?? ""), dismissButton: .default(Text("OK")) {
+                    if invites.isEmpty {
+                        // First dismiss
+                        dismiss()
+                        
+                        // Then update parent
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            onDismiss()
                         }
                     }
-                    .padding()
+                })
+            }
+            .fullScreenCover(isPresented: $showGoalSheet) {
+                if let goalId = selectedGoalId {
+                    NavigationView {
+                        GoalsDetailView(initialGoal: Goal.placeholder.withId(goalId))
+                    }
                 }
             }
         }
-        .navigationBarHidden(true)
-        .onAppear {
-            invitesManager.markAllInvitesRead()
-            invitesManager.fetchPendingInvites() // Ensure we fetch fresh data
-        }
-        .alert(isPresented: $showAlert, content: {
-            Alert(title: Text(responseMessage ?? ""))
-        })
-        // Use a sheet instead of NavigationLink for more reliable navigation
-        .fullScreenCover(isPresented: $showGoalSheet, onDismiss: {
-            // Reset navigation state when sheet is dismissed
-            selectedGoalId = nil
-            print("📱 Goal sheet dismissed")
-        }) {
-            if let goalId = selectedGoalId {
-                NavigationView {
-                    GoalsDetailView(initialGoal: Goal.placeholder.withId(goalId))
-                        .onAppear {
-                            print("📱 GoalsDetailView appeared with ID: \(goalId)")
-                        }
+        // Make sure sheet presentation looks good
+        .edgesIgnoringSafeArea(.bottom)
+    }
+    
+    private func handleAccept(_ invite: GoalTeamInvite) {
+        processingInviteId = invite.id
+        
+        GoalTeamInvitesManager.shared.respondToInvite(goalId: invite.goals_id, action: "accept") { success in
+            if success {
+                alertMessage = "You've joined the goal team!"
+                
+                // Only update local state (no background updates)
+                if let index = invites.firstIndex(where: { $0.id == invite.id }) {
+                    invites.remove(at: index)
                 }
+                processingInviteId = nil
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showAlert = true
+                }
+            } else {
+                alertMessage = "Failed to accept invite"
+                processingInviteId = nil
+                showAlert = true
+            }
+        }
+    }
+    
+    private func handleDecline(_ invite: GoalTeamInvite) {
+        processingInviteId = invite.id
+        
+        GoalTeamInvitesManager.shared.respondToInvite(goalId: invite.goals_id, action: "decline") { success in
+            if success {
+                alertMessage = "Invite declined"
+                
+                // Only update local state (no background updates)
+                if let index = invites.firstIndex(where: { $0.id == invite.id }) {
+                    invites.remove(at: index)
+                }
+                processingInviteId = nil
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    showAlert = true
+                }
+            } else {
+                alertMessage = "Failed to decline invite"
+                processingInviteId = nil
+                showAlert = true
             }
         }
     }
@@ -278,65 +294,47 @@ struct InvitesView: View {
 
 struct InviteCard: View {
     let invite: GoalTeamInvite
+    var isProcessing: Bool = false
     var onAccept: () -> Void
     var onDecline: () -> Void
-    var onViewGoal: () -> Void // <-- Added callback for navigation
+    var onViewGoal: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
-                // Enhanced profile picture loading
-                // Profile picture removed for now
-
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Goal Team Invite")
-                        .font(.headline)
-
+                    Text("Goal Team Invite").font(.headline)
                     Text("\(invite.inviterDisplayName) invited you to join '\(invite.goalTitle ?? "a goal")'")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
+                        .font(.subheadline).foregroundColor(.secondary).lineLimit(2)
                 }
-
                 Spacer()
             }
 
             HStack(spacing: 12) {
                 Button(action: onAccept) {
-                    Text("Accept")
-                        .fontWeight(.medium)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.repGreen)
+                    Text("Accept").fontWeight(.medium).foregroundColor(.white)
+                        .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        .background(isProcessing ? Color.repGreen.opacity(0.5) : Color.repGreen)
                         .cornerRadius(6)
-                }
+                }.disabled(isProcessing)
 
                 Button(action: onDecline) {
-                    Text("Decline")
-                        .fontWeight(.medium)
-                        .foregroundColor(.black)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .background(Color.gray.opacity(0.2))
+                    Text("Decline").fontWeight(.medium).foregroundColor(.black)
+                        .frame(maxWidth: .infinity).padding(.vertical, 8)
+                        .background(isProcessing ? Color.gray.opacity(0.1) : Color.gray.opacity(0.2))
                         .cornerRadius(6)
-                }
+                }.disabled(isProcessing)
             }
 
-            // "View Goal" button
             Button(action: onViewGoal) {
-                Text("View Goal")
-                    .fontWeight(.medium)
-                    .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0))) // dark green
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(6)
-            }
+                Text("View Goal").fontWeight(.medium)
+                    .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
+                    .frame(maxWidth: .infinity).padding(.vertical, 8)
+                    .background(Color.gray.opacity(0.1)).cornerRadius(6)
+            }.disabled(isProcessing)
         }
-        .padding(12)
-        .background(Color.white)
-        .cornerRadius(8)
+        .padding(12).background(Color.white).cornerRadius(8)
         .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+        .opacity(isProcessing ? 0.7 : 1.0)
     }
 }

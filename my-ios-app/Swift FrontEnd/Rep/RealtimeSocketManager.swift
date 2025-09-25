@@ -42,6 +42,9 @@ final class RealtimeSocketManager {
     private var groupObservers: [GroupObserver] = []
     private var groupNotifObservers: [GroupNotifObserver] = []
 
+    // THE FIX: Add a serial queue for thread-safe access to all observer arrays
+    private let observerQueue = DispatchQueue(label: "com.rep.realtimesocketmanager.observerQueue")
+
     // MARK: - Chat Registration for Socket Gatekeeper
     
     func registerActiveChat(chatId: Int) {
@@ -119,10 +122,12 @@ final class RealtimeSocketManager {
             }
         }
         
-        // Reset state trackers
-        dmObservers = []
-        groupObservers = []
-        groupNotifObservers = []
+        // Reset state trackers safely
+        observerQueue.async { [weak self] in
+            self?.dmObservers = []
+            self?.groupObservers = []
+            self?.groupNotifObservers = []
+        }
         
         print("🧹 (Realtime) All handlers cleaned up")
     }
@@ -137,10 +142,12 @@ final class RealtimeSocketManager {
             socket.off("direct_message_notification")
         }
         
-        // Reset all observers
-        dmObservers = []
-        groupObservers = []
-        groupNotifObservers = []
+        // Reset all observers safely
+        observerQueue.async { [weak self] in
+            self?.dmObservers = []
+            self?.groupObservers = []
+            self?.groupNotifObservers = []
+        }
         
         // Disconnect completely
         socket?.disconnect()
@@ -269,14 +276,20 @@ final class RealtimeSocketManager {
         socket.on("group_message") { [weak self] data, _ in
             guard let self else { return }
             guard let dict = data.first as? [String: Any] else { return }
-            self.groupObservers.forEach { $0.cb(dict) }
+            // Safely notify observers
+            self.observerQueue.async { [weak self] in
+                self?.groupObservers.forEach { $0.cb(dict) }
+            }
         }
 
         // NEW: group notification to personal room (for OPEN dot)
         socket.on("group_message_notification") { [weak self] data, _ in
             guard let self else { return }
             guard let dict = data.first as? [String: Any] else { return }
-            self.groupNotifObservers.forEach { $0.cb(dict) }
+            // Safely notify observers
+            self.observerQueue.async { [weak self] in
+                self?.groupNotifObservers.forEach { $0.cb(dict) }
+            }
         }
 
         // Invite events (broadcast via NotificationCenter)
@@ -293,7 +306,10 @@ final class RealtimeSocketManager {
     // MARK: - Notify helpers
 
     private func notifyDirectMessage(_ payload: [String: Any]) {
-        dmObservers.forEach { $0.cb(payload) }
+        // Safely notify observers
+        observerQueue.async { [weak self] in
+            self?.dmObservers.forEach { $0.cb(payload) }
+        }
         // Optional NotificationCenter broadcast for any other listeners
         NotificationCenter.default.post(name: .socketDirectMessage, object: payload)
     }
@@ -304,35 +320,53 @@ final class RealtimeSocketManager {
     @discardableResult
     func onDirectMessageNotification(_ cb: @escaping ([String: Any]) -> Void) -> UUID {
         let id = UUID()
-        dmObservers.append(DMObserver(id: id, cb: cb))
+        // Safely append observer
+        observerQueue.async { [weak self] in
+            self?.dmObservers.append(DMObserver(id: id, cb: cb))
+        }
         return id
     }
 
     func removeDirectMessageObserver(_ id: UUID) {
-        dmObservers.removeAll { $0.id == id }
+        // Safely remove observer
+        observerQueue.async { [weak self] in
+            self?.dmObservers.removeAll { $0.id == id }
+        }
     }
 
     @discardableResult
     func onGroupMessage(_ cb: @escaping ([String: Any]) -> Void) -> UUID {
         let id = UUID()
-        groupObservers.append(GroupObserver(id: id, cb: cb))
+        // Safely append observer
+        observerQueue.async { [weak self] in
+            self?.groupObservers.append(GroupObserver(id: id, cb: cb))
+        }
         return id
     }
 
     func removeGroupMessageObserver(_ id: UUID) {
-        groupObservers.removeAll { $0.id == id }
+        // Safely remove observer
+        observerQueue.async { [weak self] in
+            self?.groupObservers.removeAll { $0.id == id }
+        }
     }
 
     // NEW: group_message_notification registration
     @discardableResult
     func onGroupMessageNotification(_ cb: @escaping ([String: Any]) -> Void) -> UUID {
         let id = UUID()
-        groupNotifObservers.append(GroupNotifObserver(id: id, cb: cb))
+        // Safely append observer
+        observerQueue.async { [weak self] in
+            self?.groupNotifObservers.append(GroupNotifObserver(id: id, cb: cb))
+        }
         return id
     }
 
     func removeGroupMessageNotificationObserver(_ id: UUID) {
-        groupNotifObservers.removeAll { $0.id == id }
+        // Safely remove observer
+        observerQueue.async { [weak self] in
+            self?.groupNotifObservers.removeAll { $0.id == id }
+        }
     }
 
     // MARK: - Room Management

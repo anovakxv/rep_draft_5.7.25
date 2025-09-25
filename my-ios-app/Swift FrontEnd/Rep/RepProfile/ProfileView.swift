@@ -739,8 +739,11 @@ struct ProfileView: View {
                     },
                     onMessage: {
                         print("Messaging: loggedInUserId=\(viewModel.loggedInUserId), selectedUserId=\(viewModel.user.id)")
-                        selectedUser = viewModel.user
-                        showMessageView = true
+                        // Delay setting state to avoid UI contention
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            selectedUser = viewModel.user
+                            showMessageView = true
+                        }
                     }
                 )
                 // NavigationLink for EditProfile (not a sheet)
@@ -999,15 +1002,12 @@ struct ProfileView: View {
             .navigationDestination(isPresented: $showSettings) {
                 SettingsView()
             }
-            .navigationDestination(isPresented: $showMessageView) {
+            // THIS IS THE FIX: Use a fullScreenCover for MessageView
+            .fullScreenCover(isPresented: $showMessageView) {
                 if let user = selectedUser {
-                    MessageView(
-                        viewModel: .init(
-                            currentUserId: viewModel.loggedInUserId,
-                            otherUserId: user.id,
-                            otherUserName: user.displayName,
-                            otherUserPhotoURL: user.profilePictureURL
-                        )
+                    DelayedMessageView(
+                        user: user,
+                        loggedInUserId: viewModel.loggedInUserId
                     )
                 }
             }
@@ -1094,6 +1094,40 @@ struct ProfileMainContent: View {
                     selectedTab: selectedTab,
                     viewModel: viewModel
                 )
+            }
+        }
+    }
+}
+
+struct DelayedMessageView: View {
+    let user: User
+    let loggedInUserId: Int
+    @State private var showActualView = false
+
+    var body: some View {
+        Group {
+            if showActualView {
+                MessageView(
+                    viewModel: .init(
+                        currentUserId: loggedInUserId,
+                        otherUserId: user.id,
+                        otherUserName: user.displayName,
+                        otherUserPhotoURL: user.profilePictureURL
+                    )
+                )
+            } else {
+                VStack {
+                    Spacer()
+                    ProgressView("Opening chat...")
+                        .padding()
+                    Spacer()
+                }
+                .onAppear {
+                    // Delay actual presentation to ensure clean context
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        showActualView = true
+                    }
+                }
             }
         }
     }

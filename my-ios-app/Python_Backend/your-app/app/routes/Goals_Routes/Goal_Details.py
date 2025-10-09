@@ -44,7 +44,6 @@ def api_goal_details():
     if goal.reporting_increment and hasattr(goal.reporting_increment, "title"):
         reporting_increment_title = goal.reporting_increment.title
         title = reporting_increment_title.lower().strip()
-        print(f"[DEBUG] Normalized reporting_increment.title: '{title}'")
         if title == "daily":
             increment = "day"
         elif title == "weekly":
@@ -58,8 +57,7 @@ def api_goal_details():
         elif "month" in title:
             increment = "month"
         else:
-            print(f"[DEBUG] Unknown increment title: '{title}', defaulting to 'month'")
-    print(f"[DEBUG] Chart increment selected: {increment}")
+            pass
 
     # --- PATCH: Chart Data Grouping ---
     def patched_chart_data(self, increment='day', num_periods=7):
@@ -83,7 +81,6 @@ def api_goal_details():
                     display_label = log.timestamp.strftime('%b')
                 cumulative += float(log.added_value or 0)
                 data[label] = (cumulative, display_label)
-        print(f"[DEBUG] Chart labels for increment '{increment}': {[label for label in data.keys()]}")
         # Only keep the last num_periods periods
         items = list(data.items())[-num_periods:]
         chart_data = [
@@ -95,7 +92,6 @@ def api_goal_details():
             }
             for idx, (label, (value, display_label)) in enumerate(items)
         ]
-        print(f"[DEBUG] Chart data output: {chart_data}")
         return chart_data
     goal.chart_data = patched_chart_data.__get__(goal, Goal)
     chart_data = goal.chart_data(increment=increment, num_periods=7)
@@ -144,7 +140,6 @@ def api_goal_details():
     result["aLatestProgress"] = a_latest_progress
     result["chartData"] = chart_data  # <-- PATCH: Use correct chart data
 
-    print(f"[DEBUG] Final API response chartData: {result['chartData']}")
     return jsonify({'result': result})
 
 # --- POST: Create Goal ---

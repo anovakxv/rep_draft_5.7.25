@@ -164,7 +164,10 @@ struct GoalsDetailView: View {
                         }
                     } else if selectedSegment == 2 {
                         ForEach(viewModel.team) { user in
-                            TeamCell(user: user)
+                            NavigationLink(destination: ProfileView(userId: user.id)) {
+                                TeamCell(user: user)
+                            }
+                            .buttonStyle(PlainButtonStyle()) // Keeps the cell's original appearance
                         }
                     }
                 }
@@ -647,7 +650,7 @@ class GoalsDetailViewModel: ObservableObject {
                             return Attachment(
                                 id: attachment.id,
                                 url: url,
-                                isImage: attachment.is_image ?? false,
+                                isImage: attachment.is_image ?? true,
                                 fileName: attachment.file_name ?? "File",
                                 note: attachment.note ?? ""
                             )
@@ -931,36 +934,19 @@ struct FeedCell: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(feed.attachments) { attachment in
-                                VStack(alignment: .center) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     if attachment.isImage {
                                         KFImage(attachment.url)
-                                            .placeholder {
-                                                Rectangle()
-                                                    .fill(Color.gray.opacity(0.2))
-                                                    .frame(width: 100, height: 100)
-                                            }
-                                            .onFailure { error in
-                                                print("🔴 Image load error: \(error.localizedDescription) for URL: \(attachment.url)")
-                                            }
                                             .resizable()
-                                            .scaledToFill()
+                                            .aspectRatio(contentMode: .fill)
                                             .frame(width: 100, height: 100)
-                                            .cornerRadius(8)
+                                            .clipShape(RoundedRectangle(cornerRadius: 8))
                                     } else {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(Color(.systemGray5))
-                                                .frame(width: 100, height: 100)
-                                            
-                                            VStack {
-                                                Image(systemName: "doc.fill")
-                                                    .font(.system(size: 32))
-                                                
-                                                Text(attachment.fileName)
-                                                    .font(.caption)
-                                                    .lineLimit(1)
-                                            }
-                                        }
+                                        Image(systemName: "doc.fill")
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 50, height: 50)
+                                            .padding(.horizontal, 25)
                                     }
                                     
                                     if !attachment.note.isEmpty {

@@ -17,21 +17,20 @@ from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('update_quota', __name__)
 
-# Configuration for file uploads
-USE_S3 = os.environ.get('USE_S3', 'False').lower() == 'true'
+# Updated S3 configuration with hardcoded values (matching Portal code)
+S3_BUCKET = "rep-app-dbbucket"
+S3_REGION = "us-west-2"
+S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 LOCAL_UPLOAD_FOLDER = 'uploads/goal_progress_files'
-S3_BUCKET = os.environ.get('S3_BUCKET_NAME', 'your-bucket-name')
-S3_REGION = os.environ.get('AWS_REGION', 'us-east-1')
-BASE_URL = os.environ.get('BASE_URL', 'http://localhost:5000')
+BASE_URL = os.environ.get('BASE_URL', 'https://rep-june2025.onrender.com')
 
-# Initialize S3 client if enabled
-if USE_S3:
-    s3_client = boto3.client(
-        's3',
-        aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-        aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-        region_name=S3_REGION
-    )
+# Always initialize S3 client (removing conditional)
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+    region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-west-2')
+)
 
 def get_file_extension(filename):
     """Get file extension from filename."""
@@ -97,9 +96,7 @@ def api_update_goal_filled_quota():
     # Handle file uploads
     uploaded_files = []
     if files:
-        # Ensure local directory exists if not using S3
-        if not USE_S3:
-            os.makedirs(LOCAL_UPLOAD_FOLDER, exist_ok=True)
+        print(f"DEBUG: Processing {len(files)} files for progress_log.id={progress_log.id}")
             
         for idx, file in enumerate(files):
             if file and file.filename:
@@ -114,42 +111,12 @@ def api_update_goal_filled_quota():
                 # Check if file is an image
                 is_image = is_image_file(original_filename)
                 
-                if USE_S3:
-                    # Upload to S3
-                    try:
-                        file_key = f"goal_updates/{goal_id}/{progress_log.id}/{filename}"
-                        s3_client.upload_fileobj(file, S3_BUCKET, file_key)
-                        file_url = f"https://{S3_BUCKET}.s3.{S3_REGION}.amazonaws.com/{file_key}"
-                        
-                        # Create database record
-                        progress_file = GoalProgressFile(
-                            goal_progress_id=progress_log.id,
-                            file_url=file_url,
-                            file_name=original_filename,
-                            is_image=is_image,
-                            note=note_for_file
-                        )
-                        db.session.add(progress_file)
-                        
-                        uploaded_files.append({
-                            "id": None,  # Will be set after commit
-                            "url": file_url,
-                            "file_name": original_filename,
-                            "is_image": is_image,
-                            "note": note_for_file
-                        })
-                        
-                    except Exception as e:
-                        print(f"S3 upload error: {str(e)}")
-                        continue
-                        
-                else:
-                    # Local file storage
-                    file_path = os.path.join(LOCAL_UPLOAD_FOLDER, filename)
-                    file.save(file_path)
-                    
-                    # Generate URL for the file
-                    file_url = f"{BASE_URL}/uploads/goal_progress_files/{filename}"
+                # Upload to S3 - always use S3 now
+                try:
+                    print(f"DEBUG: Processing file: {filename}")
+                    file_key = f"goal_updates/{goal_id}/{progress_log.id}/{filename}"
+                    s3_client.upload_fileobj(file, S3_BUCKET, file_key)
+                    file_url = f"{S3_BASE_URL}{file_key}"  # Use direct concatenation with base URL
                     
                     # Create database record
                     progress_file = GoalProgressFile(
@@ -168,6 +135,11 @@ def api_update_goal_filled_quota():
                         "is_image": is_image,
                         "note": note_for_file
                     })
+                    print(f"DEBUG: Created file record with URL: {file_url}")
+                    
+                except Exception as e:
+                    print(f"ERROR: File upload failed: {str(e)}")
+                    continue
 
     # Update goal's filled_quota
     goal.filled_quota = (goal.filled_quota or 0) + added_value

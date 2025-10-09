@@ -147,7 +147,8 @@ struct UpdateGoalSheet: View {
         for (index, image) in selectedImages.enumerated() {
             if let imageData = image.jpegData(compressionQuality: 0.8) {
                 httpBody.append("--\(boundary)\r\n".data(using: .utf8)!)
-                httpBody.append("Content-Disposition: form-data; name=\"files[\(index)]\"; filename=\"image\(index).jpg\"\r\n".data(using: .utf8)!)
+                // Use "files" (no brackets) for every image
+                httpBody.append("Content-Disposition: form-data; name=\"files\"; filename=\"image\(index).jpg\"\r\n".data(using: .utf8)!)
                 httpBody.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
                 httpBody.append(imageData)
                 httpBody.append("\r\n".data(using: .utf8)!)

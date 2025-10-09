@@ -18,7 +18,6 @@ def get_increment(goal):
     if hasattr(goal, "reporting_increment") and goal.reporting_increment and hasattr(goal.reporting_increment, "title"):
         reporting_increment_title = goal.reporting_increment.title
         title = reporting_increment_title.lower().strip()
-        print(f"[DEBUG] Normalized reporting_increment.title: '{title}'")
         if title == "daily":
             increment = "day"
         elif title == "weekly":
@@ -31,9 +30,6 @@ def get_increment(goal):
             increment = "week"
         elif "month" in title:
             increment = "month"
-        else:
-            print(f"[DEBUG] Unknown increment title: '{title}', defaulting to 'month'")
-    print(f"[DEBUG] Chart increment selected: {increment}")
     return increment
 
 # GET /api/goals/list?users_id=1
@@ -97,7 +93,6 @@ def get_goals_by_portal():
                 increment = "week"
             elif "month" in title:
                 increment = "month"
-        print(f"[DEBUG] Goal {goal.id} increment: {increment}")
 
         # --- PATCH: Chart Data Grouping ---
         def patched_chart_data(self, increment='day', num_periods=4):
@@ -134,7 +129,6 @@ def get_goals_by_portal():
             return chart_data
         goal.chart_data = patched_chart_data.__get__(goal, Goal)
         chart_data = goal.chart_data(increment=increment, num_periods=4)
-        print(f"[DEBUG] Goal {goal.id} chartData: {chart_data}")  # <-- Add this line
 
         result = goal.as_dict(increment=increment, num_periods=4)
         result["chartData"] = chart_data

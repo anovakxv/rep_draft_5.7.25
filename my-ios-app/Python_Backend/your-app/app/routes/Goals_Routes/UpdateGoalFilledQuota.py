@@ -44,10 +44,8 @@ def is_image_file(filename):
 @goals_bp.route('/update_filled_quota', methods=['POST'])
 @jwt_required
 def api_update_goal_filled_quota():
-    print(f"DEBUG: Content-Type: {request.content_type}")
     user_id = g.current_user.id
     if not user_id:
-        print("ERROR: No user_id found in JWT context.")
         return jsonify({'error': 'Login error!'}), 401
 
     # Handle both JSON and multipart/form-data
@@ -55,44 +53,33 @@ def api_update_goal_filled_quota():
         data = request.form
         files = request.files.getlist('files')
         sources_notes = request.form.getlist('sources_notes')
-        print(f"DEBUG: Request form keys: {list(request.form.keys())}")
-        print(f"DEBUG: Request files: {[f.filename for f in files]}")
     else:
         data = request.json or {}
         files = []
         sources_notes = data.get('sources_notes', [])
-        print(f"DEBUG: JSON data received: {data}")
 
     goal_id = data.get('goals_id')
     added_value = data.get('added_value')
     note = data.get('note', '')
 
-    print(f"DEBUG: Parsed goal_id={goal_id}, added_value={added_value}, note={note}")
-
     if not goal_id:
-        print("ERROR: Missing goals_id.")
         return jsonify({'error': 'goals_id required!'}), 400
     if added_value is None:
-        print("ERROR: Missing added_value.")
         return jsonify({'error': 'added_value required!'}), 400
 
     try:
         added_value = float(added_value)
     except (TypeError, ValueError):
-        print("ERROR: added_value must be a number!")
         return jsonify({'error': 'added_value must be a number!'}), 400
 
     goal = Goal.query.get(goal_id)
     if not goal:
-        print(f"ERROR: Goal not found for id={goal_id}")
         return jsonify({'error': 'Goal not found'}), 404
 
     # Permission: Only owner or confirmed team member can update
     is_owner = goal.users_id == user_id
     is_team_member = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id, confirmed=1).count() > 0
-    print(f"DEBUG: is_owner={is_owner}, is_team_member={is_team_member}")
     if not (is_owner or is_team_member):
-        print("ERROR: Permission denied.")
         return jsonify({'error': 'Permission denied'}), 403
 
     # Add progress log
@@ -105,12 +92,10 @@ def api_update_goal_filled_quota():
     )
     db.session.add(progress_log)
     db.session.flush()  # Get progress_log.id before commit
-    print(f"DEBUG: Created progress_log with id={progress_log.id}")
 
     # Handle file uploads
     uploaded_files = []
     if files:
-        print(f"DEBUG: Processing {len(files)} files for progress_log.id={progress_log.id}")
         for idx, file in enumerate(files):
             if file and file.filename:
                 original_filename = secure_filename(file.filename)
@@ -119,11 +104,9 @@ def api_update_goal_filled_quota():
                 note_for_file = sources_notes[idx] if idx < len(sources_notes) else ""
                 is_image = is_image_file(original_filename)
                 try:
-                    print(f"DEBUG: S3 upload - bucket={S3_BUCKET}, key=goal_updates/{goal_id}/{progress_log.id}/{filename}")
                     file_key = f"goal_updates/{goal_id}/{progress_log.id}/{filename}"
                     s3_client.upload_fileobj(file, S3_BUCKET, file_key)
                     file_url = f"{S3_BASE_URL}{file_key}"
-                    print(f"DEBUG: S3 upload successful for {file_key}")
 
                     # Create database record
                     progress_file = GoalProgressFile(
@@ -142,20 +125,15 @@ def api_update_goal_filled_quota():
                         "is_image": is_image,
                         "note": note_for_file
                     })
-                    print(f"DEBUG: Created file record with URL: {file_url}")
 
-                except Exception as e:
-                    print(f"ERROR: S3 upload failed for {file_key}: {str(e)}")
-                    print(f"ERROR: AWS_ACCESS_KEY_ID={os.environ.get('AWS_ACCESS_KEY_ID')}, AWS_SECRET_ACCESS_KEY={'SET' if os.environ.get('AWS_SECRET_ACCESS_KEY') else 'NOT SET'}")
+                except Exception:
                     continue
 
     # Update goal's filled_quota
     goal.filled_quota = (goal.filled_quota or 0) + added_value
     try:
         db.session.commit()
-        print(f"DEBUG: DB commit complete for progress_log.id={progress_log.id}")
-    except Exception as e:
-        print(f"ERROR: DB commit failed: {str(e)}")
+    except Exception:
         return jsonify({'error': 'Database error'}), 500
 
     # Update the IDs in the response after commit
@@ -180,5 +158,4 @@ def api_update_goal_filled_quota():
         'uploaded_files': uploaded_files
     }
 
-    print(f"DEBUG: Returning updated_goal: {updated_goal}")
     return jsonify({'result': updated_goal})

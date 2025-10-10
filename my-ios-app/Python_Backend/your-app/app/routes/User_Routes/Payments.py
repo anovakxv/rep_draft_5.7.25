@@ -256,22 +256,16 @@ def stripe_webhook():
             account = event['data']['object']
             portal = db.session.query(Portal).filter_by(stripe_account_id=account['id']).first()
             if portal:
-                # Use the same logic as the payment_status endpoint
                 portal.stripe_account_status = account.get('details_submitted', False) and account.get('charges_enabled', False)
-                # Enhanced logging for debugging
                 print(f"[Webhook] Updated portal {portal.id} account status: details_submitted={account.get('details_submitted', False)}, charges_enabled={account.get('charges_enabled', False)}")
                 db.session.commit()
 
-        # Handle successful payments
         elif event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
             print(f"[Webhook] Payment succeeded: {payment_intent['id']}")
-            
-            # Check if we already processed this payment
             existing_transaction = db.session.query(Transaction).filter_by(
                 stripe_payment_intent_id=payment_intent['id']
             ).first()
-            
             if existing_transaction:
                 if existing_transaction.status == 'completed':
                     print(f"[Webhook] Transaction {existing_transaction.id} already processed")
@@ -280,47 +274,33 @@ def stripe_webhook():
                 db.session.commit()
                 transaction = existing_transaction
             else:
-                # Create new transaction record
                 try:
-                    # First try to get metadata directly from the payment intent
                     goal_id = payment_intent['metadata'].get('goal_id')
                     user_id = payment_intent['metadata'].get('user_id')
                     portal_id = payment_intent['metadata'].get('portal_id')
                     message = payment_intent['metadata'].get('message', '')
                     transaction_type = payment_intent['metadata'].get('transaction_type', 'donation')
-                    
-                    # If metadata is missing and this is for an invoice (subscription),
-                    # try to get metadata from the subscription
                     if (not goal_id or not user_id or not portal_id) and 'invoice' in payment_intent and payment_intent['invoice']:
                         print(f"[Webhook] This appears to be a subscription payment, retrieving invoice: {payment_intent['invoice']}")
                         try:
-                            # Get the invoice
                             invoice = stripe.Invoice.retrieve(payment_intent['invoice'])
-                            
-                            # Get the subscription from the invoice
-                            if invoice and invoice.subscription:
-                                print(f"[Webhook] Found subscription: {invoice.subscription}")
-                                subscription = stripe.Subscription.retrieve(invoice.subscription)
-                                
-                                # Get metadata from subscription
+                            subscription_id = invoice.get('subscription')
+                            if subscription_id:
+                                print(f"[Webhook] Found subscription: {subscription_id}")
+                                subscription = stripe.Subscription.retrieve(subscription_id)
                                 goal_id = subscription.metadata.get('goal_id')
                                 user_id = subscription.metadata.get('user_id')
                                 portal_id = subscription.metadata.get('portal_id')
                                 message = subscription.metadata.get('message', 'Monthly subscription payment')
                                 transaction_type = 'subscription'
-                                
                                 print(f"[Webhook] Retrieved metadata from subscription: goal_id={goal_id}, user_id={user_id}, portal_id={portal_id}")
                         except Exception as e:
                             print(f"[Webhook] Error retrieving subscription data: {str(e)}")
                             import traceback
                             traceback.print_exc()
-                    
-                    # Validate we have required metadata
                     if not user_id or not portal_id:
                         print(f"[Webhook] Missing metadata: user_id={user_id}, portal_id={portal_id}")
                         return jsonify({'error': 'Missing metadata'}), 400
-                    
-                    # Create transaction record
                     transaction = Transaction(
                         user_id=user_id,
                         portal_id=portal_id,
@@ -340,16 +320,11 @@ def stripe_webhook():
                     print(f"[Webhook] Error creating transaction: {str(e)}")
                     db.session.rollback()
                     return jsonify({'error': str(e)}), 500
-            
-            # Update goal progress if this was for a goal
             if transaction.goal_id and transaction.transaction_type in ['donation', 'payment', 'subscription']:
                 try:
                     goal = db.session.query(Goal).filter_by(id=transaction.goal_id).first()
                     if goal and goal.goal_type in ['Fund', 'Sales']:
-                        # Convert cents to dollars/units for goal progress
                         amount_in_units = transaction.amount / 100
-                        
-                        # Create progress log
                         progress_log = GoalProgressLog(
                             users_id=transaction.user_id,
                             goals_id=transaction.goal_id,
@@ -358,8 +333,6 @@ def stripe_webhook():
                             value=(goal.filled_quota or 0) + amount_in_units
                         )
                         db.session.add(progress_log)
-                        
-                        # Update goal's filled_quota
                         goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
                         db.session.commit()
                         print(f"[Webhook] Updated goal {goal.id} progress: +{amount_in_units} units")
@@ -368,66 +341,50 @@ def stripe_webhook():
                     db.session.rollback()
                     return jsonify({'error': str(e)}), 500
 
-        # Handle subscription payments
         elif event['type'] == 'invoice.payment_succeeded':
             invoice = event['data']['object']
             print(f"[Webhook] Invoice payment succeeded: {invoice.id}")
-            
             try:
-                # Only process invoices with subscriptions
-                if invoice.subscription:
-                    print(f"[Webhook] Processing subscription: {invoice.subscription}")
-                    subscription = stripe.Subscription.retrieve(invoice.subscription)
+                subscription_id = invoice.get('subscription')
+                if subscription_id:
+                    print(f"[Webhook] Processing subscription: {subscription_id}")
+                    subscription = stripe.Subscription.retrieve(subscription_id)
                     print(f"[Webhook] Subscription metadata: {subscription.metadata}")
-                    
-                    # Try to get metadata from subscription first
                     goal_id = subscription.metadata.get('goal_id')
                     user_id = subscription.metadata.get('user_id')
                     portal_id = subscription.metadata.get('portal_id')
-                    
-                    # Fallback to payment intent if metadata is missing
-                    if (not goal_id or not user_id or not portal_id) and invoice.payment_intent:
+                    payment_intent_id = invoice.get('payment_intent')
+                    if (not goal_id or not user_id or not portal_id) and payment_intent_id:
                         print(f"[Webhook] Missing metadata, trying payment intent")
-                        payment_intent = stripe.PaymentIntent.retrieve(invoice.payment_intent)
+                        payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
                         goal_id = goal_id or payment_intent.metadata.get('goal_id')
                         user_id = user_id or payment_intent.metadata.get('user_id')
                         portal_id = portal_id or payment_intent.metadata.get('portal_id')
-                    
-                    # Process if we have the minimum required data
                     if user_id and portal_id:
-                        # Check if already processed
                         existing_transaction = db.session.query(Transaction).filter_by(
-                            stripe_payment_intent_id=invoice.payment_intent,
+                            stripe_payment_intent_id=payment_intent_id,
                             transaction_type='subscription'
                         ).first()
-                        
                         if existing_transaction:
                             print(f"[Webhook] Subscription payment already processed: {existing_transaction.id}")
                             return jsonify({'status': 'success'})
-                        
-                        # Create transaction record
                         transaction = Transaction(
                             user_id=user_id,
                             portal_id=portal_id,
                             goal_id=goal_id if goal_id else None,
-                            amount=invoice.amount_paid,
-                            currency=invoice.currency,
+                            amount=invoice.get('amount_paid'),
+                            currency=invoice.get('currency'),
                             transaction_type='subscription',
                             message="Monthly subscription payment",
-                            stripe_payment_intent_id=invoice.payment_intent,
+                            stripe_payment_intent_id=payment_intent_id,
                             status='completed',
-                            created_at=datetime.fromtimestamp(invoice.created)
+                            created_at=datetime.fromtimestamp(invoice.get('created'))
                         )
                         db.session.add(transaction)
-                        
-                        # Update goal progress if goal_id exists
                         if goal_id:
                             goal = db.session.query(Goal).filter_by(id=goal_id).first()
                             if goal and goal.goal_type in ['Fund', 'Sales']:
-                                # Convert cents to dollars/units for goal progress
-                                amount_in_units = invoice.amount_paid / 100
-                                
-                                # Create progress log
+                                amount_in_units = invoice.get('amount_paid') / 100
                                 progress_log = GoalProgressLog(
                                     users_id=user_id,
                                     goals_id=goal_id,
@@ -436,14 +393,13 @@ def stripe_webhook():
                                     value=(goal.filled_quota or 0) + amount_in_units
                                 )
                                 db.session.add(progress_log)
-                                
-                                # Update goal's filled_quota
                                 goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
-                        
                         db.session.commit()
                         print(f"[Webhook] Processed subscription payment successfully")
                     else:
                         print(f"[Webhook] Could not process subscription - missing required metadata")
+                else:
+                    print(f"[Webhook] Invoice does not have a subscription field")
             except Exception as e:
                 print(f"[Webhook] Error processing subscription: {str(e)}")
                 import traceback

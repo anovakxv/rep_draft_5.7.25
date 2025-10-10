@@ -265,11 +265,11 @@ def stripe_webhook():
         # Handle successful payments
         elif event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
-            print(f"[Webhook] Payment succeeded: {payment_intent.id}")
+            print(f"[Webhook] Payment succeeded: {payment_intent['id']}")
             
             # Check if we already processed this payment
             existing_transaction = db.session.query(Transaction).filter_by(
-                stripe_payment_intent_id=payment_intent.id
+                stripe_payment_intent_id=payment_intent['id']
             ).first()
             
             if existing_transaction:
@@ -282,12 +282,40 @@ def stripe_webhook():
             else:
                 # Create new transaction record
                 try:
-                    goal_id = payment_intent.metadata.get('goal_id')
-                    user_id = payment_intent.metadata.get('user_id')
-                    portal_id = payment_intent.metadata.get('portal_id')
-                    message = payment_intent.metadata.get('message', '')
-                    transaction_type = payment_intent.metadata.get('transaction_type', 'donation')
+                    # First try to get metadata directly from the payment intent
+                    goal_id = payment_intent['metadata'].get('goal_id')
+                    user_id = payment_intent['metadata'].get('user_id')
+                    portal_id = payment_intent['metadata'].get('portal_id')
+                    message = payment_intent['metadata'].get('message', '')
+                    transaction_type = payment_intent['metadata'].get('transaction_type', 'donation')
                     
+                    # If metadata is missing and this is for an invoice (subscription),
+                    # try to get metadata from the subscription
+                    if (not goal_id or not user_id or not portal_id) and 'invoice' in payment_intent and payment_intent['invoice']:
+                        print(f"[Webhook] This appears to be a subscription payment, retrieving invoice: {payment_intent['invoice']}")
+                        try:
+                            # Get the invoice
+                            invoice = stripe.Invoice.retrieve(payment_intent['invoice'])
+                            
+                            # Get the subscription from the invoice
+                            if invoice and invoice.subscription:
+                                print(f"[Webhook] Found subscription: {invoice.subscription}")
+                                subscription = stripe.Subscription.retrieve(invoice.subscription)
+                                
+                                # Get metadata from subscription
+                                goal_id = subscription.metadata.get('goal_id')
+                                user_id = subscription.metadata.get('user_id')
+                                portal_id = subscription.metadata.get('portal_id')
+                                message = subscription.metadata.get('message', 'Monthly subscription payment')
+                                transaction_type = 'subscription'
+                                
+                                print(f"[Webhook] Retrieved metadata from subscription: goal_id={goal_id}, user_id={user_id}, portal_id={portal_id}")
+                        except Exception as e:
+                            print(f"[Webhook] Error retrieving subscription data: {str(e)}")
+                            import traceback
+                            traceback.print_exc()
+                    
+                    # Validate we have required metadata
                     if not user_id or not portal_id:
                         print(f"[Webhook] Missing metadata: user_id={user_id}, portal_id={portal_id}")
                         return jsonify({'error': 'Missing metadata'}), 400
@@ -297,13 +325,13 @@ def stripe_webhook():
                         user_id=user_id,
                         portal_id=portal_id,
                         goal_id=goal_id if goal_id else None,
-                        amount=payment_intent.amount,
-                        currency=payment_intent.currency,
+                        amount=payment_intent['amount'],
+                        currency=payment_intent['currency'],
                         transaction_type=transaction_type,
                         message=message,
-                        stripe_payment_intent_id=payment_intent.id,
+                        stripe_payment_intent_id=payment_intent['id'],
                         status='completed',
-                        created_at=datetime.fromtimestamp(payment_intent.created)
+                        created_at=datetime.fromtimestamp(payment_intent['created'])
                     )
                     db.session.add(transaction)
                     db.session.commit()
@@ -314,7 +342,7 @@ def stripe_webhook():
                     return jsonify({'error': str(e)}), 500
             
             # Update goal progress if this was for a goal
-            if transaction.goal_id and transaction.transaction_type in ['donation', 'payment']:
+            if transaction.goal_id and transaction.transaction_type in ['donation', 'payment', 'subscription']:
                 try:
                     goal = db.session.query(Goal).filter_by(id=transaction.goal_id).first()
                     if goal and goal.goal_type in ['Fund', 'Sales']:
@@ -422,7 +450,6 @@ def stripe_webhook():
                 traceback.print_exc()
 
         return jsonify({'status': 'success'})
-    # Add this except block that was missing
     except Exception as e:
         print(f"[Webhook] Error: {str(e)}")
         import traceback
@@ -488,15 +515,25 @@ def get_subscriptions():
                 if portal:
                     display_name = portal.name
 
+            # Defensive: handle missing current_period_end
+            next_billing = 0
+            try:
+                next_billing = int(getattr(sub, 'current_period_end', 0)) if getattr(sub, 'current_period_end', None) else 0
+            except Exception as e:
+                print(f"[Subscriptions] Error with current_period_end for sub {sub.id}: {str(e)}")
+                next_billing = 0
+
             results.append({
                 'id': sub.id,
                 'name': display_name,
                 'amount': sub.plan.amount,
-                'nextBillingDate': int(sub.current_period_end) if sub.current_period_end else 0  # Always integer
+                'nextBillingDate': next_billing
             })
         return jsonify(results)
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        print(f"[Subscriptions] Error: {str(e)}")
+        # Always return a list, even if empty, to avoid frontend decoding errors
+        return jsonify([]), 200
 
 @payments_bp.route('/api/payment_history', methods=['GET'])
 @jwt_required

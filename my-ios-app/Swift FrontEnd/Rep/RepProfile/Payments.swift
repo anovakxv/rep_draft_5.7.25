@@ -257,15 +257,23 @@ class PaymentsViewModel: ObservableObject {
                 return
             }
             guard let data = data else { return }
+            
+            // Debug: Print the raw JSON
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("Raw subscriptions JSON: \(jsonString)")
+            }
+            
             let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .secondsSince1970
-            if let decodedSubscriptions = try? decoder.decode([ActiveSubscriptionItem].self, from: data) {
+            
+            do {
+                let decodedSubscriptions = try decoder.decode([ActiveSubscriptionItem].self, from: data)
                 DispatchQueue.main.async {
                     self.subscriptions = decodedSubscriptions
                 }
-            } else {
+            } catch {
+                print("Subscription decoding error: \(error)")
                 DispatchQueue.main.async {
-                    self.errorMessage = "Failed to decode subscriptions"
+                    self.errorMessage = "Failed to decode subscriptions: \(error.localizedDescription)"
                 }
             }
         }.resume()
@@ -400,10 +408,23 @@ class PaymentsViewModel: ObservableObject {
 // MARK: - Data Models
 
 struct ActiveSubscriptionItem: Identifiable, Codable {
-    let id: String // Stripe Subscription ID
-    let name: String // e.g., Portal Name or Goal Name
-    let amount: Int // Amount in cents
+    let id: String
+    let name: String
+    let amount: Int
     let nextBillingDate: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, amount, nextBillingDate
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        amount = try container.decode(Int.self, forKey: .amount)
+        let timestamp = try container.decode(Int.self, forKey: .nextBillingDate)
+        nextBillingDate = Date(timeIntervalSince1970: TimeInterval(timestamp))
+    }
 
     var formattedAmount: String {
         String(format: "$%.2f", Double(amount) / 100)

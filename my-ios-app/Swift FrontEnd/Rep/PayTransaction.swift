@@ -161,23 +161,8 @@ struct PayTransactionView: View {
                     }
                     .padding(.horizontal)
 
-                    Toggle("Make this a monthly recurring payment", isOn: Binding(
-                        get: { isMonthlySubscription },
-                        set: { newValue in
-                            if newValue {
-                                showMonthlyNotAvailableAlert = true
-                                // Prevent enabling the toggle
-                            } else {
-                                isMonthlySubscription = false
-                            }
-                        }
-                    ))
-                    .padding(.horizontal)
-                    .alert("Feature Coming Soon", isPresented: $showMonthlyNotAvailableAlert) {
-                        Button("OK", role: .cancel) { }
-                    } message: {
-                        Text("Monthly subscriptions are not yet live. They will be included in our next app version.")
-                    }
+                    Toggle("Make this a monthly recurring payment", isOn: $isMonthlySubscription)
+                        .padding(.horizontal)
                     if isMonthlySubscription {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Choose your monthly amount:")

@@ -468,9 +468,9 @@ struct SubscriptionRowView: View {
                     .font(.body).fontWeight(.bold)
                     .foregroundColor(Color.repGreen)
             }
-            Text("Next payment on \(subscription.formattedNextBillingDate)")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            // Text("Next payment on \(subscription.formattedNextBillingDate)")
+            //    .font(.caption)
+            //    .foregroundColor(.secondary)
             Button("Cancel Subscription", role: .destructive, action: onCancel)
                 .font(.caption)
                 .padding(.top, 4)

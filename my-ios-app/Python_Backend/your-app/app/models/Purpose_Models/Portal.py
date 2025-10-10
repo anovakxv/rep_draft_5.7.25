@@ -22,6 +22,8 @@ class Portal(db.Model):
     visible = db.Column(db.Boolean, default=True)
     stripe_account_id = db.Column(db.String(128), nullable=True, index=True)
     stripe_account_status = db.Column(db.Boolean, default=False)
+    stripe_account_approved = db.Column(db.Boolean, default=False) 
+    stripe_connect_requested = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(32), default='active', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

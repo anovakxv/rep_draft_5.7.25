@@ -218,7 +218,8 @@ class APILoginViewModel: ObservableObject {
     @AppStorage("userId") var userId: Int = 0
     @AppStorage("jwtToken") var jwtToken: String = ""
     @AppStorage("isRegistered") var isRegistered: Bool = false
-    @AppStorage("onboardingComplete") var onboardingComplete: Bool = false // <-- Added
+    @AppStorage("onboardingComplete") var onboardingComplete: Bool = false 
+    @AppStorage("isAdmin") var isAdmin: Bool = false
 
     func login() {
         guard !email.isEmpty && !password.isEmpty else {
@@ -249,7 +250,10 @@ class APILoginViewModel: ObservableObject {
                     self.onboardingComplete = true // <-- CRITICAL: Mark onboarding as complete after login!
                     self.isLoggedIn = true
 
-                      // --- Register FCM token after login ---
+                    // --- Set isAdmin flag based on user_type ---
+                    self.isAdmin = (apiResult.result.user_type == "Admin")
+
+                    // --- Register FCM token after login ---
                     Messaging.messaging().token { token, error in
                         guard let token = token, !self.jwtToken.isEmpty, self.userId > 0 else { return }
                         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/device_token") else { return }
@@ -266,7 +270,7 @@ class APILoginViewModel: ObservableObject {
                         }.resume()
                     }
                     // --- End FCM registration ---
-                    
+
                 } else if let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
                     self.error = .serverError(apiError.error)
                 } else {

@@ -9,6 +9,7 @@ import Foundation
 enum RepTypeModel: String, CaseIterable, Identifiable, Codable {
     case lead = "Lead"
     case team = "Team"
+    case admin = "Admin" // <-- Added Admin type
 
     // MARK: - Identifiable
     var id: String { self.rawValue }
@@ -19,14 +20,15 @@ enum RepTypeModel: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .lead: return "Lead"
         case .team: return "Team"
+        case .admin: return "Admin"
         }
     }
 
-    // Add this:
     var dbID: Int {
         switch self {
-        case .lead: return 1 // <-- Use the actual ID from your user_types table
-        case .team: return 2 // <-- Use the actual ID from your user_types table
+        case .lead: return 1 // Use the actual ID from your user_types table
+        case .team: return 2 // Use the actual ID from your user_types table
+        case .admin: return 3 // Use the actual ID from your user_types table
         }
     }
 }

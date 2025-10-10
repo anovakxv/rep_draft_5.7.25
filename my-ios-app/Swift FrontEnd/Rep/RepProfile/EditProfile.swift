@@ -148,8 +148,8 @@ struct EditProfileView: View {
                                     .font(.custom("Inter", size: 16).weight(.bold))
                                     .foregroundColor(.black)
                                 Picker("Rep Type", selection: $viewModel.profileInfo.type) {
-                                    ForEach(RepTypeModel.allCases, id: \.self) { role in
-                                        Text(role.rawValue).tag(role)
+                                    ForEach(RepTypeModel.allCases.filter { $0 != .admin }, id: \.self) { type in
+                                        Text(type.description).tag(type)
                                     }
                                 }
                                 .pickerStyle(.menu)

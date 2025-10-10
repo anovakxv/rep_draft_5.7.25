@@ -18,6 +18,10 @@ class PortalPaymentViewModel: ObservableObject {
     @Published var webViewURL: URL? = nil
     @Published var accountFullySetup = false
     @Published var webViewTitle: String = ""
+    
+    // New properties for admin approval workflow
+    @Published var pendingApprovalMessage: String? = nil
+    @Published var isRequestPending = false
 
     let portalId: Int
     let portalName: String
@@ -56,14 +60,22 @@ class PortalPaymentViewModel: ObservableObject {
                     self.errorMessage = "Invalid response from server"
                     return
                 }
-
-                if let accountId = json["stripe_account_id"] as? String, !accountId.isEmpty {
+                
+                // Check for pending approval status
+                if let isRequestPending = json["stripe_connect_requested"] as? Bool, isRequestPending {
+                    self.isRequestPending = true
+                    self.isConnected = false
+                    self.accountFullySetup = false
+                    self.pendingApprovalMessage = "Your Stripe Connect request is pending admin approval. You'll be notified when it's approved."
+                } else if let accountId = json["stripe_account_id"] as? String, !accountId.isEmpty {
                     self.isConnected = true
                     self.accountId = accountId
                     self.accountFullySetup = json["account_status"] as? Bool ?? false
+                    self.isRequestPending = false
                 } else {
                     self.isConnected = false
                     self.accountFullySetup = false
+                    self.isRequestPending = false
                 }
             }
         }.resume()
@@ -102,20 +114,39 @@ class PortalPaymentViewModel: ObservableObject {
                 }
 
                 guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let stripeURL = json["url"] as? String,
-                      let url = URL(string: stripeURL) else {
+                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     self.errorMessage = "Invalid response from server"
                     return
                 }
 
-                if let accountId = json["account_id"] as? String {
-                    self.accountId = accountId
+                // Check for pending approval status
+                if let status = json["status"] as? String, status == "pending_approval" {
+                    self.errorMessage = nil
+                    self.isConnected = false
+                    self.isRequestPending = true
+                    self.accountFullySetup = false
+                    
+                    if let message = json["message"] as? String {
+                        self.pendingApprovalMessage = message
+                    }
+                    return
                 }
-
-                self.webViewTitle = "Stripe's Secure Website:"
-                self.webViewURL = url
-                self.showWebView = true
+                
+                // Handle legacy/successful account creation flow (admin already approved)
+                if let stripeURL = json["url"] as? String,
+                   let url = URL(string: stripeURL) {
+                    if let accountId = json["account_id"] as? String {
+                        self.accountId = accountId
+                    }
+                    
+                    self.webViewTitle = "Stripe's Secure Website:"
+                    self.webViewURL = url
+                    self.showWebView = true
+                } else if let errorMsg = json["error"] as? String {
+                    self.errorMessage = errorMsg
+                } else {
+                    self.errorMessage = "Invalid response from server"
+                }
             }
         }.resume()
     }
@@ -215,31 +246,37 @@ struct PortalPaymentSetup: View {
                 // Status Card
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Image(systemName: viewModel.isConnected ? "checkmark.circle.fill" : "exclamationmark.circle")
-                            .foregroundColor(viewModel.isConnected ? .green : .orange)
-                            .font(.title2)
-
-                        Text(viewModel.isConnected ? "Stripe Connected" : "Not Connected to Stripe")
-                            .font(.headline)
-
+                        if viewModel.isConnected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                                .font(.title2)
+                            Text("Stripe Connected")
+                                .font(.headline)
+                        } else if viewModel.isRequestPending {
+                            Image(systemName: "clock.fill")
+                                .foregroundColor(.orange)
+                                .font(.title2)
+                            Text("Approval Pending")
+                                .font(.headline)
+                        } else {
+                            Image(systemName: "exclamationmark.circle")
+                                .foregroundColor(.orange)
+                                .font(.title2)
+                            Text("Not Connected to Stripe")
+                                .font(.headline)
+                        }
                         Spacer()
                     }
 
-                    Text(
-                        viewModel.isConnected ?
-                        "Your portal is connected to Stripe. Click below to manage your account or complete verification steps if needed." :
-                        "Connect your portal to Stripe to receive donations, payments, and purchases from users."
-                    )
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
                     if viewModel.isConnected {
+                        Text("Your portal is connected to Stripe. Click below to manage your account or complete verification steps if needed.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
                         Button(action: {
-                            // If account is fully setup, use dashboard link
                             if viewModel.accountFullySetup {
                                 viewModel.getStripeDashboardLink()
                             } else {
-                                // Otherwise, use the onboarding flow again
                                 viewModel.createConnectAccount()
                             }
                         }) {
@@ -252,13 +289,21 @@ struct PortalPaymentSetup: View {
                             .background(Color(UIColor.systemGray6))
                             .cornerRadius(8)
                         }
+                    } else if viewModel.isRequestPending {
+                        Text(viewModel.pendingApprovalMessage ?? "Your Stripe Connect request is pending admin approval. You'll be notified when it's approved.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
                     } else {
+                        Text("Connect your portal to Stripe to receive donations, payments, and purchases from users.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        
                         Button(action: {
                             viewModel.createConnectAccount()
                         }) {
                             HStack {
                                 Image(systemName: "link")
-                                Text("Connect to Stripe")
+                                Text("Request Stripe Connect")  // Changed from "Connect to Stripe"
                                 Spacer()
                             }
                             .padding()
@@ -283,7 +328,7 @@ struct PortalPaymentSetup: View {
                         icon: "dollarsign.circle",
                         title: "Transaction Fee",
                         description: """
-Rep does not charge any additional platform fee. Stripe’s standard rates apply. For example: 2.9% + 30¢ per successful transaction for domestic cards, 0.8% for ACH Direct Debit. For full details, see stripe.com/pricing.
+Rep does not charge any additional platform fee. Stripe's standard rates apply. For example: 2.9% + 30¢ per successful transaction for domestic cards, 0.8% for ACH Direct Debit. For full details, see stripe.com/pricing.
 """
                     )
 
@@ -325,7 +370,7 @@ Rep does not charge any additional platform fee. Stripe’s standard rates apply
                     })
                     .ignoresSafeArea()
                     .navigationBarTitleDisplayMode(.inline)
-                    .navigationTitle(viewModel.webViewTitle) // <-- Pass the title here
+                    .navigationTitle(viewModel.webViewTitle)
                 } else {
                     Text("Loading...")
                 }

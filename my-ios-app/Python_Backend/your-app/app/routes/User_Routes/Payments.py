@@ -51,9 +51,9 @@ def create_connect_account():
 
     print(f"[Connect] Received data: {data}, user_id: {user_id}")
 
-    if not portal_id or not redirect_url:
-        print("[Connect] Missing portal_id or redirect_url")
-        return jsonify({'error': 'portal_id and redirect_url are required'}), 400
+    if not portal_id:
+        print("[Connect] Missing portal_id")
+        return jsonify({'error': 'portal_id is required'}), 400
 
     portal = db.session.query(Portal).filter_by(id=portal_id).first()
     print(f"[Connect] Portal found: {portal is not None}, portal.users_id: {getattr(portal, 'users_id', None)}")
@@ -67,49 +67,22 @@ def create_connect_account():
         return jsonify({'error': 'Not authorized'}), 403
 
     try:
-        # If portal already has a Stripe account, return onboarding link
-        if portal.stripe_account_id:
-            print(f"[Connect] Portal already has Stripe account: {portal.stripe_account_id}")
-            account_link = stripe.AccountLink.create(
-                account=portal.stripe_account_id,  # Use the existing account ID from the portal
-                refresh_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=refresh",
-                return_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=success",
-                type="account_onboarding"
-            )
-            print(f"[Connect] Returning existing onboarding link: {account_link.url}")
-            return jsonify({'url': account_link.url})
-
-        print("[Connect] Creating new Stripe Express account...")
-        account = stripe.Account.create(
-            type="express",
-            country="US",
-            email=portal.email if hasattr(portal, 'email') else None,
-            capabilities={
-                "transfers": {"requested": True},
-                "card_payments": {"requested": True}
-            },
-            business_type="individual"
-        )
-        print(f"[Connect] Created Stripe account: {account.id}")
-
-        portal.stripe_account_id = account.id
+        # CHANGE: Instead of creating Stripe account, just mark as requested
+        portal.stripe_connect_requested = True
         db.session.commit()
-        print(f"[Connect] Saved Stripe account ID to portal: {portal.stripe_account_id}")
-
-        account_link = stripe.AccountLink.create(
-            account=account.id,
-            refresh_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=refresh",
-            return_url=f"https://rep-june2025.onrender.com/stripe-connect-return?portal_id={portal_id}&status=success",
-            type="account_onboarding"
-        )
-        print(f"[Connect] Created onboarding link: {account_link.url}")
-
-        return jsonify({'url': account_link.url})
-
+        
+        print(f"[Connect] Marked portal {portal_id} as requesting Stripe Connect")
+        
+        # Return success message
+        return jsonify({
+            'status': 'pending_approval',
+            'message': 'Your Stripe Connect request has been submitted for admin approval. You will be notified when it has been approved.'
+        })
+        
     except Exception as e:
-        print(f"[Connect] Stripe error: {str(e)}")
+        print(f"[Connect] Error: {str(e)}")
         return jsonify({'error': str(e)}), 400
-
+    
 @payments_bp.route('/api/stripe_dashboard_link', methods=['POST'])
 @jwt_required
 def stripe_dashboard_link():
@@ -264,7 +237,8 @@ def get_portal_payment_status():
     return jsonify({
         'stripe_account_id': portal.stripe_account_id or '',
         'is_connected': bool(portal.stripe_account_id),
-        'account_status': account_status
+        'account_status': account_status,
+        'stripe_connect_requested': portal.stripe_connect_requested if hasattr(portal, 'stripe_connect_requested') else False
     })
 
 @payments_bp.route('/stripe/webhook', methods=['POST'])
@@ -761,3 +735,65 @@ def payment_return():
     </html>
     """
 
+# --- Admin Endpoints for Stripe Connect Account Approval ---
+
+@payments_bp.route('/api/admin/stripe_accounts/pending', methods=['GET'])
+@jwt_required
+def list_pending_stripe_accounts():
+    # Only allow admin users
+    if not hasattr(g.current_user, 'user_type') or getattr(g.current_user.user_type, 'title', '') != "Admin":
+        return jsonify({'error': 'Not authorized'}), 403
+
+    # CHANGE: Get portals that requested Stripe but don't have accounts yet
+    pending_portals = db.session.query(Portal).filter(
+        Portal.stripe_connect_requested == True,
+        Portal.stripe_account_id.is_(None)
+    ).all()
+
+    results = []
+    for portal in pending_portals:
+        results.append({
+            'id': portal.id,
+            'name': portal.name,
+            'requested_at': portal.updated_at.isoformat() if hasattr(portal, 'updated_at') and portal.updated_at else None
+        })
+    return jsonify(results)
+
+@payments_bp.route('/api/admin/stripe_accounts/approve', methods=['POST'])
+@jwt_required
+def approve_stripe_account():
+    # Only allow admin users
+    if not hasattr(g.current_user, 'user_type') or getattr(g.current_user.user_type, 'title', '') != "Admin":
+        return jsonify({'error': 'Not authorized'}), 403
+
+    data = request.json or {}
+    portal_id = data.get('portal_id')
+    portal = db.session.query(Portal).filter_by(id=portal_id).first()
+    
+    if not portal or not portal.stripe_connect_requested:
+        return jsonify({'error': 'Portal not found or no pending request'}), 404
+
+    try:
+        # CHANGE: Create Stripe account here, after admin approval
+        account = stripe.Account.create(
+            type="express",
+            country="US",
+            email=portal.email if hasattr(portal, 'email') else None,
+            capabilities={
+                "transfers": {"requested": True},
+                "card_payments": {"requested": True}
+            },
+            business_type="individual"
+        )
+        
+        # Save Stripe account ID and mark as approved
+        portal.stripe_account_id = account.id
+        portal.stripe_account_approved = True
+        db.session.commit()
+        
+        return jsonify({
+            'status': 'approved',
+            'account_id': account.id
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400

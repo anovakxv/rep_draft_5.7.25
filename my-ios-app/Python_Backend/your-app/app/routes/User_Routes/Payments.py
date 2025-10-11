@@ -345,7 +345,17 @@ def stripe_webhook():
             invoice = event['data']['object']
             print(f"[Webhook] Invoice payment succeeded: {invoice.id}")
             try:
+                # First check directly for subscription ID
                 subscription_id = invoice.get('subscription')
+                
+                # If not found, try to retrieve from the lines data (initial subscription invoices use this format)
+                if not subscription_id and invoice.get('lines') and invoice.get('lines', {}).get('data'):
+                    for line in invoice.get('lines', {}).get('data', []):
+                        if line.get('type') == 'subscription' and line.get('subscription'):
+                            subscription_id = line.get('subscription')
+                            print(f"[Webhook] Found subscription ID in invoice lines: {subscription_id}")
+                            break
+                            
                 if subscription_id:
                     print(f"[Webhook] Processing subscription: {subscription_id}")
                     subscription = stripe.Subscription.retrieve(subscription_id)

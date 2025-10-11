@@ -263,6 +263,13 @@ def stripe_webhook():
         elif event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
             print(f"[Webhook] Payment succeeded: {payment_intent['id']}")
+            
+            # NEW CODE: Skip processing for invoice payments - let the invoice handler handle subscriptions
+            if payment_intent.get('invoice'):
+                print(f"[Webhook] Payment intent is for an invoice ({payment_intent.get('invoice')}). Skipping to avoid duplicate processing.")
+                return jsonify({'status': 'success - handled by invoice webhook'})
+            
+            # Rest of your existing payment_intent.succeeded handler
             existing_transaction = db.session.query(Transaction).filter_by(
                 stripe_payment_intent_id=payment_intent['id']
             ).first()

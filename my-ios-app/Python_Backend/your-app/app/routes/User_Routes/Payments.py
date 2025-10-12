@@ -352,87 +352,81 @@ def stripe_webhook():
             invoice = event['data']['object']
             print(f"[Webhook] Invoice payment succeeded: {invoice.id}")
             try:
-                # Try to get subscription ID from root or lines.data
-                subscription_id = invoice.get('subscription')
-                if not subscription_id and invoice.get('lines') and invoice.get('lines', {}).get('data'):
-                    for line in invoice.get('lines', {}).get('data', []):
-                        if line.get('type') == 'subscription' and line.get('subscription'):
-                            subscription_id = line.get('subscription')
-                            print(f"[Webhook] Found subscription ID in invoice lines: {subscription_id}")
-                            break
-
-                goal_id = None
-                user_id = None
-                portal_id = None
-                payment_intent_id = invoice.get('payment_intent')
-
-                # Try to get metadata from subscription
-                if subscription_id:
-                    print(f"[Webhook] Processing subscription: {subscription_id}")
-                    subscription = stripe.Subscription.retrieve(subscription_id)
-                    goal_id = subscription.metadata.get('goal_id')
-                    user_id = subscription.metadata.get('user_id')
-                    portal_id = subscription.metadata.get('portal_id')
-
-                # If missing, try checkout session (for initial payments)
-                if (not goal_id or not user_id or not portal_id) and invoice.get('checkout_session'):
-                    print(f"[Webhook] Using checkout session for metadata: {invoice.get('checkout_session')}")
-                    try:
-                        checkout_session = stripe.checkout.Session.retrieve(invoice.get('checkout_session'))
-                        goal_id = checkout_session.metadata.get('goal_id')
-                        user_id = checkout_session.metadata.get('user_id')
-                        portal_id = checkout_session.metadata.get('portal_id')
-                        print(f"[Webhook] Retrieved metadata from checkout session: goal_id={goal_id}, user_id={user_id}, portal_id={portal_id}")
-                    except Exception as e:
-                        print(f"[Webhook] Error retrieving checkout session: {str(e)}")
-
-                # If still missing, try payment intent
-                if (not goal_id or not user_id or not portal_id) and payment_intent_id:
-                    print(f"[Webhook] Missing metadata, trying payment intent")
-                    payment_intent = stripe.PaymentIntent.retrieve(payment_intent_id)
-                    goal_id = goal_id or payment_intent.metadata.get('goal_id')
-                    user_id = user_id or payment_intent.metadata.get('user_id')
-                    portal_id = portal_id or payment_intent.metadata.get('portal_id')
-
-                # Only proceed if we have required metadata
-                if user_id and portal_id:
-                    existing_transaction = db.session.query(Transaction).filter_by(
-                        stripe_payment_intent_id=payment_intent_id,
-                        transaction_type='subscription'
-                    ).first()
-                    if existing_transaction:
-                        print(f"[Webhook] Subscription payment already processed: {existing_transaction.id}")
-                        return jsonify({'status': 'success'})
-                    transaction = Transaction(
-                        user_id=user_id,
-                        portal_id=portal_id,
-                        goal_id=goal_id if goal_id else None,
-                        amount=invoice.get('amount_paid'),
-                        currency=invoice.get('currency'),
-                        transaction_type='subscription',
-                        message="Monthly subscription payment",
-                        stripe_payment_intent_id=payment_intent_id,
-                        status='completed',
-                        created_at=datetime.fromtimestamp(invoice.get('created'))
+                # DIRECT APPROACH: Get customer_id and find their active subscriptions
+                customer_id = invoice.get('customer')
+                if customer_id:
+                    print(f"[Webhook] Looking up subscriptions for customer: {customer_id}")
+                    # Get recent subscriptions for this customer
+                    subscriptions = stripe.Subscription.list(
+                        customer=customer_id,
+                        limit=5,
+                        status='active',
+                        expand=['data.latest_invoice']
                     )
-                    db.session.add(transaction)
-                    if goal_id:
-                        goal = db.session.query(Goal).filter_by(id=goal_id).first()
-                        if goal and goal.goal_type in ['Fund', 'Sales']:
-                            amount_in_units = invoice.get('amount_paid') / 100
-                            progress_log = GoalProgressLog(
-                                users_id=user_id,
-                                goals_id=goal_id,
-                                added_value=amount_in_units,
-                                note="Monthly subscription payment",
-                                value=(goal.filled_quota or 0) + amount_in_units
+                    
+                    # Find the subscription that matches this invoice
+                    subscription_id = None
+                    subscription = None
+                    for sub in subscriptions.data:
+                        # Check if this subscription's latest invoice matches our current invoice
+                        if hasattr(sub, 'latest_invoice') and sub.latest_invoice and sub.latest_invoice.id == invoice.id:
+                            subscription_id = sub.id
+                            subscription = sub
+                            print(f"[Webhook] Found matching subscription: {subscription_id}")
+                            break
+                    
+                    if subscription:
+                        goal_id = subscription.metadata.get('goal_id')
+                        user_id = subscription.metadata.get('user_id')
+                        portal_id = subscription.metadata.get('portal_id')
+                        payment_intent_id = invoice.get('payment_intent')
+                        
+                        # Only proceed if we have required metadata
+                        if user_id and portal_id:
+                            existing_transaction = db.session.query(Transaction).filter_by(
+                                stripe_payment_intent_id=payment_intent_id,
+                                transaction_type='subscription'
+                            ).first()
+                            if existing_transaction:
+                                print(f"[Webhook] Subscription payment already processed: {existing_transaction.id}")
+                                return jsonify({'status': 'success'})
+                            
+                            transaction = Transaction(
+                                user_id=user_id,
+                                portal_id=portal_id,
+                                goal_id=goal_id if goal_id else None,
+                                amount=invoice.get('amount_paid'),
+                                currency=invoice.get('currency'),
+                                transaction_type='subscription',
+                                message="Monthly subscription payment",
+                                stripe_payment_intent_id=payment_intent_id,
+                                status='completed',
+                                created_at=datetime.fromtimestamp(invoice.get('created'))
                             )
-                            db.session.add(progress_log)
-                            goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
-                    db.session.commit()
-                    print(f"[Webhook] Processed subscription payment successfully")
+                            db.session.add(transaction)
+                            
+                            if goal_id:
+                                goal = db.session.query(Goal).filter_by(id=goal_id).first()
+                                if goal and goal.goal_type in ['Fund', 'Sales']:
+                                    amount_in_units = invoice.get('amount_paid') / 100
+                                    progress_log = GoalProgressLog(
+                                        users_id=user_id,
+                                        goals_id=goal_id,
+                                        added_value=amount_in_units,
+                                        note="Monthly subscription payment",
+                                        value=(goal.filled_quota or 0) + amount_in_units
+                                    )
+                                    db.session.add(progress_log)
+                                    goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
+                            
+                            db.session.commit()
+                            print(f"[Webhook] Processed subscription payment successfully")
+                        else:
+                            print(f"[Webhook] Could not process subscription - missing required metadata in subscription object")
+                    else:
+                        print(f"[Webhook] Could not find matching subscription for invoice: {invoice.id}")
                 else:
-                    print(f"[Webhook] Could not process subscription - missing required metadata")
+                    print(f"[Webhook] Invoice has no customer ID")
             except Exception as e:
                 print(f"[Webhook] Error processing subscription: {str(e)}")
                 import traceback

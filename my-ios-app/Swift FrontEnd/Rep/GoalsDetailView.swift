@@ -57,6 +57,8 @@ struct GoalsDetailView: View {
                         Image(systemName: "chevron.left")
                             .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                             .font(.system(size: 20))
+                            .frame(width: 44, height: 44) // Increased touch target
+                            .contentShape(Rectangle())  
                     }
                     Spacer()
                     VStack(spacing: 2) {

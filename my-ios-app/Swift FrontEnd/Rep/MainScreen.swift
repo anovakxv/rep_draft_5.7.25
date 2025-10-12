@@ -1319,7 +1319,8 @@ struct MainScreenContent: View {
                     Image("REPLogo")
                         .resizable()
                         .scaledToFill()
-                        .frame(width: 40.0, height: 40.0)
+                        .frame(width: 50.0, height: 50.0)
+                        .contentShape(Rectangle())
                 }
             )
             .padding(.trailing, 36)

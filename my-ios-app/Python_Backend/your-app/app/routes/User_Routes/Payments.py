@@ -385,7 +385,7 @@ def stripe_webhook():
                         if user_id and portal_id:
                             # Only check for existing transaction by payment_intent_id
                             existing_transaction = db.session.query(Transaction).filter_by(
-                                stripe_payment_intent_id=payment_intent_id,
+                                stripe_payment_intent_id=invoice.id,
                                 transaction_type='subscription'
                             ).first()
 

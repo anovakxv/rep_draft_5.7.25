@@ -263,13 +263,12 @@ def stripe_webhook():
         elif event['type'] == 'payment_intent.succeeded':
             payment_intent = event['data']['object']
             print(f"[Webhook] Payment succeeded: {payment_intent['id']}")
-            
-            # NEW CODE: Skip processing for invoice payments - let the invoice handler handle subscriptions
+
+            # Skip processing for invoice payments - let the invoice handler handle subscriptions
             if payment_intent.get('invoice'):
                 print(f"[Webhook] Payment intent is for an invoice ({payment_intent.get('invoice')}). Skipping to avoid duplicate processing.")
                 return jsonify({'status': 'success - handled by invoice webhook'})
-            
-            # Rest of your existing payment_intent.succeeded handler
+
             existing_transaction = db.session.query(Transaction).filter_by(
                 stripe_payment_intent_id=payment_intent['id']
             ).first()
@@ -356,55 +355,73 @@ def stripe_webhook():
                 customer_id = invoice.get('customer')
                 if customer_id:
                     print(f"[Webhook] Looking up subscriptions for customer: {customer_id}")
-                    # Get recent subscriptions for this customer
                     subscriptions = stripe.Subscription.list(
                         customer=customer_id,
                         limit=5,
                         status='active',
                         expand=['data.latest_invoice']
                     )
-                    
+
                     # Find the subscription that matches this invoice
                     subscription_id = None
                     subscription = None
                     for sub in subscriptions.data:
-                        # Check if this subscription's latest invoice matches our current invoice
                         if hasattr(sub, 'latest_invoice') and sub.latest_invoice and sub.latest_invoice.id == invoice.id:
                             subscription_id = sub.id
                             subscription = sub
                             print(f"[Webhook] Found matching subscription: {subscription_id}")
                             break
-                    
+
                     if subscription:
                         goal_id = subscription.metadata.get('goal_id')
                         user_id = subscription.metadata.get('user_id')
                         portal_id = subscription.metadata.get('portal_id')
                         payment_intent_id = invoice.get('payment_intent')
-                        
-                        # Only proceed if we have required metadata
+
                         if user_id and portal_id:
                             existing_transaction = db.session.query(Transaction).filter_by(
                                 stripe_payment_intent_id=payment_intent_id,
                                 transaction_type='subscription'
                             ).first()
+
+                            # --- CRITICAL FIX: Don't return early, always check/create GoalProgressLog ---
                             if existing_transaction:
                                 print(f"[Webhook] Subscription payment already processed: {existing_transaction.id}")
-                                return jsonify({'status': 'success'})
-                            
-                            transaction = Transaction(
-                                user_id=user_id,
-                                portal_id=portal_id,
-                                goal_id=goal_id if goal_id else None,
-                                amount=invoice.get('amount_paid'),
-                                currency=invoice.get('currency'),
-                                transaction_type='subscription',
-                                message="Monthly subscription payment",
-                                stripe_payment_intent_id=payment_intent_id,
-                                status='completed',
-                                created_at=datetime.fromtimestamp(invoice.get('created'))
-                            )
-                            db.session.add(transaction)
-                            
+
+                                # Check if GoalProgressLog exists for this transaction
+                                if goal_id:
+                                    existing_log = db.session.query(GoalProgressLog).filter_by(
+                                        goals_id=goal_id,
+                                        users_id=user_id,
+                                        note="Monthly subscription payment"
+                                    ).filter(
+                                        db.func.date(GoalProgressLog.timestamp) == db.func.date(existing_transaction.created_at)
+                                    ).first()
+
+                                    if existing_log:
+                                        print(f"[Webhook] GoalProgressLog already exists: {existing_log.id}")
+                                        return jsonify({'status': 'success'})
+
+                                    # No GoalProgressLog found, continue to create one using existing transaction
+                                    transaction = existing_transaction
+                                else:
+                                    return jsonify({'status': 'success'})
+                            else:
+                                transaction = Transaction(
+                                    user_id=user_id,
+                                    portal_id=portal_id,
+                                    goal_id=goal_id if goal_id else None,
+                                    amount=invoice.get('amount_paid'),
+                                    currency=invoice.get('currency'),
+                                    transaction_type='subscription',
+                                    message="Monthly subscription payment",
+                                    stripe_payment_intent_id=payment_intent_id,
+                                    status='completed',
+                                    created_at=datetime.fromtimestamp(invoice.get('created'))
+                                )
+                                db.session.add(transaction)
+
+                            # Always create GoalProgressLog if goal_id is present
                             if goal_id:
                                 goal = db.session.query(Goal).filter_by(id=goal_id).first()
                                 if goal and goal.goal_type in ['Fund', 'Sales']:
@@ -418,7 +435,8 @@ def stripe_webhook():
                                     )
                                     db.session.add(progress_log)
                                     goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
-                            
+                                    print(f"[Webhook] Created GoalProgressLog for subscription payment")
+
                             db.session.commit()
                             print(f"[Webhook] Processed subscription payment successfully")
                         else:

@@ -379,34 +379,14 @@ def stripe_webhook():
                         payment_intent_id = invoice.get('payment_intent')
 
                         if user_id and portal_id:
+                            # Only check for existing transaction by payment_intent_id
                             existing_transaction = db.session.query(Transaction).filter_by(
                                 stripe_payment_intent_id=payment_intent_id,
                                 transaction_type='subscription'
                             ).first()
 
-                            # --- CRITICAL FIX: Don't return early, always check/create GoalProgressLog ---
-                            if existing_transaction:
-                                print(f"[Webhook] Subscription payment already processed: {existing_transaction.id}")
-
-                                # Check if GoalProgressLog exists for this transaction
-                                if goal_id:
-                                    existing_log = db.session.query(GoalProgressLog).filter_by(
-                                        goals_id=goal_id,
-                                        users_id=user_id,
-                                        note="Monthly subscription payment"
-                                    ).filter(
-                                        db.func.date(GoalProgressLog.timestamp) == db.func.date(existing_transaction.created_at)
-                                    ).first()
-
-                                    if existing_log:
-                                        print(f"[Webhook] GoalProgressLog already exists: {existing_log.id}")
-                                        return jsonify({'status': 'success'})
-
-                                    # No GoalProgressLog found, continue to create one using existing transaction
-                                    transaction = existing_transaction
-                                else:
-                                    return jsonify({'status': 'success'})
-                            else:
+                            if not existing_transaction:
+                                # Create new Transaction and GoalProgressLog for this payment
                                 transaction = Transaction(
                                     user_id=user_id,
                                     portal_id=portal_id,
@@ -421,24 +401,25 @@ def stripe_webhook():
                                 )
                                 db.session.add(transaction)
 
-                            # Always create GoalProgressLog if goal_id is present
-                            if goal_id:
-                                goal = db.session.query(Goal).filter_by(id=goal_id).first()
-                                if goal and goal.goal_type in ['Fund', 'Sales']:
-                                    amount_in_units = invoice.get('amount_paid') / 100
-                                    progress_log = GoalProgressLog(
-                                        users_id=user_id,
-                                        goals_id=goal_id,
-                                        added_value=amount_in_units,
-                                        note="Monthly subscription payment",
-                                        value=(goal.filled_quota or 0) + amount_in_units
-                                    )
-                                    db.session.add(progress_log)
-                                    goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
-                                    print(f"[Webhook] Created GoalProgressLog for subscription payment")
-
-                            db.session.commit()
-                            print(f"[Webhook] Processed subscription payment successfully")
+                                if goal_id:
+                                    goal = db.session.query(Goal).filter_by(id=goal_id).first()
+                                    if goal and goal.goal_type in ['Fund', 'Sales']:
+                                        amount_in_units = invoice.get('amount_paid') / 100
+                                        progress_log = GoalProgressLog(
+                                            users_id=user_id,
+                                            goals_id=goal_id,
+                                            added_value=amount_in_units,
+                                            note="Monthly subscription payment",
+                                            value=(goal.filled_quota or 0) + amount_in_units
+                                        )
+                                        db.session.add(progress_log)
+                                        goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
+                                db.session.commit()
+                                print(f"[Webhook] Processed subscription payment successfully")
+                            else:
+                                print(f"[Webhook] Subscription payment already processed: {existing_transaction.id}")
+                                # Do not create a new GoalProgressLog for the same payment_intent_id
+                                return jsonify({'status': 'success'})
                         else:
                             print(f"[Webhook] Could not process subscription - missing required metadata in subscription object")
                     else:
@@ -661,6 +642,9 @@ def create_checkout_session():
                     'user_id': str(user_id),
                     'message': message,
                     'transaction_type': transaction_type
+                },
+                'transfer_data': {
+                    'destination': portal.stripe_account_id,
                 }
             }
         else:

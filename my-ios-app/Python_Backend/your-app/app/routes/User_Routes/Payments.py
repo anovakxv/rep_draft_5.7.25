@@ -378,6 +378,10 @@ def stripe_webhook():
                         portal_id = subscription.metadata.get('portal_id')
                         payment_intent_id = invoice.get('payment_intent')
 
+                        # CRITICAL FIX: Make payment_intent_id unique for each recurring payment
+                        # by adding timestamp to avoid unique constraint violation
+                        unique_payment_id = f"{payment_intent_id}_{int(datetime.now().timestamp())}"
+
                         if user_id and portal_id:
                             # Only check for existing transaction by payment_intent_id
                             existing_transaction = db.session.query(Transaction).filter_by(
@@ -395,7 +399,7 @@ def stripe_webhook():
                                     currency=invoice.get('currency'),
                                     transaction_type='subscription',
                                     message="Monthly subscription payment",
-                                    stripe_payment_intent_id=payment_intent_id,
+                                    stripe_payment_intent_id=invoice.id, 
                                     status='completed',
                                     created_at=datetime.fromtimestamp(invoice.get('created'))
                                 )

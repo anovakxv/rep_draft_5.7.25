@@ -79,7 +79,7 @@
       <!-- Floating Toggle Button -->
       <div class="absolute bottom-5 right-9">
         <button @click="togglePage" class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center">
-          <img src="/rep-logo.png" alt="Toggle Page" class="w-8 h-8" />
+          <img :src="REPLogo" alt="Toggle Page" class="w-8 h-8" />
         </button>
       </div>
     </main>
@@ -135,9 +135,10 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, defineComponent, h, nextTick } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 import { debounce } from 'lodash-es';
 import { useSocketManager } from '../utils/useSocketManager';
+import REPLogo from '@/assets/REPLogo.png';
 
 // --- Interfaces (from MainScreen.swift) ---
 interface User { 
@@ -999,7 +1000,8 @@ const ActiveChatList = defineComponent({
 </script>
 
 <style scoped>
-.action-button {
-  @apply w-full text-left py-3 text-lg font-semibold text-green-600 hover:bg-gray-100 transition-colors rounded px-2;
+.logo {
+  width: 120px;
+  margin-bottom: 2rem;
 }
 </style>

@@ -22,16 +22,14 @@
           type="email"
           placeholder="Email"
           autocomplete="email"
-          class="input"
-          :disabled="isLoading"
+          class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg"
         />
         <input
           v-model="password"
           type="password"
           placeholder="Password"
           autocomplete="current-password"
-          class="input"
-          :disabled="isLoading"
+          class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg"
         />
 
         <div v-if="error" class="text-red-600 text-sm">{{ error }}</div>
@@ -75,7 +73,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '@/pages/utils/api'
 
 const router = useRouter()
 const email = ref('')
@@ -91,8 +89,8 @@ async function login() {
   }
   isLoading.value = true
   try {
-    const res = await axios.post(
-      `${import.meta.env.VITE_API_BASE_URL}/api/user/login`,
+    const res = await api.post(
+      '/api/user/login',
       { email: email.value, password: password.value },
       { headers: { 'Content-Type': 'application/json' } }
     )
@@ -124,7 +122,5 @@ function goToResetPassword() {
 </script>
 
 <style scoped>
-.input {
-  @apply w-full px-4 py-3 rounded-lg border border-green-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-green-400;
-}
+/* Remove .input CSS class from <style> block */
 </style>

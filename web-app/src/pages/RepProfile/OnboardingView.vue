@@ -53,7 +53,7 @@
       </div>
 
       <div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
-        <img src="/REPLogo.png" alt="REP Logo" class="w-32 h-32 mb-8" />
+        <img :src="REPLogo" alt="REP Logo" class="w-32 h-32 mb-8" />
         
         <h3 class="text-2xl font-bold mb-4">Welcome to Rep – our Purpose-Driven movement.</h3>
         
@@ -83,7 +83,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import EditProfileComponent from '../components/EditProfileComponent.vue'
+import EditProfileComponent from '@/components/EditProfileComponent.vue'
+import REPLogo from '@/assets/REPLogo.png'
 
 const router = useRouter()
 const step = ref(0)

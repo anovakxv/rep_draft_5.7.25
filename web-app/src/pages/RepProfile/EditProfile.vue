@@ -15,5 +15,5 @@
 </template>
 
 <script setup lang="ts">
-import EditProfileComponent from '../components/EditProfileComponent.vue'
+import EditProfileComponent from '@/components/EditProfileComponent.vue'
 </script>

@@ -5,7 +5,7 @@ import './assets/main.css'
 import router from './router'
 
 // Import the socket bridge here:
-import './socket-bridge';
+import './pages/utils/socket-bridge'
 
 createApp(App)
   .use(router)

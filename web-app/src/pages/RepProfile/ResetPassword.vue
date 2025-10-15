@@ -52,7 +52,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '../utils/api'
 
 const router = useRouter()
 const email = ref('')
@@ -65,8 +65,8 @@ async function sendReset() {
   error.value = ''
   isLoading.value = true
   try {
-    await axios.post(
-      `${import.meta.env.VITE_API_BASE_URL}/api/user/forgot_password`,
+    await api.post(
+      '/api/user/forgot_password',
       { email: email.value },
       { headers: { 'Content-Type': 'application/json' } }
     )

@@ -1,5 +1,5 @@
 
-import { useSocketManager } from './pages/utils/useSocketManager';
+import { useSocketManager } from "./useSocketManager";
 
 // Create the socket manager instance
 const socketManager = useSocketManager();

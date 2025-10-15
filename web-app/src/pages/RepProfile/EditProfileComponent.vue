@@ -79,7 +79,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
-import axios from 'axios'
+import api from '../utils/api'
 import { useRouter } from 'vue-router'
 
 const props = defineProps({
@@ -143,7 +143,7 @@ function onImageChange(e: Event) {
 async function fetchSkills() {
   try {
     // Corrected endpoint to match Swift/Python backend
-    const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/user/get_skills`, {
+    const res = await api.get('/api/user/get_skills', {
       headers: { Authorization: `Bearer ${localStorage.getItem('jwtToken')}` }
     })
     skills.value = res.data.result || []
@@ -165,7 +165,7 @@ async function fetchProfile() {
   }
   try {
     const userId = localStorage.getItem('userId')
-    const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/user/profile?users_id=${userId}`, {
+    const res = await api.get(`/api/user/profile?users_id=${userId}`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('jwtToken')}` }
     })
     const user = res.data.result
@@ -197,8 +197,8 @@ async function saveProfile() {
     form.append('aSkills', selectedSkills.value.map(s => s.id).join(','))
     if (profileImage.value) form.append('profile_picture', profileImage.value)
     
-    await axios.post(
-      `${import.meta.env.VITE_API_BASE_URL}/api/user/edit`,
+    await api.post(
+      '/api/user/edit',
       form,
       { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('jwtToken')}` } }
     )

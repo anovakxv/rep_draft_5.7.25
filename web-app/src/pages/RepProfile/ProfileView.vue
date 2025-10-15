@@ -128,9 +128,9 @@
 </template>
 
 <script setup lang="ts">
+import api from '@/pages/utils/api'
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
 
 // Components (in a real app, these would be imported from separate files)
 const NavigationHeaderView = defineComponent({
@@ -411,11 +411,11 @@ const fetchProfile = async () => {
   try {
     // Parallel API calls
     const [userRes, portalsRes, goalsRes, writesRes, blockStatusRes] = await Promise.all([
-      axios.get(`${apiBaseUrl}/api/user/profile?users_id=${viewedUserId.value}`, authHeaders),
-      axios.get(`${apiBaseUrl}/api/portal/filter_network_portals?user_id=${viewedUserId.value}&tab=open`, authHeaders),
-      axios.get(`${apiBaseUrl}/api/goals/list?users_id=${viewedUserId.value}`, authHeaders),
-      axios.get(`${apiBaseUrl}/api/user/writes?users_id=${viewedUserId.value}`, authHeaders),
-      isCurrentUser.value ? Promise.resolve({ data: { is_blocked: false } }) : axios.get(`${apiBaseUrl}/api/user/is_blocked?users_id=${viewedUserId.value}`, authHeaders)
+      api.get(`/api/user/profile?users_id=${viewedUserId.value}`, authHeaders),
+      api.get(`/api/portal/filter_network_portals?user_id=${viewedUserId.value}&tab=open`, authHeaders),
+      api.get(`/api/goals/list?users_id=${viewedUserId.value}`, authHeaders),
+      api.get(`/api/user/writes?users_id=${viewedUserId.value}`, authHeaders),
+      isCurrentUser.value ? Promise.resolve({ data: { is_blocked: false } }) : api.get(`/api/user/is_blocked?users_id=${viewedUserId.value}`, authHeaders)
     ]);
 
     const profile = userRes.data.result
@@ -503,7 +503,7 @@ const goToMessages = () => {
 
 const logout = () => {
   // API call to logout like in Swift
-  axios.post(`${apiBaseUrl}/api/user/logout`, {}, authHeaders)
+  api.post('/api/user/logout', {}, authHeaders)
     .finally(() => {
       localStorage.clear()
       router.push('/login')
@@ -513,7 +513,7 @@ const logout = () => {
 
 const addToNetwork = async () => {
   try {
-    await axios.post(`${apiBaseUrl}/api/user/network_action`, {
+    await api.post('/api/user/network_action', {
       action: "add",
       user_id: loggedInUserId.value,
       target_user_id: viewedUserId.value
@@ -531,7 +531,7 @@ const addToNetwork = async () => {
 const blockUser = async () => {
   const action = isBlocked.value ? 'unblock' : 'block'
   try {
-    await axios.post(`${apiBaseUrl}/api/user/${action}`, { users_id: viewedUserId.value }, authHeaders)
+  await api.post(`/api/user/${action}`, { users_id: viewedUserId.value }, authHeaders)
     isBlocked.value = !isBlocked.value
     networkResultMessage.value = `User ${action}ed.`
     showNetworkResultAlert.value = true
@@ -549,10 +549,7 @@ const flagUser = async () => {
 
 const confirmFlagUser = async () => {
   try {
-    await axios.post(`${apiBaseUrl}/api/user/flag_user`, 
-      { users_id: viewedUserId.value, reason: 'Inappropriate content' }, 
-      authHeaders
-    )
+    await api.post('/api/user/flag_user', { users_id: viewedUserId.value, reason: 'Inappropriate content' }, authHeaders)
     networkResultMessage.value = 'User has been flagged.'
     showNetworkResultAlert.value = true
   } catch {
@@ -584,18 +581,10 @@ const saveWrite = async () => {
         Object.assign(updateData, { order: editingWrite.value.order })
       }
       
-      await axios.put(
-        `${apiBaseUrl}/api/user/write/${editingWrite.value.id}`, 
-        updateData, 
-        authHeaders
-      )
+      await api.put(`/api/user/write/${editingWrite.value.id}`, updateData, authHeaders)
     } else {
       // Add new write
-      await axios.post(
-        `${apiBaseUrl}/api/user/write`, 
-        writeForm.value, 
-        authHeaders
-      )
+      await api.post('/api/user/write', writeForm.value, authHeaders)
     }
     cancelEditWrite()
     await fetchProfile() // Refresh data
@@ -607,7 +596,7 @@ const saveWrite = async () => {
 const confirmDeleteWrite = async (write: WriteBlock) => {
   if (confirm('Are you sure you want to delete this writing block?')) {
     try {
-      await axios.delete(`${apiBaseUrl}/api/user/write/${write.id}`, authHeaders)
+  await api.delete(`/api/user/write/${write.id}`, authHeaders)
       await fetchProfile() // Refresh data
     } catch {
       alert('Failed to delete content.')
@@ -626,10 +615,4 @@ onMounted(fetchProfile)
 </script>
 
 <style scoped>
-.input {
-  @apply w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-400;
-}
-.action-button {
-  @apply w-full text-left py-3 text-lg font-semibold text-green-600;
-}
 </style>

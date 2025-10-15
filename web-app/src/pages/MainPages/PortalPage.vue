@@ -202,7 +202,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, defineComponent, h, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 
 // --- Interfaces (from Swift Models) ---
 interface User { 
@@ -335,11 +335,10 @@ const fetchPortalDetail = async () => {
   isLoading.value = true;
   errorMessage.value = null;
   try {
-    const res = await axios.get(
-      `${apiBaseUrl}/api/portal/details?portals_id=${portalId}&user_id=${userId}`, 
+    const res = await api.get(
+      `/api/portal/details?portals_id=${portalId}&user_id=${userId}`,
       authHeaders
     );
-    
     if (res.data && res.data.result) {
       portalDetail.value = res.data.result;
       console.log("Portal aLeads:", portalDetail.value.aLeads?.map(l => l.id) || []);
@@ -356,39 +355,37 @@ const fetchPortalDetail = async () => {
 
 const fetchPortalGoals = async () => {
   try {
-    const res = await axios.get(
-      `${apiBaseUrl}/api/goals/portal?portals_id=${portalId}`, 
+    const res = await api.get(
+      `/api/goals/portal?portals_id=${portalId}`,
       authHeaders
     );
-    
     if (res.data && res.data.aGoals) {
       portalGoals.value = res.data.aGoals;
     }
-  } catch (err) { 
-    console.error('Failed to load portal goals:', err); 
+  } catch (err) {
+    console.error('Failed to load portal goals:', err);
   }
 };
 
 const fetchReportingIncrements = async () => {
   try {
-    const res = await axios.get(
-      `${apiBaseUrl}/api/reporting_increments/list`, 
+    const res = await api.get(
+      `/api/reporting_increments/list`,
       authHeaders
     );
-    
     if (res.data) {
       reportingIncrements.value = res.data;
     }
-  } catch (err) { 
-    console.error('Failed to load reporting increments:', err); 
+  } catch (err) {
+    console.error('Failed to load reporting increments:', err);
   }
 };
 
 const flagPortal = async () => {
   try {
-    await axios.post(
-      `${apiBaseUrl}/api/portal/flag_portal`, 
-      { portal_id: portalId, reason: '' }, 
+    await api.post(
+      `/api/portal/flag_portal`,
+      { portal_id: portalId, reason: '' },
       authHeaders
     );
     flagResultMessage.value = 'Portal flagged. Thank you for your report.';
@@ -955,10 +952,6 @@ const FullscreenImageViewer = defineComponent({
 </script>
 
 <style scoped>
-.action-button {
-  @apply w-full text-left py-3 text-xl font-semibold text-green-600 hover:bg-gray-50 transition-colors;
-}
-
 /* Transitions */
 .fade-enter-active,
 .fade-leave-active {

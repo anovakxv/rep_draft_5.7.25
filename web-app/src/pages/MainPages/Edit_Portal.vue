@@ -380,9 +380,9 @@
 </template>
 
 <script setup lang="ts">
+import api from '@/pages/utils/api';
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
 import { v4 as uuidv4 } from 'uuid'; // You'll need to add this package
 
 // --- Interfaces ---
@@ -486,7 +486,7 @@ const fetchPortalData = async () => {
   }
   
   try {
-    const res = await axios.get(`${apiBaseUrl}/api/portal/details?portals_id=${portalId}&user_id=${userId}`, authHeaders);
+    const res = await api.get(`/api/portal/details?portals_id=${portalId}&user_id=${userId}`);
     const portal: PortalDetail = res.data.result;
     
     portalDetail.value = portal;
@@ -635,7 +635,7 @@ const fetchNetworkMembers = async () => {
   loadingNetworkMembers.value = true;
   
   try {
-    const res = await axios.get(`${apiBaseUrl}/api/user/members_of_my_network`, authHeaders);
+    const res = await api.get(`/api/user/members_of_my_network`);
     networkMembers.value = res.data.result || [];
   } catch (err) {
     console.error('Failed to fetch network members:', err);
@@ -709,7 +709,7 @@ const save = async () => {
   });
 
   try {
-    const response = await axios.post(`${apiBaseUrl}${endpoint}`, formData, {
+    const response = await api.post(endpoint, formData, {
       headers: {
         ...authHeaders.headers,
         'Content-Type': 'multipart/form-data',
@@ -731,7 +731,7 @@ const deletePortal = async () => {
   isSaving.value = true;
   
   try {
-    await axios.post(`${apiBaseUrl}/api/portal/delete`, {
+    await api.post(`/api/portal/delete`, {
       portal_id: portalId,
       user_id: userId
     }, authHeaders);

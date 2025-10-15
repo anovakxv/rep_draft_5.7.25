@@ -59,6 +59,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, defineEmits } from 'vue';
 import axios from 'axios';
+import MessageBubble from '@/components/MessageBubble.vue';
 
 // --- Props ---
 const props = defineProps<{
@@ -223,46 +224,6 @@ onMounted(() => {
 onUnmounted(() => {
   if (observerId && window.RealtimeSocketManager) {
     window.RealtimeSocketManager.removeDirectMessageObserver(observerId);
-  }
-});
-</script>
-
-<script lang="ts">
-// MessageBubble component
-import { defineComponent } from 'vue';
-
-export default defineComponent({
-  name: 'MessageBubble',
-  props: {
-    message: { type: Object, required: true },
-    isCurrentUser: { type: Boolean, required: true },
-    profilePicURL: { type: String, default: null }
-  },
-  setup(props) {
-    function formatTime(ts: string) {
-      const date = new Date(ts);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    return () => (
-      <div class={['flex items-end', props.isCurrentUser ? 'justify-end' : 'justify-start']}>
-        {!props.isCurrentUser && (
-          props.profilePicURL
-            ? <img src={props.profilePicURL} class="w-8 h-8 rounded-full object-cover mr-2" />
-            : <div class="w-8 h-8 rounded-full bg-gray-300 mr-2"></div>
-        )}
-        <div class={['flex flex-col', props.isCurrentUser ? 'items-end' : 'items-start']}>
-          <div
-            class={[
-              'px-4 py-2 rounded-lg max-w-xs break-words',
-              props.isCurrentUser ? 'bg-black text-green-400' : 'bg-gray-100 text-black'
-            ]}
-          >
-            {props.message.text}
-          </div>
-          <div class="text-xs text-gray-500 mt-1">{formatTime(props.message.timestamp)}</div>
-        </div>
-      </div>
-    );
   }
 });
 </script>

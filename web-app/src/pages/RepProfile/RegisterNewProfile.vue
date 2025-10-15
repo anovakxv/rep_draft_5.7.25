@@ -14,17 +14,17 @@
         <button type="button" class="ml-2 text-green-600 font-bold" @click="goToLogin">Login</button>
       </div>
       <div class="flex justify-center mb-4">
-        <img src="/REPLogo.png" alt="REP Logo" class="w-20 h-20 rounded-full shadow" />
+        <img src="@/assets/REPLogo.png" alt="REP Logo" class="w-20 h-20 rounded-full shadow" />
       </div>
       <h2 class="text-xl font-bold mb-2">Create Account:</h2>
       <div class="flex space-x-2">
-        <input v-model="firstName" type="text" placeholder="First Name" class="input" autocomplete="given-name" />
-        <input v-model="lastName" type="text" placeholder="Last Name" class="input" autocomplete="family-name" />
+        <input v-model="firstName" type="text" placeholder="First Name" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="given-name" />
+        <input v-model="lastName" type="text" placeholder="Last Name" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="family-name" />
       </div>
-      <input v-model="email" type="email" placeholder="Email address" class="input" autocomplete="email" />
-      <input v-model="password" type="password" placeholder="Password" class="input" autocomplete="new-password" />
-      <input v-model="confirmPassword" type="password" placeholder="Confirm Password" class="input" autocomplete="new-password" />
-      <input v-model="phone" type="tel" placeholder="Phone number (optional)" class="input" autocomplete="tel" />
+      <input v-model="email" type="email" placeholder="Email address" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="email" />
+      <input v-model="password" type="password" placeholder="Password" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="new-password" />
+      <input v-model="confirmPassword" type="password" placeholder="Confirm Password" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="new-password" />
+      <input v-model="phone" type="tel" placeholder="Phone number (optional)" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="tel" />
       <div v-if="errorMessage" class="text-red-600 text-sm">{{ errorMessage }}</div>
       <button type="submit" :disabled="isLoading" class="w-full h-12 bg-green-600 text-white font-bold rounded-lg mt-2">
         <span v-if="isLoading">Registering...</span>
@@ -36,8 +36,9 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import axios from 'axios'
+import api from '../utils/api'
 import { useRouter } from 'vue-router'
+import REPLogo from '@/assets/REPLogo.png'
 
 const firstName = ref('')
 const lastName = ref('')
@@ -77,8 +78,8 @@ async function registerUser() {
     if (phone.value) form.append('phone', phone.value)
     // Add other fields as needed
 
-    const res = await axios.post(
-      `${import.meta.env.VITE_API_BASE_URL || 'https://rep-june2025.onrender.com'}/api/user/register`,
+    const res = await api.post(
+      '/api/user/register',
       form,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     )
@@ -106,7 +107,5 @@ async function registerUser() {
 </script>
 
 <style scoped>
-.input {
-  @apply w-full px-4 py-3 rounded-lg border border-green-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-green-400;
-}
+/* Remove .input CSS class from <style> block */
 </style>

@@ -61,3 +61,11 @@ Preview Content/
 *.moved-aside
 *.xcuserdatad
 
+# Node.js / Vite / Web App
+web-app/node_modules/
+web-app/dist/
+web-app/.env
+web-app/.DS_Store
+web-app/package-lock.json
+web-app/yarn.lock
+web-app/postcss.config.cjs

@@ -35,7 +35,7 @@ def create_app():
     if not app.config.get("SECRET_KEY"):
         app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-me")
 
-    CORS(app, origins=["https://networkedcapital.co"])
+    CORS(app, origins=["https://networkedcapital.co", "http://localhost:5173"])
 
     db.init_app(app)
     socketio.init_app(app)

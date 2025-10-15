@@ -22,7 +22,11 @@ db = SQLAlchemy()
 
 # Use Redis message queue if REDIS_URL provided (safe if None)
 socketio = SocketIO(
-    cors_allowed_origins="*",
+    cors_allowed_origins=[
+        "https://repnetwork.app",
+        "https://www.repnetwork.app",
+        "http://localhost:5173"
+    ],
     message_queue=os.getenv("REDIS_URL"),
     async_mode="eventlet"
 )

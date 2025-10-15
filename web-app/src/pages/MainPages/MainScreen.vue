@@ -415,7 +415,7 @@ const useInvites = (token: ref<string>) => {
   const fetchPendingInvites = async () => {
     isLoading.value = true;
     try {
-      const res = await axios.get(
+        const res = await api.get(
         `${apiBaseUrl}/api/goals/pending_invites`,
         { headers: { Authorization: `Bearer ${token.value}` } }
       );

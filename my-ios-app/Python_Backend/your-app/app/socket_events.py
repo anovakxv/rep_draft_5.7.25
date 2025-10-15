@@ -16,8 +16,24 @@ def _decode_jwt(token: str):
     except Exception:
         return None
 
-def _current_user_id():
+def _get_socket_token():
+    # 1. Try query param (iOS)
     token = request.args.get("token")
+    if token:
+        return token
+    # 2. Try SocketIO v4+ auth object (web)
+    if hasattr(request, 'namespace') and hasattr(request.namespace, 'socket'):
+        auth = getattr(request.namespace.socket, 'auth', None)
+        if auth and isinstance(auth, dict) and 'token' in auth:
+            return auth['token']
+    # 3. Try Authorization header (web polling fallback)
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    return None
+
+def _current_user_id():
+    token = _get_socket_token()
     payload = _decode_jwt(token) if token else None
     if not payload:
         return None
@@ -29,10 +45,9 @@ def _current_user_id():
 def on_connect():
     """
     Validates JWT and automatically joins the user's personal room (user_<id>).
-    This ensures the client can receive direct_message_notification events
-    without having to emit join_user_room explicitly.
+    Supports both iOS (query param) and web (auth object/header).
     """
-    token = request.args.get("token")
+    token = _get_socket_token()
     payload = _decode_jwt(token) if token else None
     if not token or not payload:
         return False  # reject connection

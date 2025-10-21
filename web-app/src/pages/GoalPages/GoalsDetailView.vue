@@ -264,7 +264,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, defineComponent, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 
 // Import child components
 import UpdateGoalSheet from './Update_Goal.vue';
@@ -387,9 +387,7 @@ interface ReportingIncrementsResponse {
 const route = useRoute();
 const router = useRouter();
 const initialGoalId = Number(route.params.id);
-const token = localStorage.getItem('jwtToken');
 const currentUserId = Number(localStorage.getItem('userId'));
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'https://api.rep-app.com';
 const s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/";
 
 // --- State (EXACTLY matching Swift ViewModel) ---
@@ -485,9 +483,8 @@ const navigateToProfile = (userId?: number) => {
 // --- API Methods (EXACTLY matching Swift ViewModel) ---
 const loadGoalDetails = async () => {
   try {
-    const res = await axios.get(
-      `${apiBaseUrl}/api/goals/details?goals_id=${initialGoalId}&num_periods=7`,
-      { headers: { Authorization: `Bearer ${token}` } }
+    const res = await api.get(
+      `/api/goals/details?goals_id=${initialGoalId}&num_periods=7`
     );
     
     const apiGoal: APIGoalDetail = res.data.result;
@@ -570,11 +567,8 @@ const loadReportingIncrements = async () => {
   isLoadingIncrements.value = true;
   
   try {
-    const res = await axios.get(
-      `${apiBaseUrl}/api/goals/reporting_increments`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    
+    const res = await api.get('/api/goals/reporting_increments');
+
     const data = res.data as ReportingIncrementsResponse;
     reportingIncrements.value = data.reportingIncrements;
   } catch (error) {
@@ -589,13 +583,12 @@ const joinRecruitingGoal = async () => {
   activeSheet.value = null;
   
   try {
-    const res = await axios.post(
-      `${apiBaseUrl}/api/goals/join_leave`,
+    const res = await api.post(
+      '/api/goals/join_leave',
       {
         aGoalsIDs: [goal.value?.id],
         todo: "join"
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
+      }
     );
     
     // Check if response indicates success (matching Swift logic)
@@ -631,13 +624,12 @@ const openGoalTeamChat = async () => {
       .map(user => user.id)
       .filter(id => id !== currentUserId);
 
-    const res = await axios.post(
-      `${apiBaseUrl}/api/message/manage_chat`,
+    const res = await api.post(
+      '/api/message/manage_chat',
       {
         title: `Goal Team: ${goal.value?.title}`,
         aAddIDs: memberIds
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
+      }
     );
 
     if (res.data.chats_id) {
@@ -664,12 +656,11 @@ const deleteGoal = async () => {
   showDeleteAlert.value = false;
   
   try {
-    const res = await axios.post(
-      `${apiBaseUrl}/api/goals/delete`,
-      { goals_id: goal.value?.id },
-      { headers: { Authorization: `Bearer ${token}` } }
+    const res = await api.post(
+      '/api/goals/delete',
+      { goals_id: goal.value?.id }
     );
-    
+
     // Check for successful response (EXACTLY matching Swift)
     if (res.status === 200) {
       goBack();

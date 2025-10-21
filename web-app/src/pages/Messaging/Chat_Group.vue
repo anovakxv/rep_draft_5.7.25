@@ -153,7 +153,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 import GroupMessageBubble from '@/components/GroupMessageBubble';
 import GroupMemberAvatar from '@/components/GroupMemberAvatar';
 
@@ -203,9 +203,6 @@ interface GroupMember {
   profilePicture?: string;
 }
 
-const token = localStorage.getItem('jwtToken');
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
 const typingUsersText = computed(() => {
   if (typingUsers.value.length === 0) return '';
   if (typingUsers.value.length === 1) return typingUsers.value[0].userName;
@@ -216,9 +213,7 @@ const typingUsersText = computed(() => {
 // --- Fetch Group Info ---
 async function fetchGroupInfo() {
   try {
-    const res = await axios.get(`${apiBaseUrl}/api/message/group_chats/${props.chatId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get(`/api/message/group_chats/${props.chatId}`);
     groupName.value = res.data.name || 'Group Chat';
     groupMembers.value = res.data.members || [];
     creatorId.value = res.data.creator_id;
@@ -239,9 +234,7 @@ async function fetchMessages(beforeId?: number, append = false) {
       limit: '200'
     });
     if (beforeId) params.append('before_id', String(beforeId));
-    const res = await axios.get(`${apiBaseUrl}/api/message/group_chats/${props.chatId}/messages?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get(`/api/message/group_chats/${props.chatId}/messages?${params.toString()}`);
     const newMsgs: GroupMessage[] = res.data.messages || [];
     if (append) {
       if (newMsgs.length === 0) {
@@ -288,22 +281,16 @@ async function sendMessage() {
         formData.append('attachments', file, file.name);
       });
 
-      const res = await axios.post(`${apiBaseUrl}/api/message/group_chats/${props.chatId}/send`, formData, {
+      const res = await api.post(`/api/message/group_chats/${props.chatId}/send`, formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         }
       });
       const msg: GroupMessage = res.data.message;
       appendIfNeeded(msg);
     } else {
-      const res = await axios.post(`${apiBaseUrl}/api/message/group_chats/${props.chatId}/send`, {
+      const res = await api.post(`/api/message/group_chats/${props.chatId}/send`, {
         message: trimmed
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
       });
       const msg: GroupMessage = res.data.message;
       appendIfNeeded(msg);
@@ -437,9 +424,7 @@ function onScroll() {
 
 async function leaveGroup() {
   try {
-    await axios.post(`${apiBaseUrl}/api/message/group_chats/${props.chatId}/leave`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await api.post(`/api/message/group_chats/${props.chatId}/leave`, {});
     showLeaveAlert.value = false;
     emit('close');
     emit('refresh-chats');

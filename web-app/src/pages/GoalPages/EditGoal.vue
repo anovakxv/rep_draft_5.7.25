@@ -81,7 +81,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 
 // --- Props and Emits ---
 const props = defineProps<{
@@ -116,11 +116,7 @@ async function loadReportingIncrements() {
   if (isLoadingIncrements.value) return;
   isLoadingIncrements.value = true;
   try {
-    const token = localStorage.getItem('jwtToken');
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-    const res = await axios.get(`${apiBaseUrl}/api/goals/reporting_increments`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/goals/reporting_increments');
     loadedIncrements.value = res.data.reportingIncrements;
 
     // Set default selection if not already set. Mimics Swift logic.
@@ -155,9 +151,7 @@ async function saveGoal() {
   isSaving.value = true;
   errorMessage.value = '';
   try {
-    const token = localStorage.getItem('jwtToken');
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-    const url = isEdit.value ? `${apiBaseUrl}/api/goals/edit` : `${apiBaseUrl}/api/goals/create`;
+    const url = isEdit.value ? '/api/goals/edit' : '/api/goals/create';
 
     const params: any = {
       title: title.value,
@@ -172,9 +166,7 @@ async function saveGoal() {
     if (goalType.value === "Other") params.metric = metric.value;
     if (isEdit.value) params.goals_id = props.existingGoal?.id;
 
-    await axios.post(url, params, {
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
-    });
+    await api.post(url, params);
     emit('close'); // Success
   } catch (e: any) {
     errorMessage.value = e.response?.data?.error || "An unknown server error occurred.";

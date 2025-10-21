@@ -181,12 +181,20 @@
 import { ref, onMounted, onUnmounted, watch, computed, defineComponent, h, nextTick } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
-import { debounce } from 'lodash-es';
 import { useSocketManager } from '../utils/useSocketManager';
 import REPLogo from '@/assets/REPLogo.png';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
 import ErrorState from '@/components/ErrorState.vue';
 import EmptyState from '@/components/EmptyState.vue';
+
+// Simple debounce utility
+function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timeoutId) clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delay);
+  };
+}
 
 // --- Interfaces (from MainScreen.swift) ---
 interface User { 
@@ -240,9 +248,6 @@ interface Invite {
   inviterPhotoURL?: string;
 }
 
-// --- Constants & Config ---
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
 // --- Composables (Mirroring ViewModels) ---
 
 const usePortals = (userId: ref<number>, token: ref<string>, safeOnly: ref<boolean>) => {
@@ -258,13 +263,12 @@ const usePortals = (userId: ref<number>, token: ref<string>, safeOnly: ref<boole
     const tab = { 0: 'open', 1: 'ntwk', 2: 'all' }[section] || 'all';
     const limitParam = (tab === "all") ? "&limit=200" : "";
     const safeParam = safeOnly.value ? "&safe_only=true" : "";
-    
+
     try {
-      const res = await axios.get(
-        `${apiBaseUrl}/api/portal/filter_network_portals?user_id=${userId.value}&tab=${tab}${limitParam}${safeParam}`, 
-        { headers: { Authorization: `Bearer ${token.value}` } }
+      const res = await api.get(
+        `/api/portal/filter_network_portals?user_id=${userId.value}&tab=${tab}${limitParam}${safeParam}`
       );
-      
+
       if (res.data && res.data.result) {
         portals.value = res.data.result;
       } else {
@@ -278,28 +282,27 @@ const usePortals = (userId: ref<number>, token: ref<string>, safeOnly: ref<boole
         errorMessage.value = err.response?.data?.error || `Server error (${err.response?.status || 'unknown'}).`;
       }
       portals.value = [];
-    } finally { 
-      isLoading.value = false; 
+    } finally {
+      isLoading.value = false;
     }
   };
 
   const searchPortals = async (query: string, limit: number = 50) => {
-    if (!query.trim()) { 
+    if (!query.trim()) {
       searchResults.value = [];
       isSearching.value = false;
-      return; 
+      return;
     }
-    
+
     isLoading.value = true;
     isSearching.value = true;
     errorMessage.value = null;
-    
+
     try {
-      const res = await axios.get(
-        `${apiBaseUrl}/api/search_portals?q=${encodeURIComponent(query)}&limit=${limit}`, 
-        { headers: { Authorization: `Bearer ${token.value}` } }
+      const res = await api.get(
+        `/api/search_portals?q=${encodeURIComponent(query)}&limit=${limit}`
       );
-      
+
       if (res.data && res.data.result) {
         searchResults.value = res.data.result;
       } else {
@@ -311,7 +314,7 @@ const usePortals = (userId: ref<number>, token: ref<string>, safeOnly: ref<boole
       }
       errorMessage.value = err.response?.data?.error || 'Failed to search portals.';
       searchResults.value = [];
-    } finally { 
+    } finally {
       isLoading.value = false;
       isSearching.value = false;
     }
@@ -338,31 +341,30 @@ const usePeople = (userId: ref<number>, token: ref<string>) => {
   const fetchPeople = async (section: number) => {
     isLoading.value = true;
     errorMessage.value = null;
-    
+
     try {
       if (section === 0) {
         // Active chats
-        const res = await axios.get(
-          `${apiBaseUrl}/api/active_chat_list?user_id=${userId.value}`, 
-          { headers: { Authorization: `Bearer ${token.value}` } }
+        const res = await api.get(
+          `/api/active_chat_list?user_id=${userId.value}`
         );
-        
+
         if (res.data && res.data.result) {
           activeChats.value = res.data.result;
-          
+
           // Check for unread messages (exactly like Swift)
-          const newHasUnreadDM = activeChats.value.some(c => 
-            c.type === 'direct' && 
-            c.last_message?.read === '0' && 
+          const newHasUnreadDM = activeChats.value.some(c =>
+            c.type === 'direct' &&
+            c.last_message?.read === '0' &&
             c.last_message?.sender_id !== userId.value
           );
-          
-          const newHasUnreadGroup = activeChats.value.some(c => 
-            c.type === 'group' && 
-            c.last_message?.read === '0' && 
+
+          const newHasUnreadGroup = activeChats.value.some(c =>
+            c.type === 'group' &&
+            c.last_message?.read === '0' &&
             c.last_message?.sender_id !== userId.value
           );
-          
+
           hasUnreadDM.value = newHasUnreadDM;
           hasUnreadGroup.value = newHasUnreadGroup;
         } else {
@@ -372,12 +374,11 @@ const usePeople = (userId: ref<number>, token: ref<string>) => {
         // People list
         const tab = section === 1 ? 'ntwk' : 'all';
         const limitParam = (tab === "all") ? "&limit=200" : "";
-        
-        const res = await axios.get(
-          `${apiBaseUrl}/api/filter_people?user_id=${userId.value}&tab=${tab}${limitParam}`, 
-          { headers: { Authorization: `Bearer ${token.value}` } }
+
+        const res = await api.get(
+          `/api/filter_people?user_id=${userId.value}&tab=${tab}${limitParam}`
         );
-        
+
         if (res.data && res.data.result) {
           users.value = res.data.result;
         } else {
@@ -391,34 +392,33 @@ const usePeople = (userId: ref<number>, token: ref<string>) => {
       } else {
         errorMessage.value = err.response?.data?.error || `Server error (${err.response?.status || 'unknown'}).`;
       }
-      
+
       if (section === 0) {
         activeChats.value = [];
       } else {
         users.value = [];
       }
-    } finally { 
-      isLoading.value = false; 
+    } finally {
+      isLoading.value = false;
     }
   };
 
   const searchPeople = async (query: string, limit: number = 50) => {
-    if (!query.trim()) { 
+    if (!query.trim()) {
       searchResults.value = [];
       isSearching.value = false;
-      return; 
+      return;
     }
-    
+
     isLoading.value = true;
     isSearching.value = true;
     errorMessage.value = null;
-    
+
     try {
-      const res = await axios.get(
-        `${apiBaseUrl}/api/search_people?q=${encodeURIComponent(query)}&limit=${limit}`, 
-        { headers: { Authorization: `Bearer ${token.value}` } }
+      const res = await api.get(
+        `/api/search_people?q=${encodeURIComponent(query)}&limit=${limit}`
       );
-      
+
       if (res.data && res.data.result) {
         searchResults.value = res.data.result;
       } else {
@@ -430,7 +430,7 @@ const usePeople = (userId: ref<number>, token: ref<string>) => {
       }
       errorMessage.value = err.response?.data?.error || 'Failed to search people.';
       searchResults.value = [];
-    } finally { 
+    } finally {
       isLoading.value = false;
       isSearching.value = false;
     }
@@ -456,17 +456,14 @@ const usePeople = (userId: ref<number>, token: ref<string>) => {
   };
 };
 
-const useInvites = (token: ref<string>) => {
+const useInvites = () => {
   const pendingInvites = ref<Invite[]>([]);
   const isLoading = ref(false);
-  
+
   const fetchPendingInvites = async () => {
     isLoading.value = true;
     try {
-        const res = await api.get(
-        `${apiBaseUrl}/api/goals/pending_invites`,
-        { headers: { Authorization: `Bearer ${token.value}` } }
-      );
+      const res = await api.get('/api/goals/pending_invites');
       pendingInvites.value = res.data.invites || [];
     } catch (err) {
       pendingInvites.value = [];
@@ -475,7 +472,7 @@ const useInvites = (token: ref<string>) => {
       isLoading.value = false;
     }
   };
-  
+
   return { pendingInvites, isLoading, fetchPendingInvites };
 };
 
@@ -483,6 +480,7 @@ const useInvites = (token: ref<string>) => {
 const router = useRouter();
 const userId = ref(Number(localStorage.getItem('userId')) || 0);
 const token = ref(localStorage.getItem('jwtToken') || '');
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 // --- Persistent App State ---
 const persistedUnreadDM = ref(localStorage.getItem('hasUnreadDMFlag') === 'true');
@@ -495,7 +493,7 @@ const showOnlySafePortals = ref(false);
 const openNeedsAttention = ref(false);
 
 // --- View Models ---
-const { pendingInvites, fetchPendingInvites } = useInvites(token);
+const { pendingInvites, fetchPendingInvites } = useInvites();
 const { 
   portals, 
   searchResults: searchResultsPortals, 
@@ -575,11 +573,8 @@ const handleUnauthorized = (source: string) => {
 
 const fetchCurrentUser = async () => {
   try {
-    const res = await axios.get(
-      `${apiBaseUrl}/api/user/me`, 
-      { headers: { Authorization: `Bearer ${token.value}` } }
-    );
-    
+    const res = await api.get('/api/user/me');
+
     if (res.data && res.data.result) {
       currentUser.value = res.data.result;
     } else {

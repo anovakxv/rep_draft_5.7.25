@@ -85,7 +85,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '@/pages/utils/api'
 
 const router = useRouter()
 
@@ -116,9 +116,6 @@ const errorMessage = ref('')
 const showCancelModal = ref(false)
 const subscriptionToCancel = ref<ActiveSubscriptionItem | null>(null)
 
-const token = localStorage.getItem('jwtToken')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-
 // --- Formatters ---
 function formatAmount(amount: number): string {
   return `$${(amount / 100).toFixed(2)}`
@@ -133,8 +130,8 @@ async function loadPaymentData() {
   isLoading.value = true
   try {
     const [subsRes, histRes] = await Promise.all([
-      axios.get(`${apiBaseUrl}/api/subscriptions`, { headers: { Authorization: `Bearer ${token}` } }),
-      axios.get(`${apiBaseUrl}/api/payment_history`, { headers: { Authorization: `Bearer ${token}` } })
+      api.get('/api/subscriptions'),
+      api.get('/api/payment_history')
     ])
     subscriptions.value = (subsRes.data as ActiveSubscriptionItem[]).map(sub => ({
       ...sub,
@@ -164,10 +161,9 @@ async function cancelSubscription() {
   isLoading.value = true
   showCancelModal.value = false
   try {
-    await axios.post(
-      `${apiBaseUrl}/api/cancel_subscription`,
-      { subscriptionId: subscriptionToCancel.value.id },
-      { headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` } }
+    await api.post(
+      '/api/cancel_subscription',
+      { subscriptionId: subscriptionToCancel.value.id }
     )
     subscriptions.value = subscriptions.value.filter(sub => sub.id !== subscriptionToCancel.value?.id)
     subscriptionToCancel.value = null

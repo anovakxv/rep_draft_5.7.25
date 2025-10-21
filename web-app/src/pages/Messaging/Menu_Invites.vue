@@ -53,7 +53,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, defineEmits } from 'vue';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 
 // --- Emits ---
 const emit = defineEmits(['close', 'refresh-chats']);
@@ -64,9 +64,7 @@ const isLoading = ref(false);
 const responseMessage = ref('');
 let responseTimeout: number | null = null;
 
-const token = localStorage.getItem('jwtToken');
 const userId = Number(localStorage.getItem('userId'));
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/";
 
 // --- Models ---
@@ -96,12 +94,10 @@ function inviterProfilePictureURL(invite: GoalTeamInvite): string | null {
 
 // --- API Calls ---
 async function fetchPendingInvites() {
-  if (!token || !userId) return;
+  if (!userId) return;
   isLoading.value = true;
   try {
-    const res = await axios.get(`${apiBaseUrl}/api/goals/pending_invites`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get('/api/goals/pending_invites');
     const invites: GoalTeamInvite[] = res.data.invites || [];
     pendingInvites.value = invites.filter(inv => inv.confirmed === 0);
   } catch (e) {
@@ -114,17 +110,12 @@ async function fetchPendingInvites() {
 }
 
 async function respondToInvite(goalId: number, action: "accept" | "decline") {
-  if (!token || !userId) return;
+  if (!userId) return;
   isLoading.value = true;
   try {
-    await axios.patch(`${apiBaseUrl}/api/goals/${goalId}/team`, {
+    await api.patch(`/api/goals/${goalId}/team`, {
       action,
       users: [userId]
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
     });
     responseMessage.value = action === "accept" ? "You've joined the goal team!" : "Invite declined";
     // Refresh invites after action
@@ -140,11 +131,9 @@ async function respondToInvite(goalId: number, action: "accept" | "decline") {
 }
 
 async function markAllInvitesRead() {
-  if (!token || !userId) return;
+  if (!userId) return;
   try {
-    await axios.post(`${apiBaseUrl}/api/goals/pending_invites/mark_read`, {}, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    await api.post('/api/goals/pending_invites/mark_read', {});
     // Refresh invites after marking as read
     await fetchPendingInvites();
   } catch (e) {

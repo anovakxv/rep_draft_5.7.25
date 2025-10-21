@@ -167,7 +167,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, h } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import axios from 'axios'
+import api from '@/pages/utils/api'
 
 // Icons as Vue components
 const BoldIcon = () => h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'w-5 h-5', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor' }, [
@@ -200,8 +200,6 @@ const route = useRoute()
 const writeId = route.params.id ? Number(route.params.id) : null
 
 // API Config
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-const token = localStorage.getItem('jwtToken')
 const userId = Number(localStorage.getItem('userId'))
 
 // State
@@ -332,24 +330,22 @@ async function handleSave() {
     let response
     if (isEditing.value) {
       // Update existing write
-      response = await axios.put(
-        `${apiBaseUrl}/api/user/write/${writeId}`,
+      response = await api.put(
+        `/api/user/write/${writeId}`,
         formData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
         }
       )
     } else {
       // Create new write
-      response = await axios.post(
-        `${apiBaseUrl}/api/user/write`,
+      response = await api.post(
+        '/api/user/write',
         formData,
         {
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'multipart/form-data'
           }
         }
@@ -372,13 +368,8 @@ async function loadExistingWrite() {
   if (!isEditing.value) return
 
   try {
-    const response = await axios.get(
-      `${apiBaseUrl}/api/user/writes?users_id=${userId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
+    const response = await api.get(
+      `/api/user/writes?users_id=${userId}`
     )
 
     const writes = response.data.result || []
@@ -404,13 +395,8 @@ async function loadExistingWrite() {
 
 async function loadUserPortals() {
   try {
-    const response = await axios.get(
-      `${apiBaseUrl}/api/portal/portals?users_id=${userId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
+    const response = await api.get(
+      `/api/portal/portals?users_id=${userId}`
     )
     userPortals.value = response.data.result || []
   } catch (err) {
@@ -420,13 +406,8 @@ async function loadUserPortals() {
 
 async function loadUserGoals() {
   try {
-    const response = await axios.get(
-      `${apiBaseUrl}/api/goals/list?users_id=${userId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
+    const response = await api.get(
+      `/api/goals/list?users_id=${userId}`
     )
     userGoals.value = response.data.result || []
   } catch (err) {

@@ -58,7 +58,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '@/pages/utils/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -79,13 +79,12 @@ async function setNewPassword() {
   }
   isLoading.value = true
   try {
-    await axios.post(
-      `${import.meta.env.VITE_API_BASE_URL}/api/user/forgot_password`,
+    await api.post(
+      '/api/user/forgot_password',
       {
         hash: resetToken,
         new_password: newPassword.value
-      },
-      { headers: { 'Content-Type': 'application/json' } }
+      }
     )
     isSuccess.value = true
   } catch (err: any) {

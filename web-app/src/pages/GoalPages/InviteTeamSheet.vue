@@ -121,7 +121,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import api from '@/pages/utils/api'
 
 interface User {
   id: number
@@ -146,8 +146,6 @@ const loadingMessage = ref('Loading...')
 const errorMessage = ref('')
 const inviteSuccess = ref(false)
 
-const token = localStorage.getItem('jwtToken')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
 const s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 
 // Methods
@@ -174,13 +172,8 @@ async function loadNetworkMembers() {
   errorMessage.value = ''
 
   try {
-    const res = await axios.get(
-      `${apiBaseUrl}/api/user/members_of_my_network?invited_goal_id=${props.goalId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
+    const res = await api.get(
+      `/api/user/members_of_my_network?invited_goal_id=${props.goalId}`
     )
 
     const rawUsers = res.data.result || []
@@ -207,17 +200,11 @@ async function inviteUsers() {
   errorMessage.value = ''
 
   try {
-    await axios.patch(
-      `${apiBaseUrl}/api/goals/${props.goalId}/team`,
+    await api.patch(
+      `/api/goals/${props.goalId}/team`,
       {
         action: 'invite',
         users: Array.from(selectedUsers.value)
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
       }
     )
 

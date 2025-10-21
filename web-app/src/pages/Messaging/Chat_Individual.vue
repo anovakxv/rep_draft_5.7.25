@@ -108,7 +108,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, defineEmits } from 'vue';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 import MessageBubble from '@/components/MessageBubble.vue';
 
 // --- Props ---
@@ -149,9 +149,6 @@ interface SimpleMessage {
   }>;
 }
 
-const token = localStorage.getItem('jwtToken');
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-
 // --- Fetch Messages ---
 async function fetchMessages(beforeId?: number, append = false) {
   if (append) {
@@ -166,9 +163,7 @@ async function fetchMessages(beforeId?: number, append = false) {
       mark_as_read: append ? '0' : '1'
     });
     if (beforeId) params.append('before_id', String(beforeId));
-    const res = await axios.get(`${apiBaseUrl}/api/message/get_messages?${params.toString()}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
+    const res = await api.get(`/api/message/get_messages?${params.toString()}`);
     const newMsgs: SimpleMessage[] = res.data.result.messages;
     if (append) {
       if (newMsgs.length === 0) {
@@ -215,9 +210,8 @@ async function sendMessage() {
         formData.append('attachments', file, file.name);
       });
 
-      const res = await axios.post(`${apiBaseUrl}/api/message/send_message`, formData, {
+      const res = await api.post('/api/message/send_message', formData, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'Content-Type': 'multipart/form-data'
         }
       });
@@ -225,14 +219,9 @@ async function sendMessage() {
       appendIfNeeded(msg);
     } else {
       // Text-only message
-      const res = await axios.post(`${apiBaseUrl}/api/message/send_message`, {
+      const res = await api.post('/api/message/send_message', {
         users_id: props.otherUserId,
         message: trimmed
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
       });
       const msg: SimpleMessage = res.data.message;
       appendIfNeeded(msg);

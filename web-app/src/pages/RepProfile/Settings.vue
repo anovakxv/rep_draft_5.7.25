@@ -154,7 +154,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '@/pages/utils/api'
 
 const router = useRouter()
 const showPayments = ref(false)
@@ -162,9 +162,6 @@ const showPasswordModal = ref(false)
 const isChangingPassword = ref(false)
 const passwordError = ref('')
 const successMessage = ref('')
-
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-const token = localStorage.getItem('jwtToken')
 
 // Notification settings
 const notificationSettings = ref({
@@ -216,18 +213,10 @@ async function saveNotificationSettings() {
   localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings.value))
 
   // Save to backend
-  if (!token) return
-
   try {
-    await axios.patch(
-      `${apiBaseUrl}/api/user/notification_settings`,
-      notificationSettings.value,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    await api.patch(
+      '/api/user/notification_settings',
+      notificationSettings.value
     )
   } catch (err: any) {
     console.error('Failed to save notification settings:', err)
@@ -266,16 +255,10 @@ async function handleChangePassword() {
   isChangingPassword.value = true
 
   try {
-    await axios.post(
-      `${apiBaseUrl}/api/user/edit`,
+    await api.post(
+      '/api/user/edit',
       {
-        password: passwordForm.value.newPassword,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        password: passwordForm.value.newPassword
       }
     )
 

@@ -36,7 +36,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 import Chat_Individual from './Chat_Individual.vue';
 
 interface User {
@@ -50,7 +50,6 @@ const router = useRouter();
 
 const currentUserId = ref(Number(localStorage.getItem('userId')) || 0);
 const token = ref(localStorage.getItem('jwtToken') || '');
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 const otherUser = ref<User | null>(null);
 const isLoading = ref(true);
@@ -66,9 +65,7 @@ async function fetchOtherUser() {
   }
 
   try {
-    const res = await axios.get(`${apiBaseUrl}/api/user/${otherUserId.value}`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    });
+    const res = await api.get(`/api/user/${otherUserId.value}`);
 
     if (res.data && res.data.result) {
       otherUser.value = res.data.result;

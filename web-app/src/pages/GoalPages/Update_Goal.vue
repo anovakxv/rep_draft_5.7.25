@@ -69,7 +69,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 
 const props = defineProps<{
   goalId: number;
@@ -102,19 +102,12 @@ async function submitUpdate() {
   errorMessage.value = '';
 
   try {
-    const token = localStorage.getItem('jwtToken');
-    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
     const params = {
       goals_id: props.goalId,
       added_value: valueNum.value,
       note: note.value
     };
-    await axios.post(`${apiBaseUrl}/api/goals/update_filled_quota`, params, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    await api.post('/api/goals/update_filled_quota', params);
     emit('close');
   } catch (e: any) {
     if (e.response && e.response.data && e.response.data.error) {

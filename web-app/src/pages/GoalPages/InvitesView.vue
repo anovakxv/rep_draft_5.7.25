@@ -93,7 +93,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
+import api from '@/pages/utils/api';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
 import ErrorState from '@/components/ErrorState.vue';
 import EmptyState from '@/components/EmptyState.vue';
@@ -113,9 +113,7 @@ interface Invite {
 }
 
 const router = useRouter();
-const token = ref(localStorage.getItem('jwtToken') || '');
 const userId = ref(Number(localStorage.getItem('userId')) || 0);
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 const invites = ref<Invite[]>([]);
 const isLoading = ref(false);
@@ -131,9 +129,7 @@ async function fetchInvites() {
   errorMessage.value = null;
 
   try {
-    const res = await axios.get(`${apiBaseUrl}/api/goals/pending_invites`, {
-      headers: { Authorization: `Bearer ${token.value}` }
-    });
+    const res = await api.get('/api/goals/pending_invites');
 
     invites.value = res.data.invites || [];
   } catch (err: any) {
@@ -152,13 +148,10 @@ async function respondToInvite(inviteId: number, accept: boolean) {
   respondingTo.value = inviteId;
 
   try {
-    await axios.patch(
-      `${apiBaseUrl}/api/goals/invites/${inviteId}`,
+    await api.patch(
+      `/api/goals/invites/${inviteId}`,
       {
         confirmed: accept ? '1' : '0'
-      },
-      {
-        headers: { Authorization: `Bearer ${token.value}` }
       }
     );
 

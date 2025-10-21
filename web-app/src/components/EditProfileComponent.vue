@@ -178,7 +178,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import axios from 'axios'
+import api from '@/pages/utils/api'
 
 interface Skill {
   id: number
@@ -229,8 +229,6 @@ const repTypes: RepType[] = [
 const selectedType = computed(() => repTypes.find(t => t.id === formData.value.repType))
 
 // API Config
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-const token = localStorage.getItem('jwtToken')
 const userId = localStorage.getItem('userId')
 
 // Methods
@@ -296,12 +294,11 @@ async function handleSave() {
       formDataToSend.append('profile_picture', selectedImage.value)
     }
 
-    const response = await axios.post(
-      `${apiBaseUrl}/api/user/edit`,
+    const response = await api.post(
+      '/api/user/edit',
       formDataToSend,
       {
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
         },
       }
@@ -326,15 +323,9 @@ async function handleDeleteProfile() {
   isSaving.value = true
 
   try {
-    await axios.post(
-      `${apiBaseUrl}/api/user/delete`,
-      {},
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    await api.post(
+      '/api/user/delete',
+      {}
     )
 
     // Clear localStorage and redirect to login
@@ -355,13 +346,8 @@ async function fetchProfile() {
   }
 
   try {
-    const response = await axios.get(
-      `${apiBaseUrl}/api/user/profile?users_id=${userId}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
+    const response = await api.get(
+      `/api/user/profile?users_id=${userId}`
     )
 
     const user = response.data.result
@@ -411,13 +397,8 @@ async function fetchProfile() {
 async function fetchSkills() {
   loadingSkills.value = true
   try {
-    const response = await axios.get(
-      `${apiBaseUrl}/api/user/get_skills`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      }
+    const response = await api.get(
+      '/api/user/get_skills'
     )
 
     availableSkills.value = response.data.result || []

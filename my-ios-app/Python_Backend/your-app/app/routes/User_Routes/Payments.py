@@ -286,6 +286,7 @@ def stripe_webhook():
                     portal_id = payment_intent['metadata'].get('portal_id')
                     message = payment_intent['metadata'].get('message', '')
                     transaction_type = payment_intent['metadata'].get('transaction_type', 'donation')
+                    is_public = payment_intent['metadata'].get('is_public') == 'true'  # Guest payment flag
                     if (not goal_id or not user_id or not portal_id) and 'invoice' in payment_intent and payment_intent['invoice']:
                         print(f"[Webhook] This appears to be a subscription payment, retrieving invoice: {payment_intent['invoice']}")
                         try:
@@ -304,9 +305,13 @@ def stripe_webhook():
                             print(f"[Webhook] Error retrieving subscription data: {str(e)}")
                             import traceback
                             traceback.print_exc()
-                    if not user_id or not portal_id:
-                        print(f"[Webhook] Missing metadata: user_id={user_id}, portal_id={portal_id}")
-                        return jsonify({'error': 'Missing metadata'}), 400
+                    # Validate metadata: portal_id required, user_id required unless is_public
+                    if not portal_id:
+                        print(f"[Webhook] Missing portal_id: {portal_id}")
+                        return jsonify({'error': 'Missing portal_id'}), 400
+                    if not user_id and not is_public:
+                        print(f"[Webhook] Missing user_id for authenticated payment: {user_id}")
+                        return jsonify({'error': 'Missing user_id'}), 400
                     transaction = Transaction(
                         user_id=user_id,
                         portal_id=portal_id,

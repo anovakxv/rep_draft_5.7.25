@@ -3,7 +3,12 @@
     "allow": [
       "Bash(tree:*)",
       "Bash(npm install)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(python -m flask db migrate:*)",
+      "Bash(set FLASK_APP=app)",
+      "Bash(flask db migrate:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

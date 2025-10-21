@@ -22,7 +22,7 @@ def register_public_routes(app):
     app.register_blueprint(public_goal_details_bp, url_prefix='/api/public')
     app.register_blueprint(public_payments_bp, url_prefix='/api/public')
 
-    print("✓ Public web routes registered:")
+    print("[OK] Public web routes registered:")
     print("  GET /api/public/portals")
     print("  GET /api/public/portal/<portal_id>")
     print("  GET /api/public/goal/<goal_id>")

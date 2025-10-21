@@ -38,7 +38,7 @@ def api_get_goals_progress_feed():
 
     for log in logs:
         user = users_dict.get(log.users_id)
-        if not user:
+        if not user and log.users_id:  # Check users_id is not NULL before querying
             user = User.query.get(log.users_id)
             users_dict[log.users_id] = user
 
@@ -49,7 +49,7 @@ def api_get_goals_progress_feed():
         result.append({
             'id': log.id,
             'users_id': log.users_id,
-            'username': user.username if user else None,
+            'username': user.username if user else "Guest Supporter",  # Show "Guest Supporter" for NULL users_id
             'added_value': log.added_value,
             'note': log.note,
             'value': log.value,

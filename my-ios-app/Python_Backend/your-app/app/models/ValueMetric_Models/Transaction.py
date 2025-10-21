@@ -10,7 +10,7 @@ class Transaction(db.Model):
     __tablename__ = 'transactions'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=True, index=True)  # Nullable for guest transactions
     portal_id = db.Column(db.Integer, db.ForeignKey('portals.id', ondelete="CASCADE"), nullable=False, index=True)
     goal_id = db.Column(db.Integer, db.ForeignKey('goals.id', ondelete="CASCADE"), nullable=True, index=True)
     

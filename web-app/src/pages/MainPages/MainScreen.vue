@@ -13,10 +13,8 @@
       <router-link :to="`/profile/${userId}`">
         <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
              class="w-7 h-7 rounded-full object-cover" alt="Profile"/>
-        <div v-else class="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-white">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-          </svg>
+        <div v-else class="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-semibold">
+          {{ getInitials(currentUser?.full_name || 'User') }}
         </div>
       </router-link>
 
@@ -116,8 +114,8 @@
       </Transition>
 
       <!-- Floating Toggle Button -->
-      <div class="absolute bottom-5 right-9">
-        <button @click="togglePage" class="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center">
+      <div class="fixed bottom-5 z-30" style="right: max(36px, calc(50% - 264px));">
+        <button @click="togglePage" class="w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow">
           <img :src="REPLogo" alt="Toggle Page" class="w-8 h-8" />
         </button>
       </div>
@@ -141,9 +139,10 @@
 
     <!-- Action Sheet Modal -->
     <Transition name="fade">
-      <div v-if="mainActiveSheet" @click="mainActiveSheet = null" class="fixed inset-0 bg-black bg-opacity-50 z-30 flex items-end">
+      <div v-if="mainActiveSheet" @click="mainActiveSheet = null" class="fixed inset-0 z-30 flex items-end justify-center">
+        <div class="bg-black bg-opacity-50 w-full" style="max-width: 600px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
         <Transition name="slide-up">
-          <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-2xl p-6">
+          <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 600px">
             <div class="flex flex-col items-center space-y-6">
               <!-- Portal Filter Options (iOS style) -->
               <div v-if="page === 'portals'" class="flex items-center space-x-6 py-3">
@@ -211,6 +210,15 @@ function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...
     if (timeoutId) clearTimeout(timeoutId);
     timeoutId = setTimeout(() => fn(...args), delay);
   };
+}
+
+// Get initials from a name
+function getInitials(name: string): string {
+  const parts = name.trim().split(' ');
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
 }
 
 // --- Interfaces (from MainScreen.swift) ---
@@ -987,31 +995,47 @@ const PortalList = defineComponent({
 });
 
 const PeopleList = defineComponent({
-  props: { 
+  props: {
     users: Array as () => User[],
     currentUserId: Number
   },
   setup(props) {
-    return () => h('div', { class: 'divide-y' },
-      props.users?.map(user =>
-        h(RouterLink, { 
-          to: `/profile/${user.id}`, 
-          class: 'block py-4 px-4 hover:bg-gray-50' 
-        }, () =>
-          h('div', { class: 'flex items-center space-x-4' }, [
-            h('img', {
-              src: user.profile_picture_url || '/default-profile.png',
-              class: 'w-12 h-12 object-cover rounded-full shadow-sm'
-            }),
-            h('div', { class: 'flex-1' }, [
-              h('div', { class: 'flex justify-between' }, [
-                h('h3', { class: 'font-semibold' }, user.full_name),
-                h('p', { class: 'text-xs text-gray-500' }, timeAgoDisplay(user.lastMessageDate))
-              ]),
-              h('p', { class: 'text-sm text-gray-600 truncate mt-1' }, user.lastMessage)
+    return () => h('div', { class: 'bg-white' },
+      props.users?.map((user, index) =>
+        h('div', { key: user.id }, [
+          h(RouterLink, {
+            to: `/profile/${user.id}`,
+            class: 'block hover:bg-gray-50'
+          }, () =>
+            h('div', {
+              class: 'flex items-center py-4 px-4',
+              style: { minHeight: '96px' }
+            }, [
+              user.profile_picture_url
+                ? h('img', {
+                    src: user.profile_picture_url,
+                    class: 'w-16 h-16 object-cover rounded-full'
+                  })
+                : h('div', {
+                    class: 'w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center text-white font-semibold text-xl'
+                  }, getInitials(user.full_name || 'User')),
+              h('div', { class: 'flex-1 ml-3' }, [
+                h('div', { class: 'flex justify-between items-center' }, [
+                  h('h3', { class: 'font-semibold text-[17px]' }, user.full_name),
+                  h('p', { class: 'text-[13px] text-gray-500' }, timeAgoDisplay(user.lastMessageDate))
+                ]),
+                h('p', { class: 'text-[17px] text-gray-600 truncate mt-1' }, user.lastMessage)
+              ])
             ])
-          ])
-        )
+          ),
+          // Separator line matching iOS light gray
+          index < (props.users?.length || 0) - 1
+            ? h('div', {
+                class: 'h-px',
+                style: { backgroundColor: 'rgb(228, 228, 228)' }
+              })
+            : null
+        ])
       )
     );
   }
@@ -1045,7 +1069,7 @@ const ActiveChatList = defineComponent({
       );
     };
     
-    const renderChat = (chat: ActiveChat) => {
+    const renderChat = (chat: ActiveChat, index: number) => {
       const isUnread = chat.last_message?.read === '0' &&
                        chat.last_message?.sender_id !== props.currentUserId;
 
@@ -1060,42 +1084,54 @@ const ActiveChatList = defineComponent({
       const image = chat.type === 'direct'
         ? chat.user?.profile_picture_url
         : undefined;
-      
-      return h(RouterLink, { 
-        to: target, 
-        class: 'block p-4 hover:bg-gray-50' 
-      }, () =>
-        h('div', { class: 'flex items-center space-x-4' }, [
-          // Chat avatar (profile pic or group initials)
-          image 
-            ? h('img', { 
-                src: image, 
-                class: 'w-12 h-12 object-cover rounded-full shadow-sm' 
-              }) 
-            : h('div', { 
-                class: 'w-12 h-12 bg-gray-300 rounded-full flex items-center justify-center font-bold text-white'
-              }, name?.substring(0, 2).toUpperCase()),
-              
-          // Chat details  
-          h('div', { class: 'flex-1' }, [
-            h('div', { class: 'flex justify-between' }, [
-              h('h3', { class: 'font-semibold' }, name),
-              h('p', { class: 'text-xs text-gray-500' }, timeAgoDisplay(chat.last_message_time))
-            ]),
-            h('p', { 
-              class: [
-                'text-sm truncate mt-1', 
-                isUnread ? 'font-bold text-green-600' : 'text-gray-600'
-              ]
-            }, chat.last_message?.text)
+
+      return h('div', { key: chat.id }, [
+        h(RouterLink, {
+          to: target,
+          class: 'block hover:bg-gray-50'
+        }, () =>
+          h('div', {
+            class: 'flex items-center py-4 px-4',
+            style: { minHeight: '96px' }
+          }, [
+            // Chat avatar (profile pic or initials)
+            image
+              ? h('img', {
+                  src: image,
+                  class: 'w-16 h-16 object-cover rounded-full'
+                })
+              : h('div', {
+                  class: 'w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center font-semibold text-white text-xl'
+                }, getInitials(name || 'Chat')),
+
+            // Chat details
+            h('div', { class: 'flex-1 ml-3' }, [
+              h('div', { class: 'flex justify-between items-center' }, [
+                h('h3', { class: 'font-semibold text-[17px]' }, name),
+                h('p', { class: 'text-[13px] text-gray-500' }, timeAgoDisplay(chat.last_message_time))
+              ]),
+              h('p', {
+                class: [
+                  'text-[17px] truncate mt-1',
+                  isUnread ? 'font-bold text-green-600' : 'text-gray-600'
+                ]
+              }, chat.last_message?.text)
+            ])
           ])
-        ])
-      );
+        ),
+        // Separator line matching iOS light gray
+        index < (props.chats?.length || 0) - 1
+          ? h('div', {
+              class: 'h-px',
+              style: { backgroundColor: 'rgb(228, 228, 228)' }
+            })
+          : null
+      ]);
     };
-    
-    return () => h('div', { class: 'divide-y' }, [
+
+    return () => h('div', { class: 'bg-white' }, [
       renderInvite(),
-      ...(props.chats?.map(renderChat) || [])
+      ...(props.chats?.map((chat, index) => renderChat(chat, index)) || [])
     ]);
   }
 });

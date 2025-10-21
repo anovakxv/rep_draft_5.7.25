@@ -17,15 +17,28 @@
       <div class="w-10"></div> <!-- Spacer -->
     </header>
 
+    <!-- Loading State -->
+    <div v-if="isLoading" class="flex-1 flex items-center justify-center">
+      <div class="animate-spin h-8 w-8 border-4 border-rep-green border-t-transparent rounded-full"></div>
+    </div>
+
+    <!-- Error State -->
+    <div v-else-if="errorMessage" class="flex-1 flex flex-col items-center justify-center p-4">
+      <div class="text-red-500 text-center mb-4">{{ errorMessage }}</div>
+      <button @click="loadGoalDetails" class="px-4 py-2 bg-rep-green text-white rounded-lg">
+        Retry
+      </button>
+    </div>
+
     <!-- Main Content -->
-    <div v-if="goal" class="flex-1 flex flex-col overflow-hidden">
+    <div v-else-if="goal" class="flex-1 flex flex-col overflow-hidden">
       <!-- Progress Bar and Metrics Section -->
       <div class="p-4 border-b">
         <!-- Progress Bar -->
         <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-2">
-          <div 
-            class="bg-rep-green h-full transition-all duration-300 ease-out" 
-            :style="{ width: `${Math.min(100, Math.max(0, goal.progressPercent))}%` }"
+          <div
+            class="bg-rep-green h-full transition-all duration-300 ease-out"
+            :style="{ width: `${Math.min(100, Math.max(0, goal.progress * 100))}%` }"
           ></div>
         </div>
         
@@ -103,11 +116,6 @@
       <BottomGoalBar @add="activeSheet = 'action'" @message="openGoalTeamChat" />
     </div>
 
-    <!-- Loading State -->
-    <div v-else class="flex-1 flex items-center justify-center">
-      <div class="animate-spin h-8 w-8 border-4 border-rep-green border-t-transparent rounded-full"></div>
-    </div>
-
     <!-- Floating Support Button - EXACTLY matching Swift positioning and logic -->
     <button
       v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales')"
@@ -130,43 +138,60 @@
       </div>
     </div>
 
-    <!-- Action Sheet - EXACTLY matching Swift logic -->
+    <!-- Action Sheet - iOS style design -->
     <transition name="fade">
-      <div v-if="activeSheet === 'action'" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-end justify-center">
-        <div class="bg-white rounded-t-xl w-full max-w-md" @click.stop>
-          <div class="p-6 space-y-6">
-            <!-- Recruiting Goal Actions -->
-            <div v-if="goal?.typeName === 'Recruiting'" class="space-y-6">
-              <button @click="joinRecruitingGoal" class="w-full text-rep-green font-bold text-xl py-3">
-                Join Team
-              </button>
-              <button @click="activeSheet = 'inviteTeam'" class="w-full text-rep-green font-bold text-xl py-3">
-                Invite to Team
-              </button>
-            </div>
-            <!-- Other Goal Types Actions -->
-            <div v-else class="space-y-6">
-              <button @click="activeSheet = 'updateGoal'" class="w-full text-rep-green font-bold text-xl py-3">
-                Update Progress
-              </button>
-            </div>
-            
-            <!-- Edit Goal - Only show if user is creator -->
-            <button 
-              v-if="goal?.creatorId === currentUserId"
-              @click="activeSheet = 'editGoal'" 
-              class="w-full text-rep-green font-bold text-xl py-3"
+      <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end justify-center">
+        <div class="bg-black bg-opacity-50 w-full" style="max-width: 600px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+        <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 600px">
+          <div class="flex flex-col items-center space-y-6">
+            <!-- Join Team (only if not on team and not creator, for Recruiting goals) -->
+            <button
+              v-if="goal && goal.typeName === 'Recruiting' && !isUserOnTeam && goal.creatorId !== currentUserId"
+              @click="joinRecruitingGoal"
+              class="text-[#8cc65d] font-bold text-[28px] py-3"
+            >
+              Join Team
+            </button>
+
+            <!-- Invite to Team (only if on team or is creator) -->
+            <button
+              v-if="goal && (isUserOnTeam || goal.creatorId === currentUserId)"
+              @click="activeSheet = 'inviteTeam'"
+              class="text-[#8cc65d] font-bold text-[28px] py-3"
+            >
+              Invite to Team
+            </button>
+
+            <!-- Update Progress (only for non-Recruiting goals) -->
+            <button
+              v-if="goal && goal.typeName !== 'Recruiting'"
+              @click="activeSheet = 'updateGoal'"
+              class="text-[#8cc65d] font-bold text-[28px] py-3"
+            >
+              Update Progress
+            </button>
+
+            <!-- Edit Goal (always show) -->
+            <button
+              @click="activeSheet = 'editGoal'"
+              class="text-[#8cc65d] font-bold text-[28px] py-3"
             >
               Edit Goal
             </button>
-            
+
             <!-- Delete Goal -->
-            <button @click="confirmDelete" class="w-full text-red-500 font-medium py-3">
+            <button
+              @click="confirmDelete"
+              class="text-red-600 text-[16px] py-3"
+            >
               Delete Goal
             </button>
-            
+
             <!-- Cancel -->
-            <button @click="activeSheet = null" class="w-full text-gray-500 py-3">
+            <button
+              @click="activeSheet = null"
+              class="w-full text-center text-gray-500 text-[16px] py-3 mt-4"
+            >
               Cancel
             </button>
           </div>
@@ -390,6 +415,7 @@ const route = useRoute();
 const router = useRouter();
 const initialGoalId = Number(route.params.id);
 const currentUserId = Number(localStorage.getItem('userId'));
+const token = localStorage.getItem('jwtToken');
 const s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/";
 
 // --- State (EXACTLY matching Swift ViewModel) ---
@@ -408,6 +434,8 @@ const goalTeamChatId = ref<number | null>(null);
 const showPaymentSheet = ref(false);
 const isLoadingIncrements = ref(false);
 const selectedProfileUserId = ref<number | null>(null);
+const isLoading = ref(true);
+const errorMessage = ref<string | null>(null);
 
 // Default reporting increments (fallback)
 const defaultReportingIncrements = [
@@ -415,6 +443,11 @@ const defaultReportingIncrements = [
   { id: 2, title: "Weekly" },
   { id: 3, title: "Daily" }
 ];
+
+// Computed: Check if current user is on the team
+const isUserOnTeam = computed(() => {
+  return team.value.some(member => member.id === currentUserId);
+});
 
 // --- Helper Methods (EXACTLY matching Swift ViewModel) ---
 const patchProfilePictureURL = (imageName?: string): string | undefined => {
@@ -484,13 +517,16 @@ const navigateToProfile = (userId?: number) => {
 
 // --- API Methods (EXACTLY matching Swift ViewModel) ---
 const loadGoalDetails = async () => {
+  isLoading.value = true;
+  errorMessage.value = null;
+
   try {
     const res = await api.get(
       `/api/goals/details?goals_id=${initialGoalId}&num_periods=7`
     );
-    
+
     const apiGoal: APIGoalDetail = res.data.result;
-    
+
     // Map API goal to our Goal model (EXACTLY matching Swift)
     goal.value = {
       id: apiGoal.id,
@@ -538,7 +574,7 @@ const loadGoalDetails = async () => {
       const userName = apiUser?.name || "User";
       const formattedDate = formatDateString(log.timestamp);
       const profilePicUrl = patchProfilePictureURL(apiUser?.imageName);
-      
+
       return {
         id: log.id,
         userImageName: "profile_placeholder",
@@ -558,9 +594,13 @@ const loadGoalDetails = async () => {
       profile_picture_url: patchProfilePictureURL(apiUser.imageName),
       imageName: apiUser.imageName || "profile_placeholder"
     }));
-    
-  } catch (error) {
+
+    isLoading.value = false;
+
+  } catch (error: any) {
     console.error("Failed to load goal details:", error);
+    errorMessage.value = error.response?.data?.error || 'Failed to load goal details. Please try again.';
+    isLoading.value = false;
   }
 };
 
@@ -740,6 +780,14 @@ const FeedCell = defineComponent({
   },
   emits: ['profileTap'],
   setup(props, { emit }) {
+    const getInitials = (name: string): string => {
+      const parts = name.trim().split(' ');
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return name.substring(0, 2).toUpperCase();
+    };
+
     return () => h('div', {
       class: 'flex items-start space-x-4 py-2'
     }, [
@@ -747,26 +795,19 @@ const FeedCell = defineComponent({
         onClick: () => emit('profileTap'),
         class: 'flex-shrink-0'
       }, [
-        props.feed.userProfilePictureURL 
+        props.feed.userProfilePictureURL?.trim() && !props.feed.userProfilePictureURL.includes('profile_placeholder')
           ? h('img', {
               src: props.feed.userProfilePictureURL,
-              class: 'w-20 h-20 rounded-full object-cover'
+              class: 'w-20 h-20 rounded-full object-cover',
+              onError: (e: Event) => {
+                // Hide broken image and show initials fallback
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }
             })
           : h('div', {
-              class: 'w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center'
-            }, [
-              h('svg', {
-                class: 'w-8 h-8 text-gray-500',
-                fill: 'currentColor',
-                viewBox: '0 0 20 20'
-              }, [
-                h('path', {
-                  'fill-rule': 'evenodd',
-                  d: 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z',
-                  'clip-rule': 'evenodd'
-                })
-              ])
-            ])
+              class: 'w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-white font-semibold text-2xl'
+            }, getInitials(props.feed.userName))
       ]),
       h('div', {
         class: 'flex-1 pt-1 space-y-1'
@@ -788,30 +829,38 @@ const TeamCell = defineComponent({
   },
   emits: ['click'],
   setup(props, { emit }) {
+    const getInitials = (name: string): string => {
+      const parts = name.trim().split(' ');
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return name.substring(0, 2).toUpperCase();
+    };
+
     return () => h('div', {
       class: 'flex items-center space-x-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors',
       onClick: () => emit('click')
     }, [
-      props.user.profile_picture_url
+      props.user.profile_picture_url?.trim() && !props.user.profile_picture_url.includes('profile_placeholder')
         ? h('img', {
             src: props.user.profile_picture_url,
-            class: 'w-10 h-10 rounded-full object-cover'
+            class: 'w-10 h-10 rounded-full object-cover',
+            onError: (e: Event) => {
+              // Replace with initials on error
+              const target = e.target as HTMLImageElement;
+              const parent = target.parentElement;
+              if (parent) {
+                target.remove();
+                const initialsDiv = document.createElement('div');
+                initialsDiv.className = 'w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white font-semibold text-sm';
+                initialsDiv.textContent = getInitials(props.user.full_name || 'User');
+                parent.appendChild(initialsDiv);
+              }
+            }
           })
         : h('div', {
-            class: 'w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center'
-          }, [
-            h('svg', {
-              class: 'w-5 h-5 text-gray-500',
-              fill: 'currentColor',
-              viewBox: '0 0 20 20'
-            }, [
-              h('path', {
-                'fill-rule': 'evenodd',
-                d: 'M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z',
-                'clip-rule': 'evenodd'
-              })
-            ])
-          ]),
+            class: 'w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white font-semibold text-sm'
+          }, getInitials(props.user.full_name || 'User')),
       h('div', { class: 'font-medium' }, props.user.full_name || 'User')
     ]);
   }
@@ -828,73 +877,81 @@ const LargeBarChartView = defineComponent({
       class: 'h-[260px] p-4 bg-white'
     }, [
       h('div', {
-        class: 'flex items-end justify-center h-full space-x-2'
-      }, props.data.map(item => 
-        h('div', {
+        class: 'flex items-end justify-center h-full space-x-2',
+        style: { height: '220px' }
+      }, props.data.map(item => {
+        const quotaValue = props.quota > 0 ? props.quota : 1;
+        const heightPercent = Math.min(100, Math.max(1, (item.value / quotaValue) * 100));
+        const heightPx = (220 * heightPercent) / 100; // Calculate pixel height from 220px container
+
+        return h('div', {
           key: item.id,
-          class: 'flex flex-col items-center space-y-1'
+          class: 'flex flex-col items-center justify-end',
+          style: { height: '100%' }
         }, [
-          h('div', { 
-            class: 'text-xs text-center font-medium mb-1' 
-          }, item.valueLabel),
-          h('div', { class: 'flex-1' }),
           h('div', {
-            class: 'w-10 bg-rep-green rounded-sm',
+            class: 'text-xs text-center font-medium mb-1'
+          }, item.valueLabel),
+          h('div', {
+            class: 'w-10 rounded-sm',
             style: {
-              height: `${Math.min(100, Math.max(1, (item.value / Math.max(0.1, props.quota)) * 100))}%`,
-              minHeight: '2px'
+              height: `${heightPx}px`,
+              minHeight: '2px',
+              backgroundColor: '#8cc65d'
             }
           }),
-          h('div', { 
-            class: 'text-xs mt-1 w-10 text-center truncate text-gray-600' 
+          h('div', {
+            class: 'text-xs mt-1 w-10 text-center truncate text-gray-600'
           }, item.bottomLabel)
-        ])
-      ))
+        ]);
+      }))
     ]);
   }
 });
 
-// BottomGoalBar Component (EXACTLY matching Swift)
+// BottomGoalBar Component (matching PortalPage layout)
 const BottomGoalBar = defineComponent({
   emits: ['add', 'message'],
   setup(_, { emit }) {
-    return () => h('div', {
-      class: 'h-[51px] flex items-center justify-between px-4 border-t border-gray-300 bg-white'
+    return () => h('footer', {
+      class: 'flex items-center gap-2 py-2 px-4 border-t bg-white shrink-0'
     }, [
       h('button', {
-        class: 'w-[291px] h-[41px] bg-rep-green rounded-md shadow-sm flex items-center justify-center transition-colors hover:bg-green-600',
-        onClick: () => emit('add')
+        onClick: () => emit('add'),
+        class: 'flex-1 py-2 px-3 rounded-lg text-white font-semibold text-[17px] active:bg-[#7ab54d] transition-colors flex items-center justify-center',
+        style: { backgroundColor: '#8cc65d', borderWidth: '2px', borderColor: '#8cc65d' }
       }, [
         h('svg', {
-          class: 'w-5 h-5 text-white',
           xmlns: 'http://www.w3.org/2000/svg',
+          class: 'h-5 w-5',
           fill: 'none',
           viewBox: '0 0 24 24',
-          stroke: 'currentColor'
+          stroke: 'currentColor',
+          'stroke-width': '2.5'
         }, [
           h('path', {
             'stroke-linecap': 'round',
             'stroke-linejoin': 'round',
-            'stroke-width': '2',
             d: 'M12 4v16m8-8H4'
           })
         ])
       ]),
       h('button', {
-        class: 'text-black p-2 hover:bg-gray-100 rounded transition-colors',
-        onClick: () => emit('message')
+        onClick: () => emit('message'),
+        class: 'flex-1 py-2 px-3 bg-white border-2 rounded-lg font-semibold text-[17px] active:bg-gray-50 transition-colors flex items-center justify-center',
+        style: { borderColor: '#8cc65d', color: '#8cc65d' }
       }, [
         h('svg', {
-          class: 'w-5 h-5',
           xmlns: 'http://www.w3.org/2000/svg',
+          class: 'h-5 w-5',
           fill: 'none',
           viewBox: '0 0 24 24',
-          stroke: 'currentColor'
+          stroke: 'currentColor',
+          'stroke-width': '2.5'
         }, [
           h('path', {
             'stroke-linecap': 'round',
             'stroke-linejoin': 'round',
-            'stroke-width': '2',
             d: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z'
           })
         ])

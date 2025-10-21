@@ -593,15 +593,57 @@ const PortalResultsSection = defineComponent({
   props: { goals: Array as () => Goal[] },
   setup(props) {
     const GoalListItem = (goal: Goal) => {
-      return h('div', { 
-        class: 'py-3 px-2 hover:bg-gray-50 transition'
+      // Compute tag text (matching iOS logic)
+      const tagText = goal.typeName.toLowerCase() === 'other'
+        ? (goal.metricName?.trim() || goal.typeName).substring(0, 9)
+        : goal.typeName;
+
+      // Get last 4 chart data points
+      const chartBars = (goal.chartData || []).slice(-4);
+
+      return h('div', {
+        class: 'flex items-center gap-4 py-1 px-4 bg-white hover:bg-gray-50 transition',
+        style: { height: '89px' } // 81px + 8px padding
       }, [
-        h('div', { class: 'flex items-center space-x-4' }, [
-          h('div', { class: 'flex-1' }, [
-            h('h3', { class: 'font-bold text-lg' }, goal.title),
-            h('p', { class: 'text-sm text-gray-600' }, `Type: ${goal.typeName}`)
-          ])
-        ])
+        // Mini bar chart (left side)
+        h('div', {
+          class: 'flex items-end gap-[6px]',
+          style: { width: '114px', height: '81px' } // 4*24 + 3*6 = 114px width
+        }, chartBars.map((bar, idx) => {
+          const quota = goal.quota > 0 ? goal.quota : 1;
+          const heightPercent = Math.min(100, Math.max(0, (bar.value / quota) * 100));
+          const barHeight = (77 * heightPercent) / 100; // Max 77px
+
+          return h('div', {
+            key: idx,
+            class: 'flex flex-col justify-end',
+            style: { width: '24px', height: '100%' }
+          }, [
+            h('div', {
+              class: 'rounded-sm',
+              style: {
+                width: '24px',
+                height: `${Math.max(barHeight, 0)}px`,
+                backgroundColor: '#8cc65d',
+                minHeight: '0px'
+              }
+            })
+          ]);
+        })),
+
+        // Text content (right side)
+        h('div', { class: 'flex-1 flex flex-col justify-center gap-1' }, [
+          // Title
+          h('h3', { class: 'font-semibold text-[17px] leading-tight' }, goal.title),
+
+          // Subtitle (if exists)
+          goal.subtitle && goal.subtitle.trim()
+            ? h('p', { class: 'text-[15px] text-gray-600 leading-tight' }, goal.subtitle)
+            : null,
+
+          // Progress percentage with tag
+          h('p', { class: 'text-[15px] text-black' }, `${Math.round(goal.progressPercent || (goal.progress * 100))}% [${tagText}]`)
+        ].filter(Boolean))
       ]);
     };
     
@@ -626,18 +668,18 @@ const PortalResultsSection = defineComponent({
 const PortalStorySection = defineComponent({
   props: { portal: Object as () => PortalDetail | null },
   setup(props) {
-    const storyTexts = computed(() => 
+    const storyTexts = computed(() =>
       (props.portal?.aTexts || []).filter(t => (t.section || '') === 'story')
     );
-    
+
     return () => h('div', { class: 'space-y-6' }, [
-      h('h2', { class: 'font-bold text-lg' }, 'Leads'),
+      h('h2', { class: 'font-bold text-xl' }, 'Leads'),
       h('div', { class: 'overflow-x-auto -mx-4 px-4' }, [
         h('div', { class: 'flex space-x-6 pb-2' },
           (props.portal?.aLeads || []).map((lead, index) =>
-            h('div', { 
+            h('div', {
               key: index,
-              class: 'text-center flex flex-col items-center' 
+              class: 'text-center flex flex-col items-center'
             }, [
               lead.profile_picture_url
                 ? h('img', {
@@ -659,7 +701,7 @@ const PortalStorySection = defineComponent({
                       })
                     ])
                   ]),
-              h('p', { class: 'text-xs mt-2 whitespace-nowrap' }, 
+              h('p', { class: 'text-sm mt-2 whitespace-nowrap' },
                 `${lead.fname || ''} ${lead.lname ? lead.lname.charAt(0) + '.' : ''}`)
             ])
           )
@@ -667,12 +709,12 @@ const PortalStorySection = defineComponent({
       ]),
       h('div', { class: 'border-t border-gray-200 my-4' }),
       ...storyTexts.value.map((textBlock, index) =>
-        h('div', { 
+        h('div', {
           key: index,
-          class: 'space-y-2 mb-6' 
+          class: 'space-y-2 mb-6'
         }, [
-          textBlock.title && h('h3', { class: 'font-semibold text-lg' }, textBlock.title),
-          textBlock.text && h('p', { class: 'text-gray-700 whitespace-pre-line' }, textBlock.text)
+          textBlock.title && h('h3', { class: 'font-semibold text-xl' }, textBlock.title),
+          textBlock.text && h('p', { class: 'text-black text-[17px] whitespace-pre-line leading-relaxed' }, textBlock.text)
         ])
       )
     ]);
@@ -682,22 +724,52 @@ const PortalStorySection = defineComponent({
 const BottomBarView = defineComponent({
   emits: ['add', 'message'],
   setup(_, { emit }) {
-    return () => h('footer', { 
-      class: 'flex items-center justify-around p-4 border-t bg-white shrink-0'
+    return () => h('footer', {
+      class: 'flex items-center gap-2 py-2 px-4 border-t bg-white shrink-0'
     }, [
-      h('button', { 
-        onClick: () => emit('add'), 
-        class: 'font-semibold text-lg text-green-600'
-      }, 'Add'),
-      h('button', { 
-        onClick: () => emit('message'), 
-        class: 'font-semibold text-lg text-green-600'
-      }, 'Message Lead')
+      h('button', {
+        onClick: () => emit('add'),
+        class: 'flex-1 py-2 px-3 bg-[#8cc65d] border-2 border-[#8cc65d] rounded-lg text-white font-semibold text-[20px] active:bg-[#7ab54d] transition-colors flex items-center justify-center'
+      }, [
+        h('svg', {
+          xmlns: 'http://www.w3.org/2000/svg',
+          class: 'h-5 w-5',
+          fill: 'none',
+          viewBox: '0 0 24 24',
+          stroke: 'currentColor',
+          'stroke-width': '2.5'
+        }, [
+          h('path', {
+            'stroke-linecap': 'round',
+            'stroke-linejoin': 'round',
+            d: 'M12 4v16m8-8H4'
+          })
+        ])
+      ]),
+      h('button', {
+        onClick: () => emit('message'),
+        class: 'flex-1 py-2 px-3 bg-white border-2 border-[#8cc65d] rounded-lg text-[#8cc65d] font-semibold text-[17px] active:bg-gray-50 transition-colors flex items-center justify-center'
+      }, [
+        h('svg', {
+          xmlns: 'http://www.w3.org/2000/svg',
+          class: 'h-5 w-5',
+          fill: 'none',
+          viewBox: '0 0 24 24',
+          stroke: 'currentColor',
+          'stroke-width': '2.5'
+        }, [
+          h('path', {
+            'stroke-linecap': 'round',
+            'stroke-linejoin': 'round',
+            d: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z'
+          })
+        ])
+      ])
     ]);
   }
 });
 
-// ActionSheetModal - EXACTLY matching Swift logic with proper button ordering
+// ActionSheetModal - EXACTLY matching Swift design with iOS styling
 const ActionSheetModal = defineComponent({
   props: {
     portal: Object as () => PortalDetail | null,
@@ -706,67 +778,68 @@ const ActionSheetModal = defineComponent({
   },
   emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support'],
   setup(props, { emit }) {
-    return () => h('div', { 
-      class: 'fixed inset-0 bg-black bg-opacity-50 z-40 flex items-end', 
-      onClick: () => emit('close') 
-    },
-      h('div', { 
-        class: 'bg-white w-full rounded-t-xl p-6 space-y-6 transform transition-transform duration-300 ease-out', 
-        style: { maxHeight: '80vh', overflowY: 'auto' },
-        onClick: (e: Event) => e.stopPropagation() 
+    return () => h('div', {
+      class: 'fixed inset-0 z-40 flex items-end justify-center',
+      onClick: () => emit('close')
+    }, [
+      h('div', {
+        class: 'bg-black bg-opacity-50 w-full',
+        style: { maxWidth: '600px', position: 'absolute', top: '0', bottom: '0', left: '50%', transform: 'translateX(-50%)' }
+      }),
+      h('div', {
+        class: 'bg-white w-full rounded-t-2xl p-6 relative z-10',
+        style: { maxHeight: '80vh', overflowY: 'auto', maxWidth: '600px' },
+        onClick: (e: Event) => e.stopPropagation()
       }, [
-        // "$ Support" button - always shown at the top if supportGoal exists, matching Swift EXACTLY
-        props.supportGoal && h('button', { 
-          class: 'w-full text-left py-3 text-xl font-semibold text-green-600 hover:bg-gray-50 transition-colors flex items-center space-x-2', 
-          onClick: () => emit('support') 
-        }, [
-          h('svg', {
-            xmlns: 'http://www.w3.org/2000/svg',
-            class: 'h-6 w-6 text-green-800',
-            fill: 'currentColor',
-            viewBox: '0 0 20 20'
+        h('div', { class: 'flex flex-col items-center space-y-6' }, [
+          // "$ Support" button - dark green with dollar sign (iOS style)
+          props.supportGoal && h('button', {
+            class: 'py-3',
+            onClick: () => emit('support')
           }, [
-            h('path', {
-              'fill-rule': 'evenodd',
-              d: 'M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z',
-              'clip-rule': 'evenodd'
-            })
+            h('div', { class: 'flex items-center space-x-2' }, [
+              h('span', {
+                class: 'font-bold text-[28px]',
+                style: { color: '#006600' }
+              }, '$'),
+              h('span', {
+                class: 'font-bold text-[28px]',
+                style: { color: '#006600' }
+              }, 'Support')
+            ])
           ]),
-          h('span', 'Support')
-        ]),
-        
-        // Add Goal - only if current user is lead (matches Swift isCurrentUserLead check)
-        props.isCurrentUserLead && h('button', { 
-          class: 'action-button', 
-          onClick: () => emit('add-goal') 
-        }, 'Add Goal'),
-        
-        // Select Goal Team - always shown (no action in Swift, just placeholder)
-        h('button', { 
-          class: 'action-button' 
-        }, 'Select Goal Team'),
-        
-        // Edit Purpose - only if portal belongs to current user (matches Swift: portal.users_id == userId)
-        (props.portal?.users_id === userId) && h('button', { 
-          class: 'action-button', 
-          onClick: () => emit('edit-purpose') 
-        }, 'Edit Purpose'),
-        
-        // Flag - always shown
-        h('button', { 
-          class: 'action-button text-red-500', 
-          onClick: () => emit('flag') 
-        }, 'Flag as Inappropriate'),
-        
-        // Cancel button
-        h('div', { class: 'pt-4' }, [
-          h('button', { 
-            class: 'w-full text-center text-gray-600 py-2', 
-            onClick: () => emit('close') 
+
+          // Add Goal - light green, large text (only if current user is lead)
+          props.isCurrentUserLead && h('button', {
+            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+            onClick: () => emit('add-goal')
+          }, 'Add Goal'),
+
+          // Select Goal Team - light green, large text
+          h('button', {
+            class: 'text-[#8cc65d] font-bold text-[28px] py-3'
+          }, 'Select Goal Team'),
+
+          // Edit Purpose - light green, large text (only if portal owner)
+          (props.portal?.users_id === userId) && h('button', {
+            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+            onClick: () => emit('edit-purpose')
+          }, 'Edit Purpose'),
+
+          // Flag as Inappropriate - red, smaller text
+          h('button', {
+            class: 'text-red-600 text-[16px] py-3',
+            onClick: () => emit('flag')
+          }, 'Flag as Inappropriate'),
+
+          // Cancel button - gray, smaller text
+          h('button', {
+            class: 'w-full text-center text-gray-500 text-[16px] py-3 mt-4',
+            onClick: () => emit('close')
           }, 'Cancel')
         ])
       ])
-    );
+    ]);
   }
 });
 

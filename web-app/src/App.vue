@@ -3,7 +3,11 @@
 </script>
 
 <template>
-  <router-view />
+  <div class="app-container">
+    <div class="app-content">
+      <router-view />
+    </div>
+  </div>
 </template>
 
 <style>
@@ -12,5 +16,22 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
+  background-color: #e5e5e5; /* Gray background for sidebars */
+}
+
+/* Desktop-optimized container with max-width */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  background-color: #e5e5e5;
+}
+
+.app-content {
+  width: 100%;
+  max-width: 600px; /* Mobile-optimized max width */
+  background-color: white;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+  position: relative;
 }
 </style>

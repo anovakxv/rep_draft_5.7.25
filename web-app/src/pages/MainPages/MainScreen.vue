@@ -37,44 +37,83 @@
 
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto relative">
-      <div v-if="isLoading" class="flex justify-center items-center h-full">
-        <div class="text-center">
-          <svg class="animate-spin h-8 w-8 mx-auto mb-2 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <p>Loading {{ page === 'portals' ? 'portals' : page === 'people' && section === 0 ? 'chats' : 'people' }}...</p>
-        </div>
-      </div>
-      <div v-else-if="errorMessage" class="flex justify-center items-center h-full text-red-500 p-4 text-center">
-        <p>{{ errorMessage }}</p>
-      </div>
-      <div v-else>
+      <Transition name="fade" mode="out-in">
+        <!-- Loading State with Skeleton -->
+        <LoadingSkeleton
+          v-if="isLoading"
+          key="loading"
+          type="list"
+          :count="5"
+          :size="page === 'portals' ? 64 : 48"
+          :variant="page === 'portals' ? 'square' : 'circle'"
+        />
+
+        <!-- Error State with Retry -->
+        <ErrorState
+          v-else-if="errorMessage"
+          key="error"
+          :message="errorMessage"
+          show-retry
+          :retrying="isLoading"
+          @retry="handleRetry"
+        />
+
+        <!-- Content -->
+        <div v-else key="content">
         <template v-if="page === 'people'">
           <template v-if="section === 0">
-            <ActiveChatList 
-              :chats="filteredActiveChats" 
+            <ActiveChatList
+              :chats="filteredActiveChats"
               :invites="pendingInvites"
               :current-user-id="userId"
             />
-            <div v-if="filteredActiveChats.length === 0 && pendingInvites.length === 0" class="flex justify-center items-center h-64 text-gray-500">
-              No chats found.
-            </div>
+            <EmptyState
+              v-if="filteredActiveChats.length === 0 && pendingInvites.length === 0"
+              title="No conversations yet"
+              description="Start a conversation by searching for people or creating a group chat"
+              action-text="Find People"
+              @action="() => { page = 'people'; section = 2; }"
+            >
+              <template #icon>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </template>
+            </EmptyState>
           </template>
           <template v-else>
             <PeopleList :users="filteredUsers" :current-user-id="userId" />
-            <div v-if="filteredUsers.length === 0" class="flex justify-center items-center h-64 text-gray-500">
-              No people found.
-            </div>
+            <EmptyState
+              v-if="filteredUsers.length === 0"
+              title="No people found"
+              :description="searchText ? 'Try a different search term' : 'No people to display'"
+            >
+              <template #icon>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </template>
+            </EmptyState>
           </template>
         </template>
         <template v-else-if="page === 'portals'">
           <PortalList :portals="filteredPortals" :user-id="userId" />
-          <div v-if="filteredPortals.length === 0" class="flex justify-center items-center h-64 text-gray-500">
-            No portals found.
-          </div>
+          <EmptyState
+            v-if="filteredPortals.length === 0"
+            title="No portals found"
+            :description="searchText ? 'Try a different search term' : 'Create your first portal to get started'"
+            :action-text="searchText ? '' : 'Add Purpose'"
+            @action="navigateToAddPurpose"
+          >
+            <template #icon>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </template>
+          </EmptyState>
         </template>
       </div>
+      </Transition>
 
       <!-- Floating Toggle Button -->
       <div class="absolute bottom-5 right-9">
@@ -85,22 +124,26 @@
     </main>
 
     <!-- Search Overlay -->
-    <div v-if="showSearch" class="fixed bottom-0 left-0 right-0 bg-white p-3 border-t shadow-md transition-transform duration-300">
-      <div class="flex items-center">
-        <input 
-          v-model="searchText" 
-          type="search" 
-          placeholder="Search..." 
-          class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
-          @input="handleSearchInput"
-        />
-        <button @click="cancelSearch" class="ml-2 px-4 py-2 text-gray-700">Cancel</button>
+    <Transition name="slide-up">
+      <div v-if="showSearch" class="fixed bottom-0 left-0 right-0 bg-white p-3 border-t shadow-md z-20">
+        <div class="flex items-center">
+          <input
+            v-model="searchText"
+            type="search"
+            placeholder="Search..."
+            class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+            @input="handleSearchInput"
+          />
+          <button @click="cancelSearch" class="ml-2 px-4 py-2 text-gray-700">Cancel</button>
+        </div>
       </div>
-    </div>
+    </Transition>
 
     <!-- Action Sheet Modal -->
-    <div v-if="mainActiveSheet" @click="mainActiveSheet = null" class="fixed inset-0 bg-black bg-opacity-50 z-30 flex items-end">
-      <div @click.stop class="bg-white w-full rounded-t-lg p-6 space-y-4">
+    <Transition name="fade">
+      <div v-if="mainActiveSheet" @click="mainActiveSheet = null" class="fixed inset-0 bg-black bg-opacity-50 z-30 flex items-end">
+        <Transition name="slide-up">
+          <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-lg p-6 space-y-4">
         <!-- Portal Filter Options -->
         <div v-if="page === 'portals'" class="flex items-center justify-center space-x-8 py-3 mb-2">
           <span class="text-gray-500">Show:</span>
@@ -122,8 +165,10 @@
         <button @click="navigateToTeamChat" class="action-button">Team Chat</button>
         <button @click="startSearch" class="action-button">Search</button>
         <button @click="mainActiveSheet = null" class="w-full text-center mt-4 py-2 text-gray-600">Cancel</button>
+          </div>
+        </Transition>
       </div>
-    </div>
+    </Transition>
     
     <!-- Add Purpose Modal -->
     <div v-if="mainActiveSheet === 'addPurpose'" class="fixed inset-0 z-40">
@@ -139,6 +184,9 @@ import api from '@/pages/utils/api';
 import { debounce } from 'lodash-es';
 import { useSocketManager } from '../utils/useSocketManager';
 import REPLogo from '@/assets/REPLogo.png';
+import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
+import ErrorState from '@/components/ErrorState.vue';
+import EmptyState from '@/components/EmptyState.vue';
 
 // --- Interfaces (from MainScreen.swift) ---
 interface User { 
@@ -617,6 +665,14 @@ const navigateToTeamChat = () => {
 const toggleSafePortals = (safeOnly: boolean) => {
   showOnlySafePortals.value = safeOnly;
   // Fetch will be triggered by the watcher
+};
+
+const handleRetry = () => {
+  if (page.value === 'portals') {
+    fetchPortals(section.value);
+  } else {
+    fetchPeople(section.value);
+  }
 };
 
 const recalcOpenNeedsAttention = () => {

@@ -31,27 +31,77 @@
       <div v-if="isLoadingOlder" class="flex justify-center py-2">
         <span class="animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"></span>
       </div>
+      <!-- Typing Indicator -->
+      <div v-if="otherUserTyping" class="mb-3 flex items-center gap-2 text-gray-500 text-sm">
+        <div class="flex gap-1">
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></span>
+          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></span>
+        </div>
+        <span>{{ otherUserName }} is typing...</span>
+      </div>
     </div>
 
     <!-- Input Bar -->
-    <div class="border-t bg-white px-3 py-2 flex items-center gap-2">
-      <textarea
-        v-model="inputText"
-        rows="1"
-        class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:ring-green-500 focus:border-green-500"
-        placeholder="Type a message..."
-        @keydown.enter.exact.prevent="sendMessage"
-        maxlength="1000"
-        aria-label="Type a message"
-      ></textarea>
-      <button
-        @click="sendMessage"
-        :disabled="inputText.trim() === '' || isSending"
-        class="bg-green-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-60"
-      >
-        <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-        Send
-      </button>
+    <div class="border-t bg-white px-3 py-2">
+      <!-- Attachment Previews -->
+      <div v-if="selectedAttachments.length > 0" class="mb-2 flex gap-2 flex-wrap">
+        <div v-for="(file, index) in selectedAttachments" :key="index" class="relative bg-gray-100 rounded-lg p-2 flex items-center gap-2 max-w-xs">
+          <svg v-if="file.type.startsWith('image/')" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+          </svg>
+          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
+          </svg>
+          <span class="text-sm truncate max-w-[150px]">{{ file.name }}</span>
+          <button @click="removeAttachment(index)" class="text-red-600 hover:text-red-800 ml-auto">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Attachment Button -->
+        <button
+          @click="openFilePicker"
+          :disabled="isSending || selectedAttachments.length >= 5"
+          class="text-gray-600 hover:text-green-600 transition p-2 disabled:opacity-40"
+          aria-label="Attach file"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+          </svg>
+        </button>
+        <input
+          ref="fileInputRef"
+          type="file"
+          multiple
+          accept="image/*,.pdf,.doc,.docx,.txt"
+          @change="handleFileSelection"
+          class="hidden"
+        />
+
+        <textarea
+          v-model="inputText"
+          @input="handleInputChange"
+          rows="1"
+          class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:ring-green-500 focus:border-green-500"
+          placeholder="Type a message..."
+          @keydown.enter.exact.prevent="sendMessage"
+          maxlength="1000"
+          aria-label="Type a message"
+        ></textarea>
+        <button
+          @click="sendMessage"
+          :disabled="(inputText.trim() === '' && selectedAttachments.length === 0) || isSending"
+          class="bg-green-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-60"
+        >
+          <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+          Send
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -78,6 +128,11 @@ const isSending = ref(false);
 const isLoadingOlder = ref(false);
 const canLoadOlder = ref(true);
 const scrollContainer = ref<HTMLElement | null>(null);
+const selectedAttachments = ref<File[]>([]);
+const fileInputRef = ref<HTMLInputElement | null>(null);
+const isTyping = ref(false);
+const otherUserTyping = ref(false);
+let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
 
 interface SimpleMessage {
@@ -87,6 +142,11 @@ interface SimpleMessage {
   text: string;
   timestamp: string;
   read?: string;
+  attachments?: Array<{
+    url: string;
+    type: 'image' | 'file';
+    filename?: string;
+  }>;
 }
 
 const token = localStorage.getItem('jwtToken');
@@ -140,26 +200,106 @@ function loadOlder() {
 // --- Send Message ---
 async function sendMessage() {
   const trimmed = inputText.value.trim();
-  if (!trimmed || isSending.value) return;
+  if ((!trimmed && selectedAttachments.value.length === 0) || isSending.value) return;
   isSending.value = true;
+
   try {
-    const res = await axios.post(`${apiBaseUrl}/api/message/send_message`, {
-      users_id: props.otherUserId,
-      message: trimmed
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    // If there are attachments, use FormData
+    if (selectedAttachments.value.length > 0) {
+      const formData = new FormData();
+      formData.append('users_id', String(props.otherUserId));
+      if (trimmed) {
+        formData.append('message', trimmed);
       }
-    });
-    const msg: SimpleMessage = res.data.message;
-    appendIfNeeded(msg);
+      selectedAttachments.value.forEach((file, index) => {
+        formData.append('attachments', file, file.name);
+      });
+
+      const res = await axios.post(`${apiBaseUrl}/api/message/send_message`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      const msg: SimpleMessage = res.data.message;
+      appendIfNeeded(msg);
+    } else {
+      // Text-only message
+      const res = await axios.post(`${apiBaseUrl}/api/message/send_message`, {
+        users_id: props.otherUserId,
+        message: trimmed
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const msg: SimpleMessage = res.data.message;
+      appendIfNeeded(msg);
+    }
+
     inputText.value = '';
+    selectedAttachments.value = [];
+    stopTyping();
     nextTick(() => scrollToBottom());
   } catch (e) {
-    // Optionally show error
+    console.error('Failed to send message:', e);
   } finally {
     isSending.value = false;
+  }
+}
+
+// --- File Attachment Handlers ---
+function openFilePicker() {
+  fileInputRef.value?.click();
+}
+
+function handleFileSelection(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const newFiles = Array.from(target.files).slice(0, 5 - selectedAttachments.value.length);
+    selectedAttachments.value.push(...newFiles);
+    target.value = ''; // Reset input
+  }
+}
+
+function removeAttachment(index: number) {
+  selectedAttachments.value.splice(index, 1);
+}
+
+// --- Typing Indicators ---
+function handleInputChange() {
+  if (!isTyping.value) {
+    isTyping.value = true;
+    emitTypingStatus(true);
+  }
+
+  if (typingTimeout) {
+    clearTimeout(typingTimeout);
+  }
+
+  typingTimeout = setTimeout(() => {
+    stopTyping();
+  }, 3000);
+}
+
+function stopTyping() {
+  if (isTyping.value) {
+    isTyping.value = false;
+    emitTypingStatus(false);
+  }
+  if (typingTimeout) {
+    clearTimeout(typingTimeout);
+    typingTimeout = null;
+  }
+}
+
+function emitTypingStatus(typing: boolean) {
+  if (window.RealtimeSocketManager) {
+    window.RealtimeSocketManager.emitTyping({
+      recipientId: props.otherUserId,
+      isTyping: typing
+    });
   }
 }
 
@@ -179,11 +319,19 @@ function setupRealtimeListener() {
             senderName: payload.sender_name,
             text: payload.text,
             timestamp: payload.timestamp,
-            read: payload.read
+            read: payload.read,
+            attachments: payload.attachments
           });
         }
         emit('refresh-chats'); // Notify parent to refresh chat list
         nextTick(() => scrollToBottom());
+      }
+    });
+
+    // Listen for typing events
+    window.RealtimeSocketManager.onTypingNotification?.((payload: any) => {
+      if (payload.senderId === props.otherUserId) {
+        otherUserTyping.value = payload.isTyping;
       }
     });
   }

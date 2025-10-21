@@ -8,19 +8,19 @@
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Header -->
     <header class="flex items-center justify-between h-14 px-4 border-b bg-white shrink-0">
-      <button @click="goBack" class="text-green-600 p-2 -ml-2">
+      <button @click="handleClose" class="text-green-600 p-2 -ml-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
       </button>
       <h1 class="font-bold text-lg">{{ transactionType.title }}</h1>
-      <button @click="goBack" class="text-green-600 font-semibold">Cancel</button>
+      <button @click="handleClose" class="text-green-600 font-semibold">Cancel</button>
     </header>
 
     <div class="flex-1 overflow-y-auto">
       <div class="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
         <!-- Header Section -->
         <div class="text-center space-y-2">
-          <h2 class="text-2xl font-bold">{{ transactionType.title }} to {{ portalName }}</h2>
-          <p v-if="goalName" class="text-lg font-medium text-gray-800">For: {{ goalName }}</p>
+          <h2 class="text-2xl font-bold">{{ transactionType.title }} to {{ props.portalName }}</h2>
+          <p v-if="props.goalName" class="text-lg font-medium text-gray-800">For: {{ props.goalName }}</p>
           <p class="text-base text-gray-500">{{ transactionType.subtitle }}</p>
         </div>
 
@@ -125,21 +125,78 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 
 // --- Types and Constants ---
-const transactionTypes = { /* ... same as before ... */ };
-const monthlyPriceOptions = [ /* ... same as before ... */ ];
+interface TransactionTypeConfig {
+  key: string;
+  title: string;
+  subtitle: string;
+  amountLabel: string;
+  messageLabel: string;
+  ctaText: string;
+  receiptTitle: string;
+  receiptMessage: string;
+  quickAmounts: number[];
+}
+
+const transactionTypes: Record<string, TransactionTypeConfig> = {
+  donation: {
+    key: 'donation',
+    title: 'Make a Donation',
+    subtitle: 'Support this purpose with a one-time or monthly donation',
+    amountLabel: 'Donation Amount',
+    messageLabel: 'Message (Optional)',
+    ctaText: 'Donate',
+    receiptTitle: 'Thank You!',
+    receiptMessage: 'Your donation has been received. A receipt has been sent to your email.',
+    quickAmounts: [10, 25, 50, 100, 250]
+  },
+  payment: {
+    key: 'payment',
+    title: 'Make a Payment',
+    subtitle: 'Pay for services or products',
+    amountLabel: 'Payment Amount',
+    messageLabel: 'Note (Optional)',
+    ctaText: 'Pay',
+    receiptTitle: 'Payment Complete',
+    receiptMessage: 'Your payment has been processed successfully.',
+    quickAmounts: [20, 50, 100, 200, 500]
+  },
+  purchase: {
+    key: 'purchase',
+    title: 'Complete Purchase',
+    subtitle: 'Purchase items or services',
+    amountLabel: 'Purchase Amount',
+    messageLabel: 'Order Notes (Optional)',
+    ctaText: 'Purchase',
+    receiptTitle: 'Order Confirmed',
+    receiptMessage: 'Your order has been confirmed. You will receive a confirmation email shortly.',
+    quickAmounts: [25, 50, 100, 250, 500]
+  }
+};
+
+const monthlyPriceOptions = [
+  { amount: 5, priceId: 'price_monthly_5' },
+  { amount: 10, priceId: 'price_monthly_10' },
+  { amount: 25, priceId: 'price_monthly_25' },
+  { amount: 50, priceId: 'price_monthly_50' },
+  { amount: 100, priceId: 'price_monthly_100' }
+];
+
 type PaymentStatus = { status: 'initial' | 'loading' | 'success' | 'failed'; message?: string };
 
 // --- Props & Setup ---
-const route = useRoute();
-const router = useRouter();
-const portalId = Number(route.query.portalId || 0);
-const portalName = route.query.portalName as string || '';
-const goalId = Number(route.query.goalId || 0);
-const goalName = route.query.goalName as string || '';
-const typeKey = (route.query.transactionType as string) || 'donation';
+const props = defineProps<{
+  portalId: number;
+  portalName: string;
+  goalId?: number;
+  goalName?: string;
+  transactionType?: string;
+}>();
+
+const emit = defineEmits(['close']);
+
+const typeKey = props.transactionType || 'donation';
 const transactionType = transactionTypes[typeKey] || transactionTypes.donation;
 
 const token = localStorage.getItem('jwtToken');
@@ -153,11 +210,21 @@ const isMonthlySubscription = ref(false);
 const selectedPriceId = ref('');
 
 // --- Computed ---
-const formattedAmount = computed(() => { /* ... same as before ... */ });
-const canSubmit = computed(() => { /* ... same as before ... */ });
+const formattedAmount = computed(() => {
+  const num = parseFloat(amount.value);
+  return isNaN(num) ? '0.00' : num.toFixed(2);
+});
+
+const canSubmit = computed(() => {
+  const num = parseFloat(amount.value);
+  if (isMonthlySubscription.value) {
+    return selectedPriceId.value !== '' && num >= 1;
+  }
+  return num >= 1;
+});
 
 // --- Methods ---
-const goBack = () => router.back();
+const handleClose = () => emit('close');
 const clearError = () => { if (paymentStatus.value.status === 'failed') paymentStatus.value = { status: 'initial' }; };
 
 const handleSubscriptionToggle = () => {
@@ -182,14 +249,44 @@ const startPayment = async () => {
   paymentStatus.value = { status: 'loading' };
 
   try {
-    const body: any = { /* ... same as before ... */ };
-    const res = await fetch(`${apiBaseUrl}/api/create_checkout_session`, { /* ... */ });
+    const successUrl = `${window.location.origin}/stripe-payment-return?success=true`;
+    const cancelUrl = `${window.location.origin}/stripe-payment-return?success=false`;
+
+    const body: any = {
+      portal_id: props.portalId,
+      amount: parseFloat(amount.value) * 100, // Convert to cents
+      currency: 'usd',
+      transaction_type: transactionType.key,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      message: message.value
+    };
+
+    if (props.goalId) {
+      body.goal_id = props.goalId;
+    }
+
+    if (isMonthlySubscription.value && selectedPriceId.value) {
+      body.is_subscription = true;
+      body.price_id = selectedPriceId.value;
+    }
+
+    const res = await fetch(`${apiBaseUrl}/api/create_checkout_session`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+
     if (!res.ok) throw new Error(`Server responded with ${res.status}`);
     const json = await res.json();
 
     if (json.checkout_url) {
       if (json.session_id) localStorage.setItem('lastCheckoutSessionId', json.session_id);
       window.open(json.checkout_url, '_blank');
+      paymentStatus.value = { status: 'initial' }; // Reset status after opening checkout
     } else {
       throw new Error("Failed to get checkout URL from server.");
     }
@@ -217,7 +314,7 @@ const checkPaymentStatus = async (sessionId: string) => {
 
 const closeSuccessModal = () => {
   paymentStatus.value = { status: 'initial' };
-  goBack();
+  emit('close');
 };
 
 // --- Lifecycle & Event Handling ---

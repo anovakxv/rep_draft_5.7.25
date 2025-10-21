@@ -261,39 +261,75 @@ const GoalsListSection = defineComponent({
 const WriteContentView = defineComponent({
   props: {
     writeBlocks: Array,
-    isCurrentUser: Boolean,
-    writeForm: Object,
-    editingWrite: Object
+    isCurrentUser: Boolean
   },
-  emits: ['start-edit', 'cancel-edit', 'save-write', 'delete-write'],
-  template: `
-    <div>
-      <div v-if="writeBlocks.length">
-        <div v-for="write in writeBlocks" :key="write.id" class="mb-4 p-4 border rounded">
-          <h3 v-if="write.title" class="font-bold text-lg mb-1">{{ write.title }}</h3>
-          <p>{{ write.content }}</p>
-          <div v-if="isCurrentUser" class="mt-2 flex justify-end space-x-4 text-sm">
-            <button @click="$emit('start-edit', write)" class="text-blue-600">Edit</button>
-            <button @click="$emit('delete-write', write)" class="text-red-600">Delete</button>
-          </div>
-        </div>
-      </div>
-      <p v-else class="text-gray-500">No content yet.</p>
+  emits: ['delete-write', 'edit-write', 'new-write'],
+  setup(props, { emit }) {
+    const router = useRouter()
 
-      <!-- Add/Edit Write Form for Current User -->
-      <div v-if="isCurrentUser" class="mt-6 border-t pt-4">
-        <h3 class="font-semibold mb-2">{{ editingWrite ? 'Edit Block' : 'Add New Block' }}</h3>
-        <input v-model="writeForm.title" placeholder="Title" class="input mb-2">
-        <textarea v-model="writeForm.content" placeholder="Content..." class="input h-24"></textarea>
-        <div class="flex items-center space-x-4">
-          <button @click="$emit('save-write')" class="bg-green-600 text-white font-bold py-2 px-4 rounded">
-            {{ editingWrite ? 'Update' : 'Save' }}
-          </button>
-          <button v-if="editingWrite" @click="$emit('cancel-edit')" class="text-gray-600">Cancel</button>
-        </div>
-      </div>
-    </div>
-  `
+    const navigateToEdit = (writeId: number) => {
+      router.push(`/write/edit/${writeId}`)
+    }
+
+    const navigateToNew = () => {
+      router.push('/write/new')
+    }
+
+    return () => h('div', { class: 'space-y-4' }, [
+      // Existing write blocks
+      props.writeBlocks && props.writeBlocks.length > 0
+        ? h('div', { class: 'space-y-4' }, props.writeBlocks.map((write: any) =>
+            h('div', {
+              key: write.id,
+              class: 'p-4 border border-gray-200 rounded-lg hover:shadow-md transition-shadow'
+            }, [
+              write.title && h('h3', { class: 'font-bold text-lg mb-2' }, write.title),
+              h('div', {
+                class: 'text-gray-700 prose prose-sm max-w-none mb-3',
+                innerHTML: write.content.substring(0, 200) + (write.content.length > 200 ? '...' : '')
+              }),
+              h('div', { class: 'flex items-center justify-between text-sm text-gray-500' }, [
+                h('span', write.status === 'draft' ? 'Draft' : 'Published'),
+                props.isCurrentUser && h('div', { class: 'flex space-x-3' }, [
+                  h('button', {
+                    onClick: () => navigateToEdit(write.id),
+                    class: 'text-blue-600 hover:text-blue-800 font-medium'
+                  }, 'Edit'),
+                  h('button', {
+                    onClick: () => emit('delete-write', write),
+                    class: 'text-red-600 hover:text-red-800 font-medium'
+                  }, 'Delete')
+                ])
+              ])
+            ])
+          ))
+        : h('p', { class: 'text-gray-500 text-center py-8' }, 'No content yet.'),
+
+      // New Content Button for current user
+      props.isCurrentUser && h('div', { class: 'mt-6 pt-6 border-t' }, [
+        h('button', {
+          onClick: navigateToNew,
+          class: 'w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2'
+        }, [
+          h('svg', {
+            xmlns: 'http://www.w3.org/2000/svg',
+            class: 'h-5 w-5',
+            fill: 'none',
+            viewBox: '0 0 24 24',
+            stroke: 'currentColor'
+          }, [
+            h('path', {
+              'stroke-linecap': 'round',
+              'stroke-linejoin': 'round',
+              'stroke-width': '2',
+              d: 'M12 4v16m8-8H4'
+            })
+          ]),
+          h('span', 'Create New Content')
+        ])
+      ])
+    ])
+  }
 })
 
 const BottomBarView = defineComponent({

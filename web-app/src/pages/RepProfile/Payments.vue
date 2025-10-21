@@ -8,18 +8,18 @@
 
 <template>
   <div class="min-h-screen bg-white flex flex-col">
+    <!-- Header -->
+    <div class="header sticky top-0 bg-white z-10 flex items-center justify-between px-4 py-3 border-b border-gray-200">
+      <button @click="goBack" class="text-green-600 text-lg font-semibold">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <h1 class="text-xl font-bold">Payments & Subscriptions</h1>
+      <div class="w-6"></div>
+    </div>
+
     <div class="max-w-2xl mx-auto w-full p-6">
-      <h2 class="text-2xl font-bold mb-6 text-center">Payments & Subscriptions</h2>
-      <!-- Stripe Checkout Button -->
-      <div class="mb-8 flex justify-center">
-        <button
-          @click="openStripeCheckout"
-          class="bg-green-600 text-white font-bold px-6 py-3 rounded shadow hover:bg-green-700 transition"
-          :disabled="isLoading"
-        >
-          Make a Payment
-        </button>
-      </div>
       <div v-if="isLoading" class="flex items-center justify-center py-12">
         <span class="text-lg font-semibold">Loading...</span>
       </div>
@@ -84,7 +84,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import axios from 'axios'
+
+const router = useRouter()
 
 // --- Data Models ---
 interface ActiveSubscriptionItem {
@@ -175,34 +178,8 @@ async function cancelSubscription() {
   }
 }
 
-// --- Stripe Checkout Integration ---
-async function openStripeCheckout() {
-  isLoading.value = true
-  errorMessage.value = ''
-  try {
-    // Replace with dynamic values as needed (portal_id, amount, etc.)
-    const res = await axios.post(
-      `${apiBaseUrl}/api/create_checkout_session`,
-      {
-        // Example: portal_id, amount, currency, transaction_type
-        // You should make these dynamic based on your UI
-        portal_id: "YOUR_PORTAL_ID", // Replace or make dynamic
-        amount: 500, // $5.00 in cents, replace or make dynamic
-        currency: "usd",
-        transaction_type: "donation"
-      },
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-    if (res.data.checkout_url) {
-      window.location.href = res.data.checkout_url
-    } else {
-      errorMessage.value = 'Failed to start Stripe checkout.'
-    }
-  } catch (err: any) {
-    errorMessage.value = err.response?.data?.error || err.message || 'Failed to start Stripe checkout.'
-  } finally {
-    isLoading.value = false
-  }
+function goBack() {
+  router.back()
 }
 
 onMounted(loadPaymentData)

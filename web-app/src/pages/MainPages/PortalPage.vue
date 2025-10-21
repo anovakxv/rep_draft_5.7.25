@@ -80,34 +80,15 @@
     </transition>
 
     <!-- PayTransaction Sheet -->
-    <transition name="fade">
-      <div v-if="showPaymentSheet" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="bg-white w-full h-full flex flex-col">
-          <div class="flex justify-between items-center p-4 border-b">
-            <h2 class="text-xl font-bold">Support {{ supportGoal?.title }}</h2>
-            <button @click="showPaymentSheet = false" class="text-gray-400 hover:text-gray-600">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div class="flex-1 p-4">
-            <!-- PayTransaction component would go here -->
-            <div class="space-y-4">
-              <p>Portal: {{ portalDetail?.name }}</p>
-              <p>Goal: {{ supportGoal?.title }}</p>
-              <p>Type: {{ supportGoal?.typeName === 'Fund' ? 'Donation' : 'Payment' }}</p>
-              <p class="text-gray-500">Payment interface would be implemented here</p>
-            </div>
-          </div>
-          <div class="border-t p-4">
-            <button @click="showPaymentSheet = false" class="w-full py-2 bg-green-600 text-white rounded-lg">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
+    <PayTransaction
+      v-if="showPaymentSheet && supportGoal"
+      :portal-id="portalId"
+      :portal-name="portalDetail?.name || 'Portal'"
+      :goal-id="supportGoal.id"
+      :goal-name="supportGoal.title"
+      :transaction-type="supportGoal.typeName === 'Fund' ? 'donation' : 'payment'"
+      @close="showPaymentSheet = false"
+    />
 
     <!-- Message Sheet -->
     <transition name="fade">
@@ -134,28 +115,11 @@
     </transition>
 
     <!-- Add Goal Sheet -->
-    <transition name="fade">
-      <div v-if="activeSheet === 'addGoal'" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="bg-white w-full h-full flex flex-col">
-          <div class="flex justify-between items-center p-4 border-b">
-            <h2 class="text-xl font-bold">Add Goal to {{ portalDetail?.name }}</h2>
-            <button @click="activeSheet = null" class="text-gray-400 hover:text-gray-600">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div class="flex-1 p-4">
-            <p>Goal creation interface would be here</p>
-          </div>
-          <div class="border-t p-4">
-            <button @click="activeSheet = null" class="w-full py-2 bg-green-600 text-white rounded-lg">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
+    <EditGoal
+      v-if="activeSheet === 'addGoal'"
+      :portal-id="portalId"
+      @close="handleAddGoalClose"
+    />
 
     <!-- Alerts -->
     <transition name="fade">
@@ -203,6 +167,8 @@
 import { ref, onMounted, computed, watch, defineComponent, h, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
+import EditGoal from '../GoalPages/EditGoal.vue';
+import PayTransaction from './PayTransaction.vue';
 
 // --- Interfaces (from Swift Models) ---
 interface User { 
@@ -429,6 +395,12 @@ const handleFlag = () => {
   showFlagConfirmation.value = false;
   activeSheet.value = null;
   flagPortal();
+};
+
+const handleAddGoalClose = () => {
+  activeSheet.value = null;
+  // Refresh portal goals after creating a new one
+  fetchPortalGoals();
 };
 
 // --- Lifecycle Hooks ---

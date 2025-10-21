@@ -266,6 +266,13 @@ import { ref, onMounted, computed, defineComponent, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
+// Import child components
+import UpdateGoalSheet from './Update_Goal.vue';
+import EditGoalPage from './EditGoal.vue';
+import InviteTeamSheet from './InviteTeamSheet.vue';
+import GroupChatView from '../Messaging/Chat_Group.vue';
+import PayTransactionView from '../MainPages/PayTransaction.vue';
+
 // --- Types & Interfaces (EXACTLY matching Swift models) ---
 interface Goal {
   id: number;

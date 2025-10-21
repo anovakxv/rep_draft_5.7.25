@@ -143,28 +143,45 @@
     <Transition name="fade">
       <div v-if="mainActiveSheet" @click="mainActiveSheet = null" class="fixed inset-0 bg-black bg-opacity-50 z-30 flex items-end">
         <Transition name="slide-up">
-          <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-lg p-6 space-y-4">
-        <!-- Portal Filter Options -->
-        <div v-if="page === 'portals'" class="flex items-center justify-center space-x-8 py-3 mb-2">
-          <span class="text-gray-500">Show:</span>
-          <button @click="toggleSafePortals(false)" class="flex items-center">
-            <div class="w-5 h-5 rounded-full border-2 border-gray-400 mr-2 flex items-center justify-center">
-              <div v-if="!showOnlySafePortals" class="w-3 h-3 bg-green-600 rounded-full"></div>
+          <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-2xl p-6">
+            <div class="flex flex-col items-center space-y-6">
+              <!-- Portal Filter Options (iOS style) -->
+              <div v-if="page === 'portals'" class="flex items-center space-x-6 py-3">
+                <span class="text-gray-500 font-normal">Show:</span>
+                <button @click="toggleSafePortals(false)" class="flex items-center space-x-2">
+                  <div class="w-5 h-5 rounded-full border-2 border-gray-400 flex items-center justify-center">
+                    <svg v-if="!showOnlySafePortals" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <span :class="!showOnlySafePortals ? 'font-bold text-gray-900' : 'font-normal text-gray-500'">All</span>
+                </button>
+                <button @click="toggleSafePortals(true)" class="flex items-center space-x-2">
+                  <div class="w-5 h-5 rounded-full border-2 border-gray-400 flex items-center justify-center">
+                    <svg v-if="showOnlySafePortals" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <span :class="showOnlySafePortals ? 'font-bold text-gray-900' : 'font-normal text-gray-500'">Safe</span>
+                </button>
+              </div>
+
+              <!-- Action Buttons (iOS style) -->
+              <button @click="navigateToAddPurpose" class="text-[#8cc65d] font-bold text-[28px] py-3">
+                Add Purpose
+              </button>
+              <button @click="navigateToTeamChat" class="text-[#8cc65d] font-bold text-[28px] py-3">
+                Team Chat
+              </button>
+              <button @click="startSearch" class="text-[#8cc65d] font-bold text-[28px] py-3">
+                Search
+              </button>
+
+              <!-- Cancel Button -->
+              <button @click="mainActiveSheet = null" class="w-full text-center py-3 text-gray-500">
+                Cancel
+              </button>
             </div>
-            <span :class="!showOnlySafePortals ? 'font-bold text-black' : 'text-gray-600'">All</span>
-          </button>
-          <button @click="toggleSafePortals(true)" class="flex items-center">
-            <div class="w-5 h-5 rounded-full border-2 border-gray-400 mr-2 flex items-center justify-center">
-              <div v-if="showOnlySafePortals" class="w-3 h-3 bg-green-600 rounded-full"></div>
-            </div>
-            <span :class="showOnlySafePortals ? 'font-bold text-black' : 'text-gray-600'">Safe</span>
-          </button>
-        </div>
-        
-        <button @click="navigateToAddPurpose" class="action-button">Add Purpose</button>
-        <button @click="navigateToTeamChat" class="action-button">Team Chat</button>
-        <button @click="startSearch" class="action-button">Search</button>
-        <button @click="mainActiveSheet = null" class="w-full text-center mt-4 py-2 text-gray-600">Cancel</button>
           </div>
         </Transition>
       </div>
@@ -908,25 +925,59 @@ const MainSegmentedPicker = defineComponent({
 });
 
 const PortalList = defineComponent({
-  props: { 
+  props: {
     portals: Array as () => Portal[],
-    userId: Number 
+    userId: Number
   },
   setup(props) {
-    return () => h('div', { class: 'divide-y' },
-      props.portals?.map(portal =>
-        h(RouterLink, { 
-          to: `/portal/${portal.id}`, 
-          class: 'block py-4 px-4 hover:bg-gray-50' 
+    return () => h('div', { class: 'bg-gray-50' },
+      props.portals?.map((portal, index) =>
+        h(RouterLink, {
+          to: `/portal/${portal.id}`,
+          key: portal.id,
+          class: 'block'
         }, () =>
-          h('div', { class: 'flex items-center space-x-4' }, [
-            h('img', { 
-              src: portal.mainImageUrl || '/default-portal.png', 
-              class: 'w-16 h-16 object-cover rounded shadow-sm' 
-            }),
-            h('div', [
-              h('h3', { class: 'font-bold text-lg' }, portal.name),
-              h('p', { class: 'text-sm text-gray-600 mt-1' }, portal.subtitle)
+          h('div', {
+            class: 'flex items-start gap-4 px-4 py-3 bg-white border-b border-gray-200 hover:bg-gray-50 transition-colors',
+            style: { minHeight: '105px' }
+          }, [
+            // Image (144px x 81px, 16:9 ratio)
+            portal.mainImageUrl
+              ? h('img', {
+                  src: portal.mainImageUrl,
+                  alt: portal.name,
+                  class: 'object-cover rounded flex-shrink-0',
+                  style: { width: '144px', height: '81px' }
+                })
+              : h('div', {
+                  class: 'bg-gray-200 rounded flex-shrink-0',
+                  style: { width: '144px', height: '81px' }
+                }),
+
+            // Text content
+            h('div', { class: 'flex-1 min-w-0 flex flex-col justify-between', style: { minHeight: '81px' } }, [
+              h('div', { class: 'space-y-1' }, [
+                // Portal name (semibold, 2 lines max)
+                h('h3', {
+                  class: 'font-semibold text-[17px] leading-tight line-clamp-2 text-gray-900'
+                }, portal.name),
+
+                // Subtitle (2 lines max, secondary color)
+                portal.subtitle && portal.subtitle.trim()
+                  ? h('p', {
+                      class: 'text-[17px] text-gray-600 leading-tight line-clamp-2'
+                    }, portal.subtitle)
+                  : null
+              ]),
+
+              // Bottom row: city and member count
+              h('div', { class: 'flex items-center justify-between text-xs mt-auto pt-1' }, [
+                // City (placeholder - would need to map cities_id to city name)
+                h('span', { class: 'text-gray-500' }, ''),
+
+                // Member count (green text on right)
+                h('span', { class: 'text-green-600 font-medium' }, '')
+              ])
             ])
           ])
         )

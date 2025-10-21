@@ -26,7 +26,7 @@
         </button>
       </div>
       <div v-for="msg in messages" :key="msg.id" class="mb-3">
-        <GroupMessageBubble :message="msg" :isCurrentUser="msg.senderId === currentUserId" />
+        <GroupMessageBubble :message="msg" :isCurrentUser="msg.sender_id === currentUserId" />
       </div>
       <div v-if="isLoadingOlder" class="flex justify-center py-2">
         <span class="animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"></span>
@@ -186,8 +186,9 @@ let observerId: string | null = null;
 
 interface GroupMessage {
   id: number;
-  senderId: number;
-  senderName: string;
+  sender_id: number;  // Backend returns snake_case
+  sender_name: string;  // Backend returns snake_case
+  sender_photo_url?: string;  // Backend returns this
   text: string;
   timestamp: string;
   attachments?: Array<{
@@ -213,10 +214,12 @@ const typingUsersText = computed(() => {
 // --- Fetch Group Info ---
 async function fetchGroupInfo() {
   try {
-    const res = await api.get(`/api/message/group_chats/${props.chatId}`);
-    groupName.value = res.data.name || 'Group Chat';
-    groupMembers.value = res.data.members || [];
-    creatorId.value = res.data.creator_id;
+    // Backend route: GET /api/message/group_chat?chats_id=${id}
+    const res = await api.get(`/api/message/group_chat?chats_id=${props.chatId}`);
+    const result = res.data.result;
+    groupName.value = result.chat?.name || 'Group Chat';
+    groupMembers.value = result.users || [];
+    creatorId.value = result.chat?.created_by;
   } catch (e) {
     console.error('Failed to fetch group info:', e);
   }
@@ -229,13 +232,17 @@ async function fetchMessages(beforeId?: number, append = false) {
     isLoadingOlder.value = true;
   }
   try {
+    // Backend route: GET /api/message/group_chat?chats_id=${id}&limit=${limit}&offset=${offset}
+    // Note: Backend uses offset, not before_id for pagination
     const params = new URLSearchParams({
-      order: 'ASC',
-      limit: '200'
+      chats_id: String(props.chatId),
+      limit: '200',
+      offset: '0'
     });
-    if (beforeId) params.append('before_id', String(beforeId));
-    const res = await api.get(`/api/message/group_chats/${props.chatId}/messages?${params.toString()}`);
-    const newMsgs: GroupMessage[] = res.data.messages || [];
+    const res = await api.get(`/api/message/group_chat?${params.toString()}`);
+    const result = res.data.result;
+    const newMsgs: GroupMessage[] = result.messages || [];
+
     if (append) {
       if (newMsgs.length === 0) {
         canLoadOlder.value = false;
@@ -248,6 +255,10 @@ async function fetchMessages(beforeId?: number, append = false) {
     } else {
       messages.value = newMsgs;
       canLoadOlder.value = true;
+      // Update group info from the same response
+      groupName.value = result.chat?.name || 'Group Chat';
+      groupMembers.value = result.users || [];
+      creatorId.value = result.chat?.created_by;
       emit('refresh-chats');
       nextTick(() => scrollToBottom());
     }
@@ -273,7 +284,7 @@ async function sendMessage() {
   try {
     if (selectedAttachments.value.length > 0) {
       const formData = new FormData();
-      formData.append('chat_id', String(props.chatId));
+      formData.append('chats_id', String(props.chatId));
       if (trimmed) {
         formData.append('message', trimmed);
       }
@@ -281,7 +292,8 @@ async function sendMessage() {
         formData.append('attachments', file, file.name);
       });
 
-      const res = await api.post(`/api/message/group_chats/${props.chatId}/send`, formData, {
+      // Backend route: POST /api/message/send_chat_message
+      const res = await api.post('/api/message/send_chat_message', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -289,7 +301,9 @@ async function sendMessage() {
       const msg: GroupMessage = res.data.message;
       appendIfNeeded(msg);
     } else {
-      const res = await api.post(`/api/message/group_chats/${props.chatId}/send`, {
+      // Backend route: POST /api/message/send_chat_message
+      const res = await api.post('/api/message/send_chat_message', {
+        chats_id: props.chatId,
         message: trimmed
       });
       const msg: GroupMessage = res.data.message;
@@ -369,10 +383,12 @@ function setupRealtimeListener() {
         if (payload.message) {
           appendIfNeeded(payload.message);
         } else if (payload.text) {
+          // Socket payload already has snake_case fields
           appendIfNeeded({
             id: payload.id,
-            senderId: payload.sender_id ?? payload.senderId,
-            senderName: payload.sender_name ?? payload.senderName,
+            sender_id: payload.sender_id,
+            sender_name: payload.sender_name,
+            sender_photo_url: payload.sender_photo_url,
             text: payload.text,
             timestamp: payload.timestamp,
             attachments: payload.attachments
@@ -424,7 +440,12 @@ function onScroll() {
 
 async function leaveGroup() {
   try {
-    await api.post(`/api/message/group_chats/${props.chatId}/leave`, {});
+    // Backend route: POST /api/message/manage_chat
+    // To leave: send current user ID in aDelIDs array
+    await api.post('/api/message/manage_chat', {
+      chats_id: props.chatId,
+      aDelIDs: [props.currentUserId]
+    });
     showLeaveAlert.value = false;
     emit('close');
     emit('refresh-chats');

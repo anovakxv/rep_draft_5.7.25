@@ -143,9 +143,7 @@ function onImageChange(e: Event) {
 async function fetchSkills() {
   try {
     // Corrected endpoint to match Swift/Python backend
-    const res = await api.get('/api/user/get_skills', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('jwtToken')}` }
-    })
+    const res = await api.get('/api/user/get_skills')
     skills.value = res.data.result || []
   } catch (err) {
     console.error("Failed to fetch skills:", err);
@@ -165,9 +163,7 @@ async function fetchProfile() {
   }
   try {
     const userId = localStorage.getItem('userId')
-    const res = await api.get(`/api/user/profile?users_id=${userId}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem('jwtToken')}` }
-    })
+    const res = await api.get(`/api/user/profile?users_id=${userId}`)
     const user = res.data.result
     firstName.value = user.fname || ''
     lastName.value = user.lname || ''
@@ -200,7 +196,7 @@ async function saveProfile() {
     await api.post(
       '/api/user/edit',
       form,
-      { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${localStorage.getItem('jwtToken')}` } }
+      { headers: { 'Content-Type': 'multipart/form-data' } }
     )
     
     if (props.fromOnboarding) {

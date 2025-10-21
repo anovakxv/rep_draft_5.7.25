@@ -19,10 +19,10 @@
     <!-- Main Content -->
     <main v-if="isLoaded && user.id" class="flex-1 overflow-y-auto">
       <!-- Profile Info -->
-      <ProfileInfoView 
-        :photo-url="user.profilePictureURL" 
-        :city="user.city" 
-        :skills="user.skills ? user.skills.map(s => s.title) : []" 
+      <ProfileInfoView
+        :photo-url="user.profile_picture_url"
+        :city="user.city"
+        :skills="user.skills ? user.skills.map(s => s.title) : []"
       />
 
       <!-- Broadcast Message -->
@@ -129,7 +129,7 @@
 
 <script setup lang="ts">
 import api from '@/pages/utils/api'
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, defineComponent, h } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 // Components (in a real app, these would be imported from separate files)
@@ -359,13 +359,13 @@ interface Skill {
 
 interface User {
   id: number;
-  fullName?: string;
+  full_name?: string;  // Backend returns snake_case
   fname?: string;
   lname?: string;
   username?: string;
   about?: string;
   broadcast?: string;
-  profilePictureURL?: string;
+  profile_picture_url?: string;  // Backend returns snake_case
   imageName?: string;
   userType?: string;
   city?: string;
@@ -436,10 +436,6 @@ const writeForm = ref({ title: '', content: '' })
 const viewedUserId = computed(() => Number(route.params.id))
 const loggedInUserId = computed(() => Number(localStorage.getItem('userId')))
 const isCurrentUser = computed(() => viewedUserId.value === loggedInUserId.value)
-const token = localStorage.getItem('jwtToken')
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL
-
-const authHeaders = { headers: { Authorization: `Bearer ${token}` } }
 
 // Methods
 const fetchProfile = async () => {
@@ -447,23 +443,23 @@ const fetchProfile = async () => {
   try {
     // Parallel API calls
     const [userRes, portalsRes, goalsRes, writesRes, blockStatusRes] = await Promise.all([
-      api.get(`/api/user/profile?users_id=${viewedUserId.value}`, authHeaders),
-      api.get(`/api/portal/filter_network_portals?user_id=${viewedUserId.value}&tab=open`, authHeaders),
-      api.get(`/api/goals/list?users_id=${viewedUserId.value}`, authHeaders),
-      api.get(`/api/user/writes?users_id=${viewedUserId.value}`, authHeaders),
-      isCurrentUser.value ? Promise.resolve({ data: { is_blocked: false } }) : api.get(`/api/user/is_blocked?users_id=${viewedUserId.value}`, authHeaders)
+      api.get(`/api/user/profile?users_id=${viewedUserId.value}`),
+      api.get(`/api/portal/filter_network_portals?user_id=${viewedUserId.value}&tab=open`),
+      api.get(`/api/goals/list?users_id=${viewedUserId.value}`),
+      api.get(`/api/user/writes?users_id=${viewedUserId.value}`),
+      isCurrentUser.value ? Promise.resolve({ data: { is_blocked: false } }) : api.get(`/api/user/is_blocked?users_id=${viewedUserId.value}`)
     ]);
 
     const profile = userRes.data.result
     user.value = {
       id: profile.id,
-      fullName: profile.full_name,
+      full_name: profile.full_name,
       fname: profile.fname,
       lname: profile.lname,
       username: profile.username,
       about: profile.about,
       broadcast: profile.broadcast,
-      profilePictureURL: profile.profile_picture_url,
+      profile_picture_url: profile.profile_picture_url,
       imageName: profile.imageName,
       userType: profile.user_type,
       city: profile.city,
@@ -539,7 +535,7 @@ const goToMessages = () => {
 
 const logout = () => {
   // API call to logout like in Swift
-  api.post('/api/user/logout', {}, authHeaders)
+  api.post('/api/user/logout', {})
     .finally(() => {
       localStorage.clear()
       router.push('/login')
@@ -553,8 +549,8 @@ const addToNetwork = async () => {
       action: "add",
       user_id: loggedInUserId.value,
       target_user_id: viewedUserId.value
-    }, authHeaders)
-    
+    })
+
     networkResultMessage.value = 'Added to your network!'
     showNetworkResultAlert.value = true
   } catch {
@@ -567,7 +563,7 @@ const addToNetwork = async () => {
 const blockUser = async () => {
   const action = isBlocked.value ? 'unblock' : 'block'
   try {
-  await api.post(`/api/user/${action}`, { users_id: viewedUserId.value }, authHeaders)
+  await api.post(`/api/user/${action}`, { users_id: viewedUserId.value })
     isBlocked.value = !isBlocked.value
     networkResultMessage.value = `User ${action}ed.`
     showNetworkResultAlert.value = true
@@ -585,7 +581,7 @@ const flagUser = async () => {
 
 const confirmFlagUser = async () => {
   try {
-    await api.post('/api/user/flag_user', { users_id: viewedUserId.value, reason: 'Inappropriate content' }, authHeaders)
+    await api.post('/api/user/flag_user', { users_id: viewedUserId.value, reason: 'Inappropriate content' })
     networkResultMessage.value = 'User has been flagged.'
     showNetworkResultAlert.value = true
   } catch {
@@ -617,10 +613,10 @@ const saveWrite = async () => {
         Object.assign(updateData, { order: editingWrite.value.order })
       }
       
-      await api.put(`/api/user/write/${editingWrite.value.id}`, updateData, authHeaders)
+      await api.put(`/api/user/write/${editingWrite.value.id}`, updateData)
     } else {
       // Add new write
-      await api.post('/api/user/write', writeForm.value, authHeaders)
+      await api.post('/api/user/write', writeForm.value)
     }
     cancelEditWrite()
     await fetchProfile() // Refresh data
@@ -632,7 +628,7 @@ const saveWrite = async () => {
 const confirmDeleteWrite = async (write: WriteBlock) => {
   if (confirm('Are you sure you want to delete this writing block?')) {
     try {
-  await api.delete(`/api/user/write/${write.id}`, authHeaders)
+  await api.delete(`/api/user/write/${write.id}`)
       await fetchProfile() // Refresh data
     } catch {
       alert('Failed to delete content.')

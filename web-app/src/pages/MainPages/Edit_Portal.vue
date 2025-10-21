@@ -312,7 +312,7 @@
             @click="toggleUserSelection(user)"
             class="p-4 border-b flex justify-between items-center cursor-pointer hover:bg-gray-50"
           >
-            <span>{{ user.fullName || user.fname + ' ' + (user.lname || '') }}</span>
+            <span>{{ user.full_name || user.fname + ' ' + (user.lname || '') }}</span>
             <svg 
               v-if="isUserSelected(user)" 
               xmlns="http://www.w3.org/2000/svg" 
@@ -381,26 +381,27 @@
 
 <script setup lang="ts">
 import api from '@/pages/utils/api';
-import { ref, onMounted, computed, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { v4 as uuidv4 } from 'uuid'; // You'll need to add this package
 
 // --- Interfaces ---
-interface User { 
-  id: number; 
-  fullName?: string;
+interface User {
+  id: number;
+  full_name?: string;  // Backend returns snake_case
   fname?: string;
   lname?: string;
   displayName?: string;
 }
 
-interface PortalDetail { 
-  id: number; 
-  name: string; 
-  subtitle?: string; 
-  about?: string; 
-  aTexts?: PortalText[]; 
-  aUsers?: User[]; 
+interface PortalDetail {
+  id: number;
+  name: string;
+  subtitle?: string;
+  about?: string;
+  aTexts?: PortalText[];
+  aUsers?: User[];
+  aGoals?: EditableGoal[];
 }
 
 interface PortalText { 
@@ -439,7 +440,6 @@ const router = useRouter();
 const portalId = Number(route.params.id) || 0; // 0 for new portal
 const userId = Number(localStorage.getItem('userId'));
 const token = localStorage.getItem('jwtToken');
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
 
 // --- State ---
@@ -711,11 +711,10 @@ const save = async () => {
   try {
     const response = await api.post(endpoint, formData, {
       headers: {
-        ...authHeaders.headers,
         'Content-Type': 'multipart/form-data',
       },
     });
-    
+
     console.log('Portal saved successfully:', response.data);
     dismiss();
   } catch (err) {

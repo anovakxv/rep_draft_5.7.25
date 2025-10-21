@@ -31,6 +31,10 @@ defineProps<{
   actionText?: string;
 }>();
 
+defineSlots<{
+  icon?: () => any;
+}>();
+
 const emit = defineEmits(['action']);
 </script>
 

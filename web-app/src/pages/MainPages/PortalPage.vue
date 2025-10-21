@@ -118,6 +118,8 @@
     <EditGoal
       v-if="activeSheet === 'addGoal'"
       :portal-id="portalId"
+      :user-id="userId"
+      :reporting-increments="reportingIncrementsForEditGoal"
       @close="handleAddGoalClose"
     />
 
@@ -172,10 +174,10 @@ import PayTransaction from './PayTransaction.vue';
 
 // --- Interfaces (from Swift Models) ---
 interface User { 
-  id: number; 
-  fname?: string; 
-  lname?: string; 
-  profilePictureURL?: string; 
+  id: number;
+  fname?: string;
+  lname?: string;
+  profile_picture_url?: string;  // Backend returns snake_case
 }
 
 interface Goal { 
@@ -228,14 +230,6 @@ interface ReportingIncrement {
   name: string;
 }
 
-interface PortalDetailResponse {
-  result: PortalDetail;
-}
-
-interface PortalGoalsResponse {
-  aGoals: Goal[];
-}
-
 // --- Orientation Detection (similar to OrientationObserver in Swift) ---
 const isLandscape = ref(window.innerWidth > window.innerHeight);
 
@@ -254,9 +248,7 @@ const route = useRoute();
 const router = useRouter();
 const portalId = Number(route.params.id);
 const userId = Number(localStorage.getItem('userId') || '0');
-const token = localStorage.getItem('jwtToken') || '';
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-const authHeaders = { headers: { Authorization: `Bearer ${token}` } };
+const token = localStorage.getItem('jwtToken');
 
 // --- State (from ViewModel & View) ---
 const portalDetail = ref<PortalDetail | null>(null);
@@ -292,6 +284,10 @@ const isCurrentUserLead = computed(() => {
   return portalDetail.value?.aUsers?.some(u => u.id === userId) ?? false;
 });
 
+const reportingIncrementsForEditGoal = computed(() => {
+  return reportingIncrements.value.map(ri => ({ id: ri.id, title: ri.name }));
+});
+
 const leadRepUser = computed(() => {
   return portalDetail.value?.aLeads?.[0] ?? null;
 });
@@ -301,13 +297,10 @@ const fetchPortalDetail = async () => {
   isLoading.value = true;
   errorMessage.value = null;
   try {
-    const res = await api.get(
-      `/api/portal/details?portals_id=${portalId}&user_id=${userId}`,
-      authHeaders
-    );
+    const res = await api.get(`/api/portal/details?portals_id=${portalId}&user_id=${userId}`);
     if (res.data && res.data.result) {
       portalDetail.value = res.data.result;
-      console.log("Portal aLeads:", portalDetail.value.aLeads?.map(l => l.id) || []);
+      console.log("Portal aLeads:", portalDetail.value?.aLeads?.map(l => l.id) || []);
     } else {
       errorMessage.value = "Could not find portal details";
     }
@@ -321,10 +314,7 @@ const fetchPortalDetail = async () => {
 
 const fetchPortalGoals = async () => {
   try {
-    const res = await api.get(
-      `/api/goals/portal?portals_id=${portalId}`,
-      authHeaders
-    );
+    const res = await api.get(`/api/goals/portal?portals_id=${portalId}`);
     if (res.data && res.data.aGoals) {
       portalGoals.value = res.data.aGoals;
     }
@@ -335,12 +325,10 @@ const fetchPortalGoals = async () => {
 
 const fetchReportingIncrements = async () => {
   try {
-    const res = await api.get(
-      `/api/reporting_increments/list`,
-      authHeaders
-    );
-    if (res.data) {
-      reportingIncrements.value = res.data;
+    // Backend route: /api/goals/reporting_increments
+    const res = await api.get('/api/goals/reporting_increments');
+    if (res.data && res.data.reportingIncrements) {
+      reportingIncrements.value = res.data.reportingIncrements;
     }
   } catch (err) {
     console.error('Failed to load reporting increments:', err);
@@ -349,11 +337,7 @@ const fetchReportingIncrements = async () => {
 
 const flagPortal = async () => {
   try {
-    await api.post(
-      `/api/portal/flag_portal`,
-      { portal_id: portalId, reason: '' },
-      authHeaders
-    );
+    await api.post('/api/portal/flag_portal', { portal_id: portalId, reason: '' });
     flagResultMessage.value = 'Portal flagged. Thank you for your report.';
   } catch (err) {
     flagResultMessage.value = 'Failed to flag portal.';
@@ -447,7 +431,7 @@ watch(showEditPortal, (newVal) => {
 });
 
 // Watch for portalGoals changes - this matches the Swift onChange(of: viewModel.portalGoals) logic
-watch(portalGoals, (newGoals) => {
+watch(portalGoals, () => {
   console.log("Portal goals updated, supportGoal:", supportGoal.value);
 }, { immediate: true });
 
@@ -654,9 +638,9 @@ const PortalStorySection = defineComponent({
               key: index,
               class: 'text-center flex flex-col items-center' 
             }, [
-              lead.profilePictureURL 
+              lead.profile_picture_url
                 ? h('img', {
-                    src: lead.profilePictureURL,
+                    src: lead.profile_picture_url,
                     class: 'w-12 h-12 rounded-full object-cover'
                   })
                 : h('div', {

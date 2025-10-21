@@ -11,7 +11,7 @@
     <!-- Header/Toolbar -->
     <header class="sticky top-0 z-20 bg-gray-100 border-b border-gray-200 flex items-center justify-between h-14 px-4">
       <router-link :to="`/profile/${userId}`">
-        <img v-if="currentUser?.profilePictureURL" :src="currentUser.profilePictureURL" 
+        <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
              class="w-7 h-7 rounded-full object-cover" alt="Profile"/>
         <div v-else class="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-white">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -178,7 +178,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed, defineComponent, h, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed, defineComponent, h, nextTick, type Ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
 import { useSocketManager } from '../utils/useSocketManager';
@@ -197,12 +197,12 @@ function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...
 }
 
 // --- Interfaces (from MainScreen.swift) ---
-interface User { 
-  id: number; 
-  fullName?: string; 
-  profilePictureURL?: string; 
-  lastMessage?: string; 
-  lastMessageDate?: string; 
+interface User {
+  id: number;
+  full_name?: string;  // Backend returns snake_case
+  profile_picture_url?: string;  // Backend returns snake_case
+  lastMessage?: string;
+  lastMessageDate?: string;
 }
 
 interface Portal { 
@@ -250,7 +250,7 @@ interface Invite {
 
 // --- Composables (Mirroring ViewModels) ---
 
-const usePortals = (userId: ref<number>, token: ref<string>, safeOnly: ref<boolean>) => {
+const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
   const portals = ref<Portal[]>([]);
   const searchResults = ref<Portal[]>([]);
   const isLoading = ref(false);
@@ -328,7 +328,7 @@ const usePortals = (userId: ref<number>, token: ref<string>, safeOnly: ref<boole
   return { portals, searchResults, isLoading, errorMessage, isSearching, fetchPortals, searchPortals, clearSearch };
 };
 
-const usePeople = (userId: ref<number>, token: ref<string>) => {
+const usePeople = (userId: Ref<number>) => {
   const users = ref<User[]>([]);
   const activeChats = ref<ActiveChat[]>([]);
   const searchResults = ref<User[]>([]);
@@ -502,7 +502,7 @@ const {
   fetchPortals, 
   searchPortals, 
   clearSearch: clearPortalSearch 
-} = usePortals(userId, token, showOnlySafePortals);
+} = usePortals(userId, showOnlySafePortals);
 
 const { 
   users, 
@@ -515,7 +515,7 @@ const {
   fetchPeople, 
   searchPeople,
   clearSearch: clearPeopleSearch
-} = usePeople(userId, token);
+} = usePeople(userId);
 
 // --- UI State ---
 const isLoading = computed(() => isLoadingPortals.value || isLoadingPeople.value);
@@ -524,7 +524,6 @@ const currentUser = ref<User | null>(null);
 const mainActiveSheet = ref<'actionSheet' | 'addPurpose' | null>(null);
 const showSearch = ref(false);
 const searchText = ref('');
-const searchDebounceTimer = ref<number | null>(null);
 const initialUnreadPollScheduled = ref(false);
 
 // --- Computed Filters ---
@@ -545,8 +544,8 @@ const filteredUsers = computed(() => {
     return searchResultsUsers.value;
   }
   if (searchText.value.trim()) {
-    return users.value.filter(user => 
-      (user.fullName || '').toLowerCase().includes(searchText.value.toLowerCase())
+    return users.value.filter(user =>
+      (user.full_name || '').toLowerCase().includes(searchText.value.toLowerCase())
     );
   }
   return users.value;
@@ -554,12 +553,12 @@ const filteredUsers = computed(() => {
 
 const filteredActiveChats = computed(() => {
   if (!searchText.value.trim()) return activeChats.value;
-  
+
   return activeChats.value.filter(chat => {
-    const name = chat.type === 'direct' 
-      ? chat.user?.fullName 
+    const name = chat.type === 'direct'
+      ? chat.user?.full_name
       : chat.chat?.name;
-      
+
     return name?.toLowerCase().includes(searchText.value.toLowerCase());
   });
 });
@@ -879,10 +878,10 @@ const timeAgoDisplay = (dateString: string | undefined): string => {
 // --- Inline Component Definitions ---
 
 const MainSegmentedPicker = defineComponent({
-  props: { 
-    segments: Array, 
-    selectedIndex: Number, 
-    attentionDotIndices: Array 
+  props: {
+    segments: Array as () => string[],
+    selectedIndex: Number,
+    attentionDotIndices: Array as () => number[]
   },
   emits: ['select'],
   setup(props, { emit }) {
@@ -898,10 +897,11 @@ const MainSegmentedPicker = defineComponent({
         onClick: () => emit('select', index)
       }, [
         segment,
-        (props.attentionDotIndices?.includes(index)) && 
-        h('div', { 
-          class: 'absolute top-1 left-1 w-2.5 h-2.5 bg-green-500 rounded-full' 
-        })
+        ...(props.attentionDotIndices?.includes(index) ? [
+          h('div', {
+            class: 'absolute top-1 left-1 w-2.5 h-2.5 bg-green-500 rounded-full'
+          })
+        ] : [])
       ])
     ));
   }
@@ -948,13 +948,13 @@ const PeopleList = defineComponent({
           class: 'block py-4 px-4 hover:bg-gray-50' 
         }, () =>
           h('div', { class: 'flex items-center space-x-4' }, [
-            h('img', { 
-              src: user.profilePictureURL || '/default-profile.png', 
-              class: 'w-12 h-12 object-cover rounded-full shadow-sm' 
+            h('img', {
+              src: user.profile_picture_url || '/default-profile.png',
+              class: 'w-12 h-12 object-cover rounded-full shadow-sm'
             }),
             h('div', { class: 'flex-1' }, [
               h('div', { class: 'flex justify-between' }, [
-                h('h3', { class: 'font-semibold' }, user.fullName),
+                h('h3', { class: 'font-semibold' }, user.full_name),
                 h('p', { class: 'text-xs text-gray-500' }, timeAgoDisplay(user.lastMessageDate))
               ]),
               h('p', { class: 'text-sm text-gray-600 truncate mt-1' }, user.lastMessage)
@@ -985,8 +985,8 @@ const ActiveChatList = defineComponent({
             class: 'w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold'
           }, '🔔'),
           h('div', [
-            h('h3', { class: 'font-semibold' }, 
-              `You have ${props.invites.length} pending invitation${props.invites.length > 1 ? 's' : ''}`
+            h('h3', { class: 'font-semibold' },
+              `You have ${props.invites?.length || 0} pending invitation${(props.invites?.length || 0) > 1 ? 's' : ''}`
             ),
             h('p', { class: 'text-sm text-gray-600 mt-1' }, 'Tap to view and respond')
           ])
@@ -995,19 +995,19 @@ const ActiveChatList = defineComponent({
     };
     
     const renderChat = (chat: ActiveChat) => {
-      const isUnread = chat.last_message?.read === '0' && 
+      const isUnread = chat.last_message?.read === '0' &&
                        chat.last_message?.sender_id !== props.currentUserId;
-                       
-      const target = chat.type === 'direct' 
-        ? `/chat/dm/${chat.user?.id}` 
+
+      const target = chat.type === 'direct'
+        ? `/chat/dm/${chat.user?.id}`
         : `/chat/group/${chat.chat?.id}`;
-        
-      const name = chat.type === 'direct' 
-        ? chat.user?.fullName 
+
+      const name = chat.type === 'direct'
+        ? chat.user?.full_name
         : chat.chat?.name;
-        
-      const image = chat.type === 'direct' 
-        ? chat.user?.profilePictureURL 
+
+      const image = chat.type === 'direct'
+        ? chat.user?.profile_picture_url
         : undefined;
       
       return h(RouterLink, { 

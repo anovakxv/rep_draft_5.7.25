@@ -147,11 +147,18 @@ async function fetchInvites() {
 async function respondToInvite(inviteId: number, accept: boolean) {
   respondingTo.value = inviteId;
 
+  // Find the invite to get goal_id
+  const invite = invites.value.find(inv => inv.id === inviteId);
+  if (!invite) return;
+
   try {
+    // Backend route: PATCH /api/goals/{goal_id}/team
+    // Expects: { action: 'accept'|'decline', users: [userId] }
     await api.patch(
-      `/api/goals/invites/${inviteId}`,
+      `/api/goals/${invite.goals_id}/team`,
       {
-        confirmed: accept ? '1' : '0'
+        action: accept ? 'accept' : 'decline',
+        users: [userId.value]
       }
     );
 
@@ -160,12 +167,9 @@ async function respondToInvite(inviteId: number, accept: boolean) {
 
     // If accepted, optionally navigate to the goal
     if (accept) {
-      const invite = invites.value.find(inv => inv.id === inviteId);
-      if (invite) {
-        setTimeout(() => {
-          router.push(`/goal/${invite.goals_id}`);
-        }, 500);
-      }
+      setTimeout(() => {
+        router.push(`/goal/${invite.goals_id}`);
+      }, 500);
     }
   } catch (err: any) {
     if (err.response?.status === 401 || err.response?.status === 403) {

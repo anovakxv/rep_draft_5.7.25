@@ -91,8 +91,7 @@ async function login() {
   try {
     const res = await api.post(
       '/api/user/login',
-      { email: email.value, password: password.value },
-      { headers: { 'Content-Type': 'application/json' } }
+      { email: email.value, password: password.value }
     )
     const { result, token } = res.data
     // Store user info and onboarding flags

@@ -50,10 +50,10 @@
         >
           <!-- Profile Picture -->
           <img
-            v-if="user.profilePictureURL"
-            :src="user.profilePictureURL"
+            v-if="user.profile_picture_url"
+            :src="user.profile_picture_url"
             class="w-10 h-10 rounded-full object-cover"
-            :alt="user.fullName"
+            :alt="user.full_name"
           />
           <div
             v-else
@@ -66,7 +66,7 @@
 
           <!-- User Name -->
           <div class="flex-1 font-medium">
-            {{ user.fullName || 'User' }}
+            {{ user.full_name || 'User' }}
           </div>
 
           <!-- Checkmark -->
@@ -125,11 +125,10 @@ import api from '@/pages/utils/api'
 
 interface User {
   id: number
-  fullName?: string
+  full_name?: string  // Backend returns this
   fname?: string
   lname?: string
-  profilePictureURL?: string
-  profile_picture_url?: string
+  profile_picture_url?: string  // Backend returns this
 }
 
 const props = defineProps<{
@@ -160,7 +159,7 @@ function toggleUser(userId: number) {
 }
 
 function patchProfilePictureURL(user: User): string | undefined {
-  const url = user.profile_picture_url || user.profilePictureURL
+  const url = user.profile_picture_url
   if (!url || url.trim() === '') return undefined
   if (url.startsWith('http')) return url
   return s3BaseURL + url
@@ -181,8 +180,8 @@ async function loadNetworkMembers() {
     // Map users and patch profile picture URLs
     users.value = rawUsers.map((user: any) => ({
       ...user,
-      fullName: user.fname && user.lname ? `${user.fname} ${user.lname}` : user.fname || user.lname || 'User',
-      profilePictureURL: patchProfilePictureURL(user)
+      full_name: user.full_name || (user.fname && user.lname ? `${user.fname} ${user.lname}` : user.fname || user.lname || 'User'),
+      profile_picture_url: patchProfilePictureURL(user)
     }))
   } catch (err: any) {
     console.error('Failed to load network members:', err)

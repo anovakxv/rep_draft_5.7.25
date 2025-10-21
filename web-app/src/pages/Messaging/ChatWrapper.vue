@@ -26,8 +26,8 @@
     v-else-if="otherUser"
     :current-user-id="currentUserId"
     :other-user-id="otherUser.id"
-    :other-user-name="otherUser.fullName || 'User'"
-    :other-user-photo-u-r-l="otherUser.profilePictureURL"
+    :other-user-name="otherUser.full_name || 'User'"
+    :other-user-photo-u-r-l="otherUser.profile_picture_url"
     @close="handleBack"
     @refresh-chats="emitRefresh"
   />
@@ -41,8 +41,8 @@ import Chat_Individual from './Chat_Individual.vue';
 
 interface User {
   id: number;
-  fullName?: string;
-  profilePictureURL?: string;
+  full_name?: string;  // Backend returns snake_case
+  profile_picture_url?: string;  // Backend returns snake_case
 }
 
 const route = useRoute();

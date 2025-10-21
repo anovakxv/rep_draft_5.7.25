@@ -24,8 +24,8 @@
       <div v-for="msg in messages" :key="msg.id" class="mb-3">
         <MessageBubble
           :message="msg"
-          :isCurrentUser="msg.senderId === currentUserId"
-          :profilePicURL="msg.senderId === otherUserId ? otherUserPhotoURL : null"
+          :isCurrentUser="msg.sender_id === currentUserId"
+          :profilePicURL="msg.sender_id === otherUserId ? otherUserPhotoURL : null"
         />
       </div>
       <div v-if="isLoadingOlder" class="flex justify-center py-2">
@@ -137,8 +137,8 @@ let observerId: string | null = null;
 
 interface SimpleMessage {
   id: number;
-  senderId: number;
-  senderName: string;
+  sender_id: number;  // Backend returns snake_case
+  sender_name: string;  // Backend returns snake_case
   text: string;
   timestamp: string;
   read?: string;

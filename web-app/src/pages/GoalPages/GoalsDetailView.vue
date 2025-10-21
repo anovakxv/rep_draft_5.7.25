@@ -296,14 +296,15 @@ interface Goal {
 
 interface User {
   id: number;
-  fullName?: string;
+  full_name?: string;  // For display
+  name?: string;  // Backend sometimes returns this for team members
   fname?: string;
   lname?: string;
   username?: string;
   about?: string;
   broadcast?: string;
-  profilePictureURL?: string;
-  imageName?: string;
+  profile_picture_url?: string;  // Backend returns snake_case
+  imageName?: string;  // Backend returns this for team members
   userType?: string;
   city?: string;
   skills?: string[];
@@ -552,8 +553,8 @@ const loadGoalDetails = async () => {
     // Map team members (EXACTLY matching Swift)
     team.value = (apiGoal.team || []).map(apiUser => ({
       id: apiUser.id,
-      fullName: apiUser.name || "User",
-      profilePictureURL: patchProfilePictureURL(apiUser.imageName),
+      full_name: apiUser.name || "User",  // Backend returns 'name' for team members
+      profile_picture_url: patchProfilePictureURL(apiUser.imageName),
       imageName: apiUser.imageName || "profile_placeholder"
     }));
     
@@ -790,9 +791,9 @@ const TeamCell = defineComponent({
       class: 'flex items-center space-x-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors',
       onClick: () => emit('click')
     }, [
-      props.user.profilePictureURL 
+      props.user.profile_picture_url
         ? h('img', {
-            src: props.user.profilePictureURL,
+            src: props.user.profile_picture_url,
             class: 'w-10 h-10 rounded-full object-cover'
           })
         : h('div', {
@@ -810,7 +811,7 @@ const TeamCell = defineComponent({
               })
             ])
           ]),
-      h('div', { class: 'font-medium' }, props.user.fullName || 'User')
+      h('div', { class: 'font-medium' }, props.user.full_name || 'User')
     ]);
   }
 });

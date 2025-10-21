@@ -52,7 +52,7 @@
       </div>
 
       <!-- 3. Bottom Action Bar -->
-      <BottomBarView @add="activeSheet = 'portalActionMenu'" @message="openMessageSheet" />
+      <BottomBarView @add="handleAddAction" @message="openMessageSheet" />
     </div>
 
     <!-- Modals & Fullscreen Views -->
@@ -169,6 +169,7 @@
 import { ref, onMounted, computed, watch, defineComponent, defineAsyncComponent, h, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
+import { isAuthenticated } from '@/utils/auth';
 // Lazy load EditGoal to prevent Tailwind @apply errors from blocking page load
 const EditGoal = defineAsyncComponent(() => import('../GoalPages/EditGoal.vue'));
 import PayTransaction from './PayTransaction.vue';
@@ -297,8 +298,18 @@ const leadRepUser = computed(() => {
 const fetchPortalDetail = async () => {
   isLoading.value = true;
   errorMessage.value = null;
+  const authenticated = isAuthenticated();
+
   try {
-    const res = await api.get(`/api/portal/details?portals_id=${portalId}&user_id=${userId}`);
+    let res;
+
+    // Use public endpoint for unauthenticated users
+    if (!authenticated) {
+      res = await api.get(`/api/public/portal/${portalId}`);
+    } else {
+      res = await api.get(`/api/portal/details?portals_id=${portalId}&user_id=${userId}`);
+    }
+
     if (res.data && res.data.result) {
       portalDetail.value = res.data.result;
       console.log("Portal aLeads:", portalDetail.value?.aLeads?.map(l => l.id) || []);
@@ -349,12 +360,30 @@ const flagPortal = async () => {
 // --- Event Handlers ---
 const goBack = () => router.back();
 
+const handleAddAction = () => {
+  if (!isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: `/portal/${portalId}` }
+    });
+    return;
+  }
+  activeSheet.value = 'portalActionMenu';
+};
+
 const openFullscreen = (index: number) => {
   fullscreenStartIndex.value = index;
   isFullscreenOpen.value = true;
 };
 
 const openMessageSheet = () => {
+  if (!isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: `/portal/${portalId}` }
+    });
+    return;
+  }
   if (leadRepUser.value) {
     selectedLead.value = leadRepUser.value;
     showMessageSheet.value = true;
@@ -390,20 +419,22 @@ const handleAddGoalClose = () => {
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
-  if (!token) {
-    router.push('/login');
-    return;
-  }
-  
+  // Allow public users to view portal page
+  // Authentication is checked on protected actions (Message, Add)
+
   // Fetch portal data
   fetchPortalDetail();
   fetchPortalGoals();
-  fetchReportingIncrements();
-  
+
+  // Only fetch reporting increments if authenticated (needed for creating goals)
+  if (isAuthenticated()) {
+    fetchReportingIncrements();
+  }
+
   // Set up orientation detection
   window.addEventListener('resize', updateOrientation);
   window.addEventListener('orientationchange', updateOrientation);
-  
+
   // Set up event bus for toolbar actions (similar to NotificationCenter)
   document.addEventListener('ShowEditPortalFromToolbar', () => {
     showEditPortal.value = true;
@@ -612,7 +643,7 @@ const PortalResultsSection = defineComponent({
         }, chartBars.map((bar, idx) => {
           const quota = goal.quota > 0 ? goal.quota : 1;
           const heightPercent = Math.min(100, Math.max(0, (bar.value / quota) * 100));
-          const barHeight = (77 * heightPercent) / 100; // Max 77px
+          const barHeight = (77 * heightPercent) / 100;
 
           return h('div', {
             key: idx,
@@ -725,7 +756,7 @@ const BottomBarView = defineComponent({
   emits: ['add', 'message'],
   setup(_, { emit }) {
     return () => h('footer', {
-      class: 'flex items-center gap-2 py-2 px-4 border-t bg-white shrink-0'
+      class: 'flex items-center gap-2 py-2 px-4 border-t border-gray-200 bg-white shrink-0'
     }, [
       h('button', {
         onClick: () => emit('add'),

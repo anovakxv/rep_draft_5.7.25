@@ -72,10 +72,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import api from '@/pages/utils/api'
 
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const isLoading = ref(false)
@@ -101,8 +102,10 @@ async function login() {
     localStorage.setItem('onboardingComplete', 'true')
     // Store admin flag (matches Swift iOS app behavior)
     localStorage.setItem('isAdmin', result.user_type === 'Admin' ? 'true' : 'false')
-    // Optionally: send device token to backend here if using web push
-    router.push('/main')
+
+    // Redirect to returnTo URL if provided, otherwise go to /main
+    const returnTo = route.query.returnTo as string
+    router.push(returnTo || '/main')
   } catch (err: any) {
     error.value =
       err.response?.data?.error ||

@@ -22,7 +22,7 @@ import StripeConnectReturn from './pages/MainPages/StripeConnectReturn.vue'
 
 const routes = [
   // Authentication routes
-  { path: '/', redirect: checkAuth },
+  { path: '/', redirect: '/main' }, // Public web starts at MainScreen
   { path: '/register', component: RegisterNewProfile },
   { path: '/login', component: LoginView },
   { path: '/onboarding', component: OnboardingView },
@@ -31,8 +31,12 @@ const routes = [
   { path: '/new-password', component: () => import('./pages/RepProfile/NewPassword.vue') },
 
   // Main app routes
-  { path: '/main', component: MainScreen, meta: { requiresAuth: true } },
-  { path: '/portal/:id', component: PortalPage, meta: { requiresAuth: true } },
+  // PUBLIC ROUTES (accessible without login)
+  { path: '/main', component: MainScreen }, // Public - MainScreen All tab
+  { path: '/portal/:id', component: PortalPage }, // Public - Portal details
+  { path: '/goal/:id', component: GoalsDetailView }, // Public - Goal details
+
+  // PROTECTED ROUTES (require authentication)
   { path: '/portal/edit/:id', component: EditPortal, meta: { requiresAuth: true } },
   { path: '/portal/:id/payment-setup', component: PortalPaymentSetup, meta: { requiresAuth: true } },
   { path: '/profile/:id', component: ProfileView, meta: { requiresAuth: true } },
@@ -49,7 +53,6 @@ const routes = [
   { path: '/write/edit/:id', component: WriteView, meta: { requiresAuth: true } },
   { path: '/settings', name: 'Settings', component: () => import('./pages/RepProfile/Settings.vue'), meta: { requiresAuth: true } },
   { path: '/payments', name: 'Payments', component: () => import('./pages/RepProfile/Payments.vue'), meta: { requiresAuth: true } },
-  { path: '/goal/:id', component: GoalsDetailView, meta: { requiresAuth: true } },
 
   // Messaging routes
   { path: '/chat/dm/:id', component: ChatWrapper, meta: { requiresAuth: true } },
@@ -98,9 +101,13 @@ router.beforeEach((to, from, next) => {
     const jwtToken = localStorage.getItem('jwtToken')
     const userId = localStorage.getItem('userId')
     const isAuthenticated = jwtToken && userId
-    
+
     if (!isAuthenticated) {
-      next('/login')
+      // Save the intended destination to return after login
+      next({
+        path: '/login',
+        query: { returnTo: to.fullPath }
+      })
     } else {
       next()
     }

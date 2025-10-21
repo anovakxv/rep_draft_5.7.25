@@ -7,7 +7,7 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Custom Top Bar -->
-    <header class="flex items-center justify-between h-11 px-4 border-b bg-white shrink-0">
+    <header class="flex items-center justify-between h-11 px-4 border-b border-gray-200 bg-white shrink-0">
       <button @click="goBack" class="text-green-600 p-2 -ml-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -33,7 +33,7 @@
     <!-- Main Content -->
     <div v-else-if="goal" class="flex-1 flex flex-col overflow-hidden">
       <!-- Progress Bar and Metrics Section -->
-      <div class="p-4 border-b">
+      <div class="p-4 border-b border-gray-200">
         <!-- Progress Bar -->
         <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-2">
           <div
@@ -113,7 +113,7 @@
       </div>
 
       <!-- Bottom Bar -->
-      <BottomGoalBar @add="activeSheet = 'action'" @message="openGoalTeamChat" />
+      <BottomGoalBar @add="handleAddAction" @message="openGoalTeamChat" />
     </div>
 
     <!-- Floating Support Button - EXACTLY matching Swift positioning and logic -->
@@ -290,6 +290,7 @@
 import { ref, onMounted, computed, defineComponent, defineAsyncComponent, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/pages/utils/api';
+import { isAuthenticated } from '@/utils/auth';
 
 // Lazy load components with Tailwind @apply errors to prevent blocking page load
 const UpdateGoalSheet = defineAsyncComponent(() => import('./Update_Goal.vue'));
@@ -508,6 +509,17 @@ const formatDateString = (isoString?: string): string => {
 // --- Navigation Methods ---
 const goBack = () => router.back();
 
+const handleAddAction = () => {
+  if (!isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: `/goal/${initialGoalId}` }
+    });
+    return;
+  }
+  activeSheet.value = 'action';
+};
+
 const navigateToProfile = (userId?: number) => {
   if (userId) {
     selectedProfileUserId.value = userId;
@@ -519,11 +531,19 @@ const navigateToProfile = (userId?: number) => {
 const loadGoalDetails = async () => {
   isLoading.value = true;
   errorMessage.value = null;
+  const authenticated = isAuthenticated();
 
   try {
-    const res = await api.get(
-      `/api/goals/details?goals_id=${initialGoalId}&num_periods=7`
-    );
+    let res;
+
+    // Use public endpoint for unauthenticated users
+    if (!authenticated) {
+      res = await api.get(`/api/public/goal/${initialGoalId}`);
+    } else {
+      res = await api.get(
+        `/api/goals/details?goals_id=${initialGoalId}&num_periods=7`
+      );
+    }
 
     const apiGoal: APIGoalDetail = res.data.result;
 
@@ -645,6 +665,14 @@ const joinRecruitingGoal = async () => {
 
 // Open Goal Team Chat (EXACTLY matching Swift)
 const openGoalTeamChat = async () => {
+  if (!isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: `/goal/${initialGoalId}` }
+    });
+    return;
+  }
+
   if (isCreatingTeamChat.value) return;
 
   if (goalTeamChatId.value) {
@@ -735,15 +763,17 @@ const handleChatClose = () => {
 
 // --- Lifecycle Hooks (EXACTLY matching Swift .onAppear) ---
 onMounted(() => {
-  if (!token) {
-    router.push('/login');
-    return;
-  }
-  
+  // Allow public users to view goal details
+  // Authentication is checked on protected actions (Message, Add)
+
   // Small delay to match Swift's DispatchQueue.main.asyncAfter(deadline: .now() + 0.1)
   setTimeout(() => {
     loadGoalDetails();
-    loadReportingIncrements();
+
+    // Only load reporting increments if authenticated (needed for editing goals)
+    if (isAuthenticated()) {
+      loadReportingIncrements();
+    }
   }, 100);
 });
 
@@ -914,7 +944,7 @@ const BottomGoalBar = defineComponent({
   emits: ['add', 'message'],
   setup(_, { emit }) {
     return () => h('footer', {
-      class: 'flex items-center gap-2 py-2 px-4 border-t bg-white shrink-0'
+      class: 'flex items-center gap-2 py-2 px-4 border-t border-gray-200 bg-white shrink-0'
     }, [
       h('button', {
         onClick: () => emit('add'),

@@ -173,6 +173,10 @@ def create_app():
     app.register_blueprint(update_goal_filled_quota_bp, url_prefix='/api/goals')
     app.register_blueprint(get_goals_bp, url_prefix='/api/goals')
 
+    # --- Public Web Routes (no auth required) ---
+    from app.routes.public_web import register_public_routes
+    register_public_routes(app)
+
     # Socket.IO events (import last)
     from . import socket_events
 

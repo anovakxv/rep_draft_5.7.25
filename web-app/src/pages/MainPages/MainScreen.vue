@@ -10,13 +10,13 @@
   <div class="flex flex-col h-screen bg-white">
     <!-- Header/Toolbar -->
     <header class="sticky top-0 z-20 bg-gray-100 border-b border-gray-200 flex items-center justify-between h-14 px-4">
-      <router-link :to="`/profile/${userId}`">
+      <button @click="handleProfileClick" class="focus:outline-none">
         <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
              class="w-7 h-7 rounded-full object-cover" alt="Profile"/>
         <div v-else class="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-semibold">
           {{ getInitials(currentUser?.full_name || 'User') }}
         </div>
-      </router-link>
+      </button>
 
       <MainSegmentedPicker
         :segments="['OPEN', 'NTWK', 'ALL']"
@@ -26,7 +26,7 @@
         :key="openNeedsAttention ? 'dot-on' : 'dot-off'"
       />
 
-      <button @click="mainActiveSheet = 'actionSheet'" class="text-green-600">
+      <button @click="handleAddButtonClick" class="text-green-600">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
         </svg>
@@ -198,6 +198,7 @@ import { ref, onMounted, onUnmounted, watch, computed, defineComponent, h, nextT
 import { useRouter, RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
 import { useSocketManager } from '../utils/useSocketManager';
+import { isAuthenticated } from '@/utils/auth';
 import REPLogo from '@/assets/REPLogo.png';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
 import ErrorState from '@/components/ErrorState.vue';
@@ -288,11 +289,22 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
     const tab = { 0: 'open', 1: 'ntwk', 2: 'all' }[section] || 'all';
     const limitParam = (tab === "all") ? "&limit=200" : "";
     const safeParam = safeOnly.value ? "&safe_only=true" : "";
+    const authenticated = isAuthenticated();
 
     try {
-      const res = await api.get(
-        `/api/portal/filter_network_portals?user_id=${userId.value}&tab=${tab}${limitParam}${safeParam}`
-      );
+      let res;
+
+      // Use public endpoint for unauthenticated users on ALL tab
+      if (!authenticated && tab === 'all') {
+        res = await api.get(
+          `/api/public/portals?${safeParam ? 'safe_only=true' : ''}${limitParam}`
+        );
+      } else {
+        // Use authenticated endpoint
+        res = await api.get(
+          `/api/portal/filter_network_portals?user_id=${userId.value}&tab=${tab}${limitParam}${safeParam}`
+        );
+      }
 
       if (res.data && res.data.result) {
         portals.value = res.data.result;
@@ -301,8 +313,13 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
       }
     } catch (err: any) {
       if (err.response?.status === 401 || err.response?.status === 403) {
-        errorMessage.value = "Session expired. Please log in again.";
-        handleUnauthorized('fetchPortals');
+        // For public users on ALL tab, they shouldn't see auth errors
+        if (tab === 'all' && !authenticated) {
+          errorMessage.value = "Unable to load portals. Please try again.";
+        } else {
+          errorMessage.value = "Session expired. Please log in again.";
+          handleUnauthorized('fetchPortals');
+        }
       } else {
         errorMessage.value = err.response?.data?.error || `Server error (${err.response?.status || 'unknown'}).`;
       }
@@ -613,16 +630,55 @@ const fetchCurrentUser = async () => {
 };
 
 const togglePage = () => {
+  // Switching to People page requires authentication (it's about chats/messages)
+  if (page.value === 'portals' && !isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: '/main' }
+    });
+    return;
+  }
   page.value = page.value === 'portals' ? 'people' : 'portals';
   cancelSearch();
 };
 
 const handleSectionSelect = (index: number) => {
+  // OPEN (0) and NTWK (1) tabs require authentication
+  if ((index === 0 || index === 1) && !isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: '/main' }
+    });
+    return;
+  }
+
   if (index === 0 && openNeedsAttention.value) {
     forceShowPeopleOpen();
   } else {
     section.value = index;
   }
+};
+
+const handleAddButtonClick = () => {
+  if (!isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: '/main' }
+    });
+    return;
+  }
+  mainActiveSheet.value = 'actionSheet';
+};
+
+const handleProfileClick = () => {
+  if (!isAuthenticated()) {
+    router.push({
+      path: '/login',
+      query: { returnTo: '/main' }
+    });
+    return;
+  }
+  router.push(`/profile/${userId.value}`);
 };
 
 const forceShowPeopleOpen = () => {
@@ -780,39 +836,43 @@ let unsubscribeGroup: (() => void) | null = null;
 let unsubscribeInvite: (() => void) | null = null;
 
 onMounted(() => {
-  // Check authentication
-  if (!token.value || !userId.value) { 
-    router.push('/login'); 
-    return; 
-  }
+  // For public web, we allow viewing MainScreen ALL tab without authentication
+  // Only initialize authenticated features if user is logged in
+  const authenticated = isAuthenticated();
 
-  // Initialize unread status from localStorage
-  if (persistedUnreadDM.value) {
-    hasUnreadDM.value = true;
-    if (userId.value !== 0 && token.value) {
-      fetchPeople(0);
+  if (authenticated) {
+    // Initialize unread status from localStorage
+    if (persistedUnreadDM.value) {
+      hasUnreadDM.value = true;
+      if (userId.value !== 0 && token.value) {
+        fetchPeople(0);
+      }
     }
-  }
-  
-  if (persistedUnreadGroup.value) {
-    hasUnreadGroup.value = true;
-    if (userId.value !== 0 && token.value) {
-      fetchPeople(0);
+
+    if (persistedUnreadGroup.value) {
+      hasUnreadGroup.value = true;
+      if (userId.value !== 0 && token.value) {
+        fetchPeople(0);
+      }
     }
+
+    // Connect the socket
+    connect(apiBaseUrl, token.value, userId.value);
+
+    // Get user data & invites
+    fetchCurrentUser();
+    fetchPendingInvites();
+
+    // Start invite polling: immediate + every 30s
+    inviteTimer = window.setInterval(fetchPendingInvites, 30000);
+
+    // Schedule one-shot unread polling
+    scheduleUnreadPollingIfNeeded();
+  } else {
+    // Public user - ensure we're on the ALL tab (section 2) for portals
+    page.value = 'portals';
+    section.value = 2;
   }
-
-  // Connect the socket
-  connect(apiBaseUrl, token.value, userId.value);
-
-  // Get user data & invites
-  fetchCurrentUser();
-  fetchPendingInvites();
-  
-  // Start invite polling: immediate + every 30s
-  inviteTimer = window.setInterval(fetchPendingInvites, 30000);
-  
-  // Schedule one-shot unread polling
-  scheduleUnreadPollingIfNeeded();
 
   // --- Socket Handlers (from Swift) ---
   const toInt = (any: any): number | null => {

@@ -72,6 +72,20 @@
           </div>
         </div>
 
+        <!-- Email (for guest users only) -->
+        <div v-if="!isAuthenticated" class="space-y-2">
+          <label class="font-semibold text-gray-800">Email Address *</label>
+          <input
+            v-model="email"
+            @input="clearError"
+            type="email"
+            required
+            class="w-full p-3 bg-gray-100 border border-gray-200 rounded-lg outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500"
+            placeholder="your@email.com"
+          />
+          <p class="text-xs text-gray-500">Required to send your receipt</p>
+        </div>
+
         <!-- Optional Message -->
         <div class="space-y-2">
           <label class="font-semibold text-gray-800">{{ transactionType.messageLabel }}</label>
@@ -125,6 +139,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { isAuthenticated as checkAuth } from '@/utils/auth';
 
 // --- Types and Constants ---
 interface TransactionTypeConfig {
@@ -204,12 +219,15 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 // --- State ---
 const amount = ref('');
+const email = ref('');
 const message = ref('');
 const paymentStatus = ref<PaymentStatus>({ status: 'initial' });
 const isMonthlySubscription = ref(false);
 const selectedPriceId = ref('');
 
 // --- Computed ---
+const isAuthenticated = computed(() => checkAuth());
+
 const formattedAmount = computed(() => {
   const num = parseFloat(amount.value);
   return isNaN(num) ? '0.00' : num.toFixed(2);
@@ -217,6 +235,12 @@ const formattedAmount = computed(() => {
 
 const canSubmit = computed(() => {
   const num = parseFloat(amount.value);
+
+  // Guest users must provide email
+  if (!isAuthenticated.value && !email.value.includes('@')) {
+    return false;
+  }
+
   if (isMonthlySubscription.value) {
     return selectedPriceId.value !== '' && num >= 1;
   }
@@ -262,6 +286,11 @@ const startPayment = async () => {
       message: message.value
     };
 
+    // Add email for guest users
+    if (!isAuthenticated.value) {
+      body.email = email.value;
+    }
+
     if (props.goalId) {
       body.goal_id = props.goalId;
     }
@@ -271,12 +300,23 @@ const startPayment = async () => {
       body.price_id = selectedPriceId.value;
     }
 
-    const res = await fetch(`${apiBaseUrl}/api/create_checkout_session`, {
+    // Use public route for guest users, authenticated route for logged-in users
+    const endpoint = isAuthenticated.value
+      ? `${apiBaseUrl}/api/create_checkout_session`
+      : `${apiBaseUrl}/api/public/create_checkout_session`;
+
+    const headers: any = {
+      'Content-Type': 'application/json'
+    };
+
+    // Only add Authorization header if authenticated
+    if (isAuthenticated.value && token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
+      headers,
       body: JSON.stringify(body)
     });
 

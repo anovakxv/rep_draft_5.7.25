@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import api from '../utils/api'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import REPLogo from '@/assets/REPLogo.png'
 
 const firstName = ref('')
@@ -49,9 +49,16 @@ const phone = ref('')
 const isLoading = ref(false)
 const errorMessage = ref('')
 const router = useRouter()
+const route = useRoute()
 
 function goToLogin() {
-  router.push('/login')
+  // Preserve returnTo parameter when navigating to login
+  const returnTo = route.query.returnTo as string
+  if (returnTo) {
+    router.push({ path: '/login', query: { returnTo } })
+  } else {
+    router.push('/login')
+  }
 }
 
 async function registerUser() {

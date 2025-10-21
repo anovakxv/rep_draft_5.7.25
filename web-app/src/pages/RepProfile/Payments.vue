@@ -83,7 +83,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, defineComponent, h, type PropType } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/pages/utils/api'
 
@@ -179,12 +179,9 @@ function goBack() {
 }
 
 onMounted(loadPaymentData)
-</script>
 
-<!-- --- Subscription Row Component --- -->
-<script lang="ts">
-import { defineComponent, PropType } from 'vue'
-export default defineComponent({
+// --- Inline Child Components (using defineComponent with h() render function) ---
+const SubscriptionRow = defineComponent({
   name: 'SubscriptionRow',
   props: {
     subscription: {
@@ -199,31 +196,23 @@ export default defineComponent({
   },
   emits: ['cancel'],
   setup(props, { emit }) {
-    return () => (
-      <div class="p-4 bg-gray-100 rounded">
-        <div class="flex justify-between items-center mb-1">
-          <span class="font-semibold">{props.subscription.name}</span>
-          <span class="font-bold text-green-700">{props.subscription.formattedAmount}/mo</span>
-        </div>
-        <div class="text-sm text-gray-500 mb-2">
-          Next payment on {props.subscription.formattedNextBillingDate}
-        </div>
-        <button
-          class="text-red-600 text-sm underline"
-          onClick={() => emit('cancel')}
-        >
-          Cancel Subscription
-        </button>
-      </div>
-    )
+    return () => h('div', { class: 'p-4 bg-gray-100 rounded' }, [
+      h('div', { class: 'flex justify-between items-center mb-1' }, [
+        h('span', { class: 'font-semibold' }, props.subscription.name),
+        h('span', { class: 'font-bold text-green-700' }, `${props.subscription.formattedAmount}/mo`)
+      ]),
+      h('div', { class: 'text-sm text-gray-500 mb-2' },
+        `Next payment on ${props.subscription.formattedNextBillingDate}`
+      ),
+      h('button', {
+        class: 'text-red-600 text-sm underline',
+        onClick: () => emit('cancel')
+      }, 'Cancel Subscription')
+    ])
   }
 })
-</script>
 
-<!-- --- Transaction History Row Component --- -->
-<script lang="ts">
-import { defineComponent, PropType } from 'vue'
-export default defineComponent({
+const TransactionHistoryRow = defineComponent({
   name: 'TransactionHistoryRow',
   props: {
     item: {
@@ -236,15 +225,13 @@ export default defineComponent({
     }
   },
   setup(props) {
-    return () => (
-      <div class="flex justify-between items-center py-2">
-        <div>
-          <div class="font-medium">{props.item.description}</div>
-          <div class="text-xs text-gray-500">{props.item.formattedDate}</div>
-        </div>
-        <div class="font-semibold">{props.item.formattedAmount}</div>
-      </div>
-    )
+    return () => h('div', { class: 'flex justify-between items-center py-2' }, [
+      h('div', {}, [
+        h('div', { class: 'font-medium' }, props.item.description),
+        h('div', { class: 'text-xs text-gray-500' }, props.item.formattedDate)
+      ]),
+      h('div', { class: 'font-semibold' }, props.item.formattedAmount)
+    ])
   }
 })
 </script>

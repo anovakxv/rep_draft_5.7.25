@@ -29,7 +29,7 @@
           type="email"
           placeholder="Enter your email"
           autocomplete="email"
-          class="input"
+          class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-green-400"
           :disabled="isLoading"
         />
 
@@ -85,9 +85,3 @@ function goToLogin() {
   router.push('/login')
 }
 </script>
-
-<style scoped>
-.input {
-  @apply w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-green-400;
-}
-</style>

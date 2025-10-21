@@ -15,8 +15,8 @@
         <!-- Account Section -->
         <section>
           <h3 class="text-lg font-semibold mb-2 text-gray-700">Account</h3>
-          <button @click="goToEditProfile" class="settings-row">
-            <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M6 20c0-2 4-3 6-3s6 1 6 3"/></svg></span>
+          <button @click="goToEditProfile" class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer">
+            <span class="mr-3 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="8" r="4"/><path d="M6 20c0-2 4-3 6-3s6 1 6 3"/></svg></span>
             Edit Profile
           </button>
         </section>
@@ -24,8 +24,8 @@
         <!-- Payments Section -->
         <section>
           <h3 class="text-lg font-semibold mb-2 text-gray-700">Payments</h3>
-          <button @click="showPayments = true" class="settings-row">
-            <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M2 11h20"/></svg></span>
+          <button @click="showPayments = true" class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer">
+            <span class="mr-3 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M2 11h20"/></svg></span>
             Payment & Payouts
           </button>
         </section>
@@ -33,8 +33,8 @@
         <!-- Notifications Section -->
         <section>
           <h3 class="text-lg font-semibold mb-2 text-gray-700">Notifications</h3>
-          <div class="settings-row">
-            <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></span>
+          <div class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer">
+            <span class="mr-3 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></span>
             <label class="flex-1 flex items-center cursor-pointer">
               <input type="checkbox" v-model="notificationSettings.pushNotificationsEnabled" @change="saveNotificationSettings" class="mr-2 w-5 h-5" />
               <span>Push Notifications</span>
@@ -59,8 +59,8 @@
         <!-- Account Actions Section -->
         <section>
           <h3 class="text-lg font-semibold mb-2 text-gray-700">Account</h3>
-          <button @click="showPasswordModal = true" class="settings-row">
-            <span class="icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></span>
+          <button @click="showPasswordModal = true" class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer">
+            <span class="mr-3 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg></span>
             Change Password
           </button>
         </section>
@@ -68,14 +68,14 @@
         <!-- Legal Section -->
         <section>
           <h3 class="text-lg font-semibold mb-2 text-gray-700">Legal</h3>
-          <button @click="goToTerms" class="settings-row">
+          <button @click="goToTerms" class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer">
             Terms of Use
           </button>
         </section>
 
         <!-- Logout Section -->
         <section>
-          <button @click="logout" class="settings-row text-red-600 font-bold justify-center">
+          <button @click="logout" class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer text-red-600 font-bold justify-center">
             Log Out
           </button>
         </section>
@@ -276,12 +276,3 @@ onMounted(() => {
   loadNotificationSettings()
 })
 </script>
-
-<style scoped>
-.settings-row {
-  @apply flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer;
-}
-.icon {
-  @apply mr-3 text-gray-500;
-}
-</style>

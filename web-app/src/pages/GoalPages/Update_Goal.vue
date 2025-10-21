@@ -29,7 +29,7 @@
             type="number"
             min="0.01"
             step="0.01"
-            class="form-input"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
             required
             :disabled="isSubmitting"
             placeholder="Enter amount"
@@ -46,7 +46,7 @@
           <input
             v-model="note"
             type="text"
-            class="form-input"
+            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm"
             :disabled="isSubmitting"
             placeholder="Add a note"
             maxlength="120"
@@ -120,9 +120,3 @@ async function submitUpdate() {
   }
 }
 </script>
-
-<style scoped>
-.form-input {
-  @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm;
-}
-</style>

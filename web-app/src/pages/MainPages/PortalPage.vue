@@ -166,10 +166,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, defineComponent, h, onBeforeUnmount } from 'vue';
+import { ref, onMounted, computed, watch, defineComponent, defineAsyncComponent, h, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
-import EditGoal from '../GoalPages/EditGoal.vue';
+// Lazy load EditGoal to prevent Tailwind @apply errors from blocking page load
+const EditGoal = defineAsyncComponent(() => import('../GoalPages/EditGoal.vue'));
 import PayTransaction from './PayTransaction.vue';
 
 // --- Interfaces (from Swift Models) ---
@@ -325,8 +326,8 @@ const fetchPortalGoals = async () => {
 
 const fetchReportingIncrements = async () => {
   try {
-    // Backend route: /api/goals/reporting_increments
-    const res = await api.get('/api/goals/reporting_increments');
+    // Backend route: /api/reporting_increments/list (matches Swift iOS app)
+    const res = await api.get('/api/reporting_increments/list');
     if (res.data && res.data.reportingIncrements) {
       reportingIncrements.value = res.data.reportingIncrements;
     }

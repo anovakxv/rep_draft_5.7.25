@@ -99,6 +99,8 @@ async function login() {
     localStorage.setItem('jwtToken', token)
     localStorage.setItem('isRegistered', 'true')
     localStorage.setItem('onboardingComplete', 'true')
+    // Store admin flag (matches Swift iOS app behavior)
+    localStorage.setItem('isAdmin', result.user_type === 'Admin' ? 'true' : 'false')
     // Optionally: send device token to backend here if using web push
     router.push('/main')
   } catch (err: any) {

@@ -12,15 +12,13 @@ import ProfileView from './pages/RepProfile/ProfileView.vue'
 import EditProfile from './pages/RepProfile/EditProfile.vue'
 import WriteView from './pages/RepProfile/WriteView.vue'
 import Terms from './pages/RepProfile/Terms.vue'
-import Settings from './pages/RepProfile/Settings.vue'
-import Payments from './pages/RepProfile/Payments.vue'
+// Lazy imports for pages with Tailwind issues (Settings, ResetPassword, NewPassword)
+// These are loaded on-demand to prevent blocking app startup
 import ChatWrapper from './pages/Messaging/ChatWrapper.vue'
 import ChatGroupWrapper from './pages/Messaging/ChatGroupWrapper.vue'
 import GoalsDetailView from './pages/GoalPages/GoalsDetailView.vue'
 import StripePaymentReturn from './pages/MainPages/StripePaymentReturn.vue'
 import StripeConnectReturn from './pages/MainPages/StripeConnectReturn.vue'
-import ResetPassword from './pages/RepProfile/ResetPassword.vue'
-import NewPassword from './pages/RepProfile/NewPassword.vue'
 
 const routes = [
   // Authentication routes
@@ -29,8 +27,8 @@ const routes = [
   { path: '/login', component: LoginView },
   { path: '/onboarding', component: OnboardingView },
   { path: '/terms', component: Terms },
-  { path: '/reset-password', component: ResetPassword },
-  { path: '/new-password', component: NewPassword },
+  { path: '/reset-password', component: () => import('./pages/RepProfile/ResetPassword.vue') },
+  { path: '/new-password', component: () => import('./pages/RepProfile/NewPassword.vue') },
 
   // Main app routes
   { path: '/main', component: MainScreen, meta: { requiresAuth: true } },
@@ -49,8 +47,8 @@ const routes = [
   },
   { path: '/write/new', component: WriteView, meta: { requiresAuth: true } },
   { path: '/write/edit/:id', component: WriteView, meta: { requiresAuth: true } },
-  { path: '/settings', name: 'Settings', component: Settings, meta: { requiresAuth: true } },
-  { path: '/payments', name: 'Payments', component: Payments, meta: { requiresAuth: true } },
+  { path: '/settings', name: 'Settings', component: () => import('./pages/RepProfile/Settings.vue'), meta: { requiresAuth: true } },
+  { path: '/payments', name: 'Payments', component: () => import('./pages/RepProfile/Payments.vue'), meta: { requiresAuth: true } },
   { path: '/goal/:id', component: GoalsDetailView, meta: { requiresAuth: true } },
 
   // Messaging routes

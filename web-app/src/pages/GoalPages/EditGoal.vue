@@ -22,33 +22,33 @@
           <h2 class="font-semibold text-lg -mt-1">{{ isEdit ? 'Edit Goal' : 'Add Goal' }}</h2>
           <div>
             <label class="block text-sm font-medium text-gray-700">Title</label>
-            <input v-model="title" type="text" class="form-input" required />
+            <input v-model="title" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm" required />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Subtitle</label>
-            <input v-model="subtitle" type="text" class="form-input" />
+            <input v-model="subtitle" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Description</label>
-            <textarea v-model="description" class="form-input" rows="3"></textarea>
+            <textarea v-model="description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm" rows="3"></textarea>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Goal Type</label>
-            <select v-model="goalType" class="form-input">
+            <select v-model="goalType" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm">
               <option v-for="type in goalTypes" :key="type" :value="type">{{ type }}</option>
             </select>
           </div>
           <div v-if="goalType === 'Other'">
             <label class="block text-sm font-medium text-gray-700">Metric</label>
-            <input v-model="metric" type="text" class="form-input" placeholder="e.g., 'Tasks Completed'"/>
+            <input v-model="metric" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm" placeholder="e.g., 'Tasks Completed'"/>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Quota</label>
-            <input v-model="quota" type="number" min="1" class="form-input" required />
+            <input v-model="quota" type="number" min="1" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm" required />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Reporting Increment</label>
-            <select v-model="reportingIncrementId" class="form-input" :disabled="isLoadingIncrements">
+            <select v-model="reportingIncrementId" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm" :disabled="isLoadingIncrements">
               <option v-if="isLoadingIncrements" disabled value="">Loading...</option>
               <option v-for="inc in incrementsToUse" :key="inc.id" :value="inc.id">{{ inc.title }}</option>
             </select>
@@ -191,9 +191,3 @@ onMounted(() => {
   loadReportingIncrements();
 });
 </script>
-
-<style scoped>
-.form-input {
-  @apply mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm;
-}
-</style>

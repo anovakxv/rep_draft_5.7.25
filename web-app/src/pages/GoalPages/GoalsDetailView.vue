@@ -262,13 +262,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, defineComponent, h, nextTick } from 'vue';
+import { ref, onMounted, computed, defineComponent, defineAsyncComponent, h, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import api from '@/pages/utils/api';
 
-// Import child components
-import UpdateGoalSheet from './Update_Goal.vue';
-import EditGoalPage from './EditGoal.vue';
+// Lazy load components with Tailwind @apply errors to prevent blocking page load
+const UpdateGoalSheet = defineAsyncComponent(() => import('./Update_Goal.vue'));
+const EditGoalPage = defineAsyncComponent(() => import('./EditGoal.vue'));
+// Regular imports for components without errors
 import InviteTeamSheet from './InviteTeamSheet.vue';
 import GroupChatView from '../Messaging/Chat_Group.vue';
 import PayTransactionView from '../MainPages/PayTransaction.vue';

@@ -1563,18 +1563,14 @@ struct MainScreenToolbar: ViewModifier {
                         selectedIndex: $section,
                         attentionDotIndices: openNeedsAttention ? [0] : [],
                         onSelect: { idx in
-                            if idx == 0 && openNeedsAttention {
-                                forceShowPeopleOpen()
+                            section = idx
+                            if idx == 0 {
+                                // Always load chats data for tab 0 (regardless of notification dot)
+                                peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
+                            } else if page == .portals {
+                                portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
                             } else {
-                                section = idx
-                                if idx == 0 {
-                                    // Always load chats data for tab 0
-                                    peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
-                                } else if page == .portals {
-                                    portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
-                                } else {
-                                    peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
-                                }
+                                peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
                             }
                         }
                     )

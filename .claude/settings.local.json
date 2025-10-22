@@ -8,7 +8,12 @@
       "Bash(set FLASK_APP=app)",
       "Bash(flask db migrate:*)",
       "Bash(python:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx vite build)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

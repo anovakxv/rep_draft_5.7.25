@@ -25,7 +25,10 @@ socketio = SocketIO(
     cors_allowed_origins=[
         "https://repnetwork.app",
         "https://www.repnetwork.app",
-        "http://localhost:5173"
+        "https://repsomething.com",
+        "https://www.repsomething.com",
+        "http://localhost:5173",
+        "http://localhost:5174"
     ],
     message_queue=os.getenv("REDIS_URL"),
     async_mode="eventlet"

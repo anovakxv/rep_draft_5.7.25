@@ -200,12 +200,12 @@
     </transition>
 
     <!-- Update Goal Sheet -->
-    <UpdateGoalSheet 
-      v-if="activeSheet === 'updateGoal'" 
-      :goal-id="goal?.id" 
-      :quota="goal?.quota" 
-      :metric-name="goal?.metricName"
-      @close="handleSheetClose" 
+    <UpdateGoalSheet
+      v-if="activeSheet === 'updateGoal'"
+      :goal-id="goal?.id || 0"
+      :quota="goal?.quota || 0"
+      :metric-name="goal?.metricName || ''"
+      @close="handleSheetClose"
     />
 
     <!-- Edit Goal Page - Only if user is creator -->
@@ -219,11 +219,11 @@
     />
 
     <!-- Invite Team Sheet -->
-    <InviteTeamSheet 
-      v-if="activeSheet === 'inviteTeam'" 
-      :goal-id="goal?.id" 
+    <InviteTeamSheet
+      v-if="activeSheet === 'inviteTeam'"
+      :goal-id="goal?.id || 0"
       @done="handleTeamInvite"
-      @close="activeSheet = null" 
+      @close="activeSheet = null"
     />
 
     <!-- Group Chat Sheet -->
@@ -654,7 +654,8 @@ const joinRecruitingGoal = async () => {
     );
     
     // Check if response indicates success (matching Swift logic)
-    if (res.data?.result?.[goal.value?.id?.toString()] === "ok") {
+    const goalIdStr = goal.value?.id?.toString() || '0';
+    if (res.data?.result?.[goalIdStr] === "ok") {
       // Reload goal details to update team members
       loadGoalDetails();
     }

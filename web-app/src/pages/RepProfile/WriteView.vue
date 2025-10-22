@@ -417,7 +417,7 @@ async function loadUserGoals() {
 
 // Lifecycle
 onMounted(async () => {
-  if (!token || !userId) {
+  if (!userId) {
     router.push('/login')
     return
   }

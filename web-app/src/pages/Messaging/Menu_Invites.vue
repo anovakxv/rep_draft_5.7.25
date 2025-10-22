@@ -160,7 +160,7 @@ onUnmounted(() => {
 
 <script lang="ts">
 // InviteCard component
-import { defineComponent } from 'vue';
+import { defineComponent, h } from 'vue';
 
 export default defineComponent({
   name: 'InviteCard',
@@ -177,38 +177,31 @@ export default defineComponent({
       if (invite.inviterPhotoURL.startsWith("http")) return invite.inviterPhotoURL;
       return "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/" + invite.inviterPhotoURL;
     }
-    return () => (
-      <div class="p-4 bg-white rounded-lg shadow flex flex-col gap-3" aria-label="Goal Team Invite">
-        <div class="flex items-center gap-3">
-          {inviterProfilePictureURL(props.invite)
-            ? <img src={inviterProfilePictureURL(props.invite)} class="w-10 h-10 rounded-full object-cover" alt="Inviter profile" />
-            : <div class="w-10 h-10 rounded-full bg-gray-300" aria-label="No profile image"></div>
-          }
-          <div class="flex-1">
-            <div class="font-semibold">Goal Team Invite</div>
-            <div class="text-sm text-gray-600 truncate">
-              {inviterDisplayName(props.invite)} invited you to join '{props.invite.goalTitle || "a goal"}'
-            </div>
-          </div>
-        </div>
-        <div class="flex gap-3">
-          <button
-            class="flex-1 py-2 bg-green-600 text-white font-semibold rounded hover:bg-green-700 transition"
-            onClick={() => emit('accept')}
-            aria-label="Accept invite"
-          >
-            Accept
-          </button>
-          <button
-            class="flex-1 py-2 bg-gray-100 text-black font-semibold rounded hover:bg-gray-200 transition"
-            onClick={() => emit('decline')}
-            aria-label="Decline invite"
-          >
-            Decline
-          </button>
-        </div>
-      </div>
-    );
+    return () => h('div', { class: 'p-4 bg-white rounded-lg shadow flex flex-col gap-3', 'aria-label': 'Goal Team Invite' }, [
+      h('div', { class: 'flex items-center gap-3' }, [
+        inviterProfilePictureURL(props.invite)
+          ? h('img', { src: inviterProfilePictureURL(props.invite), class: 'w-10 h-10 rounded-full object-cover', alt: 'Inviter profile' })
+          : h('div', { class: 'w-10 h-10 rounded-full bg-gray-300', 'aria-label': 'No profile image' }),
+        h('div', { class: 'flex-1' }, [
+          h('div', { class: 'font-semibold' }, 'Goal Team Invite'),
+          h('div', { class: 'text-sm text-gray-600 truncate' },
+            `${inviterDisplayName(props.invite)} invited you to join '${props.invite.goalTitle || "a goal"}'`
+          )
+        ])
+      ]),
+      h('div', { class: 'flex gap-3' }, [
+        h('button', {
+          class: 'flex-1 py-2 bg-green-600 text-white font-semibold rounded hover:bg-green-700 transition',
+          onClick: () => emit('accept'),
+          'aria-label': 'Accept invite'
+        }, 'Accept'),
+        h('button', {
+          class: 'flex-1 py-2 bg-gray-100 text-black font-semibold rounded hover:bg-gray-200 transition',
+          onClick: () => emit('decline'),
+          'aria-label': 'Decline invite'
+        }, 'Decline')
+      ])
+    ]);
   }
 });
 </script>

@@ -111,6 +111,10 @@ import { ref, onMounted, onUnmounted, nextTick, defineEmits } from 'vue';
 import api from '@/pages/utils/api';
 import MessageBubble from '@/components/MessageBubble.vue';
 
+// --- Constants ---
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+const token = localStorage.getItem('jwtToken') || '';
+
 // --- Props ---
 const props = defineProps<{
   currentUserId: number;

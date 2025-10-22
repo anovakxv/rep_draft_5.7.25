@@ -182,10 +182,16 @@ interface User {
   profile_picture_url?: string;  // Backend returns snake_case
 }
 
-interface Goal { 
-  id: number; 
-  title: string; 
-  typeName: string; 
+interface Goal {
+  id: number;
+  title: string;
+  typeName: string;
+  metricName?: string;
+  chartData?: any[];
+  quota?: number;
+  subtitle?: string;
+  progressPercent?: number;
+  progress?: number;
   // Other goal fields would be defined here
 }
 
@@ -250,7 +256,6 @@ const route = useRoute();
 const router = useRouter();
 const portalId = Number(route.params.id);
 const userId = Number(localStorage.getItem('userId') || '0');
-const token = localStorage.getItem('jwtToken');
 
 // --- State (from ViewModel & View) ---
 const portalDetail = ref<PortalDetail | null>(null);

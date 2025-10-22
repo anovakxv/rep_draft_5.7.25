@@ -206,7 +206,7 @@ function formatTimestamp(timestamp: string): string {
 }
 
 onMounted(() => {
-  if (!token.value || !userId.value) {
+  if (!userId.value) {
     router.push('/login');
     return;
   }

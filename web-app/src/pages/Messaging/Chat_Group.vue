@@ -157,6 +157,10 @@ import api from '@/pages/utils/api';
 import GroupMessageBubble from '@/components/GroupMessageBubble';
 import GroupMemberAvatar from '@/components/GroupMemberAvatar';
 
+// --- Constants ---
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+const token = localStorage.getItem('jwtToken') || '';
+
 // --- Props ---
 const props = defineProps<{
   chatId: number;

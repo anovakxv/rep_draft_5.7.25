@@ -340,7 +340,7 @@ async function handleDeleteProfile() {
 }
 
 async function fetchProfile() {
-  if (!userId || !token) {
+  if (!userId) {
     errorMessage.value = 'Not authenticated'
     return
   }

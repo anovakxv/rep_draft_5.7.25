@@ -18,11 +18,11 @@ declare global {
     RealtimeSocketManager: {
       // Connection methods
       connect: (baseURL: string, token: string, userId: number) => void;
-      
+
       // Room methods
       join: (chatId: number) => void;
       leave: (chatId: number) => void;
-      
+
       // Observer methods
       onGroupMessage: (callback: (payload: any) => void) => string;
       removeGroupMessageObserver: (id: string) => void;
@@ -30,6 +30,9 @@ declare global {
       removeDirectMessageObserver: (id: string) => void;
       onGroupMessageNotification: (callback: (payload: any) => void) => string;
       removeGroupMessageNotificationObserver: (id: string) => void;
+
+      // Private property to store unsubscribe functions
+      _unsubMap?: Map<string, () => void>;
     };
   }
 }

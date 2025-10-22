@@ -19,7 +19,7 @@
       </button>
 
       <MainSegmentedPicker
-        :segments="['Chats', 'Network', 'Explore']"
+        :segments="['Chats', 'Network', 'Purpose']"
         :selected-index="section"
         :attention-dot-indices="openNeedsAttention ? [0] : []"
         @select="handleSectionSelect"
@@ -303,7 +303,7 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
       // Use public endpoint for unauthenticated users on ALL tab
       if (!authenticated && tab === 'all') {
         res = await api.get(
-          `/api/public/portals?${safeParam ? 'safe_only=true' : ''}${limitParam}`
+          `/api/public/portals?safe_only=${safeOnly.value}${limitParam}`
         );
       } else {
         // Use authenticated endpoint
@@ -636,6 +636,11 @@ const fetchCurrentUser = async () => {
 };
 
 const togglePage = () => {
+  // Don't toggle page if we're on Chats tab - it doesn't use page context
+  if (section.value === 0) {
+    return;
+  }
+
   // Switching to People page requires authentication (it's about chats/messages)
   if (page.value === 'portals' && !isAuthenticated()) {
     router.push({
@@ -658,10 +663,10 @@ const handleSectionSelect = (index: number) => {
     return;
   }
 
-  if (index === 0 && openNeedsAttention.value) {
-    forceShowPeopleOpen();
-  } else {
-    section.value = index;
+  // Always load chats data for tab 0 (regardless of notification dot or page state)
+  section.value = index;
+  if (index === 0) {
+    fetchPeople(0); // Always fetch chats when switching to Chats tab
   }
 };
 
@@ -685,16 +690,6 @@ const handleProfileClick = () => {
     return;
   }
   router.push(`/profile/${userId.value}`);
-};
-
-const forceShowPeopleOpen = () => {
-  page.value = 'people';
-  if (section.value !== 0) {
-    section.value = 0;
-  } else {
-    // Refresh if already on section 0
-    fetchPeople(0);
-  }
 };
 
 const startSearch = () => {
@@ -814,6 +809,11 @@ const scheduleUnreadPollingIfNeeded = () => {
 // --- Watchers ---
 // Combine page, section, and safe filter
 watch([page, section, showOnlySafePortals], () => {
+  // Don't reload data if we're on Chats tab - it doesn't change with page toggle
+  if (section.value === 0) {
+    return;
+  }
+
   if (page.value === 'portals') {
     fetchPortals(section.value);
   } else {

@@ -318,6 +318,11 @@ const fetchPortalDetail = async () => {
     if (res.data && res.data.result) {
       portalDetail.value = res.data.result;
       console.log("Portal aLeads:", portalDetail.value?.aLeads?.map(l => l.id) || []);
+
+      // For public users, use goals from portal detail response (now includes proper chartData from backend fix)
+      if (!authenticated && portalDetail.value.aGoals) {
+        portalGoals.value = portalDetail.value.aGoals;
+      }
     } else {
       errorMessage.value = "Could not find portal details";
     }
@@ -330,6 +335,13 @@ const fetchPortalDetail = async () => {
 };
 
 const fetchPortalGoals = async () => {
+  const authenticated = isAuthenticated();
+
+  // Skip for unauthenticated users - they already have goals from portal detail response
+  if (!authenticated) {
+    return;
+  }
+
   try {
     const res = await api.get(`/api/goals/portal?portals_id=${portalId}`);
     if (res.data && res.data.aGoals) {
@@ -366,13 +378,7 @@ const flagPortal = async () => {
 const goBack = () => router.back();
 
 const handleAddAction = () => {
-  if (!isAuthenticated()) {
-    router.push({
-      path: '/login',
-      query: { returnTo: `/portal/${portalId}` }
-    });
-    return;
-  }
+  // Allow public users to access the action menu (to use "Support" button)
   activeSheet.value = 'portalActionMenu';
 };
 
@@ -845,25 +851,30 @@ const ActionSheetModal = defineComponent({
             ])
           ]),
 
-          // Add Goal - light green, large text (only if current user is lead)
-          props.isCurrentUserLead && h('button', {
+          // Add Goal - light green, large text (only if current user is lead AND authenticated)
+          (props.isCurrentUserLead && userId > 0) && h('button', {
             class: 'text-[#8cc65d] font-bold text-[28px] py-3',
             onClick: () => emit('add-goal')
           }, 'Add Goal'),
 
-          // Select Goal Team - light green, large text
+          // Select Goal Team - light green, large text (available for everyone - navigates to Goal Teams tab)
           h('button', {
-            class: 'text-[#8cc65d] font-bold text-[28px] py-3'
+            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+            onClick: () => {
+              emit('close');
+              // Switch to "Goal Teams" tab (index 0)
+              selectedSection.value = 0;
+            }
           }, 'Select Goal Team'),
 
-          // Edit Purpose - light green, large text (only if portal owner)
-          (props.portal?.users_id === userId) && h('button', {
+          // Edit Purpose - light green, large text (only if portal owner AND authenticated)
+          (props.portal?.users_id === userId && userId > 0) && h('button', {
             class: 'text-[#8cc65d] font-bold text-[28px] py-3',
             onClick: () => emit('edit-purpose')
           }, 'Edit Purpose'),
 
-          // Flag as Inappropriate - red, smaller text
-          h('button', {
+          // Flag as Inappropriate - red, smaller text (only if authenticated)
+          userId > 0 && h('button', {
             class: 'text-red-600 text-[16px] py-3',
             onClick: () => emit('flag')
           }, 'Flag as Inappropriate'),

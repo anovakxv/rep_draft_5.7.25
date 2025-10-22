@@ -15,7 +15,10 @@
       "Bash(git commit:*)",
       "Bash(cat:*)",
       "Bash(npm install:*)",
-      "Bash(git check-ignore:*)"
+      "Bash(git check-ignore:*)",
+      "Bash(test:*)",
+      "Bash(timeout 15 npm run dev:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

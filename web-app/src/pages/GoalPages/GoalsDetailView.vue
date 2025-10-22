@@ -591,9 +591,11 @@ const loadGoalDetails = async () => {
     // Create feed items from logs (EXACTLY matching Swift)
     feed.value = limitedLogs.map(log => {
       const apiUser = teamDict[log.users_id || 0];
-      const userName = apiUser?.name || "User";
+      // Show "Public Supporter" for anonymous/guest contributions (user_id is NULL)
+      const userName = log.users_id ? (apiUser?.name || "User") : "Public Supporter";
       const formattedDate = formatDateString(log.timestamp);
-      const profilePicUrl = patchProfilePictureURL(apiUser?.imageName);
+      // Use generic placeholder for public supporters
+      const profilePicUrl = log.users_id ? patchProfilePictureURL(apiUser?.imageName) : "profile_placeholder";
 
       return {
         id: log.id,

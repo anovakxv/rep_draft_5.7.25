@@ -164,7 +164,7 @@ const transactionTypes: Record<string, TransactionTypeConfig> = {
     ctaText: 'Donate',
     receiptTitle: 'Thank You!',
     receiptMessage: 'Your donation has been received. A receipt has been sent to your email.',
-    quickAmounts: [10, 25, 50, 100, 250]
+    quickAmounts: [10, 20, 50, 100]  // Match iOS app
   },
   payment: {
     key: 'payment',
@@ -175,7 +175,7 @@ const transactionTypes: Record<string, TransactionTypeConfig> = {
     ctaText: 'Pay',
     receiptTitle: 'Payment Complete',
     receiptMessage: 'Your payment has been processed successfully.',
-    quickAmounts: [20, 50, 100, 200, 500]
+    quickAmounts: [10, 20, 50, 100]  // Match iOS app
   },
   purchase: {
     key: 'purchase',
@@ -186,16 +186,16 @@ const transactionTypes: Record<string, TransactionTypeConfig> = {
     ctaText: 'Purchase',
     receiptTitle: 'Order Confirmed',
     receiptMessage: 'Your order has been confirmed. You will receive a confirmation email shortly.',
-    quickAmounts: [25, 50, 100, 250, 500]
+    quickAmounts: [10, 20, 50, 100]  // Match iOS app
   }
 };
 
+// Monthly subscription options - MUST match iOS app exactly (these are actual Stripe products)
 const monthlyPriceOptions = [
-  { amount: 5, priceId: 'price_monthly_5' },
-  { amount: 10, priceId: 'price_monthly_10' },
-  { amount: 25, priceId: 'price_monthly_25' },
-  { amount: 50, priceId: 'price_monthly_50' },
-  { amount: 100, priceId: 'price_monthly_100' }
+  { amount: 5, priceId: 'price_1S8BJNLEcZxL3ukIiYVOMyHD' },   // $5/month
+  { amount: 10, priceId: 'price_1S8BJeLEcZxL3ukI3fpsE25j' },  // $10/month
+  { amount: 20, priceId: 'price_1S8BJuLEcZxL3ukIwJshQJp6' },  // $20/month
+  { amount: 40, priceId: 'price_1S8BK9LEcZxL3ukISu3iPeLK' }   // $40/month
 ];
 
 type PaymentStatus = { status: 'initial' | 'loading' | 'success' | 'failed'; message?: string };
@@ -314,14 +314,22 @@ const startPayment = async () => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    console.log('[PayTransaction] Sending payment request:', { endpoint, body });
+
     const res = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify(body)
     });
 
-    if (!res.ok) throw new Error(`Server responded with ${res.status}`);
     const json = await res.json();
+    console.log('[PayTransaction] Backend response:', { status: res.status, json });
+
+    if (!res.ok) {
+      const errorMessage = json.error || `Server responded with ${res.status}`;
+      console.error('[PayTransaction] Payment failed:', errorMessage);
+      throw new Error(errorMessage);
+    }
 
     if (json.checkout_url) {
       if (json.session_id) localStorage.setItem('lastCheckoutSessionId', json.session_id);
@@ -337,7 +345,17 @@ const startPayment = async () => {
 
 const checkPaymentStatus = async (sessionId: string) => {
   try {
-    const res = await fetch(`${apiBaseUrl}/api/checkout_session_status?session_id=${sessionId}`, { headers: { Authorization: `Bearer ${token}` } });
+    // Use public endpoint for guest users, authenticated endpoint for logged-in users
+    const endpoint = isAuthenticated.value
+      ? `${apiBaseUrl}/api/checkout_session_status?session_id=${sessionId}`
+      : `${apiBaseUrl}/api/public/checkout_session_status?session_id=${sessionId}`;
+
+    const headers: any = {};
+    if (isAuthenticated.value && token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch(endpoint, { headers });
     if (!res.ok) throw new Error('Could not verify payment status.');
     const json = await res.json();
     if (json.payment_status === "paid") {

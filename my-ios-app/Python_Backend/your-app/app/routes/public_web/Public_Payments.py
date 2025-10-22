@@ -102,8 +102,7 @@ def create_public_checkout_session():
 
         # Build checkout session params
         session_params = {
-            'customer': customer.id,
-            'customer_email': email,  # Pre-fill email for guest
+            'customer': customer.id,  # Email is already associated with customer
             'success_url': success_url,
             'cancel_url': cancel_url,
             'payment_method_types': ['card'],

@@ -641,6 +641,9 @@ struct ProfileView: View {
     @State private var selectedUser: User? = nil
     @State private var showMessageView = false
 
+    // --- Crash Prevention Guard ---
+    @State private var hasAppeared = false
+
     // For navigation to GoalsDetailView
     @StateObject private var editProfileVM = ProfileInfoViewModel(
         profileInfo: ProfileInfo(
@@ -767,7 +770,9 @@ struct ProfileView: View {
             .onAppear {
                 viewModel.loadProfile()
                 loadReportingIncrements()
+                hasAppeared = true
             }
+            .disabled(!hasAppeared)
             .background(Color.white.edgesIgnoringSafeArea(.all))
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -1123,10 +1128,7 @@ struct DelayedMessageView: View {
                     Spacer()
                 }
                 .onAppear {
-                    // Delay actual presentation to ensure clean context
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        showActualView = true
-                    }
+                    showActualView = true
                 }
             }
         }

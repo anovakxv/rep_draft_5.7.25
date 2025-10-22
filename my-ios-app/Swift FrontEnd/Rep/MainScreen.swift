@@ -1559,7 +1559,7 @@ struct MainScreenToolbar: ViewModifier {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     MainSegmentedPicker(
-                        segments: ["Chats", "Network", "Explore"],
+                        segments: ["Chats", "Network", "Purpose"],
                         selectedIndex: $section,
                         attentionDotIndices: openNeedsAttention ? [0] : [],
                         onSelect: { idx in

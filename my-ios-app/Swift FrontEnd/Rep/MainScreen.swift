@@ -1300,7 +1300,7 @@ struct MainScreenContent: View {
                 }
             } else {
                 if filteredUsers.isEmpty {
-                    Text("No people found.")
+                    Text(section == 1 ? "No members of your network yet. View a profile and +NTWK to build your network!" : "No people found.")
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -1319,7 +1319,7 @@ struct MainScreenContent: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if filteredPortals.isEmpty {
-                Text("No portals found.")
+                Text(section == 1 ? "No members of your network yet. View a profile and +NTWK to build your network!" : "No portals found.")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {

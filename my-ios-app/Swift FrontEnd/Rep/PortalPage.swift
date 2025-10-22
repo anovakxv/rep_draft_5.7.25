@@ -184,6 +184,9 @@ struct PortalPage: View {
     @State private var chatUserPhotoURL: URL? = nil
     @State private var showMessageSheet = false
 
+    // Crash Prevention Guard
+    @State private var hasAppeared = false
+
     // Device type check for robust sheet/fullScreenCover logic
     private var isPad: Bool {
         UIDevice.current.userInterfaceIdiom == .pad
@@ -328,7 +331,9 @@ struct PortalPage: View {
                 NotificationCenter.default.addObserver(forName: .init("ShowEditPortalFromToolbar"), object: nil, queue: .main) { _ in
                     showEditPortal = true
                 }
+                hasAppeared = true
             }
+            .disabled(!hasAppeared)
             .onChange(of: viewModel.portalGoals) { newGoals in
                 supportGoal = findSupportableGoal(from: newGoals)
             }
@@ -382,6 +387,7 @@ struct PortalPage: View {
             ProgressView()
                 .onAppear {
                     viewModel.fetchPortalDetail(portalId: portalId, userId: userId)
+                    hasAppeared = true
                 }
         }
     }

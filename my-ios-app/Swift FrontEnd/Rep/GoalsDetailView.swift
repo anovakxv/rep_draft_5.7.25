@@ -48,6 +48,9 @@ struct GoalsDetailView: View {
     @State private var showPayTransaction = false
     @State private var showPaymentSheet = false
 
+    // --- Crash Prevention Guard ---
+    @State private var hasAppeared = false
+
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
@@ -251,12 +254,12 @@ struct GoalsDetailView: View {
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                viewModel.goal = initialGoal
-                viewModel.load(goalId: initialGoal.id)
-                loadReportingIncrements()
-            }
+            viewModel.goal = initialGoal
+            viewModel.load(goalId: initialGoal.id)
+            loadReportingIncrements()
+            hasAppeared = true
         }
+        .disabled(!hasAppeared)
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .action:

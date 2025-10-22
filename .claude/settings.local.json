@@ -14,7 +14,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(cat:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": []

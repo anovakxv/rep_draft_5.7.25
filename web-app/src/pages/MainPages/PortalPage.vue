@@ -820,11 +820,11 @@ const ActionSheetModal = defineComponent({
     }, [
       h('div', {
         class: 'bg-black bg-opacity-50 w-full',
-        style: { maxWidth: '600px', position: 'absolute', top: '0', bottom: '0', left: '50%', transform: 'translateX(-50%)' }
+        style: { maxWidth: '768px', position: 'absolute', top: '0', bottom: '0', left: '50%', transform: 'translateX(-50%)' }
       }),
       h('div', {
         class: 'bg-white w-full rounded-t-2xl p-6 relative z-10',
-        style: { maxHeight: '80vh', overflowY: 'auto', maxWidth: '600px' },
+        style: { maxHeight: '80vh', overflowY: 'auto', maxWidth: '768px' },
         onClick: (e: Event) => e.stopPropagation()
       }, [
         h('div', { class: 'flex flex-col items-center space-y-6' }, [

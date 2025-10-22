@@ -141,8 +141,8 @@
     <!-- Action Sheet - iOS style design -->
     <transition name="fade">
       <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end justify-center">
-        <div class="bg-black bg-opacity-50 w-full" style="max-width: 600px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
-        <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 600px">
+        <div class="bg-black bg-opacity-50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+        <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 768px">
           <div class="flex flex-col items-center space-y-6">
             <!-- Join Team (only if not on team and not creator, for Recruiting goals) -->
             <button

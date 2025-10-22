@@ -19,7 +19,7 @@
       </button>
 
       <MainSegmentedPicker
-        :segments="['OPEN', 'NTWK', 'ALL']"
+        :segments="['Chats', 'Network', 'Explore']"
         :selected-index="section"
         :attention-dot-indices="openNeedsAttention ? [0] : []"
         @select="handleSectionSelect"
@@ -58,28 +58,32 @@
 
         <!-- Content -->
         <div v-else key="content">
-        <template v-if="page === 'people'">
-          <template v-if="section === 0">
-            <ActiveChatList
-              :chats="filteredActiveChats"
-              :invites="pendingInvites"
-              :current-user-id="userId"
-            />
-            <EmptyState
-              v-if="filteredActiveChats.length === 0 && pendingInvites.length === 0"
-              title="No conversations yet"
-              description="Start a conversation by searching for people or creating a group chat"
-              action-text="Find People"
-              @action="() => { page = 'people'; section = 2; }"
-            >
-              <template #icon>
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </template>
-            </EmptyState>
-          </template>
-          <template v-else>
+        <!-- Tab 0: MESSAGES - Always show Active Chat List regardless of page -->
+        <template v-if="section === 0">
+          <ActiveChatList
+            :chats="filteredActiveChats"
+            :invites="pendingInvites"
+            :current-user-id="userId"
+          />
+          <EmptyState
+            v-if="filteredActiveChats.length === 0 && pendingInvites.length === 0"
+            title="No conversations yet"
+            description="Start a conversation by searching for people or creating a group chat"
+            action-text="Find People"
+            @action="() => { page = 'people'; section = 2; }"
+          >
+            <template #icon>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </template>
+          </EmptyState>
+        </template>
+
+        <!-- Tab 1 (NTWK) and Tab 2 (ALL): Show based on page context -->
+        <template v-else>
+          <!-- When page = 'people': Show people lists -->
+          <template v-if="page === 'people'">
             <PeopleList :users="filteredUsers" :current-user-id="userId" />
             <EmptyState
               v-if="filteredUsers.length === 0"
@@ -93,28 +97,30 @@
               </template>
             </EmptyState>
           </template>
-        </template>
-        <template v-else-if="page === 'portals'">
-          <PortalList :portals="filteredPortals" :user-id="userId" />
-          <EmptyState
-            v-if="filteredPortals.length === 0"
-            title="No portals found"
-            :description="searchText ? 'Try a different search term' : 'Create your first portal to get started'"
-            :action-text="searchText ? '' : 'Add Purpose'"
-            @action="navigateToAddPurpose"
-          >
-            <template #icon>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </template>
-          </EmptyState>
+
+          <!-- When page = 'portals': Show portal lists -->
+          <template v-else-if="page === 'portals'">
+            <PortalList :portals="filteredPortals" :user-id="userId" />
+            <EmptyState
+              v-if="filteredPortals.length === 0"
+              title="No portals found"
+              :description="searchText ? 'Try a different search term' : 'Create your first portal to get started'"
+              :action-text="searchText ? '' : 'Add Purpose'"
+              @action="navigateToAddPurpose"
+            >
+              <template #icon>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+              </template>
+            </EmptyState>
+          </template>
         </template>
       </div>
       </Transition>
 
       <!-- Floating Toggle Button -->
-      <div class="fixed bottom-5 z-30" style="right: max(36px, calc(50% - 264px));">
+      <div class="fixed bottom-5 z-30" style="right: max(36px, calc(50% - 348px));">
         <button @click="togglePage" class="w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow">
           <img :src="REPLogo" alt="Toggle Page" class="w-8 h-8" />
         </button>
@@ -140,9 +146,9 @@
     <!-- Action Sheet Modal -->
     <Transition name="fade">
       <div v-if="mainActiveSheet" @click="mainActiveSheet = null" class="fixed inset-0 z-30 flex items-end justify-center">
-        <div class="bg-black bg-opacity-50 w-full" style="max-width: 600px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+        <div class="bg-black bg-opacity-50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
         <Transition name="slide-up">
-          <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 600px">
+          <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 768px">
             <div class="flex flex-col items-center space-y-6">
               <!-- Portal Filter Options (iOS style) -->
               <div v-if="page === 'portals'" class="flex items-center space-x-6 py-3">
@@ -970,13 +976,13 @@ const MainSegmentedPicker = defineComponent({
   },
   emits: ['select'],
   setup(props, { emit }) {
-    return () => h('div', { 
-      class: 'flex w-60 h-8 bg-gray-200 rounded overflow-hidden border border-black'
+    return () => h('div', {
+      class: 'flex w-56 md:w-60 h-8 bg-gray-200 rounded overflow-hidden border border-black'
     },
-    props.segments?.map((segment, index) =>
-      h('button', {
+    props.segments?.flatMap((segment, index) => {
+      const button = h('button', {
         class: [
-          'relative flex-1 text-sm font-medium transition-colors duration-150', 
+          'relative flex-1 text-xs font-medium transition-colors duration-150',
           props.selectedIndex === index ? 'bg-black text-white' : 'bg-white text-black'
         ],
         onClick: () => emit('select', index)
@@ -987,8 +993,20 @@ const MainSegmentedPicker = defineComponent({
             class: 'absolute top-1 left-1 w-2.5 h-2.5 bg-green-500 rounded-full'
           })
         ] : [])
-      ])
-    ));
+      ]);
+
+      // Add divider line after each button except the last one
+      if (index < (props.segments?.length || 0) - 1) {
+        return [
+          button,
+          h('div', {
+            class: 'w-px bg-black',
+            style: { height: '100%' }
+          })
+        ];
+      }
+      return [button];
+    }));
   }
 });
 
@@ -1154,28 +1172,28 @@ const ActiveChatList = defineComponent({
             class: 'flex items-center py-4 px-4',
             style: { minHeight: '96px' }
           }, [
-            // Chat avatar (profile pic or initials)
+            // Chat avatar (profile pic or initials) - flex-shrink-0 prevents squishing
             image
               ? h('img', {
                   src: image,
-                  class: 'w-16 h-16 object-cover rounded-full'
+                  class: 'w-16 h-16 object-cover rounded-full flex-shrink-0'
                 })
               : h('div', {
-                  class: 'w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center font-semibold text-white text-xl'
+                  class: 'w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center font-semibold text-white text-xl flex-shrink-0'
                 }, getInitials(name || 'Chat')),
 
-            // Chat details
-            h('div', { class: 'flex-1 ml-3' }, [
-              h('div', { class: 'flex justify-between items-center' }, [
-                h('h3', { class: 'font-semibold text-[17px]' }, name),
-                h('p', { class: 'text-[13px] text-gray-500' }, timeAgoDisplay(chat.last_message_time))
+            // Chat details - min-w-0 allows truncate to work properly
+            h('div', { class: 'flex-1 ml-3 min-w-0' }, [
+              h('div', { class: 'flex justify-between items-center gap-2' }, [
+                h('h3', { class: 'font-semibold text-[17px] truncate flex-1 min-w-0' }, name),
+                h('p', { class: 'text-[13px] text-gray-500 flex-shrink-0' }, timeAgoDisplay(chat.last_message_time))
               ]),
               h('p', {
                 class: [
-                  'text-[17px] truncate mt-1',
+                  'text-[15px] truncate mt-1',
                   isUnread ? 'font-bold text-green-600' : 'text-gray-600'
                 ]
-              }, chat.last_message?.text)
+              }, chat.last_message?.text || '')
             ])
           ])
         ),

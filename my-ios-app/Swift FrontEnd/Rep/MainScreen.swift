@@ -619,7 +619,7 @@ struct MainSegmentedPicker: View {
                     ZStack(alignment: .topLeading) {
                         (selectedIndex == index ? Color.black : Color.white)
                         Text(segments[index])
-                            .fontWeight(.medium)
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundColor(selectedIndex == index ? .white : .black)
                             .frame(maxWidth: .infinity, minHeight: 32)
                             .padding(.vertical, 2)
@@ -1512,7 +1512,7 @@ struct MainScreenToolbar: ViewModifier {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     MainSegmentedPicker(
-                        segments: ["OPEN", "NTWK", "ALL"],
+                        segments: ["Chats", "Network", "Explore"],
                         selectedIndex: $section,
                         attentionDotIndices: openNeedsAttention ? [0] : [],
                         onSelect: { idx in

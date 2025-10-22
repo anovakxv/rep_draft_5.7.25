@@ -29,7 +29,7 @@ body {
 
 .app-content {
   width: 100%;
-  max-width: 600px; /* Mobile-optimized max width */
+  max-width: 768px; /* Optimized for mobile and tablet (iPad) */
   background-color: white;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
   position: relative;

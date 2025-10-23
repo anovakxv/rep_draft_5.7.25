@@ -7,8 +7,8 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header -->
-    <div class="flex items-center h-14 px-4 border-b border-gray-200 bg-gray-50 shrink-0">
-      <button @click="emit('close')" class="text-green-600">
+    <div class="flex items-center h-14 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+      <button @click="emit('close')" style="color: #8cc65d">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
@@ -53,7 +53,8 @@
           v-model="inputText"
           @input="handleInputChange"
           rows="1"
-          class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:ring-green-500 focus:border-green-500"
+          class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
+          style="--tw-ring-color: #8cc65d; border-color: inherit;"
           placeholder="Type a message..."
           @keydown.enter.exact.prevent="sendMessage"
           maxlength="1000"
@@ -62,7 +63,8 @@
         <button
           @click="sendMessage"
           :disabled="inputText.trim() === '' || isSending"
-          class="bg-green-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-60"
+          class="text-white font-bold px-4 py-2 rounded-lg transition disabled:opacity-60"
+          style="background-color: #8cc65d"
         >
           <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
           Send

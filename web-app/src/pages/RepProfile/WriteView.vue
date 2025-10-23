@@ -7,8 +7,8 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Header -->
-    <header class="flex items-center justify-between h-14 px-4 border-b bg-white shrink-0">
-      <button @click="handleCancel" class="text-green-600 font-semibold">
+    <header class="flex items-center justify-between h-14 px-4 border-b shrink-0" style="background-color: #f7f7f7">
+      <button @click="handleCancel" class="font-semibold" style="color: #8cc65d">
         Cancel
       </button>
       <h1 class="font-bold text-lg">{{ isEditing ? 'Edit Content' : 'New Content' }}</h1>
@@ -46,28 +46,6 @@
           >
             <component :is="tool.icon" class="w-5 h-5" />
           </button>
-
-          <div class="border-l border-gray-300 h-6 mx-1"></div>
-
-          <!-- Image Upload Button -->
-          <button
-            @click="triggerImageUpload"
-            title="Insert Image"
-            class="p-2 hover:bg-gray-100 rounded transition-colors"
-            type="button"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </button>
-          <input
-            ref="imageInput"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            @change="handleImageSelect"
-            multiple
-          />
         </div>
 
         <!-- Content Editor -->
@@ -79,63 +57,6 @@
           class="min-h-[400px] p-4 bg-white border border-t-0 border-gray-300 rounded-b-lg outline-none prose prose-lg max-w-none"
           placeholder="Start writing..."
         ></div>
-
-        <!-- Image Preview Section -->
-        <div v-if="uploadedImages.length > 0" class="space-y-2">
-          <h3 class="font-semibold text-gray-700">Attached Images:</h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div
-              v-for="(img, index) in uploadedImages"
-              :key="index"
-              class="relative group"
-            >
-              <img :src="img.preview" class="w-full h-32 object-cover rounded-lg" />
-              <button
-                @click="removeImage(index)"
-                class="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Link to Portal/Goal Section -->
-        <div class="space-y-4 p-4 bg-white border border-gray-300 rounded-lg">
-          <h3 class="font-semibold text-gray-700">Link to (Optional):</h3>
-
-          <!-- Portal Selection -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Portal</label>
-            <select
-              v-model="linkedPortalId"
-              class="w-full p-2 border border-gray-300 rounded-lg bg-white"
-              @change="clearError"
-            >
-              <option :value="null">None</option>
-              <option v-for="portal in userPortals" :key="portal.id" :value="portal.id">
-                {{ portal.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Goal Selection -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Goal</label>
-            <select
-              v-model="linkedGoalId"
-              class="w-full p-2 border border-gray-300 rounded-lg bg-white"
-              @change="clearError"
-            >
-              <option :value="null">None</option>
-              <option v-for="goal in userGoals" :key="goal.id" :value="goal.id">
-                {{ goal.title }}
-              </option>
-            </select>
-          </div>
-        </div>
 
         <!-- Publish Status Toggle -->
         <div class="flex items-center justify-between p-4 bg-white border border-gray-300 rounded-lg">
@@ -206,20 +127,12 @@ const userId = Number(localStorage.getItem('userId'))
 const title = ref('')
 const content = ref('')
 const isDraft = ref(false)
-const linkedPortalId = ref<number | null>(null)
-const linkedGoalId = ref<number | null>(null)
-const uploadedImages = ref<Array<{ file: File; preview: string }>>([])
 const isSaving = ref(false)
 const errorMessage = ref('')
 const isEditing = computed(() => writeId !== null)
 
-// Data for linking
-const userPortals = ref<Array<{ id: number; name: string }>>([])
-const userGoals = ref<Array<{ id: number; title: string }>>([])
-
 // Refs
 const editor = ref<HTMLDivElement | null>(null)
-const imageInput = ref<HTMLInputElement | null>(null)
 
 // Text formatting tools
 const textTools = [
@@ -263,32 +176,6 @@ function handlePaste(e: ClipboardEvent) {
   }
 }
 
-function triggerImageUpload() {
-  imageInput.value?.click()
-}
-
-function handleImageSelect(event: Event) {
-  const target = event.target as HTMLInputElement
-  if (target.files) {
-    Array.from(target.files).forEach(file => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        uploadedImages.value.push({
-          file,
-          preview: e.target?.result as string
-        })
-      }
-      reader.readAsDataURL(file)
-    })
-  }
-  // Reset input
-  if (target) target.value = ''
-}
-
-function removeImage(index: number) {
-  uploadedImages.value.splice(index, 1)
-}
-
 function clearError() {
   errorMessage.value = ''
 }
@@ -309,47 +196,18 @@ async function handleSave() {
   errorMessage.value = ''
 
   try {
-    const formData = new FormData()
-    formData.append('title', title.value.trim())
-    formData.append('content', content.value.trim())
-    formData.append('status', isDraft.value ? 'draft' : 'published')
-
-    if (linkedPortalId.value) {
-      formData.append('portal_id', String(linkedPortalId.value))
+    const payload = {
+      title: title.value.trim(),
+      content: content.value.trim()
     }
-
-    if (linkedGoalId.value) {
-      formData.append('goal_id', String(linkedGoalId.value))
-    }
-
-    // Upload images if any
-    uploadedImages.value.forEach((img, index) => {
-      formData.append('images', img.file, `write_image_${index}.jpg`)
-    })
 
     let response
     if (isEditing.value) {
       // Update existing write
-      response = await api.put(
-        `/api/user/write/${writeId}`,
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      )
+      response = await api.put(`/api/user/write/${writeId}`, payload)
     } else {
       // Create new write
-      response = await api.post(
-        '/api/user/write',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      )
+      response = await api.post('/api/user/write', payload)
     }
 
     if (response.data) {
@@ -379,8 +237,6 @@ async function loadExistingWrite() {
       title.value = existingWrite.title || ''
       content.value = existingWrite.content || ''
       isDraft.value = existingWrite.status === 'draft'
-      linkedPortalId.value = existingWrite.portal_id || null
-      linkedGoalId.value = existingWrite.goal_id || null
 
       // Set editor content
       if (editor.value) {
@@ -393,28 +249,6 @@ async function loadExistingWrite() {
   }
 }
 
-async function loadUserPortals() {
-  try {
-    const response = await api.get(
-      `/api/portal/portals?users_id=${userId}`
-    )
-    userPortals.value = response.data.result || []
-  } catch (err) {
-    console.error('Failed to load portals:', err)
-  }
-}
-
-async function loadUserGoals() {
-  try {
-    const response = await api.get(
-      `/api/goals/list?users_id=${userId}`
-    )
-    userGoals.value = response.data.result || []
-  } catch (err) {
-    console.error('Failed to load goals:', err)
-  }
-}
-
 // Lifecycle
 onMounted(async () => {
   if (!userId) {
@@ -422,11 +256,7 @@ onMounted(async () => {
     return
   }
 
-  await Promise.all([
-    loadUserPortals(),
-    loadUserGoals(),
-    loadExistingWrite()
-  ])
+  await loadExistingWrite()
 })
 </script>
 

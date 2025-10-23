@@ -7,8 +7,8 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header -->
-    <header class="sticky top-0 z-10 bg-white border-b border-gray-200 flex items-center h-14 px-4">
-      <button @click="goBack" class="text-green-600 font-semibold">Back</button>
+    <header class="sticky top-0 z-10 border-b border-gray-200 flex items-center h-14 px-4" style="background-color: #f7f7f7">
+      <button @click="goBack" class="font-semibold" style="color: #8cc65d">Back</button>
       <h1 class="font-bold text-lg flex-1 text-center">Goal Invitations</h1>
       <div class="w-12"></div>
     </header>

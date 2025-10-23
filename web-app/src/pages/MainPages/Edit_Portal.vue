@@ -7,12 +7,12 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header -->
-    <header class="flex items-center justify-between h-15 px-4 border-b border-gray-200 shrink-0">
-      <button @click="dismiss" class="text-green-600 hover:text-green-700">
+    <header class="flex items-center justify-between h-15 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+      <button @click="dismiss" style="color: #8cc65d">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
       </button>
       <h1 class="font-bold text-xl">Edit Portal</h1>
-      <button @click="save" class="font-bold text-green-600 hover:text-green-700" :disabled="isSaving">
+      <button @click="save" class="font-bold" style="color: #8cc65d" :disabled="isSaving">
         {{ isSaving ? 'Saving...' : 'Save' }}
       </button>
     </header>

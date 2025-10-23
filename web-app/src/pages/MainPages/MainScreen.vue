@@ -9,7 +9,7 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header/Toolbar -->
-    <header class="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 flex items-center justify-between h-14 px-4">
+    <header class="sticky top-0 z-20 border-b border-gray-200 flex items-center justify-between h-14 px-4" style="background-color: #f7f7f7">
       <button @click="handleProfileClick" class="focus:outline-none">
         <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
              class="w-7 h-7 rounded-full object-cover" alt="Profile"/>
@@ -26,7 +26,7 @@
         :key="openNeedsAttention ? 'dot-on' : 'dot-off'"
       />
 
-      <button @click="handleAddButtonClick" class="text-green-600">
+      <button @click="handleAddButtonClick" style="color: #8cc65d">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
         </svg>
@@ -130,13 +130,14 @@
 
     <!-- Search Overlay -->
     <Transition name="slide-up">
-      <div v-if="showSearch" class="fixed bottom-0 left-0 right-0 bg-white p-3 border-t shadow-md z-20">
-        <div class="flex items-center">
+      <div v-if="showSearch" class="fixed bottom-0 left-0 right-0 bg-white p-3 border-t shadow-md z-20 flex justify-center">
+        <div class="w-full flex items-center" style="max-width: 768px;">
           <input
             v-model="searchText"
             type="search"
             placeholder="Search..."
-            class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500"
+            class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2"
+            style="--tw-ring-color: #8cc65d"
             @input="handleSearchInput"
           />
           <button @click="cancelSearch" class="ml-2 px-4 py-2 text-gray-700">Cancel</button>
@@ -1141,7 +1142,7 @@ const PeopleList = defineComponent({
               class: 'flex items-center py-4 px-4',
               style: { minHeight: '96px' }
             }, [
-              user.profile_picture_url
+              (user.profile_picture_url && user.profile_picture_url.trim())
                 ? h('img', {
                     src: user.profile_picture_url,
                     class: 'w-16 h-16 object-cover rounded-full'

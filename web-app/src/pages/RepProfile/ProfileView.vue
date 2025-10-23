@@ -7,19 +7,11 @@
 -->
   
 <template>
-  <div class="min-h-screen bg-white flex flex-col">
-    <!-- Navigation Header -->
-    <NavigationHeaderView 
-      :name="user.displayName" 
-      :show-settings="isCurrentUser"
-      @back="goBack" 
-      @settings="goToSettings" 
-    />
-
+  <div class="flex flex-col h-screen bg-white">
     <!-- Loading State -->
     <div v-if="!isLoaded" class="flex-1 flex items-center justify-center">
       <div class="text-center">
-        <div class="animate-spin h-8 w-8 border-4 border-green-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+        <div class="animate-spin h-8 w-8 border-4 border-t-transparent rounded-full mx-auto mb-4" style="border-color: #8cc65d; border-top-color: transparent;"></div>
         <p class="text-gray-500">Loading Profile...</p>
       </div>
     </div>
@@ -28,35 +20,46 @@
     <div v-else-if="errorMessage" class="flex-1 flex items-center justify-center p-4">
       <div class="text-center">
         <p class="text-red-500 mb-4">{{ errorMessage }}</p>
-        <button @click="fetchProfile" class="px-4 py-2 bg-green-600 text-white rounded-lg">
+        <button @click="fetchProfile" class="px-4 py-2 text-white rounded-lg" style="background-color: #8cc65d">
           Retry
         </button>
       </div>
     </div>
 
-    <!-- Main Content -->
-    <main v-else class="flex-1 overflow-y-auto">
-      <!-- Profile Info -->
-      <ProfileInfoView
-        :photo-url="user.profile_picture_url"
-        :city="user.city"
-        :skills="user.skills ? user.skills.map(s => s.title) : []"
-        :display-name="user.displayName"
+    <!-- Main Content Container -->
+    <div v-else class="flex flex-col flex-1 min-h-0">
+      <!-- Navigation Header -->
+      <NavigationHeaderView
+        :name="user.displayName"
+        :show-settings="isCurrentUser"
+        @back="goBack"
+        @settings="goToSettings"
       />
 
-      <!-- Broadcast Message -->
-      <ProfileBroadcastView :broadcast="user.broadcast" />
-
-      <!-- Sticky Tab Header -->
-      <div class="sticky top-14 z-10 bg-white px-4 pt-2 pb-1">
-        <ProfileSegmentedPicker
-          :segments="['Rep', 'Goals', 'Write']"
-          v-model="selectedTab"
+      <!-- Scrollable Content -->
+      <main class="flex-1 overflow-y-auto pb-20">
+      <div class="relative">
+        <!-- Profile Info -->
+        <ProfileInfoView
+          :photo-url="user.profile_picture_url"
+          :city="user.city"
+          :skills="user.skills ? user.skills.map(s => s.title) : []"
+          :display-name="user.displayName"
         />
-      </div>
 
-      <!-- Tab Content -->
-      <div class="px-4 pt-2">
+        <!-- Broadcast Message -->
+        <ProfileBroadcastView :broadcast="user.broadcast" />
+
+        <!-- Sticky Tab Header -->
+        <div class="sticky top-0 z-10 bg-white px-4 pt-2 pb-1">
+          <ProfileSegmentedPicker
+            :segments="['Rep', 'Goals', 'Write']"
+            v-model="selectedTab"
+          />
+        </div>
+
+        <!-- Tab Content -->
+        <div class="px-4 pt-2">
         <!-- Rep Tab -->
         <div v-if="selectedTab === 'rep'" class="pt-2">
           <ProfileRepSection
@@ -90,13 +93,36 @@
           />
         </div>
       </div>
+      </div>
     </main>
+    </div>
 
-    <!-- Bottom Action Bar -->
-    <BottomBarView
-      @add-click="showActionMenu = true"
-      @message-click="goToMessages"
-    />
+    <!-- Fixed Bottom Bar -->
+    <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+      <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
+        <!-- Message Button -->
+        <button
+          @click="goToMessages"
+          class="flex-1 flex items-center justify-center py-1.5 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+          style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+        </button>
+
+        <!-- Add Button -->
+        <button
+          @click="showActionMenu = true"
+          class="flex-1 flex items-center justify-center py-1.5 rounded-lg transition-transform hover:scale-105 active:scale-95"
+          style="background-color: #8cc65d; color: white;"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
+    </div>
 
     <!-- Action Menu Modal -->
     <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end justify-center">
@@ -127,7 +153,7 @@
     <div v-if="showNetworkResultAlert" class="fixed inset-0 flex items-center justify-center z-50">
       <div class="bg-white p-4 rounded-lg shadow-lg">
         <p>{{ networkResultMessage }}</p>
-        <button @click="showNetworkResultAlert = false" class="mt-3 bg-green-600 text-white px-4 py-2 rounded w-full">OK</button>
+        <button @click="showNetworkResultAlert = false" class="mt-3 text-white px-4 py-2 rounded w-full" style="background-color: #8cc65d">OK</button>
       </div>
     </div>
 
@@ -159,11 +185,12 @@ const NavigationHeaderView = defineComponent({
   emits: ['back', 'settings'],
   setup(props, { emit }) {
     return () => h('header', {
-      class: 'sticky top-0 z-20 bg-gray-50 border-b border-gray-200 flex items-center h-14 px-4'
+      class: 'flex items-center h-14 px-4 border-b border-gray-200 shrink-0',
+      style: 'background-color: #f7f7f7'
     }, [
       h('button', {
         onClick: () => emit('back'),
-        class: 'text-green-600'
+        style: 'color: #8cc65d'
       }, [
         h('svg', {
           xmlns: 'http://www.w3.org/2000/svg',
@@ -181,10 +208,10 @@ const NavigationHeaderView = defineComponent({
         ])
       ]),
       h('h1', { class: 'flex-1 text-center font-bold text-xl' }, props.name),
-      h('div', { class: 'w-8' }, [
+      h('div', { class: 'w-8 flex items-center justify-center' }, [
         props.showSettings && h('button', {
           onClick: () => emit('settings'),
-          class: 'text-green-600'
+          style: 'color: #8cc65d'
         }, [
           h('svg', {
             xmlns: 'http://www.w3.org/2000/svg',
@@ -351,7 +378,8 @@ const ProfileRepSection = defineComponent({
         : h('p', { class: 'text-gray-500 text-center py-8' }, 'No purposes yet.'),
       props.showAddPartner && h('button', {
         onClick: () => emit('add-partner'),
-        class: 'mt-4 w-full text-center text-green-600'
+        class: 'mt-4 w-full text-center',
+        style: 'color: #8cc65d'
       }, 'Add Partner')
     ])
   }
@@ -484,7 +512,8 @@ const WriteContentView = defineComponent({
               }),
               shouldTruncate && h('button', {
                 onClick: () => toggleExpand(write.id),
-                class: 'text-green-600 hover:text-green-800 font-medium text-sm mb-3'
+                class: 'font-medium text-sm mb-3',
+                style: 'color: #8cc65d'
               }, expanded ? 'Read less' : 'Read more'),
               h('div', { class: 'flex items-center justify-between text-sm text-gray-500' }, [
                 h('span', write.status === 'draft' ? 'Draft' : 'Published'),
@@ -507,7 +536,8 @@ const WriteContentView = defineComponent({
       props.isCurrentUser && h('div', { class: 'mt-6 pt-6 border-t' }, [
         h('button', {
           onClick: navigateToNew,
-          class: 'w-full py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2'
+          class: 'w-full py-3 text-white font-bold rounded-lg transition-colors flex items-center justify-center space-x-2',
+          style: 'background-color: #8cc65d'
         }, [
           h('svg', {
             xmlns: 'http://www.w3.org/2000/svg',
@@ -530,53 +560,7 @@ const WriteContentView = defineComponent({
   }
 })
 
-const BottomBarView = defineComponent({
-  emits: ['add-click', 'message-click'],
-  setup(_, { emit }) {
-    return () => h('footer', {
-      class: 'sticky bottom-0 bg-white border-t h-16 flex items-center justify-around px-4'
-    }, [
-      h('button', {
-        onClick: () => emit('add-click'),
-        class: 'bg-green-600 text-white rounded-md shadow-md flex-grow h-10 flex items-center justify-center'
-      }, [
-        h('svg', {
-          xmlns: 'http://www.w3.org/2000/svg',
-          class: 'h-6 w-6',
-          fill: 'none',
-          viewBox: '0 0 24 24',
-          stroke: 'currentColor'
-        }, [
-          h('path', {
-            'stroke-linecap': 'round',
-            'stroke-linejoin': 'round',
-            'stroke-width': '2',
-            d: 'M12 4v16m8-8H4'
-          })
-        ])
-      ]),
-      h('button', {
-        onClick: () => emit('message-click'),
-        class: 'ml-6 text-black'
-      }, [
-        h('svg', {
-          xmlns: 'http://www.w3.org/2000/svg',
-          class: 'h-8 w-8',
-          fill: 'none',
-          viewBox: '0 0 24 24',
-          stroke: 'currentColor'
-        }, [
-          h('path', {
-            'stroke-linecap': 'round',
-            'stroke-linejoin': 'round',
-            'stroke-width': '2',
-            d: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z'
-          })
-        ])
-      ])
-    ])
-  }
-})
+// BottomBarView removed - replaced with floating action buttons
 
 // Define interfaces based on Swift models - expanded to match Swift
 interface Skill { 

@@ -7,12 +7,12 @@
 <template>
   <div class="min-h-screen bg-gray-50 flex flex-col">
     <!-- Header -->
-    <header class="flex items-center justify-between h-14 px-4 border-b bg-white shrink-0">
-      <button @click="handleClose" class="text-green-600 p-2 -ml-2">
+    <header class="flex items-center justify-between h-14 px-4 border-b shrink-0" style="background-color: #f7f7f7">
+      <button @click="handleClose" class="p-2 -ml-2" style="color: #8cc65d">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
       </button>
       <h1 class="font-bold text-lg">{{ transactionType.title }}</h1>
-      <button @click="handleClose" class="text-green-600 font-semibold">Cancel</button>
+      <button @click="handleClose" class="font-semibold" style="color: #8cc65d">Cancel</button>
     </header>
 
     <div class="flex-1 overflow-y-auto">

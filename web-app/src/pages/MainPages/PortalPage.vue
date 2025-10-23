@@ -19,7 +19,7 @@
       <PortalHeader :portal-name="portalDetail.name" @back="goBack" />
 
       <!-- 2. Main Scrollable Content -->
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto pb-20">
         <div class="relative">
           <!-- Image Gallery -->
           <ImageTabView 
@@ -51,8 +51,32 @@
         </div>
       </div>
 
-      <!-- 3. Bottom Action Bar -->
-      <BottomBarView @add="handleAddAction" @message="openMessageSheet" />
+      <!-- Fixed Bottom Bar -->
+      <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+        <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
+          <!-- Message Button -->
+          <button
+            @click="openMessageSheet"
+            class="flex-1 flex items-center justify-center py-1.5 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+            style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+          </button>
+
+          <!-- Add Button -->
+          <button
+            @click="handleAddAction"
+            class="flex-1 flex items-center justify-center py-1.5 rounded-lg transition-transform hover:scale-105 active:scale-95"
+            style="background-color: #8cc65d; color: white;"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Modals & Fullscreen Views -->
@@ -89,30 +113,6 @@
       :transaction-type="supportGoal.typeName === 'Fund' ? 'donation' : 'payment'"
       @close="showPaymentSheet = false"
     />
-
-    <!-- Message Sheet -->
-    <transition name="fade">
-      <div v-if="showMessageSheet" class="fixed inset-0 z-50 flex items-center justify-center">
-        <div class="bg-white w-full h-full max-w-md rounded-lg shadow-lg flex flex-col">
-          <div class="flex justify-between items-center p-4 border-b">
-            <h2 class="text-xl font-bold">Message {{ selectedLead?.fname }}</h2>
-            <button @click="showMessageSheet = false" class="text-gray-400 hover:text-gray-600">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-          <div class="flex-1 p-4">
-            <p>Messaging interface would be here</p>
-          </div>
-          <div class="border-t p-4">
-            <button @click="showMessageSheet = false" class="w-full py-2 bg-green-600 text-white rounded-lg">
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
 
     <!-- Add Goal Sheet -->
     <EditGoal
@@ -269,8 +269,6 @@ const errorMessage = ref<string | null>(null);
 type ActiveSheet = 'portalActionMenu' | 'addGoal' | null;
 const activeSheet = ref<ActiveSheet>(null);
 const showPaymentSheet = ref(false);
-const showMessageSheet = ref(false);
-const selectedLead = ref<User | null>(null);
 const navigateToEditAfterDismiss = ref(false);
 const showEditPortal = ref(false);
 
@@ -403,8 +401,8 @@ const openMessageSheet = () => {
     return;
   }
   if (leadRepUser.value) {
-    selectedLead.value = leadRepUser.value;
-    showMessageSheet.value = true;
+    // Navigate to chat with the lead user
+    router.push(`/chat/user/${leadRepUser.value.id}`);
   } else {
     console.log("No lead user found for portal!");
   }
@@ -492,11 +490,12 @@ const PortalHeader = defineComponent({
   emits: ['back'],
   setup(props, { emit }) {
     return () => h('header', {
-      class: 'flex items-center h-14 px-4 bg-gray-50 border-b border-gray-200 shrink-0'
+      class: 'flex items-center h-14 px-4 border-b border-gray-200 shrink-0',
+      style: 'background-color: #f7f7f7'
     }, [
-      h('button', { 
-        onClick: () => emit('back'), 
-        class: 'text-green-600'
+      h('button', {
+        onClick: () => emit('back'),
+        style: 'color: #8cc65d'
       }, [
         h('svg', {
           xmlns: 'http://www.w3.org/2000/svg',
@@ -844,53 +843,7 @@ const PortalStorySection = defineComponent({
   }
 });
 
-const BottomBarView = defineComponent({
-  emits: ['add', 'message'],
-  setup(_, { emit }) {
-    return () => h('footer', {
-      class: 'flex items-center gap-2 py-2 px-4 border-t border-gray-200 bg-white shrink-0'
-    }, [
-      h('button', {
-        onClick: () => emit('add'),
-        class: 'flex-1 py-2 px-3 bg-[#8cc65d] border-2 border-[#8cc65d] rounded-lg text-white font-semibold text-[20px] active:bg-[#7ab54d] transition-colors flex items-center justify-center'
-      }, [
-        h('svg', {
-          xmlns: 'http://www.w3.org/2000/svg',
-          class: 'h-5 w-5',
-          fill: 'none',
-          viewBox: '0 0 24 24',
-          stroke: 'currentColor',
-          'stroke-width': '2.5'
-        }, [
-          h('path', {
-            'stroke-linecap': 'round',
-            'stroke-linejoin': 'round',
-            d: 'M12 4v16m8-8H4'
-          })
-        ])
-      ]),
-      h('button', {
-        onClick: () => emit('message'),
-        class: 'flex-1 py-2 px-3 bg-white border-2 border-[#8cc65d] rounded-lg text-[#8cc65d] font-semibold text-[17px] active:bg-gray-50 transition-colors flex items-center justify-center'
-      }, [
-        h('svg', {
-          xmlns: 'http://www.w3.org/2000/svg',
-          class: 'h-5 w-5',
-          fill: 'none',
-          viewBox: '0 0 24 24',
-          stroke: 'currentColor',
-          'stroke-width': '2.5'
-        }, [
-          h('path', {
-            'stroke-linecap': 'round',
-            'stroke-linejoin': 'round',
-            d: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z'
-          })
-        ])
-      ])
-    ]);
-  }
-});
+// BottomBarView removed - replaced with floating action buttons
 
 // ActionSheetModal - EXACTLY matching Swift design with iOS styling
 const ActionSheetModal = defineComponent({

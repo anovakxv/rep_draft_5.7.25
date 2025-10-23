@@ -8,15 +8,16 @@
   <div class="fixed inset-0 bg-gray-100 z-40 flex flex-col">
     <!-- Header -->
     <header class="h-14 shrink-0">
-      <div class="max-w-2xl mx-auto flex items-center justify-between h-full px-4 bg-gray-50 border-b border-gray-200">
-        <button @click="router.back()" class="text-green-600 font-semibold p-2 -ml-2">
+      <div class="max-w-2xl mx-auto flex items-center justify-between h-full px-4 border-b border-gray-200" style="background-color: #f7f7f7">
+        <button @click="router.back()" class="font-semibold p-2 -ml-2" style="color: #8cc65d">
           Cancel
         </button>
         <h1 class="font-bold text-lg">New Group Chat</h1>
         <button
           @click="createGroupChat"
           :disabled="!groupName.trim() || selectedMembers.length === 0 || isSaving"
-          class="font-bold text-green-600 hover:text-green-700 disabled:opacity-40 disabled:cursor-not-allowed"
+          class="font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          style="color: #8cc65d"
         >
           {{ isSaving ? 'Creating...' : 'Create' }}
         </button>

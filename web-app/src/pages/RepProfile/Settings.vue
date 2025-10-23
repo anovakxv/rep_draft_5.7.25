@@ -9,8 +9,8 @@
 <template>
   <div class="min-h-screen bg-white flex flex-col">
     <!-- Header -->
-    <header class="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 flex items-center h-14 px-4">
-      <button @click="goBack" class="text-green-600">
+    <header class="sticky top-0 z-20 border-b border-gray-200 flex items-center h-14 px-4" style="background-color: #f7f7f7">
+      <button @click="goBack" style="color: #8cc65d">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>

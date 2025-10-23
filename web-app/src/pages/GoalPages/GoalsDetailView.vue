@@ -6,17 +6,6 @@
 
 <template>
   <div class="flex flex-col h-screen bg-white">
-    <!-- Custom Top Bar -->
-    <header class="flex items-center justify-between h-11 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
-      <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <h1 class="font-bold text-lg truncate px-4">{{ goal?.title || 'Goal Details' }}</h1>
-      <div class="w-10"></div> <!-- Spacer -->
-    </header>
-
     <!-- Loading State -->
     <div v-if="isLoading" class="flex-1 flex items-center justify-center">
       <div class="animate-spin h-8 w-8 border-4 border-rep-green border-t-transparent rounded-full"></div>
@@ -31,7 +20,19 @@
     </div>
 
     <!-- Main Content -->
-    <div v-else-if="goal" class="flex-1 flex flex-col overflow-hidden">
+    <div v-else-if="goal" class="flex flex-col flex-1 min-h-0">
+      <!-- Custom Top Bar -->
+      <header class="flex items-center justify-between h-11 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+        <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 class="font-bold text-lg truncate px-4">{{ goal?.title || 'Goal Details' }}</h1>
+        <div class="w-10"></div> <!-- Spacer -->
+      </header>
+
+      <div class="flex-1 flex flex-col overflow-hidden">
       <!-- Progress Bar and Metrics Section -->
       <div class="p-4 border-b border-gray-200">
         <!-- Progress Bar -->
@@ -137,6 +138,7 @@
             </svg>
           </button>
         </div>
+      </div>
       </div>
     </div>
 

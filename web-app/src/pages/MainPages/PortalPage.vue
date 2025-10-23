@@ -968,40 +968,16 @@ const FullscreenImageViewer = defineComponent({
     });
     
     return () => h('div', {
-      class: 'fixed inset-0 bg-black z-50 flex flex-col',
+      class: 'fixed inset-0 bg-black z-50',
       style: {
         // Use dynamic viewport height for mobile browsers (handles landscape properly)
         height: '100dvh',
         width: '100vw'
       }
     }, [
-      // Header with close button and pagination info
-      h('div', { class: 'flex justify-between items-center p-4 text-white' }, [
-        h('span', { class: 'text-sm' }, `${currentIndex.value + 1} / ${props.images?.length || 0}`),
-        h('button', {
-          class: 'text-white p-2',
-          onClick: () => emit('close')
-        }, [
-          h('svg', {
-            xmlns: 'http://www.w3.org/2000/svg',
-            class: 'h-6 w-6',
-            fill: 'none',
-            viewBox: '0 0 24 24',
-            stroke: 'currentColor'
-          }, [
-            h('path', {
-              'stroke-linecap': 'round',
-              'stroke-linejoin': 'round',
-              'stroke-width': '2',
-              d: 'M6 18L18 6M6 6l12 12'
-            })
-          ])
-        ])
-      ]),
-
-      // Main image container
+      // Main image container (fullscreen - no header)
       h('div', {
-        class: 'flex-1 relative overflow-hidden'
+        class: 'absolute inset-0 overflow-hidden'
       }, [
         // Image with touch handlers - fills entire viewport in landscape
         h('div', {
@@ -1010,7 +986,7 @@ const FullscreenImageViewer = defineComponent({
         }, [
           h('img', {
             src: props.images?.[currentIndex.value]?.url,
-            class: 'w-full h-full object-cover',
+            class: 'w-full h-full object-contain',
             style: {
               transform: transformStyle.value,
               transition: 'transform 0.15s ease-out',
@@ -1018,12 +994,33 @@ const FullscreenImageViewer = defineComponent({
             }
           })
         ]),
-        
+
+        // Close button overlay (top-right)
+        h('button', {
+          class: 'absolute top-4 right-4 bg-black bg-opacity-50 rounded-full p-2 z-10',
+          onClick: () => emit('close')
+        }, [
+          h('svg', {
+            xmlns: 'http://www.w3.org/2000/svg',
+            class: 'h-6 w-6 text-white',
+            fill: 'none',
+            viewBox: '0 0 24 24',
+            stroke: 'currentColor',
+            'stroke-width': '2'
+          }, [
+            h('path', {
+              'stroke-linecap': 'round',
+              'stroke-linejoin': 'round',
+              d: 'M6 18L18 6M6 6l12 12'
+            })
+          ])
+        ]),
+
         // Navigation arrows (if multiple images)
         (props.images?.length || 0) > 1 && [
           h('button', {
             key: 'prev',
-            class: 'absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-2',
+            class: 'absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-2 z-10',
             onClick: prevImage
           }, [
             h('svg', {
@@ -1043,7 +1040,7 @@ const FullscreenImageViewer = defineComponent({
           ]),
           h('button', {
             key: 'next',
-            class: 'absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-2',
+            class: 'absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-2 z-10',
             onClick: nextImage
           }, [
             h('svg', {

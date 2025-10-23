@@ -6,19 +6,20 @@
 
 <template>
   <div class="flex flex-col h-screen bg-white">
-    <!-- Header -->
-    <div class="flex items-center h-14 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
-      <button @click="emit('close')" style="color: #8cc65d">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <h1 class="font-bold text-lg flex-1 text-center truncate">{{ otherUserName }}</h1>
-      <div class="w-10"></div>
-    </div>
+    <div class="flex flex-col flex-1 min-h-0">
+      <!-- Header -->
+      <div class="flex items-center h-14 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+        <button @click="emit('close')" style="color: #8cc65d">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <h1 class="font-bold text-lg flex-1 text-center truncate">{{ otherUserName }}</h1>
+        <div class="w-10"></div>
+      </div>
 
-    <!-- Messages List -->
-    <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3" @scroll.passive="onScroll">
+      <!-- Messages List -->
+      <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3" @scroll.passive="onScroll">
       <div v-if="canLoadOlder" class="flex justify-center py-2">
         <button @click="loadOlder" :disabled="isLoadingOlder" class="text-xs text-gray-500 hover:underline">
           <span v-if="isLoadingOlder" class="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full inline-block mr-1"></span>
@@ -70,6 +71,7 @@
           Send
         </button>
       </div>
+    </div>
     </div>
   </div>
 </template>

@@ -209,7 +209,7 @@ const props = defineProps<{
   transactionType?: string;
 }>();
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'payment-success']);
 
 const typeKey = props.transactionType || 'donation';
 const transactionType = transactionTypes[typeKey] || transactionTypes.donation;
@@ -332,7 +332,11 @@ const startPayment = async () => {
     }
 
     if (json.checkout_url) {
-      if (json.session_id) localStorage.setItem('lastCheckoutSessionId', json.session_id);
+      if (json.session_id) {
+        localStorage.setItem('lastCheckoutSessionId', json.session_id);
+        // Store goal ID for refreshing after payment
+        if (props.goalId) localStorage.setItem('lastPaymentGoalId', props.goalId.toString());
+      }
       window.open(json.checkout_url, '_blank');
       paymentStatus.value = { status: 'initial' }; // Reset status after opening checkout
     } else {
@@ -372,6 +376,13 @@ const checkPaymentStatus = async (sessionId: string) => {
 
 const closeSuccessModal = () => {
   paymentStatus.value = { status: 'initial' };
+
+  // Clean up localStorage
+  localStorage.removeItem('lastCheckoutSessionId');
+  localStorage.removeItem('lastPaymentGoalId');
+
+  // Emit payment-success event so GoalsDetailView can refresh
+  emit('payment-success');
   emit('close');
 };
 

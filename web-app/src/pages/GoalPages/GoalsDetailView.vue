@@ -116,18 +116,16 @@
       <BottomGoalBar @add="handleAddAction" @message="openGoalTeamChat" />
     </div>
 
-    <!-- Floating Support Button - EXACTLY matching Swift positioning and logic -->
+    <!-- Floating Support Button - White background with dark green border (matching iOS) -->
     <button
       v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales')"
       @click="showPaymentSheet = true"
-      class="absolute bottom-[70px] right-5 px-5 py-[14px] bg-white border-2 border-rep-green rounded-lg shadow-lg flex items-center gap-2 text-rep-green font-semibold z-10 transition-transform"
-      style="box-shadow: -3px 5px 7px rgba(26, 26, 26, 0.4)"
+      class="absolute bottom-[70px] right-5 px-5 py-[14px] bg-white border-2 rounded-lg shadow-lg flex items-center gap-2 font-bold z-10 transition-transform"
+      style="border-color: #006600; color: #006600; box-shadow: 3px 5px 7px rgba(26, 26, 26, 0.4)"
       :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-[22px] w-[22px]" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
-      </svg>
-      Support
+      <span class="text-[22px]">$</span>
+      <span>Support</span>
     </button>
 
     <!-- Team Chat Loading Overlay - EXACTLY matching Swift -->
@@ -244,6 +242,7 @@
       :goal-name="goal?.title || ''"
       :transaction-type="goal?.typeName === 'Fund' ? 'donation' : 'payment'"
       @close="showPaymentSheet = false"
+      @payment-success="handlePaymentSuccess"
     />
 
     <!-- Delete Alert - EXACTLY matching Swift -->
@@ -807,9 +806,18 @@ const handleTeamInvite = () => {
   loadGoalDetails();
 };
 
+const handlePaymentSuccess = () => {
+  // Close payment sheet
+  showPaymentSheet.value = false;
+
+  // Reload goal details to show new payment in feed
+  console.log('[GoalsDetailView] Payment successful, reloading goal details');
+  loadGoalDetails();
+};
+
 const handleChatClose = () => {
   showChatSheet.value = false;
-  
+
   // Clean up chat resources (EXACTLY matching Swift onDismiss)
   if (goalTeamChatId.value) {
     // Equivalent to RealtimeSocketManager.shared.leave(chatId:)

@@ -120,10 +120,10 @@
       </div>
       </Transition>
 
-      <!-- Floating Toggle Button -->
+      <!-- Floating Toggle Button - Clear background (matching iOS) -->
       <div class="fixed bottom-5 z-30" style="right: max(36px, calc(50% - 348px));">
-        <button @click="togglePage" class="w-11 h-11 bg-white rounded-full shadow-lg flex items-center justify-center hover:shadow-xl transition-shadow">
-          <img :src="REPLogo" alt="Toggle Page" class="w-8 h-8" />
+        <button @click="togglePage" class="w-11 h-11 flex items-center justify-center transition-opacity hover:opacity-80">
+          <img :src="REPLogo" alt="Toggle Page" class="w-11 h-11" />
         </button>
       </div>
     </main>

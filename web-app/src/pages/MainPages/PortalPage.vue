@@ -1014,15 +1014,20 @@ const FullscreenImageViewer = defineComponent({
       return `scale(${scale.value}) translate(${offset.value.x}px, ${offset.value.y}px)`;
     });
     
-    return () => h('div', { 
-      class: 'fixed inset-0 bg-black z-50 flex flex-col'
+    return () => h('div', {
+      class: 'fixed inset-0 bg-black z-50 flex flex-col',
+      style: {
+        // Use dynamic viewport height for mobile browsers (handles landscape properly)
+        height: '100dvh',
+        width: '100vw'
+      }
     }, [
       // Header with close button and pagination info
       h('div', { class: 'flex justify-between items-center p-4 text-white' }, [
         h('span', { class: 'text-sm' }, `${currentIndex.value + 1} / ${props.images?.length || 0}`),
-        h('button', { 
-          class: 'text-white p-2', 
-          onClick: () => emit('close') 
+        h('button', {
+          class: 'text-white p-2',
+          onClick: () => emit('close')
         }, [
           h('svg', {
             xmlns: 'http://www.w3.org/2000/svg',
@@ -1040,22 +1045,23 @@ const FullscreenImageViewer = defineComponent({
           ])
         ])
       ]),
-      
+
       // Main image container
-      h('div', { 
+      h('div', {
         class: 'flex-1 relative overflow-hidden'
       }, [
-        // Image with touch handlers
+        // Image with touch handlers - fills entire viewport in landscape
         h('div', {
           class: 'absolute inset-0 flex items-center justify-center',
           onDblclick: handleDoubleTap
         }, [
           h('img', {
             src: props.images?.[currentIndex.value]?.url,
-            class: 'max-w-full max-h-full object-contain',
+            class: 'w-full h-full object-cover',
             style: {
               transform: transformStyle.value,
-              transition: 'transform 0.15s ease-out'
+              transition: 'transform 0.15s ease-out',
+              objectPosition: 'center'
             }
           })
         ]),

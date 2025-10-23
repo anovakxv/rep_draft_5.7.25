@@ -45,6 +45,8 @@ def create_app():
     # CORS configuration - use environment variable for additional origins
     cors_origins = [
         "https://networkedcapital.co",
+        "https://repsomething.com",
+        "https://www.repsomething.com",
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",

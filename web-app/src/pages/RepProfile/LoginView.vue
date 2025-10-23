@@ -56,7 +56,7 @@
       </form>
 
       <!-- Sign Up Link -->
-      <div class="mt-8 text-center">
+      <div class="mt-8 text-center text-lg">
         <span>New?</span>
         <button
           type="button"

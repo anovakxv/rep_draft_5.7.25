@@ -26,13 +26,14 @@ export default defineComponent({
     return () => {
       const outerClass = `flex ${props.isCurrentUser ? 'justify-end' : 'justify-start'}`;
       const innerClass = `flex flex-col max-w-[260px] ${props.isCurrentUser ? 'items-end' : 'items-start'}`;
-      const bubbleClass = `px-4 py-2 rounded-lg break-words ${props.isCurrentUser ? 'bg-green-600 text-white' : 'bg-gray-200 text-black'}`;
+      const bubbleClass = `px-4 py-2 rounded-lg break-words ${props.isCurrentUser ? 'bg-black' : 'bg-gray-200 text-black'}`;
+      const bubbleStyle = props.isCurrentUser ? { color: '#8cc65d' } : {};
 
       const children = [];
 
       // Sender name (for other users)
       if (!props.isCurrentUser) {
-        children.push(h('div', { class: 'text-xs text-gray-500 mb-1 font-semibold' }, props.message.senderName));
+        children.push(h('div', { class: 'text-xs text-gray-500 mb-1 font-semibold' }, props.message.sender_name || props.message.senderName || 'Unknown'));
       }
 
       // Message bubble content
@@ -52,7 +53,7 @@ export default defineComponent({
             return h('a', {
               href: attachment.url,
               target: '_blank',
-              class: `flex items-center gap-2 p-2 rounded-lg hover:opacity-80 mb-2 ${props.isCurrentUser ? 'bg-green-700' : 'bg-gray-300'}`
+              class: `flex items-center gap-2 p-2 rounded-lg hover:opacity-80 mb-2 ${props.isCurrentUser ? 'bg-gray-900' : 'bg-gray-300'}`
             }, [
               h('svg', {
                 xmlns: 'http://www.w3.org/2000/svg',
@@ -78,7 +79,7 @@ export default defineComponent({
         bubbleChildren.push(h('p', { class: 'text-sm whitespace-pre-wrap' }, props.message.text));
       }
 
-      children.push(h('div', { class: bubbleClass }, bubbleChildren));
+      children.push(h('div', { class: bubbleClass, style: bubbleStyle }, bubbleChildren));
 
       // Timestamp
       children.push(h('div', { class: 'text-xs text-gray-500 mt-1' }, formatTime(props.message.timestamp)));

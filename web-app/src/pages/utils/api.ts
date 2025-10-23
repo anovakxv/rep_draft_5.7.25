@@ -70,7 +70,14 @@ async function request<T = any>(
   };
 
   if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-    options.body = JSON.stringify(data);
+    // Handle FormData separately - don't stringify it and let browser set Content-Type
+    if (data instanceof FormData) {
+      options.body = data;
+      // Remove Content-Type header so browser can set it with proper boundary
+      delete headers['Content-Type'];
+    } else {
+      options.body = JSON.stringify(data);
+    }
   }
 
   try {

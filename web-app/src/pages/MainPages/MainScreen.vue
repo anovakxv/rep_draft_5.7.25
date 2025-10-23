@@ -9,7 +9,7 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header/Toolbar -->
-    <header class="sticky top-0 z-20 bg-gray-100 border-b border-gray-200 flex items-center justify-between h-14 px-4">
+    <header class="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 flex items-center justify-between h-14 px-4">
       <button @click="handleProfileClick" class="focus:outline-none">
         <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
              class="w-7 h-7 rounded-full object-cover" alt="Profile"/>
@@ -64,6 +64,7 @@
             :chats="filteredActiveChats"
             :invites="pendingInvites"
             :current-user-id="userId"
+            :current-tab="currentTab"
           />
           <EmptyState
             v-if="filteredActiveChats.length === 0 && pendingInvites.length === 0"
@@ -84,7 +85,7 @@
         <template v-else>
           <!-- When page = 'people': Show people lists -->
           <template v-if="page === 'people'">
-            <PeopleList :users="filteredUsers" :current-user-id="userId" />
+            <PeopleList :users="filteredUsers" :current-user-id="userId" :current-tab="currentTab" />
             <EmptyState
               v-if="filteredUsers.length === 0"
               title="No people found"
@@ -100,7 +101,7 @@
 
           <!-- When page = 'portals': Show portal lists -->
           <template v-else-if="page === 'portals'">
-            <PortalList :portals="filteredPortals" :user-id="userId" />
+            <PortalList :portals="filteredPortals" :user-id="userId" :current-tab="currentTab" />
             <EmptyState
               v-if="filteredPortals.length === 0"
               title="No portals found"
@@ -201,7 +202,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed, defineComponent, h, nextTick, type Ref } from 'vue';
-import { useRouter, RouterLink } from 'vue-router';
+import { useRouter, useRoute, RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
 import { useSocketManager } from '../utils/useSocketManager';
 import { isAuthenticated } from '@/utils/auth';
@@ -319,9 +320,30 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
       }
     } catch (err: any) {
       if (err.response?.status === 401 || err.response?.status === 403) {
-        // For public users on ALL tab, they shouldn't see auth errors
-        if (tab === 'all' && !authenticated) {
-          errorMessage.value = "Unable to load portals. Please try again.";
+        // For ALL tab, try to fallback to public endpoint if authenticated endpoint fails
+        if (tab === 'all') {
+          try {
+            // Clear invalid auth data and retry with public endpoint
+            console.log("Auth failed for ALL tab, falling back to public endpoint");
+            localStorage.removeItem('jwtToken');
+            localStorage.removeItem('userId');
+            userId.value = 0;
+            token.value = '';
+
+            const publicRes = await api.get(
+              `/api/public/portals?safe_only=${safeOnly.value}${limitParam}`
+            );
+
+            if (publicRes.data && publicRes.data.result) {
+              portals.value = publicRes.data.result;
+            } else {
+              portals.value = [];
+            }
+            isLoading.value = false;
+            return;
+          } catch (publicErr) {
+            errorMessage.value = "Unable to load portals. Please try again.";
+          }
         } else {
           errorMessage.value = "Session expired. Please log in again.";
           handleUnauthorized('fetchPortals');
@@ -413,8 +435,21 @@ const usePeople = (userId: Ref<number>) => {
             c.last_message?.sender_id !== userId.value
           );
 
-          hasUnreadDM.value = newHasUnreadDM;
-          hasUnreadGroup.value = newHasUnreadGroup;
+          // Always set to true if API shows unreads
+          // Only clear to false if user is currently viewing Chats tab
+          if (newHasUnreadDM) {
+            hasUnreadDM.value = true;
+          } else if (section.value === 0) {
+            // User is on Chats tab, so clear the flag if no unreads found
+            hasUnreadDM.value = false;
+          }
+
+          if (newHasUnreadGroup) {
+            hasUnreadGroup.value = true;
+          } else if (section.value === 0) {
+            // User is on Chats tab, so clear the flag if no unreads found
+            hasUnreadGroup.value = false;
+          }
         } else {
           activeChats.value = [];
         }
@@ -526,6 +561,7 @@ const useInvites = () => {
 
 // --- Main Component Setup ---
 const router = useRouter();
+const route = useRoute();
 const userId = ref(Number(localStorage.getItem('userId')) || 0);
 const token = ref(localStorage.getItem('jwtToken') || '');
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -539,6 +575,12 @@ const page = ref<'portals' | 'people'>('portals');
 const section = ref(2);
 const showOnlySafePortals = ref(false);
 const openNeedsAttention = ref(false);
+
+// Map section to tab name for navigation
+const currentTab = computed(() => {
+  const tabMap: Record<number, string> = { 0: 'chats', 1: 'network', 2: 'purpose' };
+  return tabMap[section.value] || 'purpose';
+});
 
 // --- View Models ---
 const { pendingInvites, fetchPendingInvites } = useInvites();
@@ -846,6 +888,16 @@ onMounted(() => {
   // Only initialize authenticated features if user is logged in
   const authenticated = isAuthenticated();
 
+  // Check for tab query parameter to set initial section
+  const tabParam = route.query.tab;
+  if (tabParam === 'chats') {
+    section.value = 0;
+  } else if (tabParam === 'network') {
+    section.value = 1;
+  } else if (tabParam === 'purpose' || tabParam === 'all') {
+    section.value = 2;
+  }
+
   if (authenticated) {
     // Initialize unread status from localStorage
     if (persistedUnreadDM.value) {
@@ -875,9 +927,11 @@ onMounted(() => {
     // Schedule one-shot unread polling
     scheduleUnreadPollingIfNeeded();
   } else {
-    // Public user - ensure we're on the ALL tab (section 2) for portals
+    // Public user - ensure we're on the ALL tab (section 2) for portals unless tab param overrides
     page.value = 'portals';
-    section.value = 2;
+    if (!tabParam) {
+      section.value = 2;
+    }
   }
 
   // --- Socket Handlers (from Swift) ---
@@ -890,25 +944,19 @@ onMounted(() => {
   unsubscribeDM = onDirectMessageNotification((payload) => {
     const senderId = toInt(payload.sender_id ?? payload.senderId);
     if (senderId === userId.value) return;
-    
-    // Instant UI feedback
+
+    // Instant UI feedback (rely on socket.io only, like iOS)
     hasUnreadDM.value = true;
     recalcOpenNeedsAttention();
-    
-    // Reconcile after brief delay
-    setTimeout(() => fetchPeople(0), 1500);
   });
 
   unsubscribeGroup = onGroupMessageNotification((payload) => {
     const senderId = toInt(payload.sender_id ?? payload.senderId);
     if (senderId === userId.value) return;
-    
-    // Instant UI feedback
+
+    // Instant UI feedback (rely on socket.io only, like iOS)
     hasUnreadGroup.value = true;
     recalcOpenNeedsAttention();
-    
-    // Reconcile after brief delay
-    setTimeout(() => fetchPeople(0), 1500);
   });
 
   unsubscribeInvite = onGoalTeamInvite(() => {
@@ -925,9 +973,11 @@ onMounted(() => {
   // Add visibilitychange event (similar to willEnterForeground in Swift)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
-      // Reconnect socket if needed
-      connect(apiBaseUrl, token.value, userId.value);
-      scheduleUnreadPollingIfNeeded();
+      // Only reconnect socket and poll for authenticated users
+      if (isAuthenticated()) {
+        connect(apiBaseUrl, token.value, userId.value);
+        scheduleUnreadPollingIfNeeded();
+      }
     }
   });
 });
@@ -1013,13 +1063,14 @@ const MainSegmentedPicker = defineComponent({
 const PortalList = defineComponent({
   props: {
     portals: Array as () => Portal[],
-    userId: Number
+    userId: Number,
+    currentTab: String
   },
   setup(props) {
     return () => h('div', { class: 'bg-gray-50' },
       props.portals?.map((portal, index) =>
         h(RouterLink, {
-          to: `/portal/${portal.id}`,
+          to: { path: `/portal/${portal.id}`, query: { from: props.currentTab } },
           key: portal.id,
           class: 'block'
         }, () =>
@@ -1075,14 +1126,15 @@ const PortalList = defineComponent({
 const PeopleList = defineComponent({
   props: {
     users: Array as () => User[],
-    currentUserId: Number
+    currentUserId: Number,
+    currentTab: String
   },
   setup(props) {
     return () => h('div', { class: 'bg-white' },
       props.users?.map((user, index) =>
         h('div', { key: user.id }, [
           h(RouterLink, {
-            to: `/profile/${user.id}`,
+            to: { path: `/profile/${user.id}`, query: { from: props.currentTab } },
             class: 'block hover:bg-gray-50'
           }, () =>
             h('div', {
@@ -1120,10 +1172,11 @@ const PeopleList = defineComponent({
 });
 
 const ActiveChatList = defineComponent({
-  props: { 
-    chats: Array as () => ActiveChat[], 
+  props: {
+    chats: Array as () => ActiveChat[],
     invites: Array as () => Invite[],
-    currentUserId: Number
+    currentUserId: Number,
+    currentTab: String
   },
   setup(props) {
     const renderInvite = () => {
@@ -1165,7 +1218,7 @@ const ActiveChatList = defineComponent({
 
       return h('div', { key: chat.id }, [
         h(RouterLink, {
-          to: target,
+          to: { path: target, query: { from: props.currentTab } },
           class: 'block hover:bg-gray-50'
         }, () =>
           h('div', {

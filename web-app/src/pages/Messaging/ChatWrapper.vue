@@ -65,7 +65,7 @@ async function fetchOtherUser() {
   }
 
   try {
-    const res = await api.get(`/api/user/${otherUserId.value}`);
+    const res = await api.get(`/api/user/profile?users_id=${otherUserId.value}`);
 
     if (res.data && res.data.result) {
       otherUser.value = res.data.result;
@@ -85,7 +85,12 @@ async function fetchOtherUser() {
 }
 
 function handleBack() {
-  router.push('/main');
+  const fromTab = route.query.from;
+  if (fromTab) {
+    router.push({ path: '/main', query: { tab: fromTab } });
+  } else {
+    router.push({ path: '/main', query: { tab: 'chats' } });
+  }
 }
 
 function emitRefresh() {

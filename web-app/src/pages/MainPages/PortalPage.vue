@@ -375,7 +375,14 @@ const flagPortal = async () => {
 };
 
 // --- Event Handlers ---
-const goBack = () => router.back();
+const goBack = () => {
+  const fromTab = route.query.from;
+  if (fromTab) {
+    router.push({ path: '/main', query: { tab: fromTab } });
+  } else {
+    router.back();
+  }
+};
 
 const handleAddAction = () => {
   // Allow public users to access the action menu (to use "Support" button)
@@ -484,8 +491,8 @@ const PortalHeader = defineComponent({
   props: { portalName: String },
   emits: ['back'],
   setup(props, { emit }) {
-    return () => h('header', { 
-      class: 'flex items-center h-14 px-4 border-b border-gray-200 shrink-0' 
+    return () => h('header', {
+      class: 'flex items-center h-14 px-4 bg-gray-50 border-b border-gray-200 shrink-0'
     }, [
       h('button', { 
         onClick: () => emit('back'), 
@@ -714,6 +721,78 @@ const PortalStorySection = defineComponent({
       (props.portal?.aTexts || []).filter(t => (t.section || '') === 'story')
     );
 
+    // Helper function to linkify a single line of text (matching iOS NSDataDetector behavior)
+    const linkifyLine = (line: string) => {
+      // Regex to detect URLs: http://, https://, or www.
+      const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi;
+      const parts: any[] = [];
+      let lastIndex = 0;
+      let match;
+
+      // Reset regex state
+      urlRegex.lastIndex = 0;
+
+      while ((match = urlRegex.exec(line)) !== null) {
+        // Add text before the URL as a text node
+        if (match.index > lastIndex) {
+          parts.push(line.substring(lastIndex, match.index));
+        }
+
+        // Add the URL as a link VNode
+        const urlText = match[0];
+        const fullUrl = urlText.startsWith('www.') ? `https://${urlText}` : urlText;
+        parts.push(
+          h('a', {
+            href: fullUrl,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            class: 'story-link',
+            style: {
+              color: '#2563eb',
+              textDecoration: 'underline',
+              cursor: 'pointer'
+            },
+            onClick: (e: MouseEvent) => {
+              e.preventDefault();
+              window.open(fullUrl, '_blank', 'noopener,noreferrer');
+            }
+          }, urlText)
+        );
+
+        lastIndex = match.index + urlText.length;
+      }
+
+      // Add remaining text after last URL
+      if (lastIndex < line.length) {
+        parts.push(line.substring(lastIndex));
+      }
+
+      // If no URLs found, return the original line as text
+      return parts.length > 0 ? parts : [line];
+    };
+
+    // Helper to render text with clickable links and preserved newlines
+    const renderLinkableText = (text: string) => {
+      if (!text) return [];
+
+      // Split by newlines to preserve line breaks
+      const lines = text.split('\n');
+      const result: any[] = [];
+
+      lines.forEach((line, lineIndex) => {
+        // Process each line for URLs
+        const lineParts = linkifyLine(line);
+        result.push(...lineParts);
+
+        // Add line break after each line except the last one
+        if (lineIndex < lines.length - 1) {
+          result.push(h('br'));
+        }
+      });
+
+      return result;
+    };
+
     return () => h('div', { class: 'space-y-6' }, [
       h('h2', { class: 'font-bold text-xl' }, 'Leads'),
       h('div', { class: 'overflow-x-auto -mx-4 px-4' }, [
@@ -756,7 +835,9 @@ const PortalStorySection = defineComponent({
           class: 'space-y-2 mb-6'
         }, [
           textBlock.title && h('h3', { class: 'font-semibold text-xl' }, textBlock.title),
-          textBlock.text && h('p', { class: 'text-black text-[17px] whitespace-pre-line leading-relaxed' }, textBlock.text)
+          textBlock.text && h('div', {
+            class: 'text-black text-[17px] leading-relaxed'
+          }, renderLinkableText(textBlock.text))
         ])
       )
     ]);
@@ -1029,6 +1110,17 @@ const FullscreenImageViewer = defineComponent({
 </script>
 
 <style scoped>
+/* Story section link styling - matching iOS LinkableText */
+.story-link {
+  color: #2563eb !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+}
+
+.story-link:hover {
+  color: #1d4ed8 !important;
+}
+
 /* Transitions */
 .fade-enter-active,
 .fade-leave-active {

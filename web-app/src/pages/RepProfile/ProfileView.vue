@@ -41,6 +41,7 @@
         :photo-url="user.profile_picture_url"
         :city="user.city"
         :skills="user.skills ? user.skills.map(s => s.title) : []"
+        :display-name="user.displayName"
       />
 
       <!-- Broadcast Message -->
@@ -105,8 +106,8 @@
           <!-- Current User Actions -->
           <template v-if="isCurrentUser">
             <button @click="goToEditProfile" class="text-[#8cc65d] font-bold text-[28px] py-3">Edit Profile</button>
-            <button @click="showAddPurpose = true" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Purpose</button>
-            <button @click="showAddGoal = true" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Goal</button>
+            <button @click="goToAddPurpose" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Purpose</button>
+            <button @click="goToAddGoal" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Goal</button>
             <button @click="logout" class="text-red-600 font-bold text-[28px] py-3">Logout</button>
             <button @click="showPolicy = true" class="text-gray-500 text-[16px] py-3">Policy</button>
           </template>
@@ -158,7 +159,7 @@ const NavigationHeaderView = defineComponent({
   emits: ['back', 'settings'],
   setup(props, { emit }) {
     return () => h('header', {
-      class: 'sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center h-14 px-4'
+      class: 'sticky top-0 z-20 bg-gray-50 border-b border-gray-200 flex items-center h-14 px-4'
     }, [
       h('button', {
         onClick: () => emit('back'),
@@ -209,15 +210,39 @@ const ProfileInfoView = defineComponent({
   props: {
     photoUrl: String,
     city: String,
-    skills: Array
+    skills: Array,
+    displayName: String
   },
   setup(props) {
+    const getInitials = (name: string): string => {
+      const parts = name.trim().split(' ');
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+      }
+      return name.substring(0, 2).toUpperCase();
+    };
+
     return () => h('div', { class: 'p-4 flex items-start space-x-4' }, [
-      h('img', {
-        src: props.photoUrl || '/default-profile.png',
-        class: 'w-28 h-28 rounded-full object-cover border',
-        alt: 'Profile Picture'
-      }),
+      props.photoUrl
+        ? h('img', {
+            src: props.photoUrl,
+            class: 'w-28 h-28 rounded-full object-cover border',
+            alt: 'Profile Picture',
+            onError: (e: Event) => {
+              const target = e.target as HTMLImageElement;
+              const parent = target.parentElement;
+              if (parent) {
+                target.remove();
+                const initialsDiv = document.createElement('div');
+                initialsDiv.className = 'w-28 h-28 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-3xl';
+                initialsDiv.textContent = getInitials(props.displayName || 'User');
+                parent.prepend(initialsDiv);
+              }
+            }
+          })
+        : h('div', {
+            class: 'w-28 h-28 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-3xl'
+          }, getInitials(props.displayName || 'User')),
       h('div', { class: 'pt-2' }, [
         props.city && h('p', { class: 'font-bold text-lg' }, props.city),
         props.skills && props.skills.length > 0 && h('div', { class: 'mt-1' },
@@ -731,11 +756,26 @@ function handleUnauthorized() {
   router.push('/login')
 }
 
-const goBack = () => router.back()
+const goBack = () => {
+  const fromTab = route.query.from;
+  if (fromTab) {
+    router.push({ path: '/main', query: { tab: fromTab } });
+  } else {
+    router.back();
+  }
+}
 const goToSettings = () => router.push('/settings')
 const goToEditProfile = () => {
   showActionMenu.value = false
   router.push('/profile/edit')
+}
+const goToAddPurpose = () => {
+  showActionMenu.value = false
+  router.push('/portal/edit/new')
+}
+const goToAddGoal = () => {
+  showActionMenu.value = false
+  router.push('/goal/edit/new')
 }
 const goToPortal = (id: number) => router.push(`/portal/${id}`)
 const goToGoal = (id: number) => router.push(`/goal/${id}`)

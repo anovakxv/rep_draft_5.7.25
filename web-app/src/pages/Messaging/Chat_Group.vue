@@ -7,8 +7,12 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header -->
-    <div class="flex items-center h-14 px-4 border-b bg-white shrink-0">
-      <button @click="emit('close')" class="text-green-600 font-semibold p-2 -ml-2">Back</button>
+    <div class="flex items-center h-14 px-4 border-b border-gray-200 bg-gray-50 shrink-0">
+      <button @click="emit('close')" class="text-green-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
       <h1 class="font-bold text-lg flex-1 text-center truncate">{{ groupName }}</h1>
       <button @click="showGroupInfo = true" class="p-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -43,46 +47,8 @@
     </div>
 
     <!-- Input Bar -->
-    <div class="border-t bg-white px-3 py-2">
-      <!-- Attachment Previews -->
-      <div v-if="selectedAttachments.length > 0" class="mb-2 flex gap-2 flex-wrap">
-        <div v-for="(file, index) in selectedAttachments" :key="index" class="relative bg-gray-100 rounded-lg p-2 flex items-center gap-2 max-w-xs">
-          <svg v-if="file.type.startsWith('image/')" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
-          </svg>
-          <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-600" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
-          </svg>
-          <span class="text-sm truncate max-w-[150px]">{{ file.name }}</span>
-          <button @click="removeAttachment(index)" class="text-red-600 hover:text-red-800 ml-auto">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
+    <div class="border-t border-gray-200 bg-white px-3 py-2">
       <div class="flex items-center gap-2">
-        <!-- Attachment Button -->
-        <button
-          @click="openFilePicker"
-          :disabled="isSending || selectedAttachments.length >= 5"
-          class="text-gray-600 hover:text-green-600 transition p-2 disabled:opacity-40"
-          aria-label="Attach file"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-          </svg>
-        </button>
-        <input
-          ref="fileInputRef"
-          type="file"
-          multiple
-          accept="image/*,.pdf,.doc,.docx,.txt"
-          @change="handleFileSelection"
-          class="hidden"
-        />
-
         <textarea
           v-model="inputText"
           @input="handleInputChange"
@@ -95,7 +61,7 @@
         ></textarea>
         <button
           @click="sendMessage"
-          :disabled="(inputText.trim() === '' && selectedAttachments.length === 0) || isSending"
+          :disabled="inputText.trim() === '' || isSending"
           class="bg-green-600 text-white font-bold px-4 py-2 rounded-lg hover:bg-green-700 transition disabled:opacity-60"
         >
           <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
@@ -105,7 +71,7 @@
     </div>
 
     <!-- Group Info Modal -->
-    <div v-if="showGroupInfo" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div v-if="showGroupInfo && groupMembers.length > 0" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto p-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold">Group Info</h2>
@@ -120,17 +86,20 @@
           <h3 class="text-sm font-semibold text-gray-600 mb-2">Members ({{ groupMembers.length }})</h3>
           <div class="space-y-2">
             <div v-for="member in groupMembers" :key="member.id" class="flex items-center gap-3">
-              <GroupMemberAvatar :name="member.name" :photoURL="member.profilePicture" :size="40" />
+              <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profilePicture" :size="40" />
               <div>
-                <p class="font-semibold">{{ member.name }}</p>
+                <p class="font-semibold">{{ member.name || 'Unknown' }}</p>
                 <p v-if="member.id === creatorId" class="text-xs text-gray-500">Group Creator</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div v-if="currentUserId === creatorId" class="space-y-2 border-t pt-4">
-          <button @click="showLeaveAlert = true" class="w-full py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">
+        <div class="space-y-2 border-t pt-4">
+          <button v-if="currentUserId === creatorId" @click="handleDeleteClick" class="w-full py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">
+            Delete Group Chat
+          </button>
+          <button v-else @click="handleLeaveClick" class="w-full py-2 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700">
             Leave Group
           </button>
         </div>
@@ -145,6 +114,18 @@
         <div class="flex gap-4 justify-end">
           <button @click="showLeaveAlert = false" class="px-4 py-2 border rounded-lg">Cancel</button>
           <button @click="leaveGroup" class="px-4 py-2 bg-red-600 text-white rounded-lg">Leave</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Alert (for creators) -->
+    <div v-if="showDeleteAlert" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div class="bg-white rounded-lg p-6 max-w-sm mx-auto">
+        <h3 class="font-bold text-lg mb-4">Delete Group Chat?</h3>
+        <p class="mb-6">This will permanently delete the group chat for all members. This action cannot be undone.</p>
+        <div class="flex gap-4 justify-end">
+          <button @click="showDeleteAlert = false" class="px-4 py-2 border rounded-lg">Cancel</button>
+          <button @click="deleteGroup" class="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
         </div>
       </div>
     </div>
@@ -176,8 +157,6 @@ const isSending = ref(false);
 const isLoadingOlder = ref(false);
 const canLoadOlder = ref(true);
 const scrollContainer = ref<HTMLElement | null>(null);
-const selectedAttachments = ref<File[]>([]);
-const fileInputRef = ref<HTMLInputElement | null>(null);
 const isTyping = ref(false);
 const typingUsers = ref<Array<{ userId: number; userName: string }>>([]);
 const groupName = ref('');
@@ -185,6 +164,7 @@ const groupMembers = ref<GroupMember[]>([]);
 const creatorId = ref<number | null>(null);
 const showGroupInfo = ref(false);
 const showLeaveAlert = ref(false);
+const showDeleteAlert = ref(false);
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
 
@@ -282,40 +262,19 @@ function loadOlder() {
 // --- Send Message ---
 async function sendMessage() {
   const trimmed = inputText.value.trim();
-  if ((!trimmed && selectedAttachments.value.length === 0) || isSending.value) return;
+  if (!trimmed || isSending.value) return;
   isSending.value = true;
 
   try {
-    if (selectedAttachments.value.length > 0) {
-      const formData = new FormData();
-      formData.append('chats_id', String(props.chatId));
-      if (trimmed) {
-        formData.append('message', trimmed);
-      }
-      selectedAttachments.value.forEach((file, index) => {
-        formData.append('attachments', file, file.name);
-      });
-
-      // Backend route: POST /api/message/send_chat_message
-      const res = await api.post('/api/message/send_chat_message', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
-      const msg: GroupMessage = res.data.message;
-      appendIfNeeded(msg);
-    } else {
-      // Backend route: POST /api/message/send_chat_message
-      const res = await api.post('/api/message/send_chat_message', {
-        chats_id: props.chatId,
-        message: trimmed
-      });
-      const msg: GroupMessage = res.data.message;
-      appendIfNeeded(msg);
-    }
+    // Backend route: POST /api/message/send_chat_message
+    const res = await api.post('/api/message/send_chat_message', {
+      chats_id: props.chatId,
+      message: trimmed
+    });
+    const msg: GroupMessage = res.data.message;
+    appendIfNeeded(msg);
 
     inputText.value = '';
-    selectedAttachments.value = [];
     stopTyping();
     nextTick(() => scrollToBottom());
   } catch (e) {
@@ -323,24 +282,6 @@ async function sendMessage() {
   } finally {
     isSending.value = false;
   }
-}
-
-// --- File Attachment Handlers ---
-function openFilePicker() {
-  fileInputRef.value?.click();
-}
-
-function handleFileSelection(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files.length > 0) {
-    const newFiles = Array.from(target.files).slice(0, 5 - selectedAttachments.value.length);
-    selectedAttachments.value.push(...newFiles);
-    target.value = '';
-  }
-}
-
-function removeAttachment(index: number) {
-  selectedAttachments.value.splice(index, 1);
 }
 
 // --- Typing Indicators ---
@@ -455,6 +396,31 @@ async function leaveGroup() {
     emit('refresh-chats');
   } catch (e) {
     console.error('Failed to leave group:', e);
+  }
+}
+
+function handleLeaveClick() {
+  showGroupInfo.value = false;
+  showLeaveAlert.value = true;
+}
+
+function handleDeleteClick() {
+  showGroupInfo.value = false;
+  showDeleteAlert.value = true;
+}
+
+async function deleteGroup() {
+  try {
+    // Backend route: POST /api/message/delete_chat
+    // Deletes the entire group chat (creators only)
+    await api.post('/api/message/delete_chat', {
+      chats_id: props.chatId
+    });
+    showDeleteAlert.value = false;
+    emit('close');
+    emit('refresh-chats');
+  } catch (e) {
+    console.error('Failed to delete group:', e);
   }
 }
 

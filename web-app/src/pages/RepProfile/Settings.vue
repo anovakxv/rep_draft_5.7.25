@@ -8,8 +8,18 @@
 
 <template>
   <div class="min-h-screen bg-white flex flex-col">
+    <!-- Header -->
+    <header class="sticky top-0 z-20 bg-gray-50 border-b border-gray-200 flex items-center h-14 px-4">
+      <button @click="goBack" class="text-green-600">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <h1 class="flex-1 text-center font-bold text-xl">Settings</h1>
+      <div class="w-6"></div>
+    </header>
+
     <div class="max-w-lg mx-auto w-full p-6">
-      <h2 class="text-2xl font-bold mb-6 text-center">Settings</h2>
       <div class="space-y-8">
 
         <!-- Account Section -->
@@ -177,6 +187,10 @@ const passwordForm = ref({
   newPassword: '',
   confirmPassword: '',
 })
+
+function goBack() {
+  router.back()
+}
 
 function goToEditProfile() {
   router.push('/profile/edit')

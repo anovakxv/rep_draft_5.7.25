@@ -12,7 +12,7 @@
       <!-- Message Bubble -->
       <div
         class="rounded-lg px-4 py-2"
-        :class="isCurrentUser ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-800'"
+        :class="isCurrentUser ? 'bg-black text-rep-green' : 'bg-gray-200 text-gray-800'"
       >
         <!-- Attachments -->
         <div v-if="message.attachments && message.attachments.length > 0" class="mb-2 space-y-2">
@@ -31,7 +31,7 @@
               :href="attachment.url"
               target="_blank"
               class="flex items-center gap-2 p-2 rounded-lg hover:opacity-80"
-              :class="isCurrentUser ? 'bg-green-700' : 'bg-gray-300'"
+              :class="isCurrentUser ? 'bg-gray-900' : 'bg-gray-300'"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd" />
@@ -45,10 +45,9 @@
         <p v-if="message.text" class="text-sm break-words whitespace-pre-wrap">{{ message.text }}</p>
       </div>
 
-      <!-- Timestamp and Read Receipt -->
+      <!-- Timestamp -->
       <div class="flex items-center gap-1 mt-1 px-1" :class="isCurrentUser ? 'justify-end' : 'justify-start'">
         <span class="text-xs text-gray-500">{{ formattedTimestamp }}</span>
-        <span v-if="isCurrentUser && message.read" class="text-xs text-green-600 font-semibold">Read</span>
       </div>
     </div>
   </div>
@@ -97,5 +96,7 @@ function openImage(url: string) {
 </script>
 
 <style scoped>
-/* Custom styles if needed */
+.text-rep-green {
+  color: #8cc65d;
+}
 </style>

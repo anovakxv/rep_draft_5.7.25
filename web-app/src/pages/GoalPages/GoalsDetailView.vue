@@ -7,7 +7,7 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Custom Top Bar -->
-    <header class="flex items-center justify-between h-11 px-4 border-b border-gray-200 bg-white shrink-0">
+    <header class="flex items-center justify-between h-11 px-4 border-b border-gray-200 bg-gray-50 shrink-0">
       <button @click="goBack" class="text-green-600 p-2 -ml-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -156,7 +156,7 @@
             <!-- Invite to Team (only if on team or is creator) -->
             <button
               v-if="goal && (isUserOnTeam || goal.creatorId === currentUserId)"
-              @click="activeSheet = 'inviteTeam'"
+              @click="handleInviteTeam"
               class="text-[#8cc65d] font-bold text-[28px] py-3"
             >
               Invite to Team
@@ -165,7 +165,7 @@
             <!-- Update Progress (only for non-Recruiting goals) -->
             <button
               v-if="goal && goal.typeName !== 'Recruiting'"
-              @click="activeSheet = 'updateGoal'"
+              @click="handleUpdateProgress"
               class="text-[#8cc65d] font-bold text-[28px] py-3"
             >
               Update Progress
@@ -173,7 +173,7 @@
 
             <!-- Edit Goal (always show) -->
             <button
-              @click="activeSheet = 'editGoal'"
+              @click="handleEditGoal"
               class="text-[#8cc65d] font-bold text-[28px] py-3"
             >
               Edit Goal
@@ -510,13 +510,8 @@ const formatDateString = (isoString?: string): string => {
 const goBack = () => router.back();
 
 const handleAddAction = () => {
-  if (!isAuthenticated()) {
-    router.push({
-      path: '/login',
-      query: { returnTo: `/goal/${initialGoalId}` }
-    });
-    return;
-  }
+  // Allow public users to view the action menu
+  // Authentication will be checked when they select specific actions
   activeSheet.value = 'action';
 };
 
@@ -644,8 +639,18 @@ const loadReportingIncrements = async () => {
 
 // Join Recruiting Goal (EXACTLY matching Swift)
 const joinRecruitingGoal = async () => {
+  // Check authentication before allowing join
+  if (!isAuthenticated()) {
+    activeSheet.value = null;
+    router.push({
+      path: '/login',
+      query: { returnTo: `/goal/${initialGoalId}` }
+    });
+    return;
+  }
+
   activeSheet.value = null;
-  
+
   try {
     const res = await api.post(
       '/api/goals/join_leave',
@@ -654,7 +659,7 @@ const joinRecruitingGoal = async () => {
         todo: "join"
       }
     );
-    
+
     // Check if response indicates success (matching Swift logic)
     const goalIdStr = goal.value?.id?.toString() || '0';
     if (res.data?.result?.[goalIdStr] === "ok") {
@@ -718,7 +723,56 @@ const openGoalTeamChat = async () => {
   }
 };
 
+// Handler for Invite to Team action
+const handleInviteTeam = () => {
+  if (!isAuthenticated()) {
+    activeSheet.value = null;
+    router.push({
+      path: '/login',
+      query: { returnTo: `/goal/${initialGoalId}` }
+    });
+    return;
+  }
+  activeSheet.value = 'inviteTeam';
+};
+
+// Handler for Update Progress action
+const handleUpdateProgress = () => {
+  if (!isAuthenticated()) {
+    activeSheet.value = null;
+    router.push({
+      path: '/login',
+      query: { returnTo: `/goal/${initialGoalId}` }
+    });
+    return;
+  }
+  activeSheet.value = 'updateGoal';
+};
+
+// Handler for Edit Goal action
+const handleEditGoal = () => {
+  if (!isAuthenticated()) {
+    activeSheet.value = null;
+    router.push({
+      path: '/login',
+      query: { returnTo: `/goal/${initialGoalId}` }
+    });
+    return;
+  }
+  activeSheet.value = 'editGoal';
+};
+
 const confirmDelete = () => {
+  // Check authentication before allowing delete
+  if (!isAuthenticated()) {
+    activeSheet.value = null;
+    router.push({
+      path: '/login',
+      query: { returnTo: `/goal/${initialGoalId}` }
+    });
+    return;
+  }
+
   activeSheet.value = null;
   setTimeout(() => {
     showDeleteAlert.value = true;
@@ -899,7 +953,7 @@ const TeamCell = defineComponent({
   }
 });
 
-// LargeBarChartView Component (EXACTLY matching Swift)
+// LargeBarChartView Component (EXACTLY matching Swift - with responsive scaling for desktop/tablet)
 const LargeBarChartView = defineComponent({
   props: {
     data: { type: Array as () => BarChartData[], required: true },
@@ -907,34 +961,38 @@ const LargeBarChartView = defineComponent({
   },
   setup(props) {
     return () => h('div', {
-      class: 'h-[260px] p-4 bg-white'
+      // Responsive container height: mobile 260px -> tablet 340px -> desktop 400px (scaled down)
+      class: 'h-[260px] md:h-[340px] lg:h-[400px] p-4 md:p-5 lg:p-6 bg-white'
     }, [
       h('div', {
-        class: 'flex items-end justify-center h-full space-x-2',
-        style: { height: '220px' }
+        // Responsive chart area - Mobile optimized, desktop scaled down for better proportions
+        // Mobile: 220px, Tablet: 280px, Desktop: 340px (more reasonable on desktop)
+        class: 'h-[220px] md:h-[280px] lg:h-[340px] flex items-end justify-center space-x-2 md:space-x-3 lg:space-x-4'
       }, props.data.map(item => {
         const quotaValue = props.quota > 0 ? props.quota : 1;
         const heightPercent = Math.min(100, Math.max(1, (item.value / quotaValue) * 100));
-        const heightPx = (220 * heightPercent) / 100; // Calculate pixel height from 220px container
 
         return h('div', {
           key: item.id,
           class: 'flex flex-col items-center justify-end',
           style: { height: '100%' }
         }, [
+          // Responsive value label: mobile xs -> tablet sm -> desktop base (scaled down)
           h('div', {
-            class: 'text-xs text-center font-medium mb-1'
+            class: 'text-xs md:text-sm lg:text-base text-center font-medium mb-1'
           }, item.valueLabel),
+          // Bar element - height as percentage of container, width responsive (narrower on desktop)
           h('div', {
-            class: 'w-10 rounded-sm',
+            class: 'w-10 md:w-14 lg:w-20 rounded-sm',
             style: {
-              height: `${heightPx}px`,
+              height: `${heightPercent}%`,
               minHeight: '2px',
               backgroundColor: '#8cc65d'
             }
           }),
+          // Responsive bottom label: mobile xs -> tablet sm -> desktop base (scaled down)
           h('div', {
-            class: 'text-xs mt-1 w-10 text-center truncate text-gray-600'
+            class: 'text-xs md:text-sm lg:text-base mt-1 w-10 md:w-14 lg:w-20 text-center truncate text-gray-600'
           }, item.bottomLabel)
         ]);
       }))

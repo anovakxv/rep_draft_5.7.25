@@ -674,7 +674,7 @@ const save = async () => {
     alert('Portal name is required');
     return;
   }
-  
+
   isSaving.value = true;
   const formData = new FormData();
   const isNew = portalId === 0;
@@ -685,7 +685,8 @@ const save = async () => {
   formData.append('users_id', String(userId));
   formData.append('name', name.value);
   formData.append('subtitle', subtitle.value);
-  formData.append('about', about.value);
+  // Backend requires 'about' field - provide default if empty
+  formData.append('about', about.value.trim() || ' ');
 
   // Append story blocks (aTexts)
   const texts = storyBlocks.value.map(block => ({
@@ -698,7 +699,7 @@ const save = async () => {
   // Append leads (aLeadsIDs)
   const leadIds = selectedLeads.value.map(lead => lead.id);
   formData.append('aLeadsIDs', JSON.stringify(leadIds));
-  
+
   // Debug logging (matching Swift implementation)
   console.log("Selected Leads:", leadIds);
   console.log("aLeadsIDs JSON:", JSON.stringify(leadIds));
@@ -708,12 +709,15 @@ const save = async () => {
     formData.append('images', imgFile.file, `portal_image_${index}.jpg`);
   });
 
+  // Debug: Log FormData contents
+  console.log("FormData contents:");
+  for (let [key, value] of formData.entries()) {
+    console.log(`  ${key}:`, value);
+  }
+
   try {
-    const response = await api.post(endpoint, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Browser will automatically set Content-Type with proper boundary for FormData
+    const response = await api.post(endpoint, formData);
 
     console.log('Portal saved successfully:', response.data);
     dismiss();

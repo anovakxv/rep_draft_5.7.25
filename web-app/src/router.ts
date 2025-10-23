@@ -16,7 +16,9 @@ import Terms from './pages/RepProfile/Terms.vue'
 // These are loaded on-demand to prevent blocking app startup
 import ChatWrapper from './pages/Messaging/ChatWrapper.vue'
 import ChatGroupWrapper from './pages/Messaging/ChatGroupWrapper.vue'
+import NewGroupChat from './pages/Messaging/NewGroupChat.vue'
 import GoalsDetailView from './pages/GoalPages/GoalsDetailView.vue'
+import EditGoal from './pages/GoalPages/EditGoal.vue'
 import StripePaymentReturn from './pages/MainPages/StripePaymentReturn.vue'
 import StripeConnectReturn from './pages/MainPages/StripeConnectReturn.vue'
 
@@ -39,6 +41,7 @@ const routes = [
   // PROTECTED ROUTES (require authentication)
   { path: '/portal/edit/:id', component: EditPortal, meta: { requiresAuth: true } },
   { path: '/portal/:id/payment-setup', component: PortalPaymentSetup, meta: { requiresAuth: true } },
+  { path: '/goal/edit/:id', component: EditGoal, meta: { requiresAuth: true } },
   { path: '/profile/:id', component: ProfileView, meta: { requiresAuth: true } },
   { path: '/profile/edit', component: EditProfile, meta: { requiresAuth: true } },
   {
@@ -58,6 +61,7 @@ const routes = [
   { path: '/chat/dm/:id', component: ChatWrapper, meta: { requiresAuth: true } },
   { path: '/chat/user/:id', redirect: to => `/chat/dm/${to.params.id}`, meta: { requiresAuth: true } },
   { path: '/chat/direct/:id', redirect: to => `/chat/dm/${to.params.id}`, meta: { requiresAuth: true } },
+  { path: '/chat/group/new', component: NewGroupChat, meta: { requiresAuth: true } },
   { path: '/chat/group/:id', component: ChatGroupWrapper, meta: { requiresAuth: true } },
 
   // Invites (placeholder for now, we'll create this page)

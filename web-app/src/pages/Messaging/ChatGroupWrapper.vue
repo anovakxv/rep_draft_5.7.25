@@ -35,7 +35,12 @@ const token = ref(localStorage.getItem('jwtToken') || '');
 const chatId = computed(() => Number(route.params.id) || 0);
 
 function handleBack() {
-  router.push('/main');
+  const fromTab = route.query.from;
+  if (fromTab) {
+    router.push({ path: '/main', query: { tab: fromTab } });
+  } else {
+    router.push({ path: '/main', query: { tab: 'chats' } });
+  }
 }
 
 function emitRefresh() {

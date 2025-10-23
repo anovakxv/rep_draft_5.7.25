@@ -7,12 +7,14 @@
 <template>
   <div class="fixed inset-0 bg-gray-100 z-40 flex flex-col">
     <!-- Header -->
-    <header class="flex items-center justify-between h-14 px-4 border-b bg-white shrink-0">
-      <button @click="emit('close')" class="text-green-600 font-semibold p-2 -ml-2">
-        Cancel
-      </button>
-      <h1 class="font-bold text-lg">{{ isEdit ? 'Edit Goal' : 'Add Goal' }}</h1>
-      <div class="w-16"></div> <!-- Spacer -->
+    <header class="h-14 shrink-0">
+      <div class="max-w-2xl mx-auto flex items-center justify-between h-full px-4 bg-white border-b">
+        <button @click="router.back()" class="text-green-600 font-semibold p-2 -ml-2">
+          Cancel
+        </button>
+        <h1 class="font-bold text-lg">{{ isEdit ? 'Edit Goal' : 'Add Goal' }}</h1>
+        <div class="w-16"></div> <!-- Spacer -->
+      </div>
     </header>
 
     <form class="flex-1 overflow-y-auto" @submit.prevent="saveGoal">
@@ -81,18 +83,29 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import api from '@/pages/utils/api';
 
+const route = useRoute();
+const router = useRouter();
+
 // --- Props and Emits ---
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   existingGoal?: { id: number; title: string; subtitle: string; description: string; quota: number; typeName: string; metricName: string; reportingName: string; };
   portalId?: number;
-  userId: number;
-  reportingIncrements: { id: number; title: string }[];
+  userId?: number;
+  reportingIncrements?: { id: number; title: string }[];
   associatedPortalName?: string;
-}>();
+}>(), {
+  reportingIncrements: () => [],
+  userId: () => Number(localStorage.getItem('userId')) || 0
+});
 
-const emit = defineEmits(['close']);
+// Get goal ID from route params
+const goalId = computed(() => {
+  const id = route.params.id as string;
+  return id === 'new' ? 0 : Number(id) || 0;
+});
 
 // --- State ---
 const title = ref('');
@@ -108,8 +121,8 @@ const isLoadingIncrements = ref(false);
 const loadedIncrements = ref<{ id: number; title: string }[]>([]);
 
 const goalTypes = ["Recruiting", "Sales", "Fund", "Marketing", "Hours", "Other"];
-const isEdit = computed(() => !!props.existingGoal);
-const incrementsToUse = computed(() => loadedIncrements.value.length ? loadedIncrements.value : props.reportingIncrements);
+const isEdit = computed(() => goalId.value > 0);
+const incrementsToUse = computed(() => loadedIncrements.value.length ? loadedIncrements.value : (props.reportingIncrements || []));
 
 // --- API Calls ---
 async function loadReportingIncrements() {
@@ -164,10 +177,10 @@ async function saveGoal() {
     };
     if (props.portalId && props.portalId !== 0) params.portals_id = props.portalId;
     if (goalType.value === "Other") params.metric = metric.value;
-    if (isEdit.value) params.goals_id = props.existingGoal?.id;
+    if (isEdit.value) params.goals_id = goalId.value;
 
     await api.post(url, params);
-    emit('close'); // Success
+    router.back(); // Success - navigate back
   } catch (e: any) {
     errorMessage.value = e.response?.data?.error || "An unknown server error occurred.";
   } finally {
@@ -175,8 +188,37 @@ async function saveGoal() {
   }
 }
 
+// Fetch existing goal data if editing
+async function fetchGoalData() {
+  if (!isEdit.value) return;
+
+  try {
+    const res = await api.get(`/api/goals/${goalId.value}`);
+    const goal = res.data.goal;
+
+    title.value = goal.title || '';
+    subtitle.value = goal.subtitle || '';
+    description.value = goal.description || '';
+    quota.value = String(Math.round(goal.quota || 0));
+    goalType.value = goal.type_name || 'Recruiting';
+    metric.value = goal.metric_name || '';
+  } catch (e) {
+    console.error('Failed to fetch goal data:', e);
+    errorMessage.value = 'Failed to load goal data';
+  }
+}
+
 // --- Lifecycle ---
-onMounted(() => {
+onMounted(async () => {
+  // Load reporting increments first
+  await loadReportingIncrements();
+
+  // Then fetch goal data if editing
+  if (isEdit.value) {
+    await fetchGoalData();
+  }
+
+  // Handle props.existingGoal if provided (for modal usage)
   if (props.existingGoal) {
     title.value = props.existingGoal.title;
     subtitle.value = props.existingGoal.subtitle;
@@ -185,9 +227,8 @@ onMounted(() => {
     goalType.value = props.existingGoal.typeName;
     metric.value = props.existingGoal.metricName;
     // Attempt to set from pre-passed increments first
-    const match = props.reportingIncrements.find(inc => inc.title === props.existingGoal?.reportingName);
+    const match = (props.reportingIncrements || []).find(inc => inc.title === props.existingGoal?.reportingName);
     if (match) reportingIncrementId.value = match.id;
   }
-  loadReportingIncrements();
 });
 </script>

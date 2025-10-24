@@ -7,7 +7,7 @@
 -->
 
 <template>
-  <div class="flex flex-col h-screen bg-white">
+  <div class="flex flex-col h-screen bg-white overflow-hidden">
     <div v-if="isLoading && !portalDetail" class="flex items-center justify-center h-full">
       <div class="animate-spin h-8 w-8 border-4 border-green-600 border-t-transparent rounded-full"></div>
     </div>

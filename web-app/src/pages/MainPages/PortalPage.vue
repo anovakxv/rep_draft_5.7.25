@@ -19,7 +19,7 @@
       <PortalHeader :portal-name="portalDetail.name" @back="goBack" />
 
       <!-- 2. Main Scrollable Content -->
-      <div class="flex-1 overflow-y-auto pb-20" style="overscroll-behavior-y: contain; min-height: 100%;">
+      <div class="flex-1 overflow-y-auto pb-20" style="overscroll-behavior-y: contain;">
         <div class="relative">
           <!-- Image Gallery -->
           <ImageTabView 

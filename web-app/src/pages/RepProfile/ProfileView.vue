@@ -37,7 +37,7 @@
       />
 
       <!-- Scrollable Content -->
-      <main class="flex-1 overflow-y-auto pb-20" style="overscroll-behavior-y: contain; min-height: 100%;">
+      <main class="flex-1 overflow-y-auto pb-20">
       <div class="relative">
         <!-- Profile Info -->
         <ProfileInfoView

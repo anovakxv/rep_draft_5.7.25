@@ -511,23 +511,27 @@ const getUserIdForFeed = (feedItem: Feed): number | undefined => {
 // Parse timestamp string to Date (EXACTLY matching Swift)
 const parseTimestamp = (isoString?: string): Date => {
   if (!isoString) return new Date(0); // Date.distantPast equivalent
-  
+
   try {
-    // Try ISO format first
-    const date = new Date(isoString);
+    // If already has timezone info (ends with Z or has +/-), parse directly
+    if (isoString.includes('Z') || /[+-]\d{2}:\d{2}$/.test(isoString)) {
+      const date = new Date(isoString);
+      if (!isNaN(date.getTime())) {
+        return date;
+      }
+    }
+
+    // Backend sends "yyyy-MM-dd HH:mm:ss" in UTC without timezone suffix
+    // Add 'Z' to indicate UTC, then parse (will auto-convert to local timezone)
+    const utcString = isoString.replace(' ', 'T') + (isoString.includes('T') || isoString.includes('Z') ? '' : 'Z');
+    const date = new Date(utcString);
     if (!isNaN(date.getTime())) {
       return date;
-    }
-    
-    // Try fallback format
-    const fallbackDate = new Date(isoString.replace(' ', 'T'));
-    if (!isNaN(fallbackDate.getTime())) {
-      return fallbackDate;
     }
   } catch (e) {
     console.error('Date parsing error:', e);
   }
-  
+
   return new Date(0);
 };
 
@@ -636,16 +640,33 @@ const loadGoalDetails = async () => {
       const apiUser = teamDict[log.users_id || 0];
       // Show "Public Supporter" for anonymous/guest contributions (user_id is NULL)
       const userName = log.users_id ? (apiUser?.name || "User") : "Public Supporter";
+
+      // Debug logging for timestamp parsing
+      if (log.id === limitedLogs[0]?.id) {
+        console.log('[GoalsDetailView] First log timestamp:', log.timestamp);
+        console.log('[GoalsDetailView] Parsed date:', parseTimestamp(log.timestamp));
+        console.log('[GoalsDetailView] Formatted:', formatDateString(log.timestamp));
+      }
+
       const formattedDate = formatDateString(log.timestamp);
       // Use generic placeholder for public supporters
       const profilePicUrl = log.users_id ? patchProfilePictureURL(apiUser?.imageName) : "profile_placeholder";
+
+      // Show only the individual transaction value, not the cumulative (EXACTLY matching Swift)
+      const transactionValue = log.added_value || 0;
+      let valueString: string;
+      if (goal.value?.typeName === "Fund" || goal.value?.typeName === "Sales") {
+        valueString = `Value: $${Math.round(transactionValue)}`;
+      } else {
+        valueString = `Value: ${Math.round(transactionValue)}`;
+      }
 
       return {
         id: log.id,
         userImageName: "profile_placeholder",
         userName: userName,
         line1: formattedDate,
-        line2: `Value: ${Math.round(log.value || 0)}`,
+        line2: valueString,
         line3: log.note || "",
         line4: "",
         userProfilePictureURL: profilePicUrl

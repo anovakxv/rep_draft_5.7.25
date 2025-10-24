@@ -67,18 +67,34 @@ def create_connect_account():
         return jsonify({'error': 'Not authorized'}), 403
 
     try:
+        # Check if portal already has an approved Stripe account
+        if portal.stripe_account_id:
+            print(f"[Connect] Portal {portal_id} already has approved account: {portal.stripe_account_id}")
+            # Generate AccountLink for onboarding/dashboard access
+            account_link = stripe.AccountLink.create(
+                account=portal.stripe_account_id,
+                refresh_url=redirect_url,
+                return_url=redirect_url,
+                type='account_onboarding'
+            )
+            print(f"[Connect] Generated AccountLink URL for portal {portal_id}")
+            return jsonify({
+                'url': account_link.url,
+                'account_id': portal.stripe_account_id
+            })
+
         # CHANGE: Instead of creating Stripe account, just mark as requested
         portal.stripe_connect_requested = True
         db.session.commit()
-        
+
         print(f"[Connect] Marked portal {portal_id} as requesting Stripe Connect")
-        
+
         # Return success message
         return jsonify({
             'status': 'pending_approval',
             'message': 'Your Stripe Connect request has been submitted for admin approval. You will be notified when it has been approved.'
         })
-        
+
     except Exception as e:
         print(f"[Connect] Error: {str(e)}")
         return jsonify({'error': str(e)}), 400
@@ -820,8 +836,11 @@ def approve_stripe_account():
         # Save Stripe account ID and mark as approved
         portal.stripe_account_id = account.id
         portal.stripe_account_approved = True
+        portal.stripe_connect_requested = False  # Clear the request flag since it's been approved
         db.session.commit()
-        
+
+        print(f"[Connect] Approved portal {portal_id}: account_id={account.id}, cleared request flag")
+
         return jsonify({
             'status': 'approved',
             'account_id': account.id

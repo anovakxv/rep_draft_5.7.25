@@ -37,7 +37,7 @@
       />
 
       <!-- Scrollable Content -->
-      <main class="flex-1 overflow-y-auto pb-20">
+      <main class="flex-1 overflow-y-auto pb-20" style="overscroll-behavior-y: contain; min-height: 100%;">
       <div class="relative">
         <!-- Profile Info -->
         <ProfileInfoView
@@ -103,7 +103,7 @@
         <!-- Message Button -->
         <button
           @click="goToMessages"
-          class="flex-1 flex items-center justify-center py-1.5 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+          class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
           style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -114,7 +114,7 @@
         <!-- Add Button -->
         <button
           @click="showActionMenu = true"
-          class="flex-1 flex items-center justify-center py-1.5 rounded-lg transition-transform hover:scale-105 active:scale-95"
+          class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
           style="background-color: #8cc65d; color: white;"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">

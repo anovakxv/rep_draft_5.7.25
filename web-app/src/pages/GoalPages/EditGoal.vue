@@ -101,8 +101,17 @@ const props = withDefaults(defineProps<{
   userId: () => Number(localStorage.getItem('userId')) || 0
 });
 
-// Get goal ID from route params
+// Get goal ID from existingGoal prop (when used as modal) or route params (when used as page)
 const goalId = computed(() => {
+  // If existingGoal prop is provided (modal usage for editing), use its ID
+  if (props.existingGoal) {
+    return props.existingGoal.id;
+  }
+  // If portalId prop is provided but no existingGoal (modal usage for creating), default to 0
+  if (props.portalId !== undefined && !props.existingGoal) {
+    return 0;
+  }
+  // Otherwise use route params (standalone page usage)
   const id = route.params.id as string;
   return id === 'new' ? 0 : Number(id) || 0;
 });

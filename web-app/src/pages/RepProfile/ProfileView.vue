@@ -253,7 +253,7 @@ const ProfileInfoView = defineComponent({
       props.photoUrl
         ? h('img', {
             src: props.photoUrl,
-            class: 'w-28 h-28 rounded-full object-cover border',
+            class: 'w-28 h-28 rounded-full object-cover',
             alt: 'Profile Picture',
             onError: (e: Event) => {
               const target = e.target as HTMLImageElement;

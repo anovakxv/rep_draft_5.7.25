@@ -69,7 +69,8 @@
                 <button
                   @click="respondToInvite(invite.id, true)"
                   :disabled="respondingTo === invite.id"
-                  class="px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition disabled:opacity-60 flex items-center gap-2"
+                  class="flex-1 px-4 py-2 text-white font-semibold rounded-lg transition disabled:opacity-60 flex items-center justify-center gap-2"
+                  style="background-color: #8cc65d"
                 >
                   <span v-if="respondingTo === invite.id" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
                   Accept
@@ -77,11 +78,21 @@
                 <button
                   @click="respondToInvite(invite.id, false)"
                   :disabled="respondingTo === invite.id"
-                  class="px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition disabled:opacity-60"
+                  class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300 transition disabled:opacity-60"
                 >
                   Decline
                 </button>
               </div>
+
+              <!-- View Goal Button -->
+              <button
+                @click="viewGoal(invite.goals_id)"
+                :disabled="respondingTo === invite.id"
+                class="w-full mt-3 px-4 py-2 bg-gray-100 font-medium rounded-lg hover:bg-gray-200 transition disabled:opacity-60"
+                style="color: #006600"
+              >
+                View Goal
+              </button>
             </div>
           </div>
         </div>
@@ -180,6 +191,10 @@ async function respondToInvite(inviteId: number, accept: boolean) {
   } finally {
     respondingTo.value = null;
   }
+}
+
+function viewGoal(goalId: number) {
+  router.push(`/goal/${goalId}`);
 }
 
 function formatTimestamp(timestamp: string): string {

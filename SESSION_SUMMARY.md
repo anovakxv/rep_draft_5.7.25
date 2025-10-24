@@ -103,30 +103,29 @@ C:\Users\Stephanie\Desktop\Git Rep app draft 1\my-ios-app\
 
 ---
 
-## 🔧 Recent Work (Current Session - Oct 23, 2025)
+## 🔧 Recent Work (Current Session - Oct 24, 2025)
 
 ### Tasks Completed Today:
+1. ✅ Updated web app branding from "Vite + Vue" to "Rep" (title, favicon, social sharing meta tags)
+2. 🔄 Working on fixing PortalPage header scrolling issue (header scrolls away on pages with minimal content)
+   - Attempted: `overscroll-behavior-y: contain` (didn't work)
+   - Attempted: `overflow-hidden` on outer container (testing in progress)
+
+### Key Improvements:
+- **Branding:** Web app now shows "Rep" title and Rep logo in browser tab, bookmarks, and when sharing links
+- **Mobile Icon:** Added apple-touch-icon so Rep logo shows when users add to home screen
+
+### Files Modified Today:
+- [index.html](web-app/index.html) - Changed title to "Rep", updated favicon to rep-logo.png, added Open Graph meta tags
+- [PortalPage.vue](web-app/src/pages/MainPages/PortalPage.vue) - Added overflow-hidden to outer container
+
+### Previous Session (Oct 23, 2025):
 1. ✅ Fixed ProfileView sticky segmented picker (changed layout structure to match working pages)
 2. ✅ Added browser status bar color matching (`#f7f7f7`) via meta tags for seamless mobile experience
 3. ✅ Updated all header bars to use iOS Safari default color (`#f7f7f7`) for consistent appearance
-4. ✅ Fixed headers to stay locked at top on all pages (restructured PortalPage, GoalsDetailView, Chat pages)
+4. ✅ Fixed headers to stay locked at top on most pages (restructured GoalsDetailView, Chat pages)
 5. ✅ Fixed fullscreen image viewer on PortalPage (removed top bar, made truly fullscreen for landscape viewing)
-
-### Key Improvements:
-- **Mobile UX:** Browser status bar now blends seamlessly with app headers (best on Android Chrome, good on iOS)
-- **Sticky Headers:** All page headers now stay fixed at top when scrolling content
-- **Fullscreen Images:** PortalPage images now display in true fullscreen with overlay controls (perfect for 16:9 presentations)
-
-### Files Modified Today:
-- [index.html](web-app/index.html) - Added theme-color meta tags
-- [ProfileView.vue](web-app/src/pages/RepProfile/ProfileView.vue)
-- [PortalPage.vue](web-app/src/pages/MainPages/PortalPage.vue)
-- [GoalsDetailView.vue](web-app/src/pages/GoalPages/GoalsDetailView.vue)
-- [Chat_Individual.vue](web-app/src/pages/Messaging/Chat_Individual.vue)
-- [Chat_Group.vue](web-app/src/pages/Messaging/Chat_Group.vue)
-- [MainScreen.vue](web-app/src/pages/MainPages/MainScreen.vue)
-- [Settings.vue](web-app/src/pages/RepProfile/Settings.vue)
-- Plus 7 other pages with header color updates
+6. ✅ Increased bottom bar button height to 40px (h-10) on PortalPage, ProfileView, GoalsDetailView
 
 ---
 

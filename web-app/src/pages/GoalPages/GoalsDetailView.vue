@@ -22,13 +22,26 @@
     <!-- Main Content -->
     <div v-else-if="goal" class="flex flex-col flex-1 min-h-0">
       <!-- Custom Top Bar -->
-      <header class="flex items-center justify-between h-11 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+      <header class="flex items-center justify-between px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
         <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 class="font-bold text-lg truncate px-4">{{ goal?.title || 'Goal Details' }}</h1>
+        <div class="flex-1 flex flex-col items-center justify-center py-1">
+          <h1 class="font-bold text-lg truncate max-w-full px-2">{{ goal?.title || 'Goal Details' }}</h1>
+          <!-- Portal Link (only show if goal has associated portal) -->
+          <button
+            v-if="goal?.portalId && goal?.portalName"
+            @click="navigateToPortal(goal.portalId)"
+            class="flex items-center gap-1 mt-0.5"
+          >
+            <span class="text-xs truncate max-w-[200px]" style="color: #006600;">{{ goal.portalName }}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="color: #006600;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M17 7H7M17 7v10" />
+            </svg>
+          </button>
+        </div>
         <div class="w-10"></div> <!-- Spacer -->
       </header>
 
@@ -551,6 +564,10 @@ const navigateToProfile = (userId?: number) => {
     selectedProfileUserId.value = userId;
     router.push(`/profile/${userId}`);
   }
+};
+
+const navigateToPortal = (portalId: number) => {
+  router.push(`/portal/${portalId}`);
 };
 
 // --- API Methods (EXACTLY matching Swift ViewModel) ---

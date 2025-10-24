@@ -199,15 +199,15 @@ async function inviteUsers() {
   errorMessage.value = ''
 
   try {
-    await api.patch(
+    await api.post(
       `/api/goals/${props.goalId}/team`,
       {
-        action: 'invite',
         users: Array.from(selectedUsers.value)
       }
     )
 
     inviteSuccess.value = true
+    console.log('[InviteTeamSheet] Invites sent successfully to users:', Array.from(selectedUsers.value))
   } catch (err: any) {
     console.error('Failed to invite users:', err)
     errorMessage.value = err.response?.data?.error || err.message || 'Failed to send invitations'

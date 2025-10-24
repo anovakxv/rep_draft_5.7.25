@@ -549,6 +549,7 @@ const useInvites = () => {
     try {
       const res = await api.get('/api/goals/pending_invites');
       pendingInvites.value = res.data.invites || [];
+      console.log('[MainScreen] Fetched pending invites:', pendingInvites.value.length, pendingInvites.value);
     } catch (err) {
       pendingInvites.value = [];
       console.error('Failed to fetch invites:', err);
@@ -960,8 +961,9 @@ onMounted(() => {
     recalcOpenNeedsAttention();
   });
 
-  unsubscribeInvite = onGoalTeamInvite(() => {
+  unsubscribeInvite = onGoalTeamInvite((data) => {
     // Instant UI feedback for invites
+    console.log('[MainScreen] Received goal_team_invite socket event:', data);
     openNeedsAttention.value = true;
     fetchPendingInvites();
   });
@@ -1181,15 +1183,17 @@ const ActiveChatList = defineComponent({
   },
   setup(props) {
     const renderInvite = () => {
+      console.log('[ActiveChatList] renderInvite called, invites:', props.invites?.length || 0);
       if (!props.invites || props.invites.length === 0) return null;
-      
-      return h(RouterLink, { 
-        to: '/invites', 
-        class: 'block p-4 bg-green-50 border-b hover:bg-green-100' 
+
+      return h(RouterLink, {
+        to: '/invites',
+        class: 'block p-4 bg-white border-b border-gray-200 hover:bg-gray-50'
       }, () =>
         h('div', { class: 'flex items-center space-x-3' }, [
-          h('div', { 
-            class: 'w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold'
+          h('div', {
+            class: 'w-10 h-10 rounded-full flex items-center justify-center text-white font-bold',
+            style: 'background-color: #8cc65d'
           }, '🔔'),
           h('div', [
             h('h3', { class: 'font-semibold' },

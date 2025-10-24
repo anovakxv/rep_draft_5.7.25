@@ -48,28 +48,30 @@
     </div>
 
     <!-- Input Bar -->
-    <div class="border-t border-gray-200 bg-white px-3 py-2">
-      <div class="flex items-center gap-2">
-        <textarea
-          v-model="inputText"
-          @input="handleInputChange"
-          rows="1"
-          class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
-          style="--tw-ring-color: #8cc65d; border-color: inherit;"
-          placeholder="Type a message..."
-          @keydown.enter.exact.prevent="sendMessage"
-          maxlength="1000"
-          aria-label="Type a message"
-        ></textarea>
-        <button
-          @click="sendMessage"
-          :disabled="inputText.trim() === '' || isSending"
-          class="text-white font-bold px-4 py-2 rounded-lg transition disabled:opacity-60"
-          style="background-color: #8cc65d"
-        >
-          <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-          Send
-        </button>
+    <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+      <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
+        <div class="flex items-center gap-2">
+          <textarea
+            v-model="inputText"
+            @input="handleInputChange"
+            rows="1"
+            class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
+            style="--tw-ring-color: #8cc65d; border-color: inherit;"
+            placeholder="Type a message..."
+            @keydown.enter.exact.prevent="sendMessage"
+            maxlength="1000"
+            aria-label="Type a message"
+          ></textarea>
+          <button
+            @click="sendMessage"
+            :disabled="inputText.trim() === '' || isSending"
+            class="text-white font-bold px-4 py-2 rounded-lg transition disabled:opacity-60"
+            style="background-color: #8cc65d"
+          >
+            <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+            Send
+          </button>
+        </div>
       </div>
     </div>
     </div>

@@ -18,7 +18,8 @@
       "Bash(git check-ignore:*)",
       "Bash(test:*)",
       "Bash(timeout 15 npm run dev:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(copy:*)"
     ],
     "deny": [],
     "ask": []

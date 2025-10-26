@@ -38,14 +38,14 @@
           </div>
 
           <!-- Conditional Content -->
-          <div class="p-4">
+          <div class="px-4 pt-4 pb-24">
             <PortalResultsSection
               v-if="selectedSection === 0"
               :goals="portalGoals"
             />
-            <PortalStorySection 
-              v-else-if="selectedSection === 1" 
-              :portal="portalDetail" 
+            <PortalStorySection
+              v-else-if="selectedSection === 1"
+              :portal="portalDetail"
             />
           </div>
         </div>

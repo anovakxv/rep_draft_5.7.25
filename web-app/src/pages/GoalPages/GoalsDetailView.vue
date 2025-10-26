@@ -84,7 +84,7 @@
       />
 
       <!-- Content List -->
-      <div class="flex-1 overflow-y-auto pb-20">
+      <div class="flex-1 overflow-y-auto pb-24">
         <!-- Feed Tab -->
         <div v-if="selectedSegment === 0" class="px-4">
           <div v-if="feed.length === 0" class="text-center text-gray-500 py-10">

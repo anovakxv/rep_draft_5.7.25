@@ -34,7 +34,7 @@
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto relative">
+    <main class="flex-1 overflow-y-auto relative pb-20">
       <Transition name="fade" mode="out-in">
         <!-- Loading State with Skeleton -->
         <LoadingSkeleton

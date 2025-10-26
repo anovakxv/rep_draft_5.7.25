@@ -53,18 +53,18 @@
       <!-- Form Fields -->
       <div class="space-y-4 mt-6">
         <!-- First Name & Last Name -->
-        <div class="flex space-x-3">
+        <div class="flex space-x-2">
           <input
             v-model="formData.firstName"
             type="text"
             placeholder="First Name"
-            class="flex-1 px-4 py-3 bg-gray-50 rounded text-base"
+            class="flex-1 px-3 py-3 bg-gray-50 rounded text-base"
           />
           <input
             v-model="formData.lastName"
             type="text"
             placeholder="Last Name"
-            class="flex-1 px-4 py-3 bg-gray-50 rounded text-base"
+            class="flex-1 px-3 py-3 bg-gray-50 rounded text-base"
           />
         </div>
 

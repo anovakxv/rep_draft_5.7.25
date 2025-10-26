@@ -40,32 +40,6 @@
           </button>
         </section>
 
-        <!-- Notifications Section -->
-        <section>
-          <h3 class="text-lg font-semibold mb-2 text-gray-700">Notifications</h3>
-          <div class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer">
-            <span class="mr-3 text-gray-500"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg></span>
-            <label class="flex-1 flex items-center cursor-pointer">
-              <input type="checkbox" v-model="notificationSettings.pushNotificationsEnabled" @change="saveNotificationSettings" class="mr-2 w-5 h-5" />
-              <span>Push Notifications</span>
-            </label>
-          </div>
-          <div v-if="notificationSettings.pushNotificationsEnabled" class="ml-8 space-y-2 mt-2">
-            <label class="flex items-center cursor-pointer py-2">
-              <input type="checkbox" v-model="notificationSettings.notifDirectMessages" @change="saveNotificationSettings" class="mr-2 w-4 h-4" />
-              <span class="text-gray-700">Direct Messages</span>
-            </label>
-            <label class="flex items-center cursor-pointer py-2">
-              <input type="checkbox" v-model="notificationSettings.notifGroupMessages" @change="saveNotificationSettings" class="mr-2 w-4 h-4" />
-              <span class="text-gray-700">Group Messages</span>
-            </label>
-            <label class="flex items-center cursor-pointer py-2">
-              <input type="checkbox" v-model="notificationSettings.notifGoalInvites" @change="saveNotificationSettings" class="mr-2 w-4 h-4" />
-              <span class="text-gray-700">Goal Team Invites</span>
-            </label>
-          </div>
-        </section>
-
         <!-- Account Actions Section -->
         <section>
           <h3 class="text-lg font-semibold mb-2 text-gray-700">Account</h3>
@@ -162,7 +136,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/pages/utils/api'
 
@@ -172,14 +146,6 @@ const showPasswordModal = ref(false)
 const isChangingPassword = ref(false)
 const passwordError = ref('')
 const successMessage = ref('')
-
-// Notification settings
-const notificationSettings = ref({
-  pushNotificationsEnabled: true,
-  notifDirectMessages: true,
-  notifGroupMessages: true,
-  notifGoalInvites: true,
-})
 
 // Password form
 const passwordForm = ref({
@@ -208,33 +174,6 @@ function goToPayments() {
 function logout() {
   localStorage.clear()
   router.push('/login')
-}
-
-function loadNotificationSettings() {
-  // Load from localStorage
-  const saved = localStorage.getItem('notificationSettings')
-  if (saved) {
-    try {
-      notificationSettings.value = JSON.parse(saved)
-    } catch (e) {
-      console.error('Failed to parse notification settings:', e)
-    }
-  }
-}
-
-async function saveNotificationSettings() {
-  // Save to localStorage
-  localStorage.setItem('notificationSettings', JSON.stringify(notificationSettings.value))
-
-  // Save to backend
-  try {
-    await api.patch(
-      '/api/user/notification_settings',
-      notificationSettings.value
-    )
-  } catch (err: any) {
-    console.error('Failed to save notification settings:', err)
-  }
 }
 
 function closePasswordModal() {
@@ -285,8 +224,4 @@ async function handleChangePassword() {
     isChangingPassword.value = false
   }
 }
-
-onMounted(() => {
-  loadNotificationSettings()
-})
 </script>

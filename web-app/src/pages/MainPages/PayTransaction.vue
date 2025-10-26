@@ -5,18 +5,20 @@
 -->
 
 <template>
-  <div class="min-h-screen bg-gray-50 flex flex-col">
-    <!-- Header -->
-    <header class="flex items-center justify-between h-14 px-4 border-b shrink-0" style="background-color: #f7f7f7">
-      <button @click="handleClose" class="p-2 -ml-2" style="color: #8cc65d">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
-      </button>
-      <h1 class="font-bold text-lg">{{ transactionType.title }}</h1>
-      <button @click="handleClose" class="font-semibold" style="color: #8cc65d">Cancel</button>
-    </header>
+  <div class="h-screen bg-gray-50 flex justify-center overflow-hidden">
+    <div class="w-full max-w-3xl flex flex-col">
+      <!-- Header -->
+      <header class="flex items-center justify-between h-14 px-4 border-b shrink-0" style="background-color: #f7f7f7">
+        <button @click="handleClose" class="p-2 -ml-2" style="color: #8cc65d">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        </button>
+        <h1 class="font-bold text-lg">{{ transactionType.title }}</h1>
+        <button @click="handleClose" class="font-semibold" style="color: #8cc65d">Cancel</button>
+      </header>
 
-    <div class="flex-1 overflow-y-auto">
-      <div class="max-w-2xl mx-auto p-4 md:p-6 space-y-6">
+      <!-- Main Content -->
+      <div class="flex-1 overflow-y-auto overflow-x-hidden">
+        <div class="p-4 md:p-6 space-y-6">
         <!-- Header Section -->
         <div class="text-center space-y-2">
           <h2 class="text-2xl font-bold">{{ transactionType.title }} to {{ props.portalName }}</h2>

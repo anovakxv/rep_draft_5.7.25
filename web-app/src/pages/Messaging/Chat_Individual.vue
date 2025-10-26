@@ -19,7 +19,7 @@
       </div>
 
       <!-- Messages List -->
-      <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3" @scroll.passive="onScroll">
+      <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-20" @scroll.passive="onScroll">
       <div v-if="canLoadOlder" class="flex justify-center py-2">
         <button @click="loadOlder" :disabled="isLoadingOlder" class="text-xs text-gray-500 hover:underline">
           <span v-if="isLoadingOlder" class="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full inline-block mr-1"></span>
@@ -268,9 +268,17 @@ function appendIfNeeded(msg: SimpleMessage) {
   }
 }
 
-function scrollToBottom() {
+function scrollToBottom(smooth = false) {
   if (scrollContainer.value) {
-    scrollContainer.value.scrollTop = scrollContainer.value.scrollHeight;
+    // Use a small delay to ensure DOM has fully rendered
+    setTimeout(() => {
+      if (scrollContainer.value) {
+        scrollContainer.value.scrollTo({
+          top: scrollContainer.value.scrollHeight,
+          behavior: smooth ? 'smooth' : 'auto'
+        });
+      }
+    }, 50);
   }
 }
 

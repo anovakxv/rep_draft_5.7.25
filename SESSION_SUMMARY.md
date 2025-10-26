@@ -1,6 +1,6 @@
 # Rep Web App - Project Overview
 
-**Last Updated:** 2025-10-23
+**Last Updated:** 2025-10-26
 **Status:** Local Testing Phase - Preparing for Production
 
 ---
@@ -103,21 +103,27 @@ C:\Users\Stephanie\Desktop\Git Rep app draft 1\my-ios-app\
 
 ---
 
-## 🔧 Recent Work (Current Session - Oct 24, 2025)
+## 🔧 Recent Work (Current Session - Oct 26, 2025)
 
 ### Tasks Completed Today:
-1. ✅ Updated web app branding from "Vite + Vue" to "Rep" (title, favicon, social sharing meta tags)
-2. 🔄 Working on fixing PortalPage header scrolling issue (header scrolls away on pages with minimal content)
-   - Attempted: `overscroll-behavior-y: contain` (didn't work)
-   - Attempted: `overflow-hidden` on outer container (testing in progress)
+1. ✅ Fixed Support button positioning on GoalsDetailView to match iOS app
+   - Moved from center-bottom to bottom-right corner (matching iOS `.bottomTrailing`)
+   - Reduced button height (py-2.5 instead of py-[14px]) for better proportions
+   - Fixed desktop positioning to stay within centered content area (max-width: 768px)
+   - Button now properly positioned at bottom-right on both mobile and desktop
 
 ### Key Improvements:
-- **Branding:** Web app now shows "Rep" title and Rep logo in browser tab, bookmarks, and when sharing links
-- **Mobile Icon:** Added apple-touch-icon so Rep logo shows when users add to home screen
+- **UI Consistency:** Support button on Fund/Sales goals now matches iOS positioning exactly
+- **Responsive Design:** Button respects centered content area on desktop, no longer floats in gray zone
+- **Visual Polish:** Slightly reduced button height for cleaner appearance
 
 ### Files Modified Today:
-- [index.html](web-app/index.html) - Changed title to "Rep", updated favicon to rep-logo.png, added Open Graph meta tags
-- [PortalPage.vue](web-app/src/pages/MainPages/PortalPage.vue) - Added overflow-hidden to outer container
+- [GoalsDetailView.vue](web-app/src/pages/GoalPages/GoalsDetailView.vue) - Fixed Support button positioning and sizing
+
+### Previous Session (Oct 24, 2025):
+1. ✅ Updated web app branding from "Vite + Vue" to "Rep" (title, favicon, social sharing meta tags)
+2. ✅ Web app now shows "Rep" title and Rep logo in browser tab, bookmarks, and when sharing links
+3. ✅ Added apple-touch-icon so Rep logo shows when users add to home screen
 
 ### Previous Session (Oct 23, 2025):
 1. ✅ Fixed ProfileView sticky segmented picker (changed layout structure to match working pages)

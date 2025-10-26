@@ -86,8 +86,22 @@
           <!-- When page = 'people': Show people lists -->
           <template v-if="page === 'people'">
             <PeopleList :users="filteredUsers" :current-user-id="userId" :current-tab="currentTab" />
+            <!-- Empty State for Network Tab (section 1) -->
             <EmptyState
-              v-if="filteredUsers.length === 0"
+              v-if="filteredUsers.length === 0 && section === 1 && !searchText"
+              title="No Network Members yet"
+              description="Browse or search all People in the People Purpose tab to +NTWK to integrate with others you know."
+              action-text=""
+            >
+              <template #icon>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </template>
+            </EmptyState>
+            <!-- Empty State for All other cases -->
+            <EmptyState
+              v-else-if="filteredUsers.length === 0"
               title="No people found"
               :description="searchText ? 'Try a different search term' : 'No people to display'"
             >
@@ -102,8 +116,22 @@
           <!-- When page = 'portals': Show portal lists -->
           <template v-else-if="page === 'portals'">
             <PortalList :portals="filteredPortals" :user-id="userId" :current-tab="currentTab" />
+            <!-- Empty State for Network Tab (section 1) -->
             <EmptyState
-              v-if="filteredPortals.length === 0"
+              v-if="filteredPortals.length === 0 && section === 1 && !searchText"
+              title="No Network Purposes yet"
+              description="Browse active Purposes in the Purpose tab and join a Goal Team to get started! Or create your own Purpose."
+              action-text=""
+            >
+              <template #icon>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-20 w-20 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </template>
+            </EmptyState>
+            <!-- Empty State for All other cases -->
+            <EmptyState
+              v-else-if="filteredPortals.length === 0"
               title="No portals found"
               :description="searchText ? 'Try a different search term' : 'Create your first portal to get started'"
               :action-text="searchText ? '' : 'Add Purpose'"
@@ -659,7 +687,7 @@ const filteredActiveChats = computed(() => {
 const handleUnauthorized = (source: string) => {
   console.error(`Unauthorized from: ${source}`);
   localStorage.clear();
-  router.push('/login');
+  router.push('/register');
 };
 
 const fetchCurrentUser = async () => {
@@ -688,7 +716,7 @@ const togglePage = () => {
   // Switching to People page requires authentication (it's about chats/messages)
   if (page.value === 'portals' && !isAuthenticated()) {
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: '/main' }
     });
     return;
@@ -701,7 +729,7 @@ const handleSectionSelect = (index: number) => {
   // OPEN (0) and NTWK (1) tabs require authentication
   if ((index === 0 || index === 1) && !isAuthenticated()) {
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: '/main' }
     });
     return;
@@ -717,7 +745,7 @@ const handleSectionSelect = (index: number) => {
 const handleAddButtonClick = () => {
   if (!isAuthenticated()) {
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: '/main' }
     });
     return;
@@ -728,7 +756,7 @@ const handleAddButtonClick = () => {
 const handleProfileClick = () => {
   if (!isAuthenticated()) {
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: '/main' }
     });
     return;
@@ -1209,9 +1237,13 @@ const ActiveChatList = defineComponent({
       const isUnread = chat.last_message?.read === '0' &&
                        chat.last_message?.sender_id !== props.currentUserId;
 
-      const target = chat.type === 'direct'
+      const chatTarget = chat.type === 'direct'
         ? `/chat/dm/${chat.user?.id}`
         : `/chat/group/${chat.chat?.id}`;
+
+      const profileTarget = chat.type === 'direct' && chat.user?.id
+        ? `/profile/${chat.user.id}`
+        : null;
 
       const name = chat.type === 'direct'
         ? chat.user?.full_name
@@ -1222,26 +1254,38 @@ const ActiveChatList = defineComponent({
         : undefined;
 
       return h('div', { key: chat.id }, [
-        h(RouterLink, {
-          to: { path: target, query: { from: props.currentTab } },
-          class: 'block hover:bg-gray-50'
-        }, () =>
-          h('div', {
-            class: 'flex items-center py-4 px-4',
-            style: { minHeight: '96px' }
-          }, [
-            // Chat avatar (profile pic or initials) - flex-shrink-0 prevents squishing
-            image
-              ? h('img', {
-                  src: image,
-                  class: 'w-16 h-16 object-cover rounded-full flex-shrink-0'
-                })
-              : h('div', {
-                  class: 'w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center font-semibold text-white text-xl flex-shrink-0'
-                }, getInitials(name || 'Chat')),
+        h('div', {
+          class: 'flex items-center py-4 px-4 hover:bg-gray-50',
+          style: { minHeight: '96px' }
+        }, [
+          // Profile picture - clickable to navigate to profile (for direct chats only)
+          chat.type === 'direct' && profileTarget
+            ? h(RouterLink, {
+                to: { path: profileTarget, query: { from: props.currentTab } },
+                class: 'flex-shrink-0'
+              }, () =>
+                image
+                  ? h('img', {
+                      src: image,
+                      class: 'w-16 h-16 object-cover rounded-full'
+                    })
+                  : h('div', {
+                      class: 'w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center font-semibold text-white text-xl'
+                    }, getInitials(name || 'User'))
+              )
+            : // For group chats, just show the avatar without profile link
+              h('div', { class: 'flex-shrink-0' },
+                h('div', {
+                  class: 'w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center font-semibold text-white text-xl'
+                }, getInitials(name || 'Chat'))
+              ),
 
-            // Chat details - min-w-0 allows truncate to work properly
-            h('div', { class: 'flex-1 ml-3 min-w-0' }, [
+          // Chat details - clickable to navigate to chat
+          h(RouterLink, {
+            to: { path: chatTarget, query: { from: props.currentTab } },
+            class: 'flex-1 ml-3 min-w-0'
+          }, () =>
+            h('div', { class: 'min-w-0' }, [
               h('div', { class: 'flex justify-between items-center gap-2' }, [
                 h('h3', { class: 'font-semibold text-[17px] truncate flex-1 min-w-0' }, name),
                 h('p', { class: 'text-[13px] text-gray-500 flex-shrink-0' }, timeAgoDisplay(chat.last_message_time))
@@ -1253,8 +1297,8 @@ const ActiveChatList = defineComponent({
                 ]
               }, chat.last_message?.text || '')
             ])
-          ])
-        ),
+          )
+        ]),
         // Separator line matching iOS light gray
         index < (props.chats?.length || 0) - 1
           ? h('div', {

@@ -191,7 +191,8 @@ const createConnectAccount = async () => {
   isLoading.value = true;
   errorMessage.value = null;
   try {
-    const redirectURL = `${window.location.origin}/stripe-connect-return?portal_id=${portalId}`;
+    // Use production domain for redirect (Stripe requires HTTPS for live mode)
+    const redirectURL = `https://rep-june2025.onrender.com/stripe-connect-return?portal_id=${portalId}`;
     console.log('[PortalPaymentSetup] Redirect URL:', redirectURL);
 
     const requestBody = { portal_id: portalId, redirect_url: redirectURL };

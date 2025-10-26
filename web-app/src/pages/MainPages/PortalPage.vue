@@ -104,15 +104,16 @@
     </transition>
 
     <!-- PayTransaction Sheet -->
-    <PayTransaction
-      v-if="showPaymentSheet && supportGoal"
-      :portal-id="portalId"
-      :portal-name="portalDetail?.name || 'Portal'"
-      :goal-id="supportGoal.id"
-      :goal-name="supportGoal.title"
-      :transaction-type="supportGoal.typeName === 'Fund' ? 'donation' : 'payment'"
-      @close="showPaymentSheet = false"
-    />
+    <div v-if="showPaymentSheet && supportGoal" class="fixed inset-0 z-50 bg-white">
+      <PayTransaction
+        :portal-id="portalId"
+        :portal-name="portalDetail?.name || 'Portal'"
+        :goal-id="supportGoal.id"
+        :goal-name="supportGoal.title"
+        :transaction-type="supportGoal.typeName === 'Fund' ? 'donation' : 'payment'"
+        @close="showPaymentSheet = false"
+      />
+    </div>
 
     <!-- Add Goal Sheet -->
     <EditGoal
@@ -395,7 +396,7 @@ const openFullscreen = (index: number) => {
 const openMessageSheet = () => {
   if (!isAuthenticated()) {
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: `/portal/${portalId}` }
     });
     return;

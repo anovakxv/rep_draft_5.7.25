@@ -119,6 +119,9 @@ class PortalPaymentViewModel: ObservableObject {
                     return
                 }
 
+                // Debug: Print the response
+                print("[PortalPaymentSetup] Backend response:", json)
+
                 // Check for pending approval status
                 if let status = json["status"] as? String, status == "pending_approval" {
                     self.errorMessage = nil

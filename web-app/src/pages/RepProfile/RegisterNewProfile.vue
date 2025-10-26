@@ -93,13 +93,21 @@ async function registerUser() {
     // Success: store JWT and userId, set onboarding flags, navigate
     const { user, token } = res.data
     localStorage.setItem('jwtToken', token)
-    localStorage.setItem('pendingUserId', user.id) // Use pendingUserId
+    localStorage.setItem('pendingUserId', user.id) // Use pendingUserId for onboarding flow
+    localStorage.setItem('userId', user.id) // Also set userId immediately for EditProfile
     localStorage.setItem('isRegistered', 'true')
     localStorage.setItem('onboardingComplete', 'false')
     // Optionally store first/last name for onboarding
     localStorage.setItem('pendingFirstName', firstName.value)
     localStorage.setItem('pendingLastName', lastName.value)
-    // Navigate to onboarding or main
+
+    // Store returnTo parameter if present (for post-onboarding redirect)
+    const returnTo = route.query.returnTo as string
+    if (returnTo) {
+      localStorage.setItem('returnTo', returnTo)
+    }
+
+    // Navigate to onboarding
     router.push('/onboarding')
   } catch (err: any) {
     if (err.response?.data?.error) {

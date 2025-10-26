@@ -10,9 +10,10 @@
   <div class="edit-profile-component bg-white min-h-screen">
     <!-- Header -->
     <div class="header sticky top-0 bg-white z-10 flex items-center justify-between px-4 py-3 border-b border-gray-200">
-      <button @click="handleCancel" class="text-green-600 text-lg font-semibold">
+      <button v-if="!fromOnboarding" @click="handleCancel" class="text-green-600 text-lg font-semibold">
         Cancel
       </button>
+      <div v-else class="w-16"></div>
       <h1 class="text-xl font-bold">Edit Profile</h1>
       <button @click="handleSave" :disabled="isSaving" class="text-yellow-600 text-lg font-bold">
         {{ isSaving ? 'Saving...' : 'Save' }}
@@ -190,6 +191,16 @@ interface RepType {
   description: string
 }
 
+// Props
+const props = defineProps<{
+  fromOnboarding?: boolean
+}>()
+
+// Emits
+const emit = defineEmits<{
+  'profile-saved': []
+}>()
+
 // Router
 const router = useRouter()
 
@@ -261,6 +272,10 @@ function handleImageSelect(event: Event) {
 }
 
 function handleCancel() {
+  // Don't allow cancel during onboarding (profile completion is required)
+  if (props.fromOnboarding) {
+    return
+  }
   router.back()
 }
 
@@ -305,8 +320,12 @@ async function handleSave() {
     )
 
     if (response.data && response.data.result) {
-      // Success - go back
-      router.back()
+      // Success - emit event if from onboarding, otherwise go back
+      if (props.fromOnboarding) {
+        emit('profile-saved')
+      } else {
+        router.back()
+      }
     } else {
       errorMessage.value = 'Failed to update profile. Please try again.'
     }

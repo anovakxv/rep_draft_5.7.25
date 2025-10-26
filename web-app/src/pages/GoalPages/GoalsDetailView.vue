@@ -156,21 +156,23 @@
     </div>
 
     <!-- Floating Support Button - White background with dark green border (matching iOS) -->
-    <!-- Positioned center-bottom for Fund/Sales goals -->
+    <!-- Positioned bottom-right for Fund/Sales goals (matching iOS .bottomTrailing) -->
     <div
       v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales')"
-      class="fixed bottom-5 z-20"
-      style="left: 50%; transform: translateX(-50%)"
+      class="fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
+      style="bottom: 70px"
     >
-      <button
-        @click="showPaymentSheet = true"
-        class="px-5 py-[14px] bg-white border-2 rounded-lg shadow-lg flex items-center gap-2 font-bold transition-transform"
-        style="border-color: #006600; color: #006600; box-shadow: 3px 5px 7px rgba(26, 26, 26, 0.4)"
-        :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }"
-      >
-        <span class="text-[22px]">$</span>
-        <span>Support</span>
-      </button>
+      <div class="w-full relative flex justify-end pr-5" style="max-width: 768px">
+        <button
+          @click="showPaymentSheet = true"
+          class="px-5 py-2.5 bg-white border-2 rounded-lg shadow-lg flex items-center gap-2 font-bold transition-transform pointer-events-auto"
+          style="border-color: #006600; color: #006600; box-shadow: 3px 5px 7px rgba(26, 26, 26, 0.4)"
+          :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }"
+        >
+          <span class="text-[22px]">$</span>
+          <span>Support</span>
+        </button>
+      </div>
     </div>
 
     <!-- Team Chat Loading Overlay - EXACTLY matching Swift -->
@@ -279,16 +281,17 @@
     />
 
     <!-- Payment Sheet - EXACTLY matching Swift -->
-    <PayTransactionView
-      v-if="showPaymentSheet"
-      :portal-id="goal?.portalId || 0"
-      :portal-name="goal?.portalName || 'Portal'"
-      :goal-id="goal?.id || 0"
-      :goal-name="goal?.title || ''"
-      :transaction-type="goal?.typeName === 'Fund' ? 'donation' : 'payment'"
-      @close="showPaymentSheet = false"
-      @payment-success="handlePaymentSuccess"
-    />
+    <div v-if="showPaymentSheet" class="fixed inset-0 z-50 bg-white">
+      <PayTransactionView
+        :portal-id="goal?.portalId || 0"
+        :portal-name="goal?.portalName || 'Portal'"
+        :goal-id="goal?.id || 0"
+        :goal-name="goal?.title || ''"
+        :transaction-type="goal?.typeName === 'Fund' ? 'donation' : 'payment'"
+        @close="showPaymentSheet = false"
+        @payment-success="handlePaymentSuccess"
+      />
+    </div>
 
     <!-- Delete Alert - EXACTLY matching Swift -->
     <transition name="fade">
@@ -712,7 +715,7 @@ const joinRecruitingGoal = async () => {
   if (!isAuthenticated()) {
     activeSheet.value = null;
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: `/goal/${initialGoalId}` }
     });
     return;
@@ -744,7 +747,7 @@ const joinRecruitingGoal = async () => {
 const openGoalTeamChat = async () => {
   if (!isAuthenticated()) {
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: `/goal/${initialGoalId}` }
     });
     return;
@@ -797,7 +800,7 @@ const handleInviteTeam = () => {
   if (!isAuthenticated()) {
     activeSheet.value = null;
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: `/goal/${initialGoalId}` }
     });
     return;
@@ -810,7 +813,7 @@ const handleUpdateProgress = () => {
   if (!isAuthenticated()) {
     activeSheet.value = null;
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: `/goal/${initialGoalId}` }
     });
     return;
@@ -823,7 +826,7 @@ const handleEditGoal = () => {
   if (!isAuthenticated()) {
     activeSheet.value = null;
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: `/goal/${initialGoalId}` }
     });
     return;
@@ -836,7 +839,7 @@ const confirmDelete = () => {
   if (!isAuthenticated()) {
     activeSheet.value = null;
     router.push({
-      path: '/login',
+      path: '/register',
       query: { returnTo: `/goal/${initialGoalId}` }
     });
     return;

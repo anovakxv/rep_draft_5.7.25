@@ -54,17 +54,11 @@
 
       <div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
         <img :src="REPLogo" alt="REP Logo" class="w-32 h-32 mb-8" />
-        
-        <h3 class="text-2xl font-bold mb-4">Welcome to Rep – our Purpose-Driven movement.</h3>
-        
-        <p class="text-lg mb-8">
-          Rep helps you champion your priorities—like a world-class sales rep. Let's accelerate.
-        </p>
-        
-        <p class="text-base mb-12">
-          • Flip between Purposes and People<br>
-          • View Purpose Pitches in full screen<br>
-          • Join a Goal Team. Accelerate the Mission.
+
+        <h3 class="text-2xl font-bold mb-4">Welcome to Rep</h3>
+
+        <p class="text-lg mb-12 max-w-2xl">
+          Rep connects people with mentors and community opportunities based on shared values. Our software is designed to help communities better focus on the priorities that matter most. Start by viewing the list of Purposes and joining a Goal Team. Or create your own Purpose!
         </p>
       </div>
 
@@ -167,12 +161,19 @@ function completeOnboarding() {
     localStorage.setItem('userId', pendingUserId)
     localStorage.removeItem('pendingUserId')
   }
-  
+
   localStorage.setItem('isRegistered', 'true')
   localStorage.setItem('onboardingComplete', 'true')
-  
-  // Navigate to main app
-  router.push('/main')
+
+  // Check for returnTo parameter (from public page redirect)
+  const returnTo = localStorage.getItem('returnTo')
+  if (returnTo) {
+    localStorage.removeItem('returnTo')
+    router.push(returnTo)
+  } else {
+    // Navigate to main app
+    router.push('/main')
+  }
 }
 </script>
 

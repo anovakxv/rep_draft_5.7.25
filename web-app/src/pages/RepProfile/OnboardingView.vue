@@ -166,13 +166,14 @@ function completeOnboarding() {
   localStorage.setItem('onboardingComplete', 'true')
 
   // Check for returnTo parameter (from public page redirect)
+  // Using replace() instead of push() to remove onboarding from browser history
   const returnTo = localStorage.getItem('returnTo')
   if (returnTo) {
     localStorage.removeItem('returnTo')
-    router.push(returnTo)
+    router.replace(returnTo)
   } else {
     // Navigate to main app
-    router.push('/main')
+    router.replace('/main')
   }
 }
 </script>

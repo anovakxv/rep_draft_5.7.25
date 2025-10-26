@@ -104,8 +104,9 @@ async function login() {
     localStorage.setItem('isAdmin', result.user_type === 'Admin' ? 'true' : 'false')
 
     // Redirect to returnTo URL if provided, otherwise go to /main
+    // Using replace() instead of push() to remove login page from browser history
     const returnTo = route.query.returnTo as string
-    router.push(returnTo || '/main')
+    router.replace(returnTo || '/main')
   } catch (err: any) {
     error.value =
       err.response?.data?.error ||

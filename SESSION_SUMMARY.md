@@ -106,19 +106,56 @@ C:\Users\Stephanie\Desktop\Git Rep app draft 1\my-ios-app\
 ## 🔧 Recent Work (Current Session - Oct 26, 2025)
 
 ### Tasks Completed Today:
-1. ✅ Fixed Support button positioning on GoalsDetailView to match iOS app
+
+1. ✅ **Fixed Navigation After Login/Registration**
+   - **Problem:** When users logged in or registered from a public page, hitting the back button would return them to login/register pages instead of MainScreen, leaving them stuck with no way to access the main app
+   - **Solution:** Used `router.replace()` instead of `router.push()` to remove auth pages from browser history
+   - **Files Modified:**
+     - [LoginView.vue](web-app/src/pages/RepProfile/LoginView.vue) - Changed to `router.replace()` after successful login
+     - [OnboardingView.vue](web-app/src/pages/RepProfile/OnboardingView.vue) - Changed to `router.replace()` after onboarding completion
+     - [RegisterNewProfile.vue](web-app/src/pages/RepProfile/RegisterNewProfile.vue) - Changed to `router.replace()` when navigating to onboarding
+   - **Result:**
+     - New users can now navigate back to MainScreen after signup/login without hitting auth pages
+     - Normal logged-in navigation (MainScreen → PortalPage → GoalsDetailView) still works correctly
+     - Browser back button behavior is now intuitive for both new and existing users
+
+2. ✅ **Fixed PayTransaction Page Issues**
+   - Made content scrollable on desktop (fixed overflow handling)
+   - Adjusted page width to match global constraint (max-w-3xl / 768px)
+   - Added light gray divider beneath header (`border-gray-200`)
+   - Added bottom padding to prevent browser bars from covering content
+
+3. ✅ **Fixed Mobile Chat Scrolling**
+   - Added iOS-specific scrolling properties to Chat_Individual.vue and Chat_Group.vue
+   - Applied `-webkit-overflow-scrolling: touch` and `overscroll-behavior-y: contain`
+   - Chat messages now scroll properly on iPhone Safari and other mobile browsers
+
+4. ✅ **Fixed Bottom Padding Issues**
+   - Added `pb-20` to MainScreen, PayTransaction to prevent browser bars from covering content
+   - Ensures all interactive elements are accessible on mobile devices
+
+5. ✅ Fixed Support button positioning on GoalsDetailView to match iOS app
    - Moved from center-bottom to bottom-right corner (matching iOS `.bottomTrailing`)
    - Reduced button height (py-2.5 instead of py-[14px]) for better proportions
    - Fixed desktop positioning to stay within centered content area (max-width: 768px)
    - Button now properly positioned at bottom-right on both mobile and desktop
 
 ### Key Improvements:
-- **UI Consistency:** Support button on Fund/Sales goals now matches iOS positioning exactly
-- **Responsive Design:** Button respects centered content area on desktop, no longer floats in gray zone
-- **Visual Polish:** Slightly reduced button height for cleaner appearance
+- **Navigation UX:** Back button now works intuitively after login/registration for new users
+- **Mobile Optimization:** Chat pages scroll smoothly on iOS Safari and all mobile browsers
+- **Layout Consistency:** All pages respect global 768px width constraint on desktop
+- **Content Accessibility:** Bottom padding prevents browser bars from covering interactive elements
+- **UI Consistency:** Support button on Fund/Sales goals matches iOS positioning exactly
 
 ### Files Modified Today:
-- [GoalsDetailView.vue](web-app/src/pages/GoalPages/GoalsDetailView.vue) - Fixed Support button positioning and sizing
+- [LoginView.vue](web-app/src/pages/RepProfile/LoginView.vue) - Navigation fix with router.replace()
+- [OnboardingView.vue](web-app/src/pages/RepProfile/OnboardingView.vue) - Navigation fix with router.replace()
+- [RegisterNewProfile.vue](web-app/src/pages/RepProfile/RegisterNewProfile.vue) - Navigation fix with router.replace()
+- [PayTransaction.vue](web-app/src/pages/MainPages/PayTransaction.vue) - Scrolling, width, padding fixes
+- [MainScreen.vue](web-app/src/pages/MainPages/MainScreen.vue) - Bottom padding fix
+- [Chat_Individual.vue](web-app/src/pages/Messaging/Chat_Individual.vue) - iOS scrolling fix
+- [Chat_Group.vue](web-app/src/pages/Messaging/Chat_Group.vue) - iOS scrolling fix
+- [GoalsDetailView.vue](web-app/src/pages/GoalPages/GoalsDetailView.vue) - Support button positioning
 
 ### Previous Session (Oct 24, 2025):
 1. ✅ Updated web app branding from "Vite + Vue" to "Rep" (title, favicon, social sharing meta tags)

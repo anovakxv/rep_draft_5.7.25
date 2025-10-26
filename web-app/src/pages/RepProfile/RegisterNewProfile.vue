@@ -108,7 +108,8 @@ async function registerUser() {
     }
 
     // Navigate to onboarding
-    router.push('/onboarding')
+    // Using replace() instead of push() to remove registration page from browser history
+    router.replace('/onboarding')
   } catch (err: any) {
     if (err.response?.data?.error) {
       errorMessage.value = err.response.data.error

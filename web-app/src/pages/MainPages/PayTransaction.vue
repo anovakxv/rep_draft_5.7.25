@@ -340,8 +340,8 @@ const startPayment = async () => {
         // Store goal ID for refreshing after payment
         if (props.goalId) localStorage.setItem('lastPaymentGoalId', props.goalId.toString());
       }
-      window.open(json.checkout_url, '_blank');
-      paymentStatus.value = { status: 'initial' }; // Reset status after opening checkout
+      // Redirect to Stripe checkout in same window (works on mobile unlike window.open)
+      window.location.href = json.checkout_url;
     } else {
       throw new Error("Failed to get checkout URL from server.");
     }

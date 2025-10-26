@@ -39,9 +39,9 @@
 
           <!-- Conditional Content -->
           <div class="p-4">
-            <PortalResultsSection 
-              v-if="selectedSection === 0" 
-              :goals="portalGoals" 
+            <PortalResultsSection
+              v-if="selectedSection === 0"
+              :goals="portalGoals"
             />
             <PortalStorySection 
               v-else-if="selectedSection === 1" 
@@ -699,10 +699,10 @@ const PortalResultsSection = defineComponent({
     return () => h('div', { class: 'space-y-2' }, [
       (props.goals?.length || 0) > 0
         ? props.goals!.map((goal, index) => [
-            h(RouterLink, { 
+            h(RouterLink, {
               key: `link-${index}`,
-              to: `/goal/${goal.id}`, 
-              class: 'block' 
+              to: `/goal/${goal.id}`,
+              class: 'block'
             }, () => GoalListItem(goal)),
             h('div', { 
               key: `divider-${index}`,

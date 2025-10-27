@@ -390,6 +390,14 @@ interface User {
   lastMessageDate?: string;
 }
 
+interface Attachment {
+  id: number;
+  url: string;
+  isImage: boolean;
+  fileName: string;
+  note: string;
+}
+
 interface Feed {
   id: number;
   userImageName: string;
@@ -399,6 +407,7 @@ interface Feed {
   line3: string;
   line4: string;
   userProfilePictureURL?: string;
+  attachments: Attachment[];
 }
 
 interface BarChartData {
@@ -435,6 +444,14 @@ interface APIGoalDetail {
   portalName?: string;
 }
 
+interface APIAttachment {
+  id: number;
+  file_url?: string;
+  file_name?: string;
+  is_image?: boolean;
+  note?: string;
+}
+
 interface APIGoalProgressLog {
   id: number;
   users_id?: number;
@@ -442,6 +459,7 @@ interface APIGoalProgressLog {
   note?: string;
   value?: number;
   timestamp?: string;
+  aAttachments?: APIAttachment[];
 }
 
 interface APIUser {
@@ -655,6 +673,15 @@ const loadGoalDetails = async () => {
       // Use generic placeholder for public supporters
       const profilePicUrl = log.users_id ? patchProfilePictureURL(apiUser?.imageName) : "profile_placeholder";
 
+      // Process attachments (EXACTLY matching Swift)
+      const attachments: Attachment[] = (log.aAttachments || []).map(attachment => ({
+        id: attachment.id,
+        url: attachment.file_url || '',
+        isImage: attachment.is_image ?? true,
+        fileName: attachment.file_name || 'File',
+        note: attachment.note || ''
+      })).filter(att => att.url); // Filter out attachments without URLs
+
       // Show only the individual transaction value, not the cumulative (EXACTLY matching Swift)
       const transactionValue = log.added_value || 0;
       let valueString: string;
@@ -672,7 +699,8 @@ const loadGoalDetails = async () => {
         line2: valueString,
         line3: log.note || "",
         line4: "",
-        userProfilePictureURL: profilePicUrl
+        userProfilePictureURL: profilePicUrl,
+        attachments: attachments
       };
     });
     
@@ -984,8 +1012,50 @@ const FeedCell = defineComponent({
         h('div', { class: 'text-xs text-gray-600' }, props.feed.line1),
         h('div', { class: 'text-sm' }, props.feed.line2),
         h('div', { class: 'text-sm' }, `Note: ${props.feed.line3 || 'NA'}`),
-        h('div', { class: 'text-sm' }, 'Attachments: NA')
-      ])
+        // Display attachments if any (matching Swift implementation)
+        props.feed.attachments && props.feed.attachments.length > 0
+          ? h('div', {
+              class: 'overflow-x-auto py-2'
+            }, [
+              h('div', {
+                class: 'flex gap-3'
+              }, props.feed.attachments.map(attachment =>
+                h('div', {
+                  key: attachment.id,
+                  class: 'flex flex-col gap-1'
+                }, [
+                  attachment.isImage
+                    ? h('img', {
+                        src: attachment.url,
+                        class: 'w-[100px] h-[100px] object-cover rounded-lg',
+                        alt: attachment.fileName
+                      })
+                    : h('div', {
+                        class: 'w-[100px] h-[100px] flex items-center justify-center bg-gray-100 rounded-lg'
+                      }, [
+                        h('svg', {
+                          xmlns: 'http://www.w3.org/2000/svg',
+                          class: 'w-12 h-12 text-gray-500',
+                          fill: 'currentColor',
+                          viewBox: '0 0 20 20'
+                        }, [
+                          h('path', {
+                            'fill-rule': 'evenodd',
+                            d: 'M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z',
+                            'clip-rule': 'evenodd'
+                          })
+                        ])
+                      ]),
+                  attachment.note
+                    ? h('div', {
+                        class: 'text-xs text-gray-600 w-[100px] line-clamp-2'
+                      }, attachment.note)
+                    : null
+                ].filter(Boolean))
+              ))
+            ])
+          : null
+      ].filter(Boolean))
     ]);
   }
 });

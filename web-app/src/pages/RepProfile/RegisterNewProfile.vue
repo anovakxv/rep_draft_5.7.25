@@ -11,7 +11,7 @@
     <form @submit.prevent="registerUser" class="max-w-md mx-auto p-6 space-y-4">
       <div class="flex justify-end items-center">
         <span class="text-sm">Already have an account?</span>
-        <button type="button" class="ml-2 text-green-600 font-bold text-base" @click="goToLogin">Login</button>
+        <button type="button" class="ml-2 font-bold text-base" style="color: #8cc65d;" @click="goToLogin">Login</button>
       </div>
       <div class="flex justify-center mb-4">
         <img src="@/assets/REPLogo.png" alt="REP Logo" class="w-20 h-20 rounded-full shadow" />
@@ -26,7 +26,7 @@
       <input v-model="confirmPassword" type="password" placeholder="Confirm Password" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="new-password" />
       <input v-model="phone" type="tel" placeholder="Phone number (optional)" class="w-full border focus:outline-none focus:ring-2 focus:ring-green-400 mb-2 text-base bg-gray-100 rounded-lg" autocomplete="tel" />
       <div v-if="errorMessage" class="text-red-600 text-sm">{{ errorMessage }}</div>
-      <button type="submit" :disabled="isLoading" class="w-full h-12 bg-green-600 text-white font-bold rounded-lg mt-2">
+      <button type="submit" :disabled="isLoading" class="w-full h-12 text-white font-bold rounded-lg mt-2" style="background-color: #8cc65d;">
         <span v-if="isLoading">Registering...</span>
         <span v-else>Next</span>
       </button>

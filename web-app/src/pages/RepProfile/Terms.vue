@@ -12,7 +12,8 @@
         {{ termsText }}
       </div>
       <button
-        class="w-full py-3 bg-green-600 text-white font-bold rounded-lg"
+        class="w-full py-3 text-white font-bold rounded-lg"
+        style="background-color: #8cc65d;"
         @click="acceptTerms"
       >
         Accept Terms of Use

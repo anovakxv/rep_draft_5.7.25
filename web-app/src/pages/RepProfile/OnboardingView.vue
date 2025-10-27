@@ -11,9 +11,9 @@
     <!-- Step indicators -->
     <div class="flex justify-center py-4">
       <div class="flex space-x-2">
-        <div class="w-3 h-3 rounded-full" :class="step === 0 ? 'bg-green-600' : 'bg-gray-300'"></div>
-        <div class="w-3 h-3 rounded-full" :class="step === 1 ? 'bg-green-600' : 'bg-gray-300'"></div>
-        <div class="w-3 h-3 rounded-full" :class="step === 2 ? 'bg-green-600' : 'bg-gray-300'"></div>
+        <div class="w-3 h-3 rounded-full" :class="step === 0 ? '' : 'bg-gray-300'" :style="step === 0 ? 'background-color: #8cc65d;' : ''"></div>
+        <div class="w-3 h-3 rounded-full" :class="step === 1 ? '' : 'bg-gray-300'" :style="step === 1 ? 'background-color: #8cc65d;' : ''"></div>
+        <div class="w-3 h-3 rounded-full" :class="step === 2 ? '' : 'bg-gray-300'" :style="step === 2 ? 'background-color: #8cc65d;' : ''"></div>
       </div>
     </div>
 
@@ -36,7 +36,8 @@
           {{ termsText }}
         </div>
         <button
-          class="w-full py-3 bg-green-600 text-white font-bold rounded-lg"
+          class="w-full py-3 text-white font-bold rounded-lg"
+          style="background-color: #8cc65d;"
           @click="onTermsAccepted"
         >
           Accept Terms of Use
@@ -63,8 +64,9 @@
       </div>
 
       <div class="p-6">
-        <button 
-          class="w-full py-4 bg-green-600 text-white font-bold rounded-lg"
+        <button
+          class="w-full py-4 text-white font-bold rounded-lg"
+          style="background-color: #8cc65d;"
           @click="completeOnboarding"
         >
           Rep Something.

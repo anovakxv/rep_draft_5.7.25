@@ -37,8 +37,8 @@
         <button
           type="submit"
           :disabled="isLoading || !email || !password"
-          class="w-full py-3 font-bold rounded-lg"
-          :class="(isLoading || !email || !password) ? 'bg-gray-300 text-gray-500' : 'bg-green-600 text-white'"
+          class="w-full py-3 font-bold rounded-lg text-white"
+          :style="(isLoading || !email || !password) ? 'background-color: #d1d5db; color: #6b7280;' : 'background-color: #8cc65d;'"
         >
           <span v-if="isLoading">Logging in...</span>
           <span v-else>Login</span>
@@ -61,7 +61,8 @@
         <button
           type="button"
           @click="goToRegister"
-          class="font-bold text-green-600 ml-2"
+          class="font-bold ml-2"
+          style="color: #8cc65d;"
         >
           Sign Up
         </button>

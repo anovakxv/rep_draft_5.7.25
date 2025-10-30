@@ -260,12 +260,33 @@ function handleImageSelect(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
     const file = target.files[0]
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+    if (!validTypes.includes(file.type)) {
+      errorMessage.value = 'Please select a valid image file (JPEG, PNG, or GIF).'
+      target.value = '' // Clear the input
+      return
+    }
+
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024 // 10MB in bytes
+    if (file.size > maxSize) {
+      errorMessage.value = 'Image file is too large. Please select an image under 10MB.'
+      target.value = '' // Clear the input
+      return
+    }
+
     selectedImage.value = file
 
     // Create preview URL
     const reader = new FileReader()
     reader.onload = (e) => {
       previewImageUrl.value = e.target?.result as string
+    }
+    reader.onerror = () => {
+      errorMessage.value = 'Failed to read image file. Please try again.'
+      selectedImage.value = null
     }
     reader.readAsDataURL(file)
   }
@@ -359,6 +380,67 @@ async function handleSave() {
       aSkills: selectedSkills.value.map(s => s.id).join(','),
       has_profile_picture: !!selectedImage.value
     })
+
+    // If we had a profile picture and got a 500 error, try again without the image
+    // (This handles S3 upload failures gracefully)
+    if (selectedImage.value && err.response?.status === 500) {
+      console.log('Retrying profile save without image due to 500 error...')
+
+      try {
+        const retryFormData = new FormData()
+
+        // Re-add all fields except the image
+        if (formData.value.firstName.trim()) {
+          retryFormData.append('fname', formData.value.firstName.trim())
+        }
+        if (formData.value.lastName.trim()) {
+          retryFormData.append('lname', formData.value.lastName.trim())
+        }
+        if (formData.value.broadcast.trim()) {
+          retryFormData.append('broadcast', formData.value.broadcast.trim())
+        }
+        if (formData.value.otherSkill.trim()) {
+          retryFormData.append('other_skill', formData.value.otherSkill.trim())
+        }
+        retryFormData.append('users_types_id', String(formData.value.repType))
+        if (formData.value.city.trim()) {
+          retryFormData.append('manual_city', formData.value.city.trim())
+        }
+        if (selectedSkills.value.length > 0) {
+          const skillIds = selectedSkills.value.map(s => s.id).join(',')
+          retryFormData.append('aSkills', skillIds)
+        }
+
+        const retryResponse = await api.post(
+          '/api/user/edit',
+          retryFormData,
+          {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+            },
+          }
+        )
+
+        if (retryResponse.data && retryResponse.data.result) {
+          // Success without image - clear the selected image and show warning
+          selectedImage.value = null
+          console.log('Profile saved successfully without image')
+
+          // Show success but warn about image
+          alert('Profile saved successfully!\n\nNote: Your profile picture could not be uploaded. You can try uploading it again later from your profile.')
+
+          if (props.fromOnboarding) {
+            emit('profile-saved')
+          } else {
+            router.back()
+          }
+          return // Exit the error handler
+        }
+      } catch (retryErr: any) {
+        console.error('Retry without image also failed:', retryErr)
+        // Fall through to show original error message
+      }
+    }
 
     const errorMsg = err.response?.data?.error || err.message || 'Failed to save profile. Please try again.'
     errorMessage.value = `Error saving profile: ${errorMsg}\n\nPlease try again or contact support if the issue persists.`

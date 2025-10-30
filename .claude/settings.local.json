@@ -19,7 +19,8 @@
       "Bash(test:*)",
       "Bash(timeout 15 npm run dev:*)",
       "Bash(find:*)",
-      "Bash(copy:*)"
+      "Bash(copy:*)",
+      "Read(//c/Users/Stephanie/Desktop/Git Rep app draft 1/**)"
     ],
     "deny": [],
     "ask": []

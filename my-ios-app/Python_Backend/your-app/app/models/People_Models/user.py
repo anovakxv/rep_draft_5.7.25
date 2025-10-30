@@ -42,7 +42,7 @@ class User(UserMixin, db.Model):
     notification_settings = db.Column(db.JSON, nullable=True)
 
     # Relationships
-    # City = db.relationship('City', backref='users') 
+    # City = db.relationship('City', backref='users')
     user_type = db.relationship('UserType', backref='users')
 
     # Example: Add cascade delete to related models (if you want ORM-level cascade)

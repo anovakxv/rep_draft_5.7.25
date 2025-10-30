@@ -288,23 +288,40 @@ async function handleSave() {
 
   isSaving.value = true
   try {
-    // Create FormData for multipart upload
+    // Create FormData for multipart upload (matching iOS behavior exactly)
     const formDataToSend = new FormData()
 
-    formDataToSend.append('fname', formData.value.firstName.trim())
-    formDataToSend.append('lname', formData.value.lastName.trim())
-    formDataToSend.append('broadcast', formData.value.broadcast.trim())
-    formDataToSend.append('users_types_id', String(formData.value.repType))
-    formDataToSend.append('manual_city', formData.value.city.trim())
-    formDataToSend.append('other_skill', formData.value.otherSkill.trim())
+    // Only append fields if they have values (matching iOS conditional sending)
+    if (formData.value.firstName.trim()) {
+      formDataToSend.append('fname', formData.value.firstName.trim())
+    }
 
-    // Add skills as comma-separated IDs
+    if (formData.value.lastName.trim()) {
+      formDataToSend.append('lname', formData.value.lastName.trim())
+    }
+
+    if (formData.value.broadcast.trim()) {
+      formDataToSend.append('broadcast', formData.value.broadcast.trim())
+    }
+
+    if (formData.value.otherSkill.trim()) {
+      formDataToSend.append('other_skill', formData.value.otherSkill.trim())
+    }
+
+    // Always send users_types_id (matching iOS)
+    formDataToSend.append('users_types_id', String(formData.value.repType))
+
+    if (formData.value.city.trim()) {
+      formDataToSend.append('manual_city', formData.value.city.trim())
+    }
+
+    // Add skills as comma-separated IDs (only if skills are selected)
     if (selectedSkills.value.length > 0) {
       const skillIds = selectedSkills.value.map(s => s.id).join(',')
       formDataToSend.append('aSkills', skillIds)
     }
 
-    // Add profile picture if selected
+    // Add profile picture if selected (matching iOS)
     if (selectedImage.value) {
       formDataToSend.append('profile_picture', selectedImage.value)
     }
@@ -331,7 +348,20 @@ async function handleSave() {
     }
   } catch (err: any) {
     console.error('Save error:', err)
-    errorMessage.value = err.response?.data?.error || err.message || 'Failed to save profile. Please try again.'
+    console.error('Error response:', err.response)
+    console.error('Form data being sent:', {
+      fname: formData.value.firstName,
+      lname: formData.value.lastName,
+      broadcast: formData.value.broadcast,
+      users_types_id: formData.value.repType,
+      manual_city: formData.value.city,
+      other_skill: formData.value.otherSkill,
+      aSkills: selectedSkills.value.map(s => s.id).join(','),
+      has_profile_picture: !!selectedImage.value
+    })
+
+    const errorMsg = err.response?.data?.error || err.message || 'Failed to save profile. Please try again.'
+    errorMessage.value = `Error saving profile: ${errorMsg}\n\nPlease try again or contact support if the issue persists.`
   } finally {
     isSaving.value = false
   }

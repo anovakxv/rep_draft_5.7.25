@@ -18,6 +18,12 @@ goals_bp = Blueprint('goal_team', __name__)
 _invite_cache = {}  # {user_id: {"data": result, "timestamp": time, "count": hits}}
 _CACHE_TTL = 120  # 2 minutes between full DB queries
 
+# Rate limiting to prevent runaway polling loops
+_rate_limit_cache = {}  # {user_id: {"window_start": time, "request_count": int, "blocked_until": time}}
+_RATE_LIMIT_WINDOW = 60  # 1 minute window
+_MAX_REQUESTS_PER_WINDOW = 15  # Max 15 requests per minute (1 every 4 seconds)
+_BLOCK_DURATION = 180  # Block for 3 minutes if exceeded
+
 # Helper function to invalidate invite cache for a user
 def invalidate_invite_cache(user_id):
     """Remove a user's cache entry when their invites change"""
@@ -247,7 +253,52 @@ def remove_goal_team(goal_id, user_id):
 def get_pending_invites():
     user_id = g.current_user.id
     current_time = time.time()
-    
+
+    # === RATE LIMITING CHECK (protects against runaway polling) ===
+    if user_id in _rate_limit_cache:
+        rl = _rate_limit_cache[user_id]
+
+        # Check if currently blocked
+        if "blocked_until" in rl and current_time < rl["blocked_until"]:
+            # User is blocked - return cached data silently (no error to user)
+            if user_id in _invite_cache:
+                print(f"🚫 Rate limited user {user_id} - returning cached data")
+                return jsonify({"invites": _invite_cache[user_id]["data"]})
+            else:
+                print(f"🚫 Rate limited user {user_id} - returning empty")
+                return jsonify({"invites": []})
+
+        # Check if we need to reset the window
+        if current_time - rl["window_start"] > _RATE_LIMIT_WINDOW:
+            # Reset window
+            _rate_limit_cache[user_id] = {
+                "window_start": current_time,
+                "request_count": 1
+            }
+        else:
+            # Increment counter
+            rl["request_count"] += 1
+
+            # Check if limit exceeded
+            if rl["request_count"] > _MAX_REQUESTS_PER_WINDOW:
+                # BLOCK this user
+                rl["blocked_until"] = current_time + _BLOCK_DURATION
+                elapsed = current_time - rl["window_start"]
+                print(f"⚠️ BLOCKING user {user_id}: {rl['request_count']} requests in {elapsed:.1f}s")
+
+                # Return cached data (seamless UX - no error)
+                if user_id in _invite_cache:
+                    return jsonify({"invites": _invite_cache[user_id]["data"]})
+                else:
+                    return jsonify({"invites": []})
+    else:
+        # First request in window
+        _rate_limit_cache[user_id] = {
+            "window_start": current_time,
+            "request_count": 1
+        }
+    # === END RATE LIMITING ===
+
     # Check if we have cached data and if it's recent
     if user_id in _invite_cache:
         cache_entry = _invite_cache[user_id]

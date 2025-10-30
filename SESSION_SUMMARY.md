@@ -103,9 +103,94 @@ C:\Users\Stephanie\Desktop\Git Rep app draft 1\my-ios-app\
 
 ---
 
-## 🔧 Recent Work (Current Session - Oct 26, 2025)
+## 🔧 Recent Work (Current Session - Oct 29, 2025)
 
 ### Tasks Completed Today:
+
+1. ✅ **Fixed Bottom Content Padding Issues**
+   - **Problem:** Bottom content on PortalPage and GoalsDetailView was sometimes blocked by the bottom navigation bar
+   - **Solution:** Increased bottom padding from `pb-20` to `pb-24` on both pages
+   - **Files Modified:**
+     - [PortalPage.vue](web-app/src/pages/MainPages/PortalPage.vue) - Changed content padding to `px-4 pt-4 pb-24`
+     - [GoalsDetailView.vue](web-app/src/pages/GoalPages/GoalsDetailView.vue) - Changed scrollable container to `pb-24`
+   - **Result:** All content now accessible on mobile, no overlap with bottom bar
+
+2. ✅ **Updated Brand Color Consistency**
+   - **Problem:** Login/registration flow used incorrect green color (`green-600`) instead of Rep brand green (`#8cc65d`)
+   - **Solution:** Updated all buttons and links to use Rep light green color
+   - **Files Modified:**
+     - [LoginView.vue](web-app/src/pages/RepProfile/LoginView.vue) - Login button and "Sign Up" link
+     - [RegisterNewProfile.vue](web-app/src/pages/RepProfile/RegisterNewProfile.vue) - "Next" button and "Login" link
+     - [Terms.vue](web-app/src/pages/RepProfile/Terms.vue) - "Accept Terms of Use" button
+     - [OnboardingView.vue](web-app/src/pages/RepProfile/OnboardingView.vue) - Step indicators, "Accept Terms" button, "Rep Something" button
+   - **Result:** Consistent Rep brand green (#8cc65d) throughout entire login/registration/onboarding flow
+
+3. ✅ **Added Image Attachment Support to Goal Feed**
+   - **Problem:** Image attachments from manual Goal updates weren't displaying in the Feed on web app (worked fine on iOS)
+   - **Solution:** Added full attachment parsing and display to match iOS implementation
+   - **Files Modified:**
+     - [GoalsDetailView.vue](web-app/src/pages/GoalPages/GoalsDetailView.vue)
+       - Added `Attachment` and `APIAttachment` interfaces
+       - Updated `APIGoalProgressLog` to include `aAttachments` array
+       - Added attachment processing in feed mapping (parses images and files)
+       - Updated `FeedCell` component to display attachments with 100x100px thumbnails
+       - Shows document icon for non-image files
+       - Horizontal scrollable container for multiple attachments
+   - **Result:** Image and file attachments now display correctly in Goal feed, matching iOS behavior exactly
+
+4. ✅ **Fixed 500 Errors During Profile Completion (CRITICAL FIX)**
+   - **Problem:** Some web app users got 500 errors when completing profile during onboarding (POST to `/api/user/edit` failed)
+   - **Investigation:**
+     - Analyzed server logs - errors were on `/api/user/edit`, not `/api/user/register`
+     - Compared iOS vs web app behavior - iOS conditionally sends form fields, web app was always sending empty strings
+     - Backend has no validation for empty strings, causing database constraint violations
+   - **Solution - Phase 1 (iOS Parity):**
+     - Updated EditProfileComponent to match iOS behavior exactly
+     - Only send form fields if they have values (conditional sending)
+     - `fname`, `lname`, `broadcast`, `manual_city`, `other_skill` only sent when not empty
+     - `users_types_id` always sent (matching iOS)
+   - **Solution - Phase 2 (Image Upload Robustness):**
+     - Added image validation before upload:
+       - File type check (JPEG, PNG, GIF only)
+       - File size limit (10MB max)
+       - Clear error messages for invalid files
+     - Added graceful degradation for S3 failures:
+       - If 500 error with image, automatically retry without image
+       - Profile data still saved, user can upload photo later
+       - Prevents S3 issues from blocking onboarding
+     - Added comprehensive error logging for debugging
+   - **Files Modified:**
+     - [EditProfileComponent.vue](web-app/src/components/EditProfileComponent.vue)
+       - Lines 294-327: Conditional field sending (matching iOS exactly)
+       - Lines 264-292: Image validation and FileReader error handling
+       - Lines 384-443: Graceful degradation with retry logic
+   - **Result:**
+     - Web app now behaves identically to iOS app
+     - Users with blank optional fields no longer get 500 errors
+     - S3 upload failures won't block user onboarding
+     - Better error messages and logging for future debugging
+
+### Key Improvements:
+- **Mobile UX:** Fixed bottom content accessibility on multiple pages
+- **Brand Consistency:** Rep green color now consistent across all authentication flows
+- **Feature Parity:** Goal attachments now display on web app matching iOS
+- **Reliability:** Fixed critical onboarding 500 errors, added robustness for image uploads
+- **Error Handling:** Graceful degradation ensures users can complete onboarding even with S3 issues
+
+### Files Modified Today:
+- [PortalPage.vue](web-app/src/pages/MainPages/PortalPage.vue) - Bottom padding fix
+- [GoalsDetailView.vue](web-app/src/pages/GoalPages/GoalsDetailView.vue) - Bottom padding + attachment display
+- [LoginView.vue](web-app/src/pages/RepProfile/LoginView.vue) - Brand color update
+- [RegisterNewProfile.vue](web-app/src/pages/RepProfile/RegisterNewProfile.vue) - Brand color update
+- [Terms.vue](web-app/src/pages/RepProfile/Terms.vue) - Brand color update
+- [OnboardingView.vue](web-app/src/pages/RepProfile/OnboardingView.vue) - Brand color update
+- [EditProfileComponent.vue](web-app/src/components/EditProfileComponent.vue) - Critical 500 error fix + image validation
+
+---
+
+## 🔧 Previous Session (Oct 26, 2025)
+
+### Tasks Completed:
 
 1. ✅ **Fixed Navigation After Login/Registration**
    - **Problem:** When users logged in or registered from a public page, hitting the back button would return them to login/register pages instead of MainScreen, leaving them stuck with no way to access the main app

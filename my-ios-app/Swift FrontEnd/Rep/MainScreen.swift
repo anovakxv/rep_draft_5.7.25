@@ -1534,9 +1534,6 @@ struct MainScreenContent: View {
             }
             pendingAction = nil
         }
-        .onAppear {
-            invitesManager.fetchPendingInvites()
-        }
     }
 }
 

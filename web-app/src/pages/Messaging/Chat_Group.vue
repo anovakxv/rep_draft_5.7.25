@@ -22,6 +22,16 @@
         </button>
       </div>
 
+      <!-- Group Members Horizontal Scroll -->
+      <div v-if="groupMembers.length > 0" class="flex overflow-x-auto bg-white px-3 py-2 border-b border-gray-200 shrink-0" style="scrollbar-width: none; -ms-overflow-style: none;">
+        <div class="flex gap-3">
+          <div v-for="member in groupMembers" :key="member.id" class="flex flex-col items-center flex-shrink-0">
+            <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profilePicture" :size="36" />
+            <span class="text-xs font-semibold text-gray-500 mt-1 max-w-[40px] truncate">{{ getInitials(member.name || '') }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Messages List -->
       <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-20" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
       <div v-if="canLoadOlder" class="flex justify-center py-2">
@@ -438,6 +448,14 @@ async function deleteGroup() {
   }
 }
 
+// --- Get Initials ---
+function getInitials(name: string): string {
+  const parts = name.trim().split(' ');
+  const first = parts[0]?.[0] || '';
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : '';
+  return (first + last).toUpperCase();
+}
+
 // --- Lifecycle ---
 onMounted(() => {
   if (window.RealtimeSocketManager) {
@@ -455,3 +473,16 @@ onUnmounted(() => {
   stopTyping();
 });
 </script>
+
+<style scoped>
+/* Hide scrollbar for Chrome, Safari, and Opera */
+.overflow-x-auto::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge, and Firefox (already handled inline) */
+.overflow-x-auto {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+</style>

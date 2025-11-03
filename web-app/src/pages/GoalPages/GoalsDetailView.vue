@@ -1015,14 +1015,15 @@ const FeedCell = defineComponent({
         // Display attachments if any (matching Swift implementation)
         props.feed.attachments && props.feed.attachments.length > 0
           ? h('div', {
-              class: 'overflow-x-auto py-2'
+              class: 'overflow-x-auto py-2',
+              style: { '-webkit-overflow-scrolling': 'touch' }
             }, [
               h('div', {
                 class: 'flex gap-3'
               }, props.feed.attachments.map(attachment =>
                 h('div', {
                   key: attachment.id,
-                  class: 'flex flex-col gap-1'
+                  class: 'flex flex-col gap-1 flex-shrink-0'
                 }, [
                   attachment.isImage
                     ? h('img', {

@@ -16,7 +16,7 @@ export default defineComponent({
     }
     const avatarStyle = { width: `${props.size}px`, height: `${props.size}px` };
     return () => {
-      if (props.photoURL) {
+      if (props.photoURL && props.photoURL.trim()) {
         const src = props.photoURL.startsWith('http') ? props.photoURL : `https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/${props.photoURL}`;
         return h('div', { style: avatarStyle, class: 'relative' }, [
           h('img', { src, class: 'rounded-full object-cover w-full h-full' })

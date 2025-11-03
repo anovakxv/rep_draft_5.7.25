@@ -26,7 +26,7 @@
       <div v-if="groupMembers.length > 0" class="flex overflow-x-auto bg-white px-3 py-2 border-b border-gray-200 shrink-0" style="scrollbar-width: none; -ms-overflow-style: none;">
         <div class="flex gap-3">
           <div v-for="member in groupMembers" :key="member.id" class="flex flex-col items-center flex-shrink-0">
-            <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profilePicture" :size="36" />
+            <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profile_picture_url" :size="36" />
             <span class="text-xs font-semibold text-gray-500 mt-1 max-w-[40px] truncate">{{ getInitials(member.name || '') }}</span>
           </div>
         </div>
@@ -62,14 +62,17 @@
       <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
         <div class="flex items-center gap-2">
           <textarea
+            ref="textareaRef"
             v-model="inputText"
             @input="handleInputChange"
-            rows="1"
+            @keydown="handleKeyDown"
+            @keydown.enter.exact.prevent="!isDesktop && sendMessage()"
+            :rows="isDesktop ? 2 : 1"
             class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
+            :class="{ 'min-h-[44px]': isDesktop }"
             style="--tw-ring-color: #8cc65d; border-color: inherit;"
-            placeholder="Type a message..."
-            @keydown.enter.exact.prevent="sendMessage"
-            maxlength="1000"
+            :placeholder="isDesktop ? 'Type a message... (Shift+Enter for new line)' : 'Type a message...'"
+            maxlength="5000"
             aria-label="Type a message"
           ></textarea>
           <button
@@ -102,7 +105,7 @@
           <h3 class="text-sm font-semibold text-gray-600 mb-2">Members ({{ groupMembers.length }})</h3>
           <div class="space-y-2">
             <div v-for="member in groupMembers" :key="member.id" class="flex items-center gap-3">
-              <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profilePicture" :size="40" />
+              <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profile_picture_url" :size="40" />
               <div>
                 <p class="font-semibold">{{ member.name || 'Unknown' }}</p>
                 <p v-if="member.id === creatorId" class="text-xs text-gray-500">Group Creator</p>
@@ -181,6 +184,8 @@ const creatorId = ref<number | null>(null);
 const showGroupInfo = ref(false);
 const showLeaveAlert = ref(false);
 const showDeleteAlert = ref(false);
+const isDesktop = ref(window.innerWidth >= 768);
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
 
@@ -201,7 +206,7 @@ interface GroupMessage {
 interface GroupMember {
   id: number;
   name: string;
-  profilePicture?: string;
+  profile_picture_url?: string;  // Backend returns snake_case
 }
 
 const typingUsersText = computed(() => {
@@ -292,6 +297,12 @@ async function sendMessage() {
 
     inputText.value = '';
     stopTyping();
+
+    // Reset textarea height on desktop after sending
+    if (isDesktop.value && textareaRef.value) {
+      textareaRef.value.style.height = 'auto';
+    }
+
     nextTick(() => scrollToBottom());
   } catch (e) {
     console.error('Failed to send message:', e);
@@ -314,6 +325,9 @@ function handleInputChange() {
   typingTimeout = setTimeout(() => {
     stopTyping();
   }, 3000);
+
+  // Auto-resize textarea on desktop
+  autoResizeTextarea();
 }
 
 function stopTyping() {
@@ -333,6 +347,36 @@ function emitTypingStatus(typing: boolean) {
       chatId: props.chatId,
       isTyping: typing
     });
+  }
+}
+
+// --- Desktop-specific Functions ---
+function handleKeyDown(event: KeyboardEvent) {
+  // Desktop: Enter sends, Shift+Enter adds newline
+  // Mobile: Enter is handled by @keydown.enter.prevent on template
+  if (isDesktop.value && event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResizeTextarea() {
+  // Only auto-resize on desktop
+  if (isDesktop.value && textareaRef.value) {
+    textareaRef.value.style.height = 'auto';
+    textareaRef.value.style.height = `${Math.min(textareaRef.value.scrollHeight, 180)}px`;
+  }
+}
+
+function updateDesktopDetection() {
+  isDesktop.value = window.innerWidth >= 768;
+  // Reset textarea height when switching between mobile/desktop
+  if (textareaRef.value) {
+    if (isDesktop.value) {
+      autoResizeTextarea();
+    } else {
+      textareaRef.value.style.height = 'auto';
+    }
   }
 }
 
@@ -464,6 +508,9 @@ onMounted(() => {
   fetchGroupInfo();
   fetchMessages();
   setupRealtimeListener();
+
+  // Add desktop detection listener
+  window.addEventListener('resize', updateDesktopDetection);
 });
 
 onUnmounted(() => {
@@ -471,6 +518,9 @@ onUnmounted(() => {
     window.RealtimeSocketManager.removeGroupMessageObserver?.(observerId);
   }
   stopTyping();
+
+  // Remove desktop detection listener
+  window.removeEventListener('resize', updateDesktopDetection);
 });
 </script>
 

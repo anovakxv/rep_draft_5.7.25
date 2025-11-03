@@ -132,7 +132,7 @@ window.RealtimeSocketManager = {
       unsubMap.delete(id);
     }
   },
-  
+
   // Private property to store unsubscribe functions
   _unsubMap: new Map<string, () => void>()
 };

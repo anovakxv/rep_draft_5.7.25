@@ -52,14 +52,17 @@
       <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
         <div class="flex items-center gap-2">
           <textarea
+            ref="textareaRef"
             v-model="inputText"
             @input="handleInputChange"
-            rows="1"
+            @keydown="handleKeyDown"
+            @keydown.enter.exact.prevent="!isDesktop && sendMessage()"
+            :rows="isDesktop ? 2 : 1"
             class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
+            :class="{ 'min-h-[44px]': isDesktop }"
             style="--tw-ring-color: #8cc65d; border-color: inherit;"
-            placeholder="Type a message..."
-            @keydown.enter.exact.prevent="sendMessage"
-            maxlength="1000"
+            :placeholder="isDesktop ? 'Type a message... (Shift+Enter for new line)' : 'Type a message...'"
+            maxlength="5000"
             aria-label="Type a message"
           ></textarea>
           <button
@@ -106,6 +109,8 @@ const canLoadOlder = ref(true);
 const scrollContainer = ref<HTMLElement | null>(null);
 const isTyping = ref(false);
 const otherUserTyping = ref(false);
+const isDesktop = ref(window.innerWidth >= 768);
+const textareaRef = ref<HTMLTextAreaElement | null>(null);
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
 
@@ -182,6 +187,12 @@ async function sendMessage() {
 
     inputText.value = '';
     stopTyping();
+
+    // Reset textarea height on desktop after sending
+    if (isDesktop.value && textareaRef.value) {
+      textareaRef.value.style.height = 'auto';
+    }
+
     nextTick(() => scrollToBottom());
   } catch (e) {
     console.error('Failed to send message:', e);
@@ -204,6 +215,9 @@ function handleInputChange() {
   typingTimeout = setTimeout(() => {
     stopTyping();
   }, 3000);
+
+  // Auto-resize textarea on desktop
+  autoResizeTextarea();
 }
 
 function stopTyping() {
@@ -223,6 +237,36 @@ function emitTypingStatus(typing: boolean) {
       recipientId: props.otherUserId,
       isTyping: typing
     });
+  }
+}
+
+// --- Desktop-specific Functions ---
+function handleKeyDown(event: KeyboardEvent) {
+  // Desktop: Enter sends, Shift+Enter adds newline
+  // Mobile: Enter is handled by @keydown.enter.prevent on template
+  if (isDesktop.value && event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendMessage();
+  }
+}
+
+function autoResizeTextarea() {
+  // Only auto-resize on desktop
+  if (isDesktop.value && textareaRef.value) {
+    textareaRef.value.style.height = 'auto';
+    textareaRef.value.style.height = `${Math.min(textareaRef.value.scrollHeight, 180)}px`;
+  }
+}
+
+function updateDesktopDetection() {
+  isDesktop.value = window.innerWidth >= 768;
+  // Reset textarea height when switching between mobile/desktop
+  if (textareaRef.value) {
+    if (isDesktop.value) {
+      autoResizeTextarea();
+    } else {
+      textareaRef.value.style.height = 'auto';
+    }
   }
 }
 
@@ -298,11 +342,17 @@ onMounted(() => {
   }
   fetchMessages();
   setupRealtimeListener();
+
+  // Add desktop detection listener
+  window.addEventListener('resize', updateDesktopDetection);
 });
 
 onUnmounted(() => {
   if (observerId && window.RealtimeSocketManager) {
     window.RealtimeSocketManager.removeDirectMessageObserver(observerId);
   }
+
+  // Remove desktop detection listener
+  window.removeEventListener('resize', updateDesktopDetection);
 });
 </script>

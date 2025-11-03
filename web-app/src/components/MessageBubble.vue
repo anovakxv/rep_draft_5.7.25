@@ -2,9 +2,9 @@
   <div class="flex" :class="isCurrentUser ? 'justify-end' : 'justify-start'">
     <!-- Profile Picture (for other user) -->
     <img
-      v-if="!isCurrentUser && profilePicURL"
+      v-if="!isCurrentUser && profilePicURL && profilePicURL.trim()"
       :src="profilePicURL"
-      class="w-8 h-8 rounded-full mr-2 mt-1 flex-shrink-0"
+      class="w-8 h-8 rounded-full mr-2 mt-1 flex-shrink-0 object-cover"
       alt="Profile"
     />
 

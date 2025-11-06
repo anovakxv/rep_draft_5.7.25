@@ -6,7 +6,7 @@ import os
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 
-def send_mail(to, subject, body, from_email='repcontact2025@gmail.com'):
+def send_mail(to, subject, body, from_email='contact@repsomething.com'):
     """
     Send an email using SendGrid.
     """

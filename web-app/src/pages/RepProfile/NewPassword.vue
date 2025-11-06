@@ -15,7 +15,8 @@
         <p class="text-gray-700">Your password has been reset successfully.</p>
         <button
           @click="goToLogin"
-          class="w-full py-3 bg-green-600 text-white font-bold rounded-lg"
+          class="w-full py-3 text-white font-bold rounded-lg"
+          style="background-color: #8cc65d;"
         >
           Back to Login
         </button>
@@ -27,7 +28,8 @@
           type="password"
           placeholder="New Password"
           autocomplete="new-password"
-          class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+          class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2"
+          style="--tw-ring-color: #8cc65d;"
           :disabled="isLoading"
         />
         <input
@@ -35,7 +37,8 @@
           type="password"
           placeholder="Confirm Password"
           autocomplete="new-password"
-          class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+          class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2"
+          style="--tw-ring-color: #8cc65d;"
           :disabled="isLoading"
         />
 
@@ -44,8 +47,8 @@
         <button
           type="submit"
           :disabled="isLoading || !newPassword || !confirmPassword"
-          class="w-full py-3 font-bold rounded-lg"
-          :class="(isLoading || !newPassword || !confirmPassword) ? 'bg-gray-300 text-gray-500' : 'bg-green-600 text-white'"
+          class="w-full py-3 font-bold rounded-lg text-white"
+          :style="(isLoading || !newPassword || !confirmPassword) ? 'background-color: #d1d5db; color: #6b7280;' : 'background-color: #8cc65d;'"
         >
           <span v-if="isLoading">Setting...</span>
           <span v-else>Set Password</span>

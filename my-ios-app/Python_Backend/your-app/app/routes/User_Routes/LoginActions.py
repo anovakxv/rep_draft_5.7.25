@@ -105,24 +105,84 @@ def api_forgot_password():
         # Remove any old hashes for this user
         PasswordUpdater.query.filter_by(users_id=user.id).delete()
 
-        # Create a new hash
+        # Create a new hash with timestamp for expiration
         hash_str = hashlib.md5(f"{user.id}{user.password}{PASS_SALT}{str(time.time())}".encode()).hexdigest()
-        updater = PasswordUpdater(users_id=user.id, hash=hash_str)
+        updater = PasswordUpdater(users_id=user.id, hash=hash_str, timestamp=datetime.utcnow())
         db.session.add(updater)
         db.session.commit()
 
-        reset_link = f"https://networkedcapital.co/reset_password/?token={hash_str}"
+        reset_link = f"https://www.repsomething.com/new-password?hash={hash_str}"
         message = f"""
-Hello,<br><br>
-We received a request to reset your password.<br><br>
-Click the link below to set a new password:<br>
-<a href="{reset_link}">{reset_link}</a><br><br>
-If you did not request this, you can ignore this email.<br><br>
-Thanks,<br>
-The Networked Capital Team
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f5f5f5;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 40px 40px 20px; text-align: center;">
+                            <h1 style="margin: 0; color: #8cc65d; font-size: 32px; font-weight: bold;">Rep</h1>
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 20px 40px 40px;">
+                            <h2 style="margin: 0 0 20px; color: #333333; font-size: 24px; font-weight: 600;">Reset Your Password</h2>
+                            <p style="margin: 0 0 20px; color: #666666; font-size: 16px; line-height: 24px;">
+                                We received a request to reset your password. Click the button below to create a new password:
+                            </p>
+
+                            <!-- Button -->
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                                <tr>
+                                    <td align="center" style="padding: 20px 0;">
+                                        <a href="{reset_link}" style="display: inline-block; padding: 14px 32px; background-color: #8cc65d; color: #ffffff; text-decoration: none; border-radius: 8px; font-size: 16px; font-weight: 600;">Reset Password</a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 20px 0 0; color: #666666; font-size: 14px; line-height: 20px;">
+                                Or copy and paste this link into your browser:
+                            </p>
+                            <p style="margin: 8px 0 0; color: #8cc65d; font-size: 14px; word-break: break-all;">
+                                {reset_link}
+                            </p>
+
+                            <p style="margin: 30px 0 0; color: #999999; font-size: 14px; line-height: 20px;">
+                                <strong>This link will expire in 1 hour.</strong>
+                            </p>
+
+                            <p style="margin: 20px 0 0; color: #999999; font-size: 14px; line-height: 20px;">
+                                If you didn't request this password reset, you can safely ignore this email. Your password will not be changed.
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 30px 40px; background-color: #f9f9f9; border-top: 1px solid #eeeeee; border-radius: 0 0 8px 8px;">
+                            <p style="margin: 0; color: #999999; font-size: 12px; line-height: 18px; text-align: center;">
+                                © 2025 Rep. All rights reserved.<br>
+                                <a href="https://www.repsomething.com" style="color: #8cc65d; text-decoration: none;">www.repsomething.com</a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
 """
 
-        send_mail(email, 'Reset your password', message, from_email='repcontact2025@gmail.com')
+        send_mail(email, 'Reset your password', message, from_email='contact@repsomething.com')
         return jsonify({'result': 'sent'})
 
     # Step 2: Reset password using hash
@@ -130,6 +190,14 @@ The Networked Capital Team
         updater = PasswordUpdater.query.filter_by(hash=hash_val).first()
         if not updater:
             return jsonify({'error': 'Invalid or expired reset link.'}), 400
+
+        # Check if token is expired (1 hour expiration)
+        if updater.timestamp:
+            token_age = datetime.utcnow() - updater.timestamp
+            if token_age > timedelta(hours=1):
+                db.session.delete(updater)
+                db.session.commit()
+                return jsonify({'error': 'Reset link has expired. Please request a new one.'}), 400
 
         if not new_password:
             return jsonify({'error': 'New password required.'}), 400

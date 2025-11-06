@@ -1,5 +1,5 @@
 <!--
-  NewPassword.vue
+  ResetPassword.vue
   Rep
 
   Created by Adam Novak on 09.09.2025
@@ -17,7 +17,8 @@
         </p>
         <button
           @click="goToLogin"
-          class="w-full py-3 bg-green-600 text-white font-bold rounded-lg mt-4"
+          class="w-full py-3 text-white font-bold rounded-lg mt-4"
+          style="background-color: #8cc65d;"
         >
           Back to Login
         </button>
@@ -29,7 +30,8 @@
           type="email"
           placeholder="Enter your email"
           autocomplete="email"
-          class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2 focus:ring-green-400"
+          class="w-full px-4 py-3 rounded-lg border border-gray-300 bg-gray-100 text-base mb-2 focus:outline-none focus:ring-2"
+          style="--tw-ring-color: #8cc65d;"
           :disabled="isLoading"
         />
 
@@ -38,8 +40,8 @@
         <button
           type="submit"
           :disabled="!email || isLoading"
-          class="w-full py-3 font-bold rounded-lg"
-          :class="(!email || isLoading) ? 'bg-gray-300 text-gray-500' : 'bg-green-600 text-white'"
+          class="w-full py-3 font-bold rounded-lg text-white"
+          :style="(!email || isLoading) ? 'background-color: #d1d5db; color: #6b7280;' : 'background-color: #8cc65d;'"
         >
           <span v-if="isLoading">Sending...</span>
           <span v-else>Send Reset Link</span>

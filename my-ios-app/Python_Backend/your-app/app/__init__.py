@@ -17,6 +17,7 @@ from config import Config
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from app.scheduler import init_scheduler
 
 db = SQLAlchemy()
 
@@ -101,6 +102,7 @@ def create_app():
     from app.routes.User_Routes.DeviceToken import user_bp as device_token_bp
     from app.routes.User_Routes.SearchPeople import search_people_bp
     from app.routes.User_Routes.Payments import payments_bp # <-- ADDED
+    from app.routes.User_Routes.TriggerDailySummary import admin_bp as trigger_summary_bp
 
     app.register_blueprint(search_people_bp)
     app.register_blueprint(add_to_network_bp, url_prefix='/api/user')
@@ -118,6 +120,7 @@ def create_app():
     app.register_blueprint(device_token_bp, url_prefix='/api/user')
     app.register_blueprint(get_people_bp)  # already has its own routes
     app.register_blueprint(payments_bp) # <-- ADDED
+    app.register_blueprint(trigger_summary_bp, url_prefix='/api/user')
 
     # --- Portal Blueprints ---
     from app.routes.Portal_Routes.Get_Portals import portal_bp as portal_list_bp
@@ -184,5 +187,8 @@ def create_app():
 
     # Socket.IO events (import last)
     from . import socket_events
+
+    # Initialize scheduler (only starts if WORKER_MODE=true)
+    init_scheduler(app)
 
     return app

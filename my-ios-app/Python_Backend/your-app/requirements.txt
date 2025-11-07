@@ -15,3 +15,4 @@ flask_jwt_extended
 requests
 google-auth
 stripe
+flask-apscheduler

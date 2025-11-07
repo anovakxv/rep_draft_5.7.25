@@ -14,7 +14,6 @@ keeping them isolated from the main web API process.
 
 import os
 from flask_apscheduler import APScheduler
-from app.tasks.daily_email_summary import send_daily_summary
 
 # Initialize scheduler (but don't start yet)
 scheduler = APScheduler()
@@ -89,6 +88,10 @@ def _add_jobs():
            - Function: send_daily_summary()
            - Purpose: Send email digest to users with new messages
     """
+
+    # Lazy import to avoid circular dependency
+    # (app/__init__.py imports scheduler, which needs db to be initialized first)
+    from app.tasks.daily_email_summary import send_daily_summary
 
     # Job 1: Daily Email Summary
     # Runs at 8:00 AM UTC every day

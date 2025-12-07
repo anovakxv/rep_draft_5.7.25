@@ -12,6 +12,7 @@ class Write(db.Model):
     users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     title = db.Column(db.String(255), nullable=True)  # Optional title for each write block
     content = db.Column(db.Text, nullable=False)
+    content_format = db.Column(db.String(10), default='plain')  # NEW: 'plain' or 'html'
     order = db.Column(db.Integer, nullable=True, default=0)  # For ordering blocks in the UI
     status = db.Column(db.String(20), default='published')  # e.g., 'draft', 'published', 'archived'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -28,6 +29,7 @@ class Write(db.Model):
             "users_id": self.users_id,
             "title": self.title,
             "content": self.content,
+            "content_format": self.content_format or 'plain',  # NEW: Default for safety
             "order": self.order,
             "status": self.status,
             "created_at": self.created_at.isoformat() + 'Z' if self.created_at else None,

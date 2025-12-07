@@ -71,6 +71,12 @@ def create_app():
     from app.models.People_Models.Write_Models import Writings_Model
     # Messaging_Models
     from app.models.People_Models.Messaging_Models import Direct_Messages, Group_Messages, GroupChatMetaData, GroupChatUsers
+    from app.models.People_Models.Messaging_Models.Message_Reactions import MessageReaction  # NEW
+    from app.models.People_Models.Messaging_Models.Message_Attachments import MessageAttachment  # NEW
+    from app.models.People_Models.Messaging_Models.Message_Edit_History import MessageEditHistory  # NEW
+    from app.models.People_Models.Messaging_Models.Group_Message_Reactions import GroupMessageReaction  # NEW
+    from app.models.People_Models.Messaging_Models.Group_Message_Attachments import GroupMessageAttachment  # NEW
+    from app.models.People_Models.Messaging_Models.Group_Message_Edit_History import GroupMessageEditHistory  # NEW
     # Purpose_Models
     from app.models.Purpose_Models import Portal, PortalEvent, PortalGraphicSection, PortalInvite, PortalTexts, PortalUser, PortalsUsersShare, FlaggedPortal
     # s3Content_Models
@@ -149,6 +155,13 @@ def create_app():
     from app.routes.Messaging_Routes.ManageChat import user_bp as manage_chat_bp
     from app.routes.Messaging_Routes.SendDirectMessage import user_bp as send_direct_message_bp
     from app.routes.Messaging_Routes.SendGroupChat import user_bp as send_group_chat_bp
+    # NEW MESSAGING ENHANCEMENTS:
+    from app.routes.Messaging_Routes.Message_Reactions_Routes import reactions_bp
+    from app.routes.Messaging_Routes.Message_Attachments_Routes import attachments_bp
+    from app.routes.Messaging_Routes.Message_Edit_Routes import message_edit_bp
+    from app.routes.Messaging_Routes.Group_Message_Reactions_Routes import group_reactions_bp
+    from app.routes.Messaging_Routes.Group_Message_Attachments_Routes import group_attachments_bp
+    from app.routes.Messaging_Routes.Group_Message_Edit_Routes import group_message_edit_bp
 
     app.register_blueprint(delete_group_chat_bp, url_prefix='/api/message')
     app.register_blueprint(delete_message_bp, url_prefix='/api/message')
@@ -159,6 +172,13 @@ def create_app():
     app.register_blueprint(manage_chat_bp, url_prefix='/api/message')
     app.register_blueprint(send_direct_message_bp, url_prefix='/api/message')
     app.register_blueprint(send_group_chat_bp, url_prefix='/api/message')
+    # NEW MESSAGING ENHANCEMENTS:
+    app.register_blueprint(reactions_bp, url_prefix='/api/message')
+    app.register_blueprint(attachments_bp, url_prefix='/api/message')
+    app.register_blueprint(message_edit_bp, url_prefix='/api/message')
+    app.register_blueprint(group_reactions_bp, url_prefix='/api/message')
+    app.register_blueprint(group_attachments_bp, url_prefix='/api/message')
+    app.register_blueprint(group_message_edit_bp, url_prefix='/api/message')
 
     # --- Goal Blueprints ---
     from app.routes.Goals_Routes.GetGoalProgressFeed import goals_bp as get_goal_progress_feed_bp

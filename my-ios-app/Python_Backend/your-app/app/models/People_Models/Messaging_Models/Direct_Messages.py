@@ -13,6 +13,8 @@ class DirectMessage(db.Model):
     recipient_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    edited_at = db.Column(db.DateTime, nullable=True)  # NEW: Timestamp of last edit (NULL if never edited)
+    is_deleted = db.Column(db.Boolean, default=False, nullable=False)  # NEW: Soft delete flag
     # Optionally: status, attachments, etc.
 
     # Relationships
@@ -34,5 +36,9 @@ class DirectMessage(db.Model):
             "created_at": ts,        # <-- added alias for iOS decoder
             "sender": self.sender.as_dict() if self.sender else None,
             "recipient": self.recipient.as_dict() if self.recipient else None,
-            "read": read
+            "read": read,
+            # NEW: Edit and deletion fields
+            "edited_at": self.edited_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.edited_at else None,
+            "is_edited": self.edited_at is not None,  # Convenience flag
+            "is_deleted": self.is_deleted
         }

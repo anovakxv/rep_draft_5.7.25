@@ -1,3 +1,33 @@
 .DS_Store
 nul
 web-app/src/nul
+
+# Enhanced/Draft files (not ready for production)
+*_Enhanced.vue
+*_ENHANCED.vue
+*_ENHANCED.py
+*_FIXED.vue
+*_Enhanced_v2.py
+
+# Supporting components for Enhanced files (not needed yet)
+web-app/src/components/WritingToolbar.vue
+web-app/src/components/WriteStats.vue
+web-app/src/components/DateSeparator.vue
+
+# Draft documentation
+my-ios-app/Python_Backend/your-app/DB_MIGRATION_WORKFLOW.md
+my-ios-app/Python_Backend/your-app/DEPLOYMENT_SEQUENCE.md
+my-ios-app/Python_Backend/your-app/MASTER_DEPLOYMENT_PLAN.md
+my-ios-app/Python_Backend/your-app/12.5_session_summary.md
+my-ios-app/Python_Backend/your-app/DATABASE_MIGRATION_WRITE_FORMAT.sql
+
+# Python cache and local DB
+**/__pycache__/
+*.pyc
+my-ios-app/Python_Backend/your-app/instance/test.db
+
+# Claude settings
+.claude/settings.local.json
+
+# Session summaries
+SESSION_SUMMARY.md

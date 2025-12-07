@@ -13,7 +13,7 @@ from datetime import datetime
 message_edit_bp = Blueprint('message_edit', __name__)
 
 # --- 1. Edit a message ---
-@message_edit_bp.route('/<int:message_id>', methods=['PUT', 'OPTIONS'])
+@message_edit_bp.route('/<int:message_id>', methods=['PUT'])
 @jwt_required
 def edit_message(message_id):
     """
@@ -77,7 +77,7 @@ def edit_message(message_id):
 
 
 # --- 2. Delete a message (soft delete) ---
-@message_edit_bp.route('/<int:message_id>', methods=['DELETE', 'OPTIONS'])
+@message_edit_bp.route('/<int:message_id>', methods=['DELETE'])
 @jwt_required
 def delete_message_soft(message_id):
     """
@@ -118,7 +118,7 @@ def delete_message_soft(message_id):
 
 
 # --- 3. Get edit history for a message ---
-@message_edit_bp.route('/<int:message_id>/history', methods=['GET', 'OPTIONS'])
+@message_edit_bp.route('/<int:message_id>/history', methods=['GET'])
 @jwt_required
 def get_edit_history(message_id):
     """
@@ -152,7 +152,7 @@ def get_edit_history(message_id):
 
 
 # --- 4. Restore a deleted message (undo delete) ---
-@message_edit_bp.route('/<int:message_id>/restore', methods=['POST', 'OPTIONS'])
+@message_edit_bp.route('/<int:message_id>/restore', methods=['POST'])
 @jwt_required
 def restore_message(message_id):
     """

@@ -131,7 +131,7 @@ def get_group_message_reactions(message_id):
 
 
 # --- 4. Toggle a reaction (add if not exists, remove if exists) ---
-@group_reactions_bp.route('/group/toggle-reaction/<int:message_id>', methods=['POST', 'OPTIONS'])
+@group_reactions_bp.route('/group/toggle-reaction/<int:message_id>', methods=['POST'])
 @jwt_required
 def toggle_group_reaction(message_id):
     """

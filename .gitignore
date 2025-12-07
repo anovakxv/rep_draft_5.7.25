@@ -9,10 +9,10 @@ web-app/src/nul
 *_FIXED.vue
 *_Enhanced_v2.py
 
-# Supporting components for Enhanced files (not needed yet)
-web-app/src/components/WritingToolbar.vue
-web-app/src/components/WriteStats.vue
-web-app/src/components/DateSeparator.vue
+# Supporting components - READY FOR PRODUCTION (removed from ignore)
+# web-app/src/components/WritingToolbar.vue
+# web-app/src/components/WriteStats.vue
+# web-app/src/components/DateSeparator.vue
 
 # Draft documentation
 my-ios-app/Python_Backend/your-app/DB_MIGRATION_WORKFLOW.md

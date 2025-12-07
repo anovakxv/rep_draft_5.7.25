@@ -31,6 +31,15 @@
           :message="msg"
           :isCurrentUser="msg.sender_id === currentUserId"
           :profilePicURL="msg.sender_id === otherUserId ? otherUserPhotoURL : null"
+          :editMode="editingMessageId === msg.id"
+          @toggleReaction="handleToggleReaction"
+          @showEmojiPicker="handleShowEmojiPicker"
+          @startEdit="handleStartEdit"
+          @saveEdit="handleSaveEdit"
+          @cancelEdit="handleCancelEdit"
+          @delete="handleDeleteMessage"
+          @restore="handleRestoreMessage"
+          @showEditHistory="handleShowEditHistory"
         />
       </div>
       <div v-if="isLoadingOlder" class="flex justify-center py-2">
@@ -77,6 +86,31 @@
         </div>
       </div>
     </div>
+
+    <!-- Emoji Picker Modal -->
+    <EmojiPicker
+      :show="showEmojiPicker"
+      :messageId="selectedMessageIdForEmoji"
+      @close="showEmojiPicker = false"
+      @selectEmoji="handleSelectEmoji"
+    />
+
+    <!-- Delete Confirmation Dialog -->
+    <DeleteConfirmDialog
+      :show="showDeleteConfirm"
+      @close="showDeleteConfirm = false"
+      @confirm="confirmDelete"
+    />
+
+    <!-- Edit History Modal -->
+    <EditHistoryModal
+      :show="showEditHistory"
+      :history="editHistory"
+      :loading="editHistoryLoading"
+      :error="editHistoryError"
+      @close="showEditHistory = false"
+      @retry="retryLoadHistory"
+    />
     </div>
   </div>
 </template>
@@ -85,6 +119,9 @@
 import { ref, onMounted, onUnmounted, nextTick, defineEmits } from 'vue';
 import api from '@/pages/utils/api';
 import MessageBubble from '@/components/MessageBubble.vue';
+import EmojiPicker from '@/components/EmojiPicker.vue';
+import DeleteConfirmDialog from '@/components/DeleteConfirmDialog.vue';
+import EditHistoryModal from '@/components/EditHistoryModal.vue';
 
 // --- Constants ---
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
@@ -114,6 +151,31 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null);
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
 
+// Emoji picker state
+const showEmojiPicker = ref(false);
+const selectedMessageIdForEmoji = ref<number | null>(null);
+
+// Edit state
+const editingMessageId = ref<number | null>(null);
+const editText = ref('');
+
+// Delete confirmation state
+const showDeleteConfirm = ref(false);
+const messageToDelete = ref<number | null>(null);
+
+// Edit history modal state
+const showEditHistory = ref(false);
+const editHistory = ref<any[] | null>(null);
+const editHistoryLoading = ref(false);
+const editHistoryError = ref(false);
+
+interface MessageReaction {
+  emoji: string;
+  count: number;
+  userReacted: boolean;
+  users?: Array<{ user_id: number; user_name: string }>;
+}
+
 interface SimpleMessage {
   id: number;
   sender_id: number;  // Backend returns snake_case
@@ -126,6 +188,10 @@ interface SimpleMessage {
     type: 'image' | 'file';
     filename?: string;
   }>;
+  reactions?: MessageReaction[];
+  is_edited?: boolean;
+  is_deleted?: boolean;
+  edited_at?: string;
 }
 
 // --- Fetch Messages ---
@@ -332,6 +398,124 @@ function onScroll() {
   if (scrollContainer.value.scrollTop < 60 && messages.value.length > 0) {
     loadOlder();
   }
+}
+
+// --- Reaction Handlers ---
+async function handleToggleReaction(messageId: number, emoji: string) {
+  try {
+    const res = await api.post(`/api/message/toggle-reaction/${messageId}`, { emoji });
+
+    // Update the message with new reactions data
+    const messageIndex = messages.value.findIndex(m => m.id === messageId);
+    if (messageIndex !== -1 && res.data.reactions) {
+      messages.value[messageIndex].reactions = res.data.reactions;
+    }
+  } catch (e) {
+    console.error('Failed to toggle reaction:', e);
+  }
+}
+
+function handleShowEmojiPicker(messageId: number) {
+  selectedMessageIdForEmoji.value = messageId;
+  showEmojiPicker.value = true;
+}
+
+async function handleSelectEmoji(messageId: number, emoji: string) {
+  showEmojiPicker.value = false;
+  await handleToggleReaction(messageId, emoji);
+}
+
+// --- Edit Handlers ---
+function handleStartEdit(message: SimpleMessage) {
+  editingMessageId.value = message.id;
+}
+
+function handleCancelEdit() {
+  editingMessageId.value = null;
+}
+
+async function handleSaveEdit(messageId: number, newText: string) {
+  if (!newText.trim()) return;
+
+  try {
+    const res = await api.put(`/api/message/${messageId}`, {
+      text: newText.trim()
+    });
+
+    // Update the message in the list
+    const messageIndex = messages.value.findIndex(m => m.id === messageId);
+    if (messageIndex !== -1) {
+      messages.value[messageIndex].text = newText.trim();
+      messages.value[messageIndex].is_edited = true;
+      messages.value[messageIndex].edited_at = res.data.edited_at || new Date().toISOString();
+    }
+
+    editingMessageId.value = null;
+  } catch (e) {
+    console.error('Failed to edit message:', e);
+  }
+}
+
+// --- Delete/Restore Handlers ---
+function handleDeleteMessage(messageId: number) {
+  messageToDelete.value = messageId;
+  showDeleteConfirm.value = true;
+}
+
+async function confirmDelete() {
+  if (messageToDelete.value === null) return;
+
+  try {
+    await api.delete(`/api/message/${messageToDelete.value}`);
+
+    // Mark message as deleted in the list
+    const messageIndex = messages.value.findIndex(m => m.id === messageToDelete.value);
+    if (messageIndex !== -1) {
+      messages.value[messageIndex].is_deleted = true;
+    }
+
+    messageToDelete.value = null;
+  } catch (e) {
+    console.error('Failed to delete message:', e);
+  }
+}
+
+async function handleRestoreMessage(messageId: number) {
+  try {
+    await api.post(`/api/message/${messageId}/restore`);
+
+    // Mark message as restored in the list
+    const messageIndex = messages.value.findIndex(m => m.id === messageId);
+    if (messageIndex !== -1) {
+      messages.value[messageIndex].is_deleted = false;
+    }
+  } catch (e) {
+    console.error('Failed to restore message:', e);
+  }
+}
+
+// --- Edit History Handler ---
+async function handleShowEditHistory(messageId: number) {
+  showEditHistory.value = true;
+  editHistoryLoading.value = true;
+  editHistoryError.value = false;
+  editHistory.value = null;
+
+  try {
+    const res = await api.get(`/api/message/${messageId}/history`);
+    editHistory.value = res.data.history || [];
+    editHistoryLoading.value = false;
+  } catch (e) {
+    console.error('Failed to load edit history:', e);
+    editHistoryError.value = true;
+    editHistoryLoading.value = false;
+  }
+}
+
+function retryLoadHistory() {
+  // Find the message ID from the current edit history context
+  // For now, just close and user can try again
+  editHistoryError.value = false;
 }
 
 // --- Lifecycle ---

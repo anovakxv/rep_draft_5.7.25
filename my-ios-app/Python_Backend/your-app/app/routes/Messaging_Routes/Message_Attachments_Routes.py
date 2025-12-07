@@ -58,7 +58,7 @@ def upload_to_s3(file, user_id):
 
 
 # --- 1. Add attachment to a message ---
-@attachments_bp.route('/message/<int:message_id>/attachment', methods=['POST'])
+@attachments_bp.route('/<int:message_id>/attachment', methods=['POST', 'OPTIONS'])
 @jwt_required
 def add_attachment(message_id):
     """
@@ -112,7 +112,7 @@ def add_attachment(message_id):
 
 
 # --- 2. Get all attachments for a message ---
-@attachments_bp.route('/message/<int:message_id>/attachments', methods=['GET'])
+@attachments_bp.route('/<int:message_id>/attachments', methods=['GET', 'OPTIONS'])
 @jwt_required
 def get_message_attachments(message_id):
     """
@@ -132,7 +132,7 @@ def get_message_attachments(message_id):
 
 
 # --- 3. Delete an attachment ---
-@attachments_bp.route('/message/<int:message_id>/attachment/<int:attachment_id>', methods=['DELETE'])
+@attachments_bp.route('/<int:message_id>/attachment/<int:attachment_id>', methods=['DELETE', 'OPTIONS'])
 @jwt_required
 def delete_attachment(message_id, attachment_id):
     """
@@ -166,7 +166,7 @@ def delete_attachment(message_id, attachment_id):
 
 
 # --- 4. Get attachment info (without downloading) ---
-@attachments_bp.route('/attachment/<int:attachment_id>', methods=['GET'])
+@attachments_bp.route('/attachment/<int:attachment_id>', methods=['GET', 'OPTIONS'])
 @jwt_required
 def get_attachment_info(attachment_id):
     """

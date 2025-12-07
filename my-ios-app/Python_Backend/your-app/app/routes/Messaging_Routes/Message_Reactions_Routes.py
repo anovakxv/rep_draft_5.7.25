@@ -131,7 +131,7 @@ def get_message_reactions(message_id):
 
 
 # --- 4. Toggle a reaction (add if not exists, remove if exists) ---
-@reactions_bp.route('/message/<int:message_id>/reaction/toggle', methods=['POST'])
+@reactions_bp.route('/toggle-reaction/<int:message_id>', methods=['POST', 'OPTIONS'])
 @jwt_required
 def toggle_reaction(message_id):
     """
@@ -169,7 +169,7 @@ def toggle_reaction(message_id):
         # Remove reaction
         db.session.delete(existing_reaction)
         db.session.commit()
-        return jsonify({'result': 'removed'})
+        action = 'removed'
     else:
         # Add reaction
         reaction = MessageReaction(
@@ -179,4 +179,29 @@ def toggle_reaction(message_id):
         )
         db.session.add(reaction)
         db.session.commit()
-        return jsonify({'result': 'added', 'reaction': reaction.as_dict()}), 201
+        action = 'added'
+
+    # Get updated grouped reactions for this message
+    reactions = MessageReaction.query.filter_by(message_id=message_id).all()
+    reactions_grouped = {}
+    for reaction in reactions:
+        emoji_char = reaction.emoji
+        if emoji_char not in reactions_grouped:
+            reactions_grouped[emoji_char] = {
+                "emoji": emoji_char,
+                "count": 0,
+                "userReacted": False,
+                "users": []
+            }
+        reactions_grouped[emoji_char]["count"] += 1
+        if reaction.user_id == user_id:
+            reactions_grouped[emoji_char]["userReacted"] = True
+        reactions_grouped[emoji_char]["users"].append({
+            "user_id": reaction.user_id,
+            "user_name": f"{reaction.user.fname or ''} {reaction.user.lname or ''}".strip() if reaction.user else ""
+        })
+
+    return jsonify({
+        'result': action,
+        'reactions': list(reactions_grouped.values())
+    })

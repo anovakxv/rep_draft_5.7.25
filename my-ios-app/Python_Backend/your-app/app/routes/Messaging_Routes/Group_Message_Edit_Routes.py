@@ -13,7 +13,7 @@ from datetime import datetime
 group_message_edit_bp = Blueprint('group_message_edit', __name__)
 
 # --- 1. Edit a group message ---
-@group_message_edit_bp.route('/group/<int:message_id>/edit', methods=['PUT'])
+@group_message_edit_bp.route('/group/<int:message_id>', methods=['PUT', 'OPTIONS'])
 @jwt_required
 def edit_group_message(message_id):
     """
@@ -77,7 +77,7 @@ def edit_group_message(message_id):
 
 
 # --- 2. Delete a group message (soft delete) ---
-@group_message_edit_bp.route('/group/<int:message_id>', methods=['DELETE'])
+@group_message_edit_bp.route('/group/<int:message_id>', methods=['DELETE', 'OPTIONS'])
 @jwt_required
 def delete_group_message_soft(message_id):
     """
@@ -118,7 +118,7 @@ def delete_group_message_soft(message_id):
 
 
 # --- 3. Get edit history for a group message ---
-@group_message_edit_bp.route('/group/<int:message_id>/edit_history', methods=['GET'])
+@group_message_edit_bp.route('/group/<int:message_id>/history', methods=['GET', 'OPTIONS'])
 @jwt_required
 def get_group_edit_history(message_id):
     """
@@ -152,7 +152,7 @@ def get_group_edit_history(message_id):
 
 
 # --- 4. Restore a deleted group message (undo delete) ---
-@group_message_edit_bp.route('/group/<int:message_id>/restore', methods=['POST'])
+@group_message_edit_bp.route('/group/<int:message_id>/restore', methods=['POST', 'OPTIONS'])
 @jwt_required
 def restore_group_message(message_id):
     """

@@ -63,6 +63,10 @@
           @touchstart="handleTouchStart"
           @touchend="handleTouchEnd"
           @touchmove="handleTouchMove"
+          @mousedown="handleMouseDown"
+          @mouseup="handleMouseUp"
+          @mouseleave="handleMouseLeave"
+          @contextmenu.prevent="handleRightClick"
         >
           <!-- Attachments -->
           <div v-if="message.attachments && message.attachments.length > 0" class="mb-2 space-y-2">
@@ -408,6 +412,45 @@ function handleMenuAction(action: 'react' | 'edit' | 'delete') {
       emit('delete', props.message.id)
       break
   }
+}
+
+// Mouse handlers for desktop long-press
+function handleMouseDown(event: MouseEvent) {
+  if (props.editMode) return // Don't trigger in edit mode
+
+  // Prevent text selection during long press
+  event.preventDefault()
+
+  longPressActive.value = true
+
+  // Trigger long press after 500ms
+  longPressTimer.value = setTimeout(() => {
+    showContextMenu.value = true
+  }, 500)
+}
+
+function handleMouseUp() {
+  if (longPressTimer.value) {
+    clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
+  longPressActive.value = false
+}
+
+function handleMouseLeave() {
+  if (longPressTimer.value) {
+    clearTimeout(longPressTimer.value)
+    longPressTimer.value = null
+  }
+  longPressActive.value = false
+}
+
+// Right-click handler for desktop context menu
+function handleRightClick(event: MouseEvent) {
+  if (props.editMode) return // Don't trigger in edit mode
+
+  // Show context menu immediately on right-click (desktop standard)
+  showContextMenu.value = true
 }
 </script>
 

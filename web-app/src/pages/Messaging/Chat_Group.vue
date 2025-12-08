@@ -41,7 +41,20 @@
         </button>
       </div>
       <div v-for="msg in messages" :key="msg.id" class="mb-3">
-        <GroupMessageBubble :message="msg" :isCurrentUser="msg.sender_id === currentUserId" />
+        <MessageBubble
+          :message="msg"
+          :isCurrentUser="msg.sender_id === currentUserId"
+          :profilePicURL="getProfilePicForSender(msg.sender_id)"
+          :editMode="editingMessageId === msg.id"
+          @toggleReaction="handleToggleReaction"
+          @showEmojiPicker="handleShowEmojiPicker"
+          @startEdit="handleStartEdit"
+          @saveEdit="handleSaveEdit"
+          @cancelEdit="handleCancelEdit"
+          @delete="handleDeleteMessage"
+          @restore="handleRestoreMessage"
+          @showEditHistory="handleShowEditHistory"
+        />
       </div>
       <div v-if="isLoadingOlder" class="flex justify-center py-2">
         <span class="animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"></span>
@@ -88,6 +101,21 @@
       </div>
     </div>
     </div>
+
+    <!-- Emoji Picker Modal -->
+    <EmojiPicker
+      :show="showEmojiPicker"
+      :messageId="selectedMessageIdForEmoji"
+      @close="showEmojiPicker = false"
+      @selectEmoji="handleSelectEmoji"
+    />
+
+    <!-- Delete Confirmation Dialog -->
+    <DeleteConfirmDialog
+      :show="showDeleteConfirm"
+      @cancel="showDeleteConfirm = false"
+      @confirm="confirmDelete"
+    />
 
     <!-- Group Info Modal -->
     <div v-if="showGroupInfo && groupMembers.length > 0" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -154,7 +182,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
 import api from '@/pages/utils/api';
-import GroupMessageBubble from '@/components/GroupMessageBubble';
+import MessageBubble from '@/components/MessageBubble.vue';
+import EmojiPicker from '@/components/EmojiPicker.vue';
+import DeleteConfirmDialog from '@/components/DeleteConfirmDialog.vue';
 import GroupMemberAvatar from '@/components/GroupMemberAvatar';
 
 // --- Constants ---
@@ -186,6 +216,12 @@ const showLeaveAlert = ref(false);
 const showDeleteAlert = ref(false);
 const isDesktop = ref(window.innerWidth >= 768);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+// Message enhancement states
+const showEmojiPicker = ref(false);
+const selectedMessageIdForEmoji = ref<number | null>(null);
+const showDeleteConfirm = ref(false);
+const messageToDelete = ref<number | null>(null);
+const editingMessageId = ref<number | null>(null);
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
 
@@ -201,6 +237,15 @@ interface GroupMessage {
     type: 'image' | 'file';
     filename?: string;
   }>;
+  reactions?: Array<{
+    emoji: string;
+    count: number;
+    userReacted: boolean;
+    users: Array<{ user_id: number; user_name: string }>;
+  }>;
+  is_edited?: boolean;
+  edited_at?: string;
+  is_deleted?: boolean;
 }
 
 interface GroupMember {
@@ -498,6 +543,131 @@ function getInitials(name: string): string {
   const first = parts[0]?.[0] || '';
   const last = parts.length > 1 ? parts[parts.length - 1]?.[0] || '' : '';
   return (first + last).toUpperCase();
+}
+
+// --- Get Profile Pic for Sender ---
+function getProfilePicForSender(senderId: number): string | undefined {
+  // Don't show profile pic for current user (MessageBubble will filter, but be explicit)
+  if (senderId === props.currentUserId) {
+    return undefined;
+  }
+
+  // Find the member in groupMembers array
+  const member = groupMembers.value.find(m => m.id === senderId);
+
+  if (!member?.profile_picture_url) {
+    return undefined;
+  }
+
+  // If it's already a full URL, return it
+  if (member.profile_picture_url.startsWith('http')) {
+    return member.profile_picture_url;
+  }
+
+  // Otherwise, construct the full S3 URL (same as GroupMemberAvatar component)
+  return `https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/${member.profile_picture_url}`;
+}
+
+// --- Reaction Handlers ---
+async function handleToggleReaction(messageId: number, emoji: string) {
+  try {
+    const res = await api.post(`/api/message/group/toggle-reaction/${messageId}`, { emoji });
+
+    // Update the message with new reactions data
+    const messageIndex = messages.value.findIndex(m => m.id === messageId);
+    if (messageIndex !== -1 && res.data.reactions) {
+      messages.value[messageIndex].reactions = res.data.reactions;
+    }
+  } catch (e) {
+    console.error('Failed to toggle reaction:', e);
+  }
+}
+
+function handleShowEmojiPicker(messageId: number) {
+  selectedMessageIdForEmoji.value = messageId;
+  showEmojiPicker.value = true;
+}
+
+async function handleSelectEmoji(messageId: number, emoji: string) {
+  showEmojiPicker.value = false;
+  await handleToggleReaction(messageId, emoji);
+}
+
+// --- Edit Handlers ---
+function handleStartEdit(message: GroupMessage) {
+  editingMessageId.value = message.id;
+}
+
+function handleCancelEdit() {
+  editingMessageId.value = null;
+}
+
+async function handleSaveEdit(messageId: number, newText: string) {
+  if (!newText.trim()) return;
+
+  try {
+    const res = await api.put(`/api/message/group/${messageId}`, {
+      text: newText.trim()
+    });
+
+    // Update the message in the list
+    const messageIndex = messages.value.findIndex(m => m.id === messageId);
+    if (messageIndex !== -1) {
+      messages.value[messageIndex].text = newText.trim();
+      messages.value[messageIndex].is_edited = true;
+      messages.value[messageIndex].edited_at = res.data.edited_at || new Date().toISOString();
+    }
+
+    editingMessageId.value = null;
+  } catch (e) {
+    console.error('Failed to edit message:', e);
+  }
+}
+
+// --- Delete/Restore Handlers ---
+function handleDeleteMessage(messageId: number) {
+  messageToDelete.value = messageId;
+  showDeleteConfirm.value = true;
+}
+
+async function confirmDelete() {
+  if (messageToDelete.value === null) return;
+
+  try {
+    await api.delete(`/api/message/group/${messageToDelete.value}`);
+
+    // Mark message as deleted in the list
+    const messageIndex = messages.value.findIndex(m => m.id === messageToDelete.value);
+    if (messageIndex !== -1) {
+      messages.value[messageIndex].is_deleted = true;
+    }
+
+    messageToDelete.value = null;
+    showDeleteConfirm.value = false;
+  } catch (e) {
+    console.error('Failed to delete message:', e);
+  }
+}
+
+async function handleRestoreMessage(messageId: number) {
+  try {
+    await api.post(`/api/message/group/${messageId}/restore`);
+
+    // Mark message as restored in the list
+    const messageIndex = messages.value.findIndex(m => m.id === messageId);
+    if (messageIndex !== -1) {
+      messages.value[messageIndex].is_deleted = false;
+    }
+  } catch (e) {
+    console.error('Failed to restore message:', e);
+  }
+}
+
+// --- Edit History Handler ---
+async function handleShowEditHistory(messageId: number) {
+  // For now, just log that this was requested
+  // Can implement a modal similar to DM if needed
+  console.log('Edit history requested for message:', messageId);
 }
 
 // --- Lifecycle ---

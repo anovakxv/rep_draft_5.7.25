@@ -7,7 +7,7 @@
 -->
 
 <template>
-  <div class="flex flex-col h-screen bg-white overflow-hidden">
+  <div class="flex flex-col h-screen bg-white overflow-hidden portal-page-container">
     <div v-if="isLoading && !portalDetail" class="flex items-center justify-center h-full">
       <div class="animate-spin h-8 w-8 border-4 border-green-600 border-t-transparent rounded-full"></div>
     </div>
@@ -15,66 +15,84 @@
       <p>{{ errorMessage }}</p>
     </div>
     <div v-else-if="portalDetail" class="flex flex-col flex-1 min-h-0">
-      <!-- 1. Custom Header -->
+      <!-- Header - Full Width Across Both Columns -->
       <PortalHeader :portal-name="portalDetail.name" @back="goBack" />
 
-      <!-- 2. Main Scrollable Content -->
-      <div class="flex-1 overflow-y-auto pb-20" style="overscroll-behavior-y: contain;">
-        <div class="relative">
-          <!-- Image Gallery -->
-          <ImageTabView 
-            :sections="portalDetail.aSections || []" 
-            @image-tap="openFullscreen" 
+      <!-- Two Column Layout (Desktop Only) -->
+      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+        <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
+        <div class="hidden md:flex md:w-[70%] md:h-[calc(100vh-3.5rem)] md:sticky md:top-[3.5rem] md:flex-col md:bg-black" style="border: 8px solid black;">
+          <ImageTabView
+            :sections="portalDetail.aSections || []"
+            @image-tap="openFullscreen"
+            :desktop-mode="true"
           />
+        </div>
 
-          <!-- Sticky Segmented Picker -->
-          <div class="sticky top-0 z-10 bg-white">
-            <div class="py-2 px-4 border-b border-t border-gray-200">
-              <PortalSegmentedPicker 
-                :segments="['Goal Teams', 'Story']" 
-                v-model="selectedSection" 
+        <!-- MOBILE & DESKTOP: Right Column - Content (30% on desktop) -->
+        <div class="flex flex-col flex-1 min-h-0 md:w-[30%]">
+
+        <!-- 2. Main Scrollable Content -->
+        <div class="flex-1 overflow-y-auto pb-20 md:pb-0" style="overscroll-behavior-y: contain;">
+          <div class="relative">
+            <!-- MOBILE ONLY: Image Gallery -->
+            <div class="md:hidden">
+              <ImageTabView
+                :sections="portalDetail.aSections || []"
+                @image-tap="openFullscreen"
+              />
+            </div>
+
+            <!-- Sticky Segmented Picker (mobile) / Static Picker (desktop) -->
+            <div class="sticky top-0 z-10 bg-white md:static">
+              <div class="py-2 px-4 border-b border-t border-gray-200">
+                <PortalSegmentedPicker
+                  :segments="['Goal Teams', 'Story']"
+                  v-model="selectedSection"
+                />
+              </div>
+            </div>
+
+            <!-- Conditional Content -->
+            <div class="px-4 pt-4 pb-24 md:pb-4">
+              <PortalResultsSection
+                v-if="selectedSection === 0"
+                :goals="portalGoals"
+              />
+              <PortalStorySection
+                v-else-if="selectedSection === 1"
+                :portal="portalDetail"
               />
             </div>
           </div>
+        </div>
 
-          <!-- Conditional Content -->
-          <div class="px-4 pt-4 pb-24">
-            <PortalResultsSection
-              v-if="selectedSection === 0"
-              :goals="portalGoals"
-            />
-            <PortalStorySection
-              v-else-if="selectedSection === 1"
-              :portal="portalDetail"
-            />
+        <!-- Fixed Bottom Bar (mobile) / Sticky Bottom Bar (desktop) -->
+        <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center md:sticky md:bottom-0 md:left-auto md:right-auto md:mt-auto">
+          <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 md:py-3" style="max-width: 768px; border-color: #e5e7eb;">
+            <!-- Message Button -->
+            <button
+              @click="openMessageSheet"
+              class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+              style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+            </button>
+
+            <!-- Add Button -->
+            <button
+              @click="handleAddAction"
+              class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
+              style="background-color: #8cc65d; color: white;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
           </div>
         </div>
-      </div>
-
-      <!-- Fixed Bottom Bar -->
-      <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center">
-        <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
-          <!-- Message Button -->
-          <button
-            @click="openMessageSheet"
-            class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
-            style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-            </svg>
-          </button>
-
-          <!-- Add Button -->
-          <button
-            @click="handleAddAction"
-            class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
-            style="background-color: #8cc65d; color: white;"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
@@ -524,32 +542,42 @@ const PortalHeader = defineComponent({
 });
 
 const ImageTabView = defineComponent({
-  props: { sections: Array as () => PortalSection[] },
+  props: {
+    sections: Array as () => PortalSection[],
+    desktopMode: Boolean
+  },
   emits: ['image-tap'],
   setup(props, { emit }) {
     const images = computed(() => props.sections?.flatMap(s => s.aFiles) || []);
     const currentImageIndex = ref(0);
-    
+
     const nextImage = () => {
       if (images.value.length > 0) {
         currentImageIndex.value = (currentImageIndex.value + 1) % images.value.length;
       }
     };
-    
+
     const prevImage = () => {
       if (images.value.length > 0) {
         currentImageIndex.value = (currentImageIndex.value - 1 + images.value.length) % images.value.length;
       }
     };
-    
-    return () => h('div', { 
-      class: 'relative w-full aspect-[16/9] bg-gray-200 overflow-hidden'
+
+    // Desktop: full height with black background, Mobile: 16:9 aspect ratio with gray background
+    const containerClass = props.desktopMode
+      ? 'relative w-full h-full bg-black overflow-hidden flex items-center justify-center'
+      : 'relative w-full aspect-[16/9] bg-gray-200 overflow-hidden';
+
+    return () => h('div', {
+      class: containerClass
     }, [
       // Main image display
       images.value.length > 0
         ? h('img', {
             src: images.value[currentImageIndex.value]?.url || '/placeholder-image.png',
-            class: 'w-full h-full object-cover cursor-pointer',
+            class: props.desktopMode
+              ? 'w-full h-full object-contain cursor-pointer'
+              : 'w-full h-full object-cover cursor-pointer',
             onClick: () => emit('image-tap', currentImageIndex.value)
           })
         : h('div', { 
@@ -855,17 +883,30 @@ const ActionSheetModal = defineComponent({
   },
   emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support'],
   setup(props, { emit }) {
+    const isDesktop = ref(window.innerWidth >= 768);
+
     return () => h('div', {
       class: 'fixed inset-0 z-40 flex items-end justify-center',
       onClick: () => emit('close')
     }, [
       h('div', {
         class: 'bg-black bg-opacity-50 w-full',
-        style: { maxWidth: '768px', position: 'absolute', top: '0', bottom: '0', left: '50%', transform: 'translateX(-50%)' }
+        style: {
+          maxWidth: isDesktop.value ? '100vw' : '768px',
+          position: 'absolute',
+          top: '0',
+          bottom: '0',
+          left: '50%',
+          transform: 'translateX(-50%)'
+        }
       }),
       h('div', {
         class: 'bg-white w-full rounded-t-2xl p-6 relative z-10',
-        style: { maxHeight: '80vh', overflowY: 'auto', maxWidth: '768px' },
+        style: {
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          maxWidth: isDesktop.value ? '100vw' : '768px'
+        },
         onClick: (e: Event) => e.stopPropagation()
       }, [
         h('div', { class: 'flex flex-col items-center space-y-6' }, [
@@ -1067,6 +1108,21 @@ const FullscreenImageViewer = defineComponent({
 </script>
 
 <style scoped>
+/* Desktop: Make portal page full width, breaking out of App.vue container */
+.portal-page-container {
+  /* Mobile: stay within container */
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .portal-page-container {
+    /* Desktop: break out to full viewport width */
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(-50vw + 50%);
+  }
+}
+
 /* Story section link styling - matching iOS LinkableText */
 .story-link {
   color: #2563eb !important;

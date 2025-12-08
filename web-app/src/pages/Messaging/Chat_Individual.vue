@@ -5,21 +5,55 @@
 -->
 
 <template>
-  <div class="flex flex-col h-screen bg-white">
-    <div class="flex flex-col flex-1 min-h-0">
-      <!-- Header -->
-      <div class="flex items-center h-14 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
-        <button @click="emit('close')" style="color: #8cc65d">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h1 class="font-bold text-lg flex-1 text-center truncate">{{ otherUserName }}</h1>
-        <div class="w-10"></div>
+  <div class="flex flex-col h-screen bg-white chat-individual-container">
+    <!-- Header - Full Width -->
+    <div class="flex items-center h-14 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+      <button @click="emit('close')" style="color: #8cc65d">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      <h1 class="font-bold text-lg flex-1 text-center truncate">{{ otherUserName }}</h1>
+      <div class="w-10"></div>
+    </div>
+
+    <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
+    <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+      <!-- LEFT COLUMN (Desktop): Input Area (40% width) -->
+      <div class="hidden md:flex md:flex-col md:w-[40%] md:border-r md:border-gray-200">
+        <!-- Input Area (Desktop - always visible) -->
+        <div class="flex-1 flex flex-col justify-end p-6">
+          <div class="space-y-4">
+            <h2 class="text-sm font-semibold text-gray-700">New Message</h2>
+            <textarea
+              ref="textareaRef"
+              v-model="inputText"
+              @input="handleInputChange"
+              @keydown="handleKeyDown"
+              rows="12"
+              class="w-full resize-none rounded-lg border border-gray-300 p-4 focus:outline-none focus:ring-2"
+              style="--tw-ring-color: #8cc65d; border-color: inherit; max-height: 500px;"
+              placeholder="Type a message... (Shift+Enter for new line)"
+              maxlength="5000"
+              aria-label="Type a message"
+            ></textarea>
+            <button
+              @click="sendMessage"
+              :disabled="inputText.trim() === '' || isSending"
+              class="w-full text-white font-bold px-5 py-4 rounded-lg transition disabled:opacity-60 text-lg"
+              style="background-color: #8cc65d"
+            >
+              <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full inline-block mr-2"></span>
+              Send
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- Messages List -->
-      <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-20" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
+      <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Messages Feed (60% width) -->
+      <div class="flex flex-col flex-1 min-h-0 md:w-[60%]">
+        <!-- Messages List -->
+        <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-20 md:pb-3" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
       <div v-if="canLoadOlder" class="flex justify-center py-2">
         <button @click="loadOlder" :disabled="isLoadingOlder" class="text-xs text-gray-500 hover:underline">
           <span v-if="isLoadingOlder" class="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full inline-block mr-1"></span>
@@ -54,23 +88,22 @@
         </div>
         <span>{{ otherUserName }} is typing...</span>
       </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Input Bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+    <!-- Input Bar (MOBILE ONLY - hidden on desktop) -->
+    <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
       <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
         <div class="flex items-center gap-2">
           <textarea
-            ref="textareaRef"
             v-model="inputText"
             @input="handleInputChange"
-            @keydown="handleKeyDown"
-            @keydown.enter.exact.prevent="!isDesktop && sendMessage()"
-            :rows="isDesktop ? 2 : 1"
+            @keydown.enter.exact.prevent="sendMessage()"
+            rows="1"
             class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
-            :class="{ 'min-h-[44px]': isDesktop }"
             style="--tw-ring-color: #8cc65d; border-color: inherit;"
-            :placeholder="isDesktop ? 'Type a message... (Shift+Enter for new line)' : 'Type a message...'"
+            placeholder="Type a message..."
             maxlength="5000"
             aria-label="Type a message"
           ></textarea>
@@ -111,7 +144,6 @@
       @close="showEditHistory = false"
       @retry="retryLoadHistory"
     />
-    </div>
   </div>
 </template>
 
@@ -317,8 +349,9 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 function autoResizeTextarea() {
-  // Only auto-resize on desktop
-  if (isDesktop.value && textareaRef.value) {
+  // Disable auto-resize on desktop - we have a fixed large textarea in the left column
+  // Only auto-resize on mobile if needed
+  if (!isDesktop.value && textareaRef.value) {
     textareaRef.value.style.height = 'auto';
     textareaRef.value.style.height = `${Math.min(textareaRef.value.scrollHeight, 180)}px`;
   }
@@ -540,3 +573,20 @@ onUnmounted(() => {
   window.removeEventListener('resize', updateDesktopDetection);
 });
 </script>
+
+<style scoped>
+/* Desktop: Make chat page full width, breaking out of App.vue container */
+.chat-individual-container {
+  /* Mobile: stay within container */
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .chat-individual-container {
+    /* Desktop: break out to full viewport width */
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(-50vw + 50%);
+  }
+}
+</style>

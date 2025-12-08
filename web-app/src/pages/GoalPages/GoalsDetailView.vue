@@ -5,7 +5,7 @@
 -->
 
 <template>
-  <div class="flex flex-col h-screen bg-white">
+  <div class="goal-detail-container flex flex-col h-screen bg-white">
     <!-- Loading State -->
     <div v-if="isLoading" class="flex-1 flex items-center justify-center">
       <div class="animate-spin h-8 w-8 border-4 border-rep-green border-t-transparent rounded-full"></div>
@@ -21,8 +21,8 @@
 
     <!-- Main Content -->
     <div v-else-if="goal" class="flex flex-col flex-1 min-h-0">
-      <!-- Custom Top Bar -->
-      <header class="flex items-center justify-between px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
+      <!-- Custom Top Bar (Mobile Only) -->
+      <header class="md:hidden flex items-center justify-between px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
         <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -45,89 +45,216 @@
         <div class="w-10"></div> <!-- Spacer -->
       </header>
 
-      <div class="flex-1 flex flex-col overflow-hidden">
-      <!-- Progress Bar and Metrics Section -->
-      <div class="p-4 border-b border-gray-200">
-        <!-- Progress Bar -->
-        <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-2">
-          <div
-            class="bg-rep-green h-full transition-all duration-300 ease-out"
-            :style="{ width: `${Math.min(100, Math.max(0, goal.progress * 100))}%` }"
-          ></div>
+      <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
+      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+        <!-- LEFT COLUMN (Desktop): Dashboard Panel (40% width) -->
+        <div class="hidden md:flex md:flex-col md:w-[40%] md:border-r md:border-gray-200 md:overflow-y-auto">
+          <!-- Goal Header -->
+          <div class="px-6 py-4 border-b border-gray-200">
+            <button @click="goBack" class="mb-3 inline-flex items-center gap-2" style="color: #8cc65d">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span class="text-sm font-medium">Back</span>
+            </button>
+            <h1 class="font-bold text-2xl mb-2">{{ goal?.title || 'Goal Details' }}</h1>
+            <button
+              v-if="goal?.portalId && goal?.portalName"
+              @click="navigateToPortal(goal.portalId)"
+              class="flex items-center gap-1"
+            >
+              <span class="text-sm" style="color: #006600;">{{ goal.portalName }}</span>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="color: #006600;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M17 7H7M17 7v10" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Progress Bar and Metrics -->
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-sm font-semibold text-gray-700 mb-3">Progress</h2>
+            <!-- Progress Bar -->
+            <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-3">
+              <div
+                class="bg-rep-green h-full transition-all duration-300 ease-out"
+                :style="{ width: `${Math.min(100, Math.max(0, goal.progress * 100))}%` }"
+              ></div>
+            </div>
+
+            <!-- Metrics Info -->
+            <div class="text-sm text-gray-600 space-y-2">
+              <div class="flex justify-between">
+                <span class="font-medium">Quota:</span>
+                <span>{{ Math.round(goal.quota) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-medium">Progress:</span>
+                <span>{{ Math.round(goal.filledQuota) }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-medium">Metric:</span>
+                <span>{{ goal.metricName }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="font-medium">Type:</span>
+                <span>{{ goal.typeName }}</span>
+              </div>
+              <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-sm mt-2 pt-2 border-t border-gray-200">
+                {{ goal.subtitle }}
+              </div>
+              <div v-if="goal.description && goal.description.trim()" class="text-secondary text-sm">
+                {{ goal.description }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Team Preview -->
+          <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-sm font-semibold text-gray-700 mb-3">Team Members</h2>
+            <div v-if="team.length === 0" class="text-sm text-gray-500">
+              No team members yet.
+            </div>
+            <div v-else class="space-y-2">
+              <TeamCell
+                v-for="user in team.slice(0, 5)"
+                :key="user.id"
+                :user="user"
+                @click="navigateToProfile(user.id)"
+              />
+              <button
+                v-if="team.length > 5"
+                @click="selectedSegment = 2"
+                class="text-sm font-medium w-full text-left py-2"
+                style="color: #8cc65d"
+              >
+                View all {{ team.length }} members →
+              </button>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="px-6 py-4 space-y-3 mt-auto">
+            <button
+              @click="openGoalTeamChat"
+              class="w-full flex items-center justify-center h-12 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+              style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Message Team
+            </button>
+
+            <button
+              @click="handleAddAction"
+              class="w-full flex items-center justify-center h-12 rounded-lg transition-transform hover:scale-105 active:scale-95"
+              style="background-color: #8cc65d; color: white;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add Action
+            </button>
+
+            <!-- Support Button (for Fund/Sales goals) -->
+            <button
+              v-if="goal.typeName === 'Fund' || goal.typeName === 'Sales'"
+              @click="showPaymentSheet = true"
+              class="w-full px-5 py-3 bg-white border-2 rounded-lg shadow-md flex items-center justify-center gap-2 font-bold transition-transform hover:scale-105 active:scale-95"
+              style="border-color: #006600; color: #006600;"
+            >
+              <span class="text-[22px]">$</span>
+              <span>Support</span>
+            </button>
+          </div>
         </div>
-        
-        <!-- Metrics Info -->
-        <div class="text-sm text-gray-600 space-y-1">
-          <div class="flex justify-between">
-            <span>Metric: {{ goal.metricName }}</span>
-            <span>Goal Type: {{ goal.typeName }}</span>
+
+        <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (60% width) -->
+        <div class="flex flex-col flex-1 min-h-0 md:w-[60%]">
+          <!-- Mobile: Progress Bar and Metrics Section -->
+          <div class="md:hidden p-4 border-b border-gray-200">
+            <!-- Progress Bar -->
+            <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-2">
+              <div
+                class="bg-rep-green h-full transition-all duration-300 ease-out"
+                :style="{ width: `${Math.min(100, Math.max(0, goal.progress * 100))}%` }"
+              ></div>
+            </div>
+
+            <!-- Metrics Info -->
+            <div class="text-sm text-gray-600 space-y-1">
+              <div class="flex justify-between">
+                <span>Metric: {{ goal.metricName }}</span>
+                <span>Goal Type: {{ goal.typeName }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Quota: {{ Math.round(goal.quota) }}</span>
+                <span>Progress: {{ Math.round(goal.filledQuota) }}</span>
+              </div>
+              <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-base mt-1">
+                {{ goal.subtitle }}
+              </div>
+              <div v-if="goal.description && goal.description.trim()" class="text-secondary text-base">
+                {{ goal.description }}
+              </div>
+            </div>
           </div>
-          <div class="flex justify-between">
-            <span>Quota: {{ Math.round(goal.quota) }}</span>
-            <span>Progress: {{ Math.round(goal.filledQuota) }}</span>
-          </div>
-          <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-base mt-1">
-            {{ goal.subtitle }}
-          </div>
-          <div v-if="goal.description && goal.description.trim()" class="text-secondary text-base">
-            {{ goal.description }}
+
+          <!-- Segmented Picker -->
+          <GoalSegmentedPicker
+            :segments="['Feed', 'Report', 'Team']"
+            :selected-index="selectedSegment"
+            @update:selected-index="selectedSegment = $event"
+            class="mx-4 my-4"
+          />
+
+          <!-- Content List -->
+          <div class="flex-1 overflow-y-auto pb-24 md:pb-4">
+            <!-- Feed Tab -->
+            <div v-if="selectedSegment === 0" class="px-4">
+              <div v-if="feed.length === 0" class="text-center text-gray-500 py-10">
+                No feed items yet.
+              </div>
+              <div v-else class="space-y-2">
+                <FeedCell
+                  v-for="feedItem in feed"
+                  :key="feedItem.id"
+                  :feed="feedItem"
+                  @profile-tap="navigateToProfile(getUserIdForFeed(feedItem))"
+                />
+              </div>
+            </div>
+
+            <!-- Report Tab -->
+            <div v-else-if="selectedSegment === 1" class="px-4">
+              <div v-if="goal.chartData && goal.chartData.length > 0">
+                <LargeBarChartView :data="goal.chartData" :quota="goal.quota" />
+              </div>
+              <div v-else class="text-center text-gray-500 py-10">
+                No chart data available.
+              </div>
+            </div>
+
+            <!-- Team Tab -->
+            <div v-else-if="selectedSegment === 2" class="px-4">
+              <div v-if="team.length === 0" class="text-center text-gray-500 py-10">
+                No team members yet.
+              </div>
+              <div v-else class="space-y-2">
+                <TeamCell
+                  v-for="user in team"
+                  :key="user.id"
+                  :user="user"
+                  @click="navigateToProfile(user.id)"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Segmented Picker -->
-      <GoalSegmentedPicker
-        :segments="['Feed', 'Report', 'Team']"
-        :selected-index="selectedSegment"
-        @update:selected-index="selectedSegment = $event"
-        class="mx-4 my-4"
-      />
-
-      <!-- Content List -->
-      <div class="flex-1 overflow-y-auto pb-24">
-        <!-- Feed Tab -->
-        <div v-if="selectedSegment === 0" class="px-4">
-          <div v-if="feed.length === 0" class="text-center text-gray-500 py-10">
-            No feed items yet.
-          </div>
-          <div v-else class="space-y-2">
-            <FeedCell
-              v-for="feedItem in feed"
-              :key="feedItem.id"
-              :feed="feedItem"
-              @profile-tap="navigateToProfile(getUserIdForFeed(feedItem))"
-            />
-          </div>
-        </div>
-        
-        <!-- Report Tab -->
-        <div v-else-if="selectedSegment === 1" class="px-4">
-          <div v-if="goal.chartData && goal.chartData.length > 0">
-            <LargeBarChartView :data="goal.chartData" :quota="goal.quota" />
-          </div>
-          <div v-else class="text-center text-gray-500 py-10">
-            No chart data available.
-          </div>
-        </div>
-        
-        <!-- Team Tab -->
-        <div v-else-if="selectedSegment === 2" class="px-4">
-          <div v-if="team.length === 0" class="text-center text-gray-500 py-10">
-            No team members yet.
-          </div>
-          <div v-else class="space-y-2">
-            <TeamCell
-              v-for="user in team"
-              :key="user.id"
-              :user="user"
-              @click="navigateToProfile(user.id)"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Fixed Bottom Bar -->
-      <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center" :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }">
+      <!-- Fixed Bottom Bar (Mobile Only) -->
+      <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center" :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }">
         <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
           <!-- Message Button -->
           <button
@@ -152,14 +279,13 @@
           </button>
         </div>
       </div>
-      </div>
     </div>
 
-    <!-- Floating Support Button - White background with dark green border (matching iOS) -->
+    <!-- Floating Support Button (Mobile Only) - White background with dark green border (matching iOS) -->
     <!-- Positioned bottom-right for Fund/Sales goals (matching iOS .bottomTrailing) -->
     <div
       v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales')"
-      class="fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
+      class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
       style="bottom: 70px"
     >
       <div class="w-full relative flex justify-end pr-5" style="max-width: 768px">
@@ -186,8 +312,8 @@
     <!-- Action Sheet - iOS style design -->
     <transition name="fade">
       <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end justify-center">
-        <div class="bg-black bg-opacity-50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
-        <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 768px">
+        <div class="bg-black bg-opacity-50 w-full" style="position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+        <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-height: 80vh; overflow-y: auto;">
           <div class="flex flex-col items-center space-y-6">
             <!-- Join Team (only if not on team and not creator, for Recruiting goals) -->
             <button
@@ -1197,5 +1323,20 @@ const LargeBarChartView = defineComponent({
 
 .scale-100 {
   transform: scale(1);
+}
+
+/* Desktop: Make goal detail page full width, breaking out of App.vue container */
+.goal-detail-container {
+  /* Mobile: stay within container */
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .goal-detail-container {
+    /* Desktop: break out to full viewport width */
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(-50vw + 50%);
+  }
 }
 </style>

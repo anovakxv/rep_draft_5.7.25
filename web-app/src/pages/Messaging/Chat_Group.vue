@@ -5,9 +5,9 @@
 -->
 
 <template>
-  <div class="flex flex-col h-screen bg-white">
+  <div class="chat-group-container flex flex-col h-screen bg-white">
     <div class="flex flex-col flex-1 min-h-0">
-      <!-- Header -->
+      <!-- Header - Full Width -->
       <div class="flex items-center h-14 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
         <button @click="emit('close')" style="color: #8cc65d">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -22,84 +22,121 @@
         </button>
       </div>
 
-      <!-- Group Members Horizontal Scroll -->
-      <div v-if="groupMembers.length > 0" class="flex overflow-x-auto bg-white px-3 py-2 border-b border-gray-200 shrink-0" style="scrollbar-width: none; -ms-overflow-style: none;">
-        <div class="flex gap-3">
-          <div v-for="member in groupMembers" :key="member.id" class="flex flex-col items-center flex-shrink-0">
-            <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profile_picture_url" :size="36" />
-            <span class="text-xs font-semibold text-gray-500 mt-1 max-w-[40px] truncate">{{ getInitials(member.name || '') }}</span>
+      <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
+      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+        <!-- LEFT COLUMN (Desktop): Input Area (40% width) -->
+        <div class="hidden md:flex md:flex-col md:w-[40%] md:border-r md:border-gray-200">
+          <!-- Input Area (Desktop - always visible) -->
+          <div class="flex-1 flex flex-col justify-end p-6">
+            <div class="space-y-4">
+              <h2 class="text-sm font-semibold text-gray-700">New Message</h2>
+              <textarea
+                ref="desktopTextareaRef"
+                v-model="inputText"
+                @input="handleInputChange"
+                @keydown="handleKeyDown"
+                rows="12"
+                class="w-full resize-none rounded-lg border border-gray-300 p-4 focus:outline-none focus:ring-2"
+                style="--tw-ring-color: #8cc65d; border-color: inherit; max-height: 500px;"
+                placeholder="Type a message... (Shift+Enter for new line)"
+                maxlength="5000"
+                aria-label="Type a message"
+              ></textarea>
+              <button
+                @click="sendMessage"
+                :disabled="inputText.trim() === '' || isSending"
+                class="w-full text-white font-bold px-5 py-4 rounded-lg transition disabled:opacity-60 text-lg"
+                style="background-color: #8cc65d"
+              >
+                <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full inline-block mr-2"></span>
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Messages Feed (60% width) -->
+        <div class="flex flex-col flex-1 min-h-0 md:w-[60%]">
+
+          <!-- Group Members Horizontal Scroll -->
+          <div v-if="groupMembers.length > 0" class="flex overflow-x-auto bg-white px-3 py-2 border-b border-gray-200 shrink-0" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <div class="flex gap-3">
+              <div v-for="member in groupMembers" :key="member.id" class="flex flex-col items-center flex-shrink-0">
+                <GroupMemberAvatar :name="member.name || 'Unknown'" :photoURL="member.profile_picture_url" :size="36" />
+                <span class="text-xs font-semibold text-gray-500 mt-1 max-w-[40px] truncate">{{ getInitials(member.name || '') }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Messages List -->
+          <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-20 md:pb-3" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
+            <div v-if="canLoadOlder" class="flex justify-center py-2">
+              <button @click="loadOlder" :disabled="isLoadingOlder" class="text-xs text-gray-500 hover:underline">
+                <span v-if="isLoadingOlder" class="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full inline-block mr-1"></span>
+                Load older messages
+              </button>
+            </div>
+            <div v-for="msg in messages" :key="msg.id" class="mb-3">
+              <MessageBubble
+                :message="msg"
+                :isCurrentUser="msg.sender_id === currentUserId"
+                :profilePicURL="getProfilePicForSender(msg.sender_id)"
+                :editMode="editingMessageId === msg.id"
+                @toggleReaction="handleToggleReaction"
+                @showEmojiPicker="handleShowEmojiPicker"
+                @startEdit="handleStartEdit"
+                @saveEdit="handleSaveEdit"
+                @cancelEdit="handleCancelEdit"
+                @delete="handleDeleteMessage"
+                @restore="handleRestoreMessage"
+                @showEditHistory="handleShowEditHistory"
+              />
+            </div>
+            <div v-if="isLoadingOlder" class="flex justify-center py-2">
+              <span class="animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"></span>
+            </div>
+            <!-- Typing Indicators -->
+            <div v-if="typingUsers.length > 0" class="mb-3 flex items-center gap-2 text-gray-500 text-sm">
+              <div class="flex gap-1">
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></span>
+                <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></span>
+              </div>
+              <span>{{ typingUsersText }} typing...</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Messages List -->
-      <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-20" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
-      <div v-if="canLoadOlder" class="flex justify-center py-2">
-        <button @click="loadOlder" :disabled="isLoadingOlder" class="text-xs text-gray-500 hover:underline">
-          <span v-if="isLoadingOlder" class="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full inline-block mr-1"></span>
-          Load older messages
-        </button>
-      </div>
-      <div v-for="msg in messages" :key="msg.id" class="mb-3">
-        <MessageBubble
-          :message="msg"
-          :isCurrentUser="msg.sender_id === currentUserId"
-          :profilePicURL="getProfilePicForSender(msg.sender_id)"
-          :editMode="editingMessageId === msg.id"
-          @toggleReaction="handleToggleReaction"
-          @showEmojiPicker="handleShowEmojiPicker"
-          @startEdit="handleStartEdit"
-          @saveEdit="handleSaveEdit"
-          @cancelEdit="handleCancelEdit"
-          @delete="handleDeleteMessage"
-          @restore="handleRestoreMessage"
-          @showEditHistory="handleShowEditHistory"
-        />
-      </div>
-      <div v-if="isLoadingOlder" class="flex justify-center py-2">
-        <span class="animate-spin h-5 w-5 border-2 border-gray-400 border-t-transparent rounded-full"></span>
-      </div>
-      <!-- Typing Indicators -->
-      <div v-if="typingUsers.length > 0" class="mb-3 flex items-center gap-2 text-gray-500 text-sm">
-        <div class="flex gap-1">
-          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms;"></span>
-          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms;"></span>
-          <span class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms;"></span>
-        </div>
-        <span>{{ typingUsersText }} typing...</span>
-      </div>
-    </div>
-
-    <!-- Input Bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center">
-      <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
-        <div class="flex items-center gap-2">
-          <textarea
-            ref="textareaRef"
-            v-model="inputText"
-            @input="handleInputChange"
-            @keydown="handleKeyDown"
-            @keydown.enter.exact.prevent="!isDesktop && sendMessage()"
-            :rows="isDesktop ? 2 : 1"
-            class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
-            :class="{ 'min-h-[44px]': isDesktop }"
-            style="--tw-ring-color: #8cc65d; border-color: inherit;"
-            :placeholder="isDesktop ? 'Type a message... (Shift+Enter for new line)' : 'Type a message...'"
-            maxlength="5000"
-            aria-label="Type a message"
-          ></textarea>
-          <button
-            @click="sendMessage"
-            :disabled="inputText.trim() === '' || isSending"
-            class="text-white font-bold px-4 py-2 rounded-lg transition disabled:opacity-60"
-            style="background-color: #8cc65d"
-          >
-            <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
-            Send
-          </button>
+      <!-- Input Bar (Mobile Only - Fixed Bottom) -->
+      <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+        <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
+          <div class="flex items-center gap-2">
+            <textarea
+              ref="textareaRef"
+              v-model="inputText"
+              @input="handleInputChange"
+              @keydown="handleKeyDown"
+              @keydown.enter.exact.prevent="!isDesktop && sendMessage()"
+              rows="1"
+              class="flex-1 resize-none rounded-lg border border-gray-300 p-2 focus:outline-none focus:ring-2"
+              style="--tw-ring-color: #8cc65d; border-color: inherit;"
+              placeholder="Type a message..."
+              maxlength="5000"
+              aria-label="Type a message"
+            ></textarea>
+            <button
+              @click="sendMessage"
+              :disabled="inputText.trim() === '' || isSending"
+              class="text-white font-bold px-4 py-2 rounded-lg transition disabled:opacity-60"
+              style="background-color: #8cc65d"
+            >
+              <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-2"></span>
+              Send
+            </button>
+          </div>
         </div>
       </div>
-    </div>
     </div>
 
     <!-- Emoji Picker Modal -->
@@ -216,6 +253,7 @@ const showLeaveAlert = ref(false);
 const showDeleteAlert = ref(false);
 const isDesktop = ref(window.innerWidth >= 768);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const desktopTextareaRef = ref<HTMLTextAreaElement | null>(null);
 // Message enhancement states
 const showEmojiPicker = ref(false);
 const selectedMessageIdForEmoji = ref<number | null>(null);
@@ -343,11 +381,6 @@ async function sendMessage() {
     inputText.value = '';
     stopTyping();
 
-    // Reset textarea height on desktop after sending
-    if (isDesktop.value && textareaRef.value) {
-      textareaRef.value.style.height = 'auto';
-    }
-
     nextTick(() => scrollToBottom());
   } catch (e) {
     console.error('Failed to send message:', e);
@@ -406,8 +439,9 @@ function handleKeyDown(event: KeyboardEvent) {
 }
 
 function autoResizeTextarea() {
-  // Only auto-resize on desktop
-  if (isDesktop.value && textareaRef.value) {
+  // Disable auto-resize on desktop - we have a fixed large textarea in the left column
+  // Only auto-resize on mobile if needed
+  if (!isDesktop.value && textareaRef.value) {
     textareaRef.value.style.height = 'auto';
     textareaRef.value.style.height = `${Math.min(textareaRef.value.scrollHeight, 180)}px`;
   }
@@ -704,5 +738,20 @@ onUnmounted(() => {
 .overflow-x-auto {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
+}
+
+/* Desktop: Make chat page full width, breaking out of App.vue container */
+.chat-group-container {
+  /* Mobile: stay within container */
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .chat-group-container {
+    /* Desktop: break out to full viewport width */
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(-50vw + 50%);
+  }
 }
 </style>

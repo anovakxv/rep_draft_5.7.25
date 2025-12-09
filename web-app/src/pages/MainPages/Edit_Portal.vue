@@ -170,71 +170,40 @@
 
         <!-- Story Blocks Editor Section -->
         <div class="space-y-4">
-          <h2 class="text-xl font-medium">Story</h2>
-          
+          <div class="flex justify-between items-center">
+            <h2 class="text-xl font-medium">Story</h2>
+            <button
+              @click="openAddBlockModal"
+              class="text-green-600 font-medium text-sm hover:text-green-700"
+            >
+              + Add Block
+            </button>
+          </div>
+
           <div v-if="storyBlocks.length === 0" class="text-gray-500 text-center py-4">
             No content yet.
           </div>
-          
+
           <!-- Existing Story Blocks -->
-          <div 
-            v-for="block in storyBlocks" 
+          <div
+            v-for="block in storyBlocks"
             :key="block.id"
             class="p-4 bg-white border rounded-lg space-y-3"
           >
             <h3 v-if="block.title" class="text-lg font-medium">{{ block.title }}</h3>
             <p class="text-base whitespace-pre-line">{{ block.content }}</p>
             <div class="flex justify-end space-x-4">
-              <button 
-                @click="editBlock(block)" 
+              <button
+                @click="editBlock(block)"
                 class="text-blue-600 text-base hover:text-blue-800"
               >
                 Edit
               </button>
-              <button 
-                @click="confirmDeleteBlock(block)" 
+              <button
+                @click="confirmDeleteBlock(block)"
                 class="text-red-600 text-base hover:text-red-800"
               >
                 Delete
-              </button>
-            </div>
-          </div>
-          
-          <!-- Divider -->
-          <div class="border-t border-gray-200 my-4"></div>
-          
-          <!-- Add/Edit Block Form -->
-          <div class="space-y-3">
-            <p class="text-sm text-gray-500">
-              {{ editingStoryBlock ? 'Edit block:' : 'Add new block:' }}
-            </p>
-            
-            <input 
-              v-model="storyTitle" 
-              type="text" 
-              placeholder="Title" 
-              class="w-full p-2 border rounded-lg text-lg focus:border-green-500 focus:ring-1 focus:ring-green-500"
-            />
-            
-            <textarea 
-              v-model="storyText" 
-              placeholder="Content" 
-              class="w-full p-2 border rounded-lg h-32 text-base focus:border-green-500 focus:ring-1 focus:ring-green-500"
-            ></textarea>
-            
-            <div class="flex justify-center">
-              <button 
-                v-if="editingStoryBlock"
-                @click="cancelEditingBlock" 
-                class="text-gray-600 mr-4 hover:text-gray-800"
-              >
-                Cancel Edit
-              </button>
-              <button 
-                @click="saveStoryBlock" 
-                class="font-bold text-green-600 hover:text-green-700"
-              >
-                {{ editingStoryBlock ? 'Update' : 'Save' }}
               </button>
             </div>
           </div>
@@ -353,26 +322,81 @@
     </div>
     
     <!-- Delete Portal Confirmation -->
-    <div 
-      v-if="showDeletePortalAlert" 
+    <div
+      v-if="showDeletePortalAlert"
       class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
     >
       <div class="bg-white rounded-lg p-6 max-w-sm w-full">
         <h3 class="text-lg font-bold mb-3">Delete Portal?</h3>
         <p class="text-gray-600 mb-6">Are you sure you want to delete this portal? This cannot be undone.</p>
         <div class="flex justify-end space-x-3">
-          <button 
-            @click="showDeletePortalAlert = false" 
+          <button
+            @click="showDeletePortalAlert = false"
             class="px-4 py-2 border rounded hover:bg-gray-50"
           >
             Cancel
           </button>
-          <button 
-            @click="deletePortal" 
+          <button
+            @click="deletePortal"
             class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
             Delete
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit/Add Story Block Modal -->
+    <div
+      v-if="showStoryBlockModal"
+      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      @click="closeStoryBlockModal"
+    >
+      <div
+        class="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] flex flex-col"
+        @click.stop
+      >
+        <!-- Header -->
+        <div class="p-4 border-b flex justify-between items-center shrink-0">
+          <button
+            @click="closeStoryBlockModal"
+            class="text-gray-600 hover:text-gray-800"
+          >
+            Cancel
+          </button>
+          <h2 class="font-bold text-lg">
+            {{ editingStoryBlock ? 'Edit Story Block' : 'Add Story Block' }}
+          </h2>
+          <button
+            @click="saveStoryBlock"
+            class="font-bold text-green-600 hover:text-green-700"
+            :disabled="!storyText.trim()"
+          >
+            {{ editingStoryBlock ? 'Update' : 'Save' }}
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-4 space-y-4 flex-1 overflow-y-auto">
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-gray-700">Title (optional)</label>
+            <input
+              v-model="storyTitle"
+              type="text"
+              placeholder="Enter a title..."
+              class="w-full p-3 border rounded-lg text-base focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
+            />
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-sm font-medium text-gray-700">Content</label>
+            <textarea
+              v-model="storyText"
+              placeholder="Write your story..."
+              class="w-full p-3 border rounded-lg text-base focus:border-green-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
+              rows="12"
+            ></textarea>
+          </div>
         </div>
       </div>
     </div>
@@ -475,6 +499,7 @@ const loadingNetworkMembers = ref(false);
 const showAddLeadsSheet = ref(false);
 const showDeleteStoryBlockAlert = ref(false);
 const showDeletePortalAlert = ref(false);
+const showStoryBlockModal = ref(false);
 
 // --- Methods ---
 const dismiss = () => router.back();
@@ -571,19 +596,40 @@ const prevImage = () => {
 };
 
 // Story block functions
+const openAddBlockModal = () => {
+  editingStoryBlock.value = null;
+  storyTitle.value = '';
+  storyText.value = '';
+  showStoryBlockModal.value = true;
+};
+
+const editBlock = (block: PortalWriteBlock) => {
+  editingStoryBlock.value = block;
+  storyTitle.value = block.title || '';
+  storyText.value = block.content;
+  showStoryBlockModal.value = true;
+};
+
+const closeStoryBlockModal = () => {
+  showStoryBlockModal.value = false;
+  editingStoryBlock.value = null;
+  storyTitle.value = '';
+  storyText.value = '';
+};
+
 const saveStoryBlock = () => {
   if (!storyText.value.trim()) {
     return; // Don't save empty blocks
   }
-  
+
   if (editingStoryBlock.value) {
     // Update existing block
     const index = storyBlocks.value.findIndex(b => b.id === editingStoryBlock.value!.id);
     if (index !== -1) {
-      storyBlocks.value[index] = { 
-        ...storyBlocks.value[index], 
-        title: storyTitle.value, 
-        content: storyText.value 
+      storyBlocks.value[index] = {
+        ...storyBlocks.value[index],
+        title: storyTitle.value,
+        content: storyText.value
       };
     }
   } else {
@@ -596,23 +642,9 @@ const saveStoryBlock = () => {
     };
     storyBlocks.value.push(newBlock);
   }
-  
-  // Reset form
-  editingStoryBlock.value = null;
-  storyTitle.value = '';
-  storyText.value = '';
-};
 
-const editBlock = (block: PortalWriteBlock) => {
-  editingStoryBlock.value = block;
-  storyTitle.value = block.title || '';
-  storyText.value = block.content;
-};
-
-const cancelEditingBlock = () => {
-  editingStoryBlock.value = null;
-  storyTitle.value = '';
-  storyText.value = '';
+  // Close modal and reset form
+  closeStoryBlockModal();
 };
 
 const confirmDeleteBlock = (block: PortalWriteBlock) => {

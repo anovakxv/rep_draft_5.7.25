@@ -230,8 +230,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, computed, defineComponent, h, nextTick, type Ref } from 'vue';
+import { ref, onMounted, onUnmounted, onActivated, watch, computed, defineComponent, h, nextTick, type Ref } from 'vue';
 import { useRouter, useRoute, RouterLink } from 'vue-router';
+
+// Define component name for keep-alive
+defineOptions({
+  name: 'MainScreen'
+});
 import api from '@/pages/utils/api';
 import { useSocketManager } from '../utils/useSocketManager';
 import { isAuthenticated } from '@/utils/auth';
@@ -312,7 +317,7 @@ interface Invite {
 
 // --- Composables (Mirroring ViewModels) ---
 
-const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
+const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>, lastFetchTime: Ref<Record<string, number>>) => {
   const portals = ref<Portal[]>([]);
   const searchResults = ref<Portal[]>([]);
   const isLoading = ref(false);
@@ -326,6 +331,7 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
     const limitParam = (tab === "all") ? "&limit=200" : "";
     const safeParam = safeOnly.value ? "&safe_only=true" : "";
     const authenticated = isAuthenticated();
+    const cacheKey = `portals-${section}-${safeOnly.value}`;
 
     try {
       let res;
@@ -383,6 +389,10 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
       portals.value = [];
     } finally {
       isLoading.value = false;
+      // Record successful fetch timestamp (even if result is empty)
+      if (!errorMessage.value) {
+        lastFetchTime.value[cacheKey] = Date.now();
+      }
     }
   };
 
@@ -427,7 +437,7 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>) => {
   return { portals, searchResults, isLoading, errorMessage, isSearching, fetchPortals, searchPortals, clearSearch };
 };
 
-const usePeople = (userId: Ref<number>) => {
+const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number>>) => {
   const users = ref<User[]>([]);
   const activeChats = ref<ActiveChat[]>([]);
   const searchResults = ref<User[]>([]);
@@ -440,6 +450,7 @@ const usePeople = (userId: Ref<number>) => {
   const fetchPeople = async (section: number) => {
     isLoading.value = true;
     errorMessage.value = null;
+    const cacheKey = `people-${section}`;
 
     try {
       if (section === 0) {
@@ -512,6 +523,10 @@ const usePeople = (userId: Ref<number>) => {
       }
     } finally {
       isLoading.value = false;
+      // Record successful fetch timestamp (even if result is empty)
+      if (!errorMessage.value) {
+        lastFetchTime.value[cacheKey] = Date.now();
+      }
     }
   };
 
@@ -612,30 +627,42 @@ const currentTab = computed(() => {
   return tabMap[section.value] || 'purpose';
 });
 
+// --- Cache State (for keep-alive optimization) ---
+const lastFetchTime = ref<Record<string, number>>({});
+const CACHE_DURATION = 30000; // 30 seconds - data is considered fresh for this duration
+const isInitialMount = ref(true);
+
+const shouldFetchData = (key: string): boolean => {
+  const lastFetch = lastFetchTime.value[key];
+  if (!lastFetch) return true; // Never fetched
+  const now = Date.now();
+  return (now - lastFetch) > CACHE_DURATION; // Fetch if data is stale
+};
+
 // --- View Models ---
 const { pendingInvites, fetchPendingInvites } = useInvites();
-const { 
-  portals, 
-  searchResults: searchResultsPortals, 
-  isLoading: isLoadingPortals, 
-  errorMessage: errorPortals, 
-  fetchPortals, 
-  searchPortals, 
-  clearSearch: clearPortalSearch 
-} = usePortals(userId, showOnlySafePortals);
+const {
+  portals,
+  searchResults: searchResultsPortals,
+  isLoading: isLoadingPortals,
+  errorMessage: errorPortals,
+  fetchPortals,
+  searchPortals,
+  clearSearch: clearPortalSearch
+} = usePortals(userId, showOnlySafePortals, lastFetchTime);
 
-const { 
-  users, 
-  activeChats, 
-  searchResults: searchResultsUsers, 
-  isLoading: isLoadingPeople, 
-  errorMessage: errorPeople, 
-  hasUnreadDM, 
-  hasUnreadGroup, 
-  fetchPeople, 
+const {
+  users,
+  activeChats,
+  searchResults: searchResultsUsers,
+  isLoading: isLoadingPeople,
+  errorMessage: errorPeople,
+  hasUnreadDM,
+  hasUnreadGroup,
+  fetchPeople,
   searchPeople,
   clearSearch: clearPeopleSearch
-} = usePeople(userId);
+} = usePeople(userId, lastFetchTime);
 
 // --- UI State ---
 const isLoading = computed(() => isLoadingPortals.value || isLoadingPeople.value);
@@ -886,6 +913,19 @@ watch([page, section, showOnlySafePortals], () => {
     return;
   }
 
+  // Skip if component is not mounted yet (will be handled by immediate: true on mount)
+  // Also skip if we just came from cache (onActivated handles it with cache checking)
+  // But DO fetch when user actively changes page/section/filter
+  const cacheKey = `${page.value}-${section.value}-${showOnlySafePortals.value}`;
+
+  // If we have a cached timestamp for this exact state, and it's fresh, skip fetching
+  // This prevents duplicate fetches when reactivated from cache
+  // But allows fetching when user toggles to a new page/section that hasn't been loaded
+  if (!isInitialMount.value && !shouldFetchData(cacheKey)) {
+    console.log('[MainScreen] Watcher: Using cached data for', cacheKey);
+    return;
+  }
+
   if (page.value === 'portals') {
     fetchPortals(section.value);
   } else {
@@ -1013,12 +1053,44 @@ onMounted(() => {
   });
 });
 
+// Called when component is reactivated from keep-alive cache
+onActivated(() => {
+  console.log('[MainScreen] Component activated from cache');
+  isInitialMount.value = false;
+
+  // Reconnect socket if needed
+  if (isAuthenticated()) {
+    connect(apiBaseUrl, token.value, userId.value);
+  }
+
+  // Only fetch data if it's stale (older than CACHE_DURATION)
+  const cacheKey = `${page.value}-${section.value}-${showOnlySafePortals.value}`;
+  if (shouldFetchData(cacheKey)) {
+    console.log('[MainScreen] Cache is stale, refreshing data');
+    if (section.value !== 0) {
+      if (page.value === 'portals') {
+        fetchPortals(section.value);
+      } else {
+        fetchPeople(section.value);
+      }
+    }
+  } else {
+    console.log('[MainScreen] Using cached data (fresh)');
+  }
+
+  // Always check for new invites and unread messages (lightweight)
+  if (isAuthenticated()) {
+    fetchPendingInvites();
+    scheduleUnreadPollingIfNeeded();
+  }
+});
+
 onUnmounted(() => {
   if (inviteTimer) clearInterval(inviteTimer);
   if (unsubscribeDM) unsubscribeDM();
   if (unsubscribeGroup) unsubscribeGroup();
   if (unsubscribeInvite) unsubscribeInvite();
-  
+
   document.removeEventListener('refreshActiveChats', () => {});
   document.removeEventListener('visibilitychange', () => {});
 });

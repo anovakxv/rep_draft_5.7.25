@@ -21,8 +21,28 @@ class DirectMessage(db.Model):
     sender = db.relationship('User', foreign_keys=[sender_id], backref='sent_direct_messages')
     recipient = db.relationship('User', foreign_keys=[recipient_id], backref='received_direct_messages')
 
-    def as_dict(self, read=None):
+    def as_dict(self, read=None, current_user_id=None):
         ts = self.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        # Build grouped reactions (same format as toggle_reaction endpoint)
+        reactions_grouped = {}
+        for reaction in self.reactions:
+            emoji = reaction.emoji
+            if emoji not in reactions_grouped:
+                reactions_grouped[emoji] = {
+                    "emoji": emoji,
+                    "count": 0,
+                    "userReacted": False,
+                    "users": []
+                }
+            reactions_grouped[emoji]["count"] += 1
+            if current_user_id and reaction.user_id == current_user_id:
+                reactions_grouped[emoji]["userReacted"] = True
+            reactions_grouped[emoji]["users"].append({
+                "user_id": reaction.user_id,
+                "user_name": f"{reaction.user.fname or ''} {reaction.user.lname or ''}".strip() if reaction.user else ""
+            })
+
         return {
             "id": self.id,
             "sender_id": self.sender_id,
@@ -40,5 +60,7 @@ class DirectMessage(db.Model):
             # NEW: Edit and deletion fields
             "edited_at": self.edited_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.edited_at else None,
             "is_edited": self.edited_at is not None,  # Convenience flag
-            "is_deleted": self.is_deleted
+            "is_deleted": self.is_deleted,
+            # NEW: Reactions (always included, iOS ignores unknown fields)
+            "reactions": list(reactions_grouped.values())
         }

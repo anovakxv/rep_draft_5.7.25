@@ -5,7 +5,11 @@
 <template>
   <div class="app-container">
     <div class="app-content">
-      <router-view />
+      <router-view v-slot="{ Component }">
+        <keep-alive :include="['MainScreen']">
+          <component :is="Component" />
+        </keep-alive>
+      </router-view>
     </div>
   </div>
 </template>

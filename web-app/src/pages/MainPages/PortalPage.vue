@@ -187,6 +187,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, defineComponent, defineAsyncComponent, h, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
+
+// Define component name for keep-alive
+defineOptions({
+  name: 'PortalPage'
+});
 import api from '@/pages/utils/api';
 import { isAuthenticated } from '@/utils/auth';
 // Lazy load EditGoal to prevent Tailwind @apply errors from blocking page load

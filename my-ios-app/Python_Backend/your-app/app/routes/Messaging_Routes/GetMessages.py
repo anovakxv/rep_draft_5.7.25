@@ -88,6 +88,6 @@ def api_get_messages():
         return "0"
 
     ordered = list(reversed(recent_desc)) if order == 'ASC' else recent_desc
-    payload = [m.as_dict(read=read_state(m)) for m in ordered]
+    payload = [m.as_dict(read=read_state(m), current_user_id=current_id) for m in ordered]
 
     return jsonify({'result': {'messages': payload}}), 200

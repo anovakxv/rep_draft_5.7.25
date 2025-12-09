@@ -1413,22 +1413,9 @@ struct WriteContentView: View {
                                 .fontWeight(.medium)
                         }
 
-                        // Display content based on format
-                        if write.contentFormat == "html" {
-                            // Attempt to render as attributed string, fallback to plain text
-                            if let attributedString = try? AttributedString(markdown: write.content) {
-                                Text(attributedString)
-                                    .font(.title3)
-                            } else {
-                                // Fallback: display as plain text
-                                Text(write.content)
-                                    .font(.title3)
-                            }
-                        } else {
-                            // Plain text (default)
-                            Text(write.content)
-                                .font(.title3)
-                        }
+                        // Display content as plain text
+                        Text(write.content)
+                            .font(.title3)
                         if isCurrentUser {
                             HStack {
                                 Button("Edit") {

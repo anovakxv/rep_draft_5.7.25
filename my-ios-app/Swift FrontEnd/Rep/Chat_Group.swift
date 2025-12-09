@@ -559,9 +559,31 @@ private struct GroupMessageRow: View {
         HStack(alignment: .bottom, spacing: 8) {
             if isCurrentUser {
                 Spacer()
-                GroupMessageBubble(message: message, isCurrentUser: true)
+                GroupMessageBubble(
+                    message: message,
+                    isCurrentUser: true,
+                    onReact: { msg in
+                        // TODO: Show reaction picker
+                        print("React to group message: \(msg.id)")
+                    },
+                    onEdit: { msg in
+                        // TODO: Show edit sheet
+                        print("Edit group message: \(msg.id)")
+                    }
+                )
             } else {
-                GroupMessageBubble(message: message, isCurrentUser: false)
+                GroupMessageBubble(
+                    message: message,
+                    isCurrentUser: false,
+                    onReact: { msg in
+                        // TODO: Show reaction picker
+                        print("React to group message: \(msg.id)")
+                    },
+                    onEdit: { msg in
+                        // Not used for other user's messages
+                        print("Edit not available for other user's messages")
+                    }
+                )
                 Spacer()
             }
         }
@@ -1186,6 +1208,8 @@ struct NTWKUserPicker: View {
 struct GroupMessageBubble: View {
     let message: GroupMessage
     let isCurrentUser: Bool
+    let onReact: (GroupMessage) -> Void
+    let onEdit: (GroupMessage) -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -1198,6 +1222,14 @@ struct GroupMessageBubble: View {
                             .background(Color.black)
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
+                            .contextMenu {
+                                Button(action: { onReact(message) }) {
+                                    Label("React", systemImage: "face.smiling")
+                                }
+                                Button(action: { onEdit(message) }) {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                            }
 
                         // Edit indicator
                         if message.isEdited == true {
@@ -1249,6 +1281,11 @@ struct GroupMessageBubble: View {
                             .background(Color(UIColor.systemGray5))
                             .foregroundColor(.black)
                             .cornerRadius(8)
+                            .contextMenu {
+                                Button(action: { onReact(message) }) {
+                                    Label("React", systemImage: "face.smiling")
+                                }
+                            }
 
                         // Edit indicator
                         if message.isEdited == true {

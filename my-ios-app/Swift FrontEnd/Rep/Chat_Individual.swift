@@ -412,9 +412,33 @@ struct MessageView: View {
                                 HStack(alignment: .bottom, spacing: 8) {
                                     if message.senderId == viewModel.currentUserId {
                                         Spacer()
-                                        MessageBubble(message: message, isCurrentUser: true, profilePicURL: nil)
+                                        MessageBubble(
+                                            message: message,
+                                            isCurrentUser: true,
+                                            profilePicURL: nil,
+                                            onReact: { msg in
+                                                // TODO: Show reaction picker
+                                                print("React to message: \(msg.id)")
+                                            },
+                                            onEdit: { msg in
+                                                // TODO: Show edit sheet
+                                                print("Edit message: \(msg.id)")
+                                            }
+                                        )
                                     } else {
-                                        MessageBubble(message: message, isCurrentUser: false, profilePicURL: viewModel.otherUserPhotoURL)
+                                        MessageBubble(
+                                            message: message,
+                                            isCurrentUser: false,
+                                            profilePicURL: viewModel.otherUserPhotoURL,
+                                            onReact: { msg in
+                                                // TODO: Show reaction picker
+                                                print("React to message: \(msg.id)")
+                                            },
+                                            onEdit: { msg in
+                                                // Not used for other user's messages
+                                                print("Edit not available for other user's messages")
+                                            }
+                                        )
                                         Spacer()
                                     }
                                 }
@@ -494,6 +518,8 @@ struct MessageBubble: View {
     let message: SimpleMessage
     let isCurrentUser: Bool
     let profilePicURL: URL?
+    let onReact: (SimpleMessage) -> Void
+    let onEdit: (SimpleMessage) -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -507,6 +533,14 @@ struct MessageBubble: View {
                             .background(Color.black)
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
+                            .contextMenu {
+                                Button(action: { onReact(message) }) {
+                                    Label("React", systemImage: "face.smiling")
+                                }
+                                Button(action: { onEdit(message) }) {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                            }
 
                         // Edit indicator
                         if message.isEdited == true {
@@ -561,6 +595,11 @@ struct MessageBubble: View {
                             .background(Color(UIColor.systemGray5))
                             .foregroundColor(.black)
                             .cornerRadius(8)
+                            .contextMenu {
+                                Button(action: { onReact(message) }) {
+                                    Label("React", systemImage: "face.smiling")
+                                }
+                            }
 
                         // Edit indicator
                         if message.isEdited == true {

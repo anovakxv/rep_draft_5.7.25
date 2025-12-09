@@ -305,22 +305,9 @@ struct PortalStoryBlocksEditorView: View {
                                 .fontWeight(.medium)
                         }
 
-                        // Display content based on format
-                        if block.contentFormat == "html" {
-                            // Attempt to render as attributed string, fallback to plain text
-                            if let attributedString = try? AttributedString(markdown: block.content) {
-                                Text(attributedString)
-                                    .font(.title3)
-                            } else {
-                                // Fallback: display as plain text
-                                Text(block.content)
-                                    .font(.title3)
-                            }
-                        } else {
-                            // Plain text (default)
-                            Text(block.content)
-                                .font(.title3)
-                        }
+                        // Display content as plain text
+                        Text(block.content)
+                            .font(.title3)
                         HStack {
                             Button("Edit") {
                                 editingBlock = block

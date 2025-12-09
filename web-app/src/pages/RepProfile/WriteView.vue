@@ -395,10 +395,17 @@ async function handleSave() {
   errorMessage.value = ''
 
   try {
+    // Strip HTML tags to ensure backwards compatibility with old iOS clients
+    const stripHtml = (html: string): string => {
+      const div = document.createElement('div')
+      div.innerHTML = html
+      return div.textContent || div.innerText || ''
+    }
+
     const payload = {
       title: title.value.trim(),
-      content: content.value.trim(),
-      content_format: 'html',  // Tell backend this is HTML content
+      content: stripHtml(content.value).trim(),  // Strip HTML for backwards compatibility
+      content_format: 'plain',  // Always use plain text for now
       status: isDraft.value ? 'draft' : 'published'
     }
 

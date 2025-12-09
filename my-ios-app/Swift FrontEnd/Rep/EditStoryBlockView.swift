@@ -28,31 +28,33 @@ struct EditStoryBlockView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
-                // Content area
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Title field
-                        TextField("Title (optional)", text: $titleText)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .font(.headline)
+            VStack(alignment: .leading, spacing: 12) {
+                // Title field
+                TextField("Title (optional)", text: $titleText)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .font(.headline)
+                    .padding(.horizontal)
+                    .padding(.top, 8)
 
-                        // Content field
-                        Text("Content")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                // Content field - fills remaining space with automatic scrolling
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Content")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
 
-                        TextEditor(text: $contentText)
-                            .font(.title3)
-                            .frame(minHeight: 200)
-                            .padding(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                            )
-                    }
-                    .padding()
+                    TextEditor(text: $contentText)
+                        .font(.title3)
+                        .padding(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                        .padding(.horizontal)
                 }
+                .frame(maxHeight: .infinity)
+
+                Spacer(minLength: 8)
             }
             .navigationTitle(block == nil ? "Add Story Block" : "Edit Story Block")
             .navigationBarTitleDisplayMode(.inline)
@@ -62,6 +64,7 @@ struct EditStoryBlockView: View {
                         onCancel()
                         dismiss()
                     }
+                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(block == nil ? "Save" : "Update") {
@@ -70,6 +73,7 @@ struct EditStoryBlockView: View {
                         dismiss()
                     }
                     .disabled(contentText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
                     .fontWeight(.bold)
                 }
             }

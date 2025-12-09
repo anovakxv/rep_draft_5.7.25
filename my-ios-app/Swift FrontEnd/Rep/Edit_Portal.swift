@@ -46,11 +46,20 @@ struct PortalWriteBlock: Identifiable, Codable {
     var created_at: String?
     var updated_at: String?
 
+    // NEW: Support for HTML content format (optional for backwards compatibility)
+    var contentFormat: String?
+
     init(title: String?, content: String, order: Int? = nil) {
         self.id = UUID()
         self.title = title
         self.content = content
         self.order = order
+        self.contentFormat = "plain" // iOS always creates plain text writes
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, content, order, created_at, updated_at
+        case contentFormat = "content_format"
     }
 }
 
@@ -68,9 +77,6 @@ class EditPortalViewModel: ObservableObject {
 
     // Story blocks
     @Published var storyBlocks: [PortalWriteBlock] = []
-    @Published var storyTitle: String = ""
-    @Published var storyText: String = ""
-    @Published var editingStoryBlock: PortalWriteBlock? = nil
 
     // Add Leads
     @Published var selectedLeads: [User] = []
@@ -142,20 +148,10 @@ class EditPortalViewModel: ObservableObject {
     }
 
     // Story block functions
-    func addStoryBlock() {
-        let newBlock = PortalWriteBlock(title: storyTitle, content: storyText, order: (storyBlocks.last?.order ?? 0) + 1)
-        storyBlocks.append(newBlock)
-        storyTitle = ""
-        storyText = ""
-    }
-
     func editStoryBlock(_ block: PortalWriteBlock) {
         if let idx = storyBlocks.firstIndex(where: { $0.id == block.id }) {
             storyBlocks[idx] = block
         }
-        editingStoryBlock = nil
-        storyTitle = ""
-        storyText = ""
     }
 
     func deleteStoryBlock(_ block: PortalWriteBlock) {
@@ -274,16 +270,30 @@ struct PortalStoryBlocksEditorView: View {
 
     @State private var showDeleteAlert = false
     @State private var blockToDelete: PortalWriteBlock?
+    @State private var showEditStorySheet = false
+    @State private var editingBlock: PortalWriteBlock? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Story")
-                .font(.title2)
-                .fontWeight(.medium)
-                .padding(.top, 8)
+            // Header with title and add button
+            HStack {
+                Text("Story")
+                    .font(.title2)
+                    .fontWeight(.medium)
+                Spacer()
+                Button(action: {
+                    editingBlock = nil
+                    showEditStorySheet = true
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                }
+            }
+            .padding(.top, 8)
 
             if viewModel.storyBlocks.isEmpty {
-                Text("No content yet.")
+                Text("No content yet. Tap + to add a story block.")
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
             } else {
@@ -294,13 +304,27 @@ struct PortalStoryBlocksEditorView: View {
                                 .font(.title2)
                                 .fontWeight(.medium)
                         }
-                        Text(block.content)
-                            .font(.title3)
+
+                        // Display content based on format
+                        if block.contentFormat == "html" {
+                            // Attempt to render as attributed string, fallback to plain text
+                            if let attributedString = try? AttributedString(markdown: block.content) {
+                                Text(attributedString)
+                                    .font(.title3)
+                            } else {
+                                // Fallback: display as plain text
+                                Text(block.content)
+                                    .font(.title3)
+                            }
+                        } else {
+                            // Plain text (default)
+                            Text(block.content)
+                                .font(.title3)
+                        }
                         HStack {
                             Button("Edit") {
-                                viewModel.editingStoryBlock = block
-                                viewModel.storyTitle = block.title ?? ""
-                                viewModel.storyText = block.content
+                                editingBlock = block
+                                showEditStorySheet = true
                             }
                             .font(.title3)
                             .foregroundColor(.blue)
@@ -319,45 +343,30 @@ struct PortalStoryBlocksEditorView: View {
                     .cornerRadius(8)
                 }
             }
-
-            Divider()
-            Text(viewModel.editingStoryBlock == nil ? "Add new block:" : "Edit block:")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.horizontal)
-            TextField("Title", text: $viewModel.storyTitle)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .font(.title2)
-                .padding(.horizontal)
-            TextEditor(text: $viewModel.storyText)
-                .font(.title3)
-                .frame(height: 120)
-                .padding(4)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                )
-                .padding(.horizontal)
-            Button(action: {
-                if let editing = viewModel.editingStoryBlock {
-                    var updated = editing
-                    updated.title = viewModel.storyTitle
-                    updated.content = viewModel.storyText
-                    viewModel.editStoryBlock(updated)
-                } else {
-                    viewModel.addStoryBlock()
-                }
-            }) {
-                Text(viewModel.editingStoryBlock == nil ? "Save" : "Update")
-                    .font(.body)
-                    .fontWeight(.bold)
-                    .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                    .padding(.top, 8)
-            }
-            .buttonStyle(PlainButtonStyle())
-            .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(.vertical)
+        .sheet(isPresented: $showEditStorySheet) {
+            EditStoryBlockView(
+                block: editingBlock,
+                onSave: { title, content in
+                    if let editing = editingBlock {
+                        // Update existing block
+                        var updated = editing
+                        updated.title = title
+                        updated.content = content
+                        viewModel.editStoryBlock(updated)
+                    } else {
+                        // Add new block
+                        let newBlock = PortalWriteBlock(title: title, content: content, order: (viewModel.storyBlocks.last?.order ?? 0) + 1)
+                        viewModel.storyBlocks.append(newBlock)
+                    }
+                    editingBlock = nil
+                },
+                onCancel: {
+                    editingBlock = nil
+                }
+            )
+        }
         .alert(isPresented: $showDeleteAlert) {
             Alert(
                 title: Text("Delete Story Block"),

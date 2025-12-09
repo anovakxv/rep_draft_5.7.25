@@ -182,7 +182,8 @@ struct GoalsDetailView: View {
                     onAdd: { activeSheet = .action },
                     onMessage: {
                         openGoalTeamChat()
-                    }
+                    },
+                    showMessageButton: viewModel.team.contains(where: { $0.id == viewModel.currentUserId })
                 )
             }
             .disabled(isCreatingTeamChat)
@@ -1042,6 +1043,7 @@ struct LargeBarChartView: View {
 struct BottomGoalBar: View {
     var onAdd: () -> Void
     var onMessage: () -> Void
+    var showMessageButton: Bool = true  // Only show message button to team members
 
     var body: some View {
         HStack(spacing: 30) {
@@ -1049,15 +1051,17 @@ struct BottomGoalBar: View {
                 Image(systemName: "plus")
                     .font(.system(size: 20))
                     .foregroundColor(.white)
-                    .frame(width: 291, height: 41)
+                    .frame(width: showMessageButton ? 291 : 355, height: 41)  // Full width if message button hidden
                     .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
                     .cornerRadius(6)
                     .shadow(color: Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 0.1)), radius: 3, x: 1, y: 4)
             }
-            Button(action: onMessage) {
-                Image(systemName: "message")
-                    .font(.system(size: 20))
-                    .foregroundColor(.black)
+            if showMessageButton {
+                Button(action: onMessage) {
+                    Image(systemName: "message")
+                        .font(.system(size: 20))
+                        .foregroundColor(.black)
+                }
             }
         }
         .frame(height: 51)

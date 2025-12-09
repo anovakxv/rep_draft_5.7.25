@@ -117,8 +117,9 @@
           <!-- Fixed Bottom Bar (Desktop) -->
           <div class="shrink-0 bg-white border-t shadow-lg" style="border-color: #e5e7eb;">
             <div class="flex items-center justify-center gap-3 py-1.5 px-4">
-              <!-- Message Button -->
+              <!-- Message Button (only for team members) -->
               <button
+                v-if="isUserOnTeam"
                 @click="openGoalTeamChat"
                 class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
                 style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
@@ -131,7 +132,8 @@
               <!-- Add Button -->
               <button
                 @click="handleAddAction"
-                class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
+                :class="isUserOnTeam ? 'flex-1' : 'w-full'"
+                class="flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
                 style="background-color: #8cc65d; color: white;"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
@@ -241,8 +243,9 @@
       <!-- Fixed Bottom Bar (Mobile Only) -->
       <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center" :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }">
         <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
-          <!-- Message Button -->
+          <!-- Message Button (only for team members) -->
           <button
+            v-if="isUserOnTeam"
             @click="openGoalTeamChat"
             class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
             style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
@@ -255,7 +258,8 @@
           <!-- Add Button -->
           <button
             @click="handleAddAction"
-            class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
+            :class="isUserOnTeam ? 'flex-1' : 'w-full'"
+            class="flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
             style="background-color: #8cc65d; color: white;"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">

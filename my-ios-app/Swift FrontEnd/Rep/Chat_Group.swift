@@ -61,6 +61,25 @@ extension Notification.Name {
 
 // MARK: - Group Message Model
 
+struct GroupMessageReaction: Identifiable, Decodable, Equatable {
+    let emoji: String
+    let count: Int
+    let userReacted: Bool
+    let users: [GroupReactionUser]
+
+    var id: String { emoji }
+}
+
+struct GroupReactionUser: Decodable, Equatable {
+    let userId: Int
+    let userName: String
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case userName = "user_name"
+    }
+}
+
 struct GroupMessage: Identifiable, Decodable {
     let id: Int
     let senderId: Int
@@ -68,6 +87,11 @@ struct GroupMessage: Identifiable, Decodable {
     let senderPhoto: String?
     let text: String
     let timestamp: Date
+
+    // NEW: Messaging enhancements (optional for backwards compatibility)
+    let reactions: [GroupMessageReaction]?
+    let isEdited: Bool?
+    let editedAt: String?
 
     var senderPhotoURL: URL? {
         patchProfilePictureURL(senderPhoto)
@@ -81,6 +105,9 @@ struct GroupMessage: Identifiable, Decodable {
         case text
         case timestamp
         case createdAt = "created_at"
+        case reactions
+        case isEdited = "is_edited"
+        case editedAt = "edited_at"
     }
 
     private static let isoWithFrac: ISO8601DateFormatter = {
@@ -110,6 +137,11 @@ struct GroupMessage: Identifiable, Decodable {
         } else {
             timestamp = Date()
         }
+
+        // NEW: Decode optional messaging enhancements
+        reactions = try? c.decodeIfPresent([GroupMessageReaction].self, forKey: .reactions)
+        isEdited = try? c.decodeIfPresent(Bool.self, forKey: .isEdited)
+        editedAt = try? c.decodeIfPresent(String.self, forKey: .editedAt)
     }
 }
 
@@ -1159,27 +1191,91 @@ struct GroupMessageBubble: View {
         HStack(alignment: .bottom, spacing: 8) {
             if isCurrentUser {
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(message.text)
-                        .padding(10)
-                        .background(Color.black)
-                        .foregroundColor(Color.repGreen)
-                        .cornerRadius(8)
+                VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.text)
+                            .padding(10)
+                            .background(Color.black)
+                            .foregroundColor(Color.repGreen)
+                            .cornerRadius(8)
+
+                        // Edit indicator
+                        if message.isEdited == true {
+                            Text("(edited)")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                        }
+
+                        // Reactions
+                        if let reactions = message.reactions, !reactions.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(reactions) { reaction in
+                                    Text("\(reaction.emoji) \(reaction.count)")
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            reaction.userReacted
+                                                ? Color.green.opacity(0.2)
+                                                : Color.gray.opacity(0.1)
+                                        )
+                                        .cornerRadius(12)
+                                }
+                            }
+                        }
+                    }
+
                     Text(message.timestamp, style: .time)
                         .font(.caption2)
                         .foregroundColor(.gray)
                 }
                 .frame(maxWidth: 260, alignment: .trailing)
             } else {
-                VStack(alignment: .leading, spacing: 2) {
+                // Profile picture for other users
+                GroupMemberAvatar(
+                    name: message.senderName,
+                    photoURL: message.senderPhotoURL,
+                    size: 32
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
                     Text(message.senderName)
                         .font(.caption2)
                         .foregroundColor(.gray)
-                    Text(message.text)
-                        .padding(10)
-                        .background(Color(UIColor.systemGray5))
-                        .foregroundColor(.black)
-                        .cornerRadius(8)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.text)
+                            .padding(10)
+                            .background(Color(UIColor.systemGray5))
+                            .foregroundColor(.black)
+                            .cornerRadius(8)
+
+                        // Edit indicator
+                        if message.isEdited == true {
+                            Text("(edited)")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                        }
+
+                        // Reactions
+                        if let reactions = message.reactions, !reactions.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(reactions) { reaction in
+                                    Text("\(reaction.emoji) \(reaction.count)")
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            reaction.userReacted
+                                                ? Color.green.opacity(0.2)
+                                                : Color.gray.opacity(0.1)
+                                        )
+                                        .cornerRadius(12)
+                                }
+                            }
+                        }
+                    }
+
                     Text(message.timestamp, style: .time)
                         .font(.caption2)
                         .foregroundColor(.gray)

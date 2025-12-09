@@ -216,6 +216,14 @@ struct WriteBlock: Identifiable, Codable {
     var order: Int?
     var created_at: String?
     var updated_at: String?
+
+    // NEW: Support for HTML content format (optional for backwards compatibility)
+    var contentFormat: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, title, content, order, created_at, updated_at
+        case contentFormat = "content_format"
+    }
 }
 
 // MARK: - ViewModel
@@ -229,7 +237,6 @@ class ProfileViewModel: ObservableObject {
     @Published var writeBlocks: [WriteBlock] = []
     @Published var writeText: String = ""
     @Published var writeTitle: String = ""
-    @Published var editingWrite: WriteBlock? = nil
     @Published var availableSkills: [SkillModel] = []
     @Published var isBlocked: Bool = false
 
@@ -429,9 +436,6 @@ class ProfileViewModel: ObservableObject {
         URLSession.shared.dataTask(with: request) { data, _, error in
             if let _ = data {
                 DispatchQueue.main.async {
-                    self.editingWrite = nil
-                    self.writeTitle = ""
-                    self.writeText = ""
                     self.fetchWrites(for: self.viewedUserId)
                 }
             }
@@ -1375,11 +1379,29 @@ struct WriteContentView: View {
 
     @State private var showDeleteAlert = false
     @State private var blockToDelete: WriteBlock?
+    @State private var showEditWriteSheet = false
+    @State private var editingWrite: WriteBlock? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            // Header with add button for current user
+            if isCurrentUser {
+                HStack {
+                    Spacer()
+                    Button(action: {
+                        editingWrite = nil
+                        showEditWriteSheet = true
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    }
+                }
+                .padding(.horizontal)
+            }
+
             if viewModel.writeBlocks.isEmpty {
-                Text("No content yet.")
+                Text(isCurrentUser ? "No content yet. Tap + to add a write block." : "No content yet.")
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
             } else {
@@ -1390,14 +1412,28 @@ struct WriteContentView: View {
                                 .font(.title3)
                                 .fontWeight(.medium)
                         }
-                        Text(write.content)
-                            .font(.title3)
+
+                        // Display content based on format
+                        if write.contentFormat == "html" {
+                            // Attempt to render as attributed string, fallback to plain text
+                            if let attributedString = try? AttributedString(markdown: write.content) {
+                                Text(attributedString)
+                                    .font(.title3)
+                            } else {
+                                // Fallback: display as plain text
+                                Text(write.content)
+                                    .font(.title3)
+                            }
+                        } else {
+                            // Plain text (default)
+                            Text(write.content)
+                                .font(.title3)
+                        }
                         if isCurrentUser {
                             HStack {
                                 Button("Edit") {
-                                    viewModel.editingWrite = write
-                                    viewModel.writeTitle = write.title ?? ""
-                                    viewModel.writeText = write.content
+                                    editingWrite = write
+                                    showEditWriteSheet = true
                                 }
                                 .font(.title3)
                                 .foregroundColor(.blue)
@@ -1417,50 +1453,33 @@ struct WriteContentView: View {
                     .cornerRadius(8)
                 }
             }
-            if isCurrentUser {
-                Divider()
-                Text(viewModel.editingWrite == nil ? "Add new block:" : "Edit block:")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal)
-                TextField("Title", text: $viewModel.writeTitle)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .font(.title2)
-                    .padding(.horizontal)
-                TextEditor(text: $viewModel.writeText)
-                    .font(.title3)
-                    .frame(height: 120)
-                    .padding(4)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-                    .padding(.horizontal)
-                Button(action: {
-                    if let editing = viewModel.editingWrite {
-                        print("Editing write with id: \(editing.id)")
-                        var updated = editing
-                        updated.title = viewModel.writeTitle
-                        updated.content = viewModel.writeText
-                        viewModel.editWrite(updated)
-                    } else {
-                        print("Adding new write")
-                        viewModel.addWrite()
-                    }
-                }) {
-                    Text(viewModel.editingWrite == nil ? "Save" : "Update")
-                        .font(.body)
-                        .fontWeight(.bold)
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .padding(.top, 8)
-                }
-                .buttonStyle(PlainButtonStyle())
-                .frame(maxWidth: .infinity, alignment: .center)
-            }
         }
         .padding(.vertical)
         .onAppear {
             viewModel.fetchWrites(for: viewModel.viewedUserId)
+        }
+        .sheet(isPresented: $showEditWriteSheet) {
+            EditWriteBlockView(
+                write: editingWrite,
+                onSave: { title, content in
+                    if let editing = editingWrite {
+                        // Update existing write
+                        var updated = editing
+                        updated.title = title
+                        updated.content = content
+                        viewModel.editWrite(updated)
+                    } else {
+                        // Add new write
+                        viewModel.writeTitle = title ?? ""
+                        viewModel.writeText = content
+                        viewModel.addWrite()
+                    }
+                    editingWrite = nil
+                },
+                onCancel: {
+                    editingWrite = nil
+                }
+            )
         }
         .alert("Delete Writing Block", isPresented: $showDeleteAlert) {
             Button("Delete", role: .destructive) {

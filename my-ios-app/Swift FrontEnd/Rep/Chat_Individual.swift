@@ -7,6 +7,25 @@ import SwiftUI
 
 // MARK: - Message Model
 
+struct MessageReaction: Identifiable, Decodable, Equatable {
+    let emoji: String
+    let count: Int
+    let userReacted: Bool
+    let users: [ReactionUser]
+
+    var id: String { emoji }
+}
+
+struct ReactionUser: Decodable, Equatable {
+    let userId: Int
+    let userName: String
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case userName = "user_name"
+    }
+}
+
 struct SimpleMessage: Identifiable, Decodable, Equatable {
     let id: Int
     let senderId: Int
@@ -15,6 +34,11 @@ struct SimpleMessage: Identifiable, Decodable, Equatable {
     let timestamp: Date
     let read: String?
 
+    // NEW: Messaging enhancements (optional for backwards compatibility)
+    let reactions: [MessageReaction]?
+    let isEdited: Bool?
+    let editedAt: String?
+
     enum CodingKeys: String, CodingKey {
         case id
         case senderId = "sender_id"
@@ -22,6 +46,9 @@ struct SimpleMessage: Identifiable, Decodable, Equatable {
         case text
         case timestamp
         case read
+        case reactions
+        case isEdited = "is_edited"
+        case editedAt = "edited_at"
     }
 }
 
@@ -472,12 +499,41 @@ struct MessageBubble: View {
         HStack(alignment: .bottom, spacing: 8) {
             if isCurrentUser {
                 Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(message.text)
-                        .padding(10)
-                        .background(Color.black)
-                        .foregroundColor(Color.repGreen)
-                        .cornerRadius(8)
+                VStack(alignment: .trailing, spacing: 4) {
+                    // Message bubble
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.text)
+                            .padding(10)
+                            .background(Color.black)
+                            .foregroundColor(Color.repGreen)
+                            .cornerRadius(8)
+
+                        // Edit indicator
+                        if message.isEdited == true {
+                            Text("(edited)")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                        }
+
+                        // Reactions
+                        if let reactions = message.reactions, !reactions.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(reactions) { reaction in
+                                    Text("\(reaction.emoji) \(reaction.count)")
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            reaction.userReacted
+                                                ? Color.green.opacity(0.2)
+                                                : Color.gray.opacity(0.1)
+                                        )
+                                        .cornerRadius(12)
+                                }
+                            }
+                        }
+                    }
+
                     Text(message.timestamp, style: .time)
                         .font(.caption2)
                         .foregroundColor(.gray)
@@ -497,12 +553,41 @@ struct MessageBubble: View {
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 32, height: 32)
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(message.text)
-                        .padding(10)
-                        .background(Color(UIColor.systemGray5))
-                        .foregroundColor(.black)
-                        .cornerRadius(8)
+                VStack(alignment: .leading, spacing: 4) {
+                    // Message bubble
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.text)
+                            .padding(10)
+                            .background(Color(UIColor.systemGray5))
+                            .foregroundColor(.black)
+                            .cornerRadius(8)
+
+                        // Edit indicator
+                        if message.isEdited == true {
+                            Text("(edited)")
+                                .font(.caption2)
+                                .foregroundColor(.gray)
+                        }
+
+                        // Reactions
+                        if let reactions = message.reactions, !reactions.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(reactions) { reaction in
+                                    Text("\(reaction.emoji) \(reaction.count)")
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            reaction.userReacted
+                                                ? Color.green.opacity(0.2)
+                                                : Color.gray.opacity(0.1)
+                                        )
+                                        .cornerRadius(12)
+                                }
+                            }
+                        }
+                    }
+
                     Text(message.timestamp, style: .time)
                         .font(.caption2)
                         .foregroundColor(.gray)

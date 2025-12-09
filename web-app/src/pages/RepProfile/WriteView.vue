@@ -45,7 +45,7 @@
             v-model="title"
             type="text"
             placeholder="Title"
-            class="w-full text-3xl md:text-4xl lg:text-5xl font-bold border-none outline-none bg-transparent placeholder-gray-400 focus:placeholder-gray-500 transition-colors"
+            class="w-full text-2xl md:text-3xl lg:text-4xl font-bold border-none outline-none bg-transparent placeholder-gray-400 focus:placeholder-gray-500 transition-colors"
             @input="clearError"
             :class="{ 'text-center': distractionFreeMode }"
           />

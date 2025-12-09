@@ -47,13 +47,23 @@ def api_group_chat():
         sender = m.sender
         full_name = (getattr(sender, "full_name", None) or
                      f"{getattr(sender,'fname','')} {getattr(sender,'lname','')}".strip())
+
+        # Get message dict with reactions
+        msg_dict = m.as_dict(current_user_id=user_id)
+
+        # Build response with both old format (for compatibility) and new fields (reactions, etc.)
         flat_messages.append({
-            "id": m.id,
-            "sender_id": m.sender_id,
+            "id": msg_dict["id"],
+            "sender_id": msg_dict["sender_id"],
             "sender_name": full_name or "",
             "sender_photo_url": getattr(sender, "profile_picture_url", None) if sender else None,
-            "text": m.text,
-            "timestamp": m.created_at.strftime("%Y-%m-%dT%H:%M:%SZ")
+            "text": msg_dict["text"],
+            "timestamp": m.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            # NEW: Include reactions and edit fields
+            "reactions": msg_dict.get("reactions", []),
+            "edited_at": msg_dict.get("edited_at"),
+            "is_edited": msg_dict.get("is_edited", False),
+            "is_deleted": msg_dict.get("is_deleted", False)
         })
 
     result = {

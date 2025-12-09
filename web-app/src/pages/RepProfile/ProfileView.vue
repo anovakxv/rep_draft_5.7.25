@@ -7,7 +7,7 @@
 -->
   
 <template>
-  <div class="flex flex-col h-screen bg-white">
+  <div class="profile-view-container flex flex-col h-screen bg-white">
     <!-- Loading State -->
     <div v-if="!isLoaded" class="flex-1 flex items-center justify-center">
       <div class="text-center">
@@ -28,114 +28,186 @@
 
     <!-- Main Content Container -->
     <div v-else class="flex flex-col flex-1 min-h-0">
-      <!-- Navigation Header -->
+      <!-- Navigation Header (Mobile Only) -->
       <NavigationHeaderView
+        class="md:hidden"
         :name="user.displayName"
         :show-settings="isCurrentUser"
         @back="goBack"
         @settings="goToSettings"
       />
 
-      <!-- Scrollable Content -->
-      <main class="flex-1 overflow-y-auto pb-20">
-      <div class="relative">
-        <!-- Profile Info -->
-        <ProfileInfoView
-          :photo-url="user.profile_picture_url"
-          :city="user.city"
-          :skills="user.skills ? user.skills.map(s => s.title) : []"
-          :display-name="user.displayName"
-        />
+      <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
+      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+        <!-- LEFT COLUMN (Desktop): Profile Summary Panel (30% width) -->
+        <div class="hidden md:flex md:flex-col md:w-[30%] md:border-r md:border-gray-200">
+          <!-- Desktop Header -->
+          <div class="flex items-center px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
+            <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div class="flex-1 flex flex-col items-center justify-center py-1">
+              <h1 class="font-bold text-lg truncate max-w-full px-2">{{ user.displayName }}</h1>
+            </div>
+            <div class="w-10 flex items-center justify-center">
+              <button v-if="isCurrentUser" @click="goToSettings" style="color: #8cc65d">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
 
-        <!-- Broadcast Message -->
-        <ProfileBroadcastView :broadcast="user.broadcast" />
+          <!-- Scrollable Profile Info Area -->
+          <div class="flex-1 overflow-y-auto">
+            <!-- Profile Info -->
+            <ProfileInfoView
+              :photo-url="user.profile_picture_url"
+              :city="user.city"
+              :skills="user.skills ? user.skills.map(s => s.title) : []"
+              :display-name="user.displayName"
+            />
 
-        <!-- Sticky Tab Header -->
-        <div class="sticky top-0 z-10 bg-white px-4 pt-2 pb-1">
-          <ProfileSegmentedPicker
-            :segments="['Rep', 'Goals', 'Write']"
-            v-model="selectedTab"
-          />
+            <!-- Broadcast Message -->
+            <ProfileBroadcastView :broadcast="user.broadcast" />
+          </div>
+
+          <!-- Fixed Bottom Bar (Desktop) -->
+          <div class="shrink-0 bg-white border-t shadow-lg" style="border-color: #e5e7eb;">
+            <div class="flex items-center justify-center gap-3 py-1.5 px-4">
+              <!-- Message Button -->
+              <button
+                @click="goToMessages"
+                class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+                style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </button>
+
+              <!-- Add Button -->
+              <button
+                @click="showActionMenu = true"
+                class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
+                style="background-color: #8cc65d; color: white;"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- Tab Content -->
-        <div class="px-4 pt-2">
-        <!-- Rep Tab -->
-        <div v-if="selectedTab === 'rep'" class="pt-2">
-          <ProfileRepSection
-            :portals="portals"
-            :is-current-user="isCurrentUser"
-            :show-add-partner="false"
-            @portal-click="goToPortal"
-          />
-        </div>
+        <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (70% width) -->
+        <div class="flex flex-col flex-1 min-h-0 md:w-[70%]">
+          <!-- Scrollable Content -->
+          <main class="flex-1 overflow-y-auto pb-20 md:pb-4">
+            <div class="relative">
+              <!-- Profile Info (Mobile Only) -->
+              <div class="md:hidden">
+                <ProfileInfoView
+                  :photo-url="user.profile_picture_url"
+                  :city="user.city"
+                  :skills="user.skills ? user.skills.map(s => s.title) : []"
+                  :display-name="user.displayName"
+                />
 
-        <!-- Goals Tab -->
-        <div v-if="selectedTab === 'goals'" class="pt-2">
-          <GoalsListSection
-            :goals="goals"
-            :is-current-user="isCurrentUser"
-            @goal-click="goToGoal"
-          />
-        </div>
+                <!-- Broadcast Message -->
+                <ProfileBroadcastView :broadcast="user.broadcast" />
+              </div>
 
-        <!-- Write Tab -->
-        <div v-if="selectedTab === 'write'" class="pt-2">
-          <WriteContentView
-            :write-blocks="writeBlocks"
-            :is-current-user="isCurrentUser"
-            :write-form="writeForm"
-            :editing-write="editingWrite"
-            @start-edit="startEditWrite"
-            @cancel-edit="cancelEditWrite"
-            @save-write="saveWrite"
-            @delete-write="confirmDeleteWrite"
-          />
+              <!-- Sticky Tab Header (mobile & desktop) -->
+              <div class="sticky top-0 z-10 bg-white">
+                <div class="px-4 pt-2 pb-1 border-b border-t border-gray-200">
+                  <ProfileSegmentedPicker
+                    :segments="['Rep', 'Goals', 'Write']"
+                    v-model="selectedTab"
+                  />
+                </div>
+              </div>
+
+              <!-- Tab Content -->
+              <div class="px-4 pt-2">
+                <!-- Rep Tab -->
+                <div v-if="selectedTab === 'rep'" class="pt-2">
+                  <ProfileRepSection
+                    :portals="portals"
+                    :is-current-user="isCurrentUser"
+                    :show-add-partner="false"
+                    @portal-click="goToPortal"
+                  />
+                </div>
+
+                <!-- Goals Tab -->
+                <div v-if="selectedTab === 'goals'" class="pt-2">
+                  <GoalsListSection
+                    :goals="goals"
+                    :is-current-user="isCurrentUser"
+                    @goal-click="goToGoal"
+                  />
+                </div>
+
+                <!-- Write Tab -->
+                <div v-if="selectedTab === 'write'" class="pt-2">
+                  <WriteContentView
+                    :write-blocks="writeBlocks"
+                    :is-current-user="isCurrentUser"
+                    :write-form="writeForm"
+                    :editing-write="editingWrite"
+                    @start-edit="startEditWrite"
+                    @cancel-edit="cancelEditWrite"
+                    @save-write="saveWrite"
+                    @delete-write="confirmDeleteWrite"
+                  />
+                </div>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
-      </div>
-    </main>
-    </div>
 
-    <!-- Fixed Bottom Bar -->
-    <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center">
-      <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
-        <!-- Message Button -->
-        <button
-          @click="goToMessages"
-          class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
-          style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-          </svg>
-        </button>
+      <!-- Fixed Bottom Bar (Mobile Only) -->
+      <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+        <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
+          <!-- Message Button -->
+          <button
+            @click="goToMessages"
+            class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+            style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          </button>
 
-        <!-- Add Button -->
-        <button
-          @click="showActionMenu = true"
-          class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
-          style="background-color: #8cc65d; color: white;"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+          <!-- Add Button -->
+          <button
+            @click="showActionMenu = true"
+            class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
+            style="background-color: #8cc65d; color: white;"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Action Menu Modal -->
     <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end justify-center">
-      <div class="bg-black bg-opacity-50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
-      <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 768px">
+      <div class="bg-black bg-opacity-50 w-full max-w-[768px] md:max-w-full" style="position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+      <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10 max-w-[768px] md:max-w-full max-h-[80vh] overflow-y-auto">
         <div class="flex flex-col items-center space-y-6">
           <!-- Current User Actions -->
           <template v-if="isCurrentUser">
             <button @click="goToEditProfile" class="text-[#8cc65d] font-bold text-[28px] py-3">Edit Profile</button>
             <button @click="goToAddPurpose" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Purpose</button>
             <button @click="goToAddGoal" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Goal</button>
-            <button @click="logout" class="text-red-600 font-bold text-[28px] py-3">Logout</button>
-            <button @click="showPolicy = true" class="text-gray-500 text-[16px] py-3">Policy</button>
           </template>
           <!-- Other User Actions -->
           <template v-else>
@@ -882,4 +954,18 @@ onMounted(fetchProfile)
 </script>
 
 <style scoped>
+/* Desktop: Make profile view full width, breaking out of App.vue container */
+.profile-view-container {
+  /* Mobile: stay within container */
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .profile-view-container {
+    /* Desktop: break out to full viewport width */
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: calc(-50vw + 50%);
+  }
+}
 </style>

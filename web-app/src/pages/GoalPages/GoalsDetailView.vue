@@ -47,125 +47,110 @@
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
       <div class="flex flex-col flex-1 min-h-0 md:flex-row">
-        <!-- LEFT COLUMN (Desktop): Dashboard Panel (40% width) -->
-        <div class="hidden md:flex md:flex-col md:w-[40%] md:border-r md:border-gray-200 md:overflow-y-auto">
+        <!-- LEFT COLUMN (Desktop): Dashboard Panel (30% width) -->
+        <div class="hidden md:flex md:flex-col md:w-[30%] md:border-r md:border-gray-200">
           <!-- Goal Header -->
-          <div class="px-6 py-4 border-b border-gray-200">
-            <button @click="goBack" class="mb-3 inline-flex items-center gap-2" style="color: #8cc65d">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <div class="flex items-center px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
+            <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
-              <span class="text-sm font-medium">Back</span>
             </button>
-            <h1 class="font-bold text-2xl mb-2">{{ goal?.title || 'Goal Details' }}</h1>
-            <button
-              v-if="goal?.portalId && goal?.portalName"
-              @click="navigateToPortal(goal.portalId)"
-              class="flex items-center gap-1"
-            >
-              <span class="text-sm" style="color: #006600;">{{ goal.portalName }}</span>
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="color: #006600;">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M17 7H7M17 7v10" />
-              </svg>
-            </button>
-          </div>
-
-          <!-- Progress Bar and Metrics -->
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3">Progress</h2>
-            <!-- Progress Bar -->
-            <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-3">
-              <div
-                class="bg-rep-green h-full transition-all duration-300 ease-out"
-                :style="{ width: `${Math.min(100, Math.max(0, goal.progress * 100))}%` }"
-              ></div>
-            </div>
-
-            <!-- Metrics Info -->
-            <div class="text-sm text-gray-600 space-y-2">
-              <div class="flex justify-between">
-                <span class="font-medium">Quota:</span>
-                <span>{{ Math.round(goal.quota) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="font-medium">Progress:</span>
-                <span>{{ Math.round(goal.filledQuota) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="font-medium">Metric:</span>
-                <span>{{ goal.metricName }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="font-medium">Type:</span>
-                <span>{{ goal.typeName }}</span>
-              </div>
-              <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-sm mt-2 pt-2 border-t border-gray-200">
-                {{ goal.subtitle }}
-              </div>
-              <div v-if="goal.description && goal.description.trim()" class="text-secondary text-sm">
-                {{ goal.description }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Team Preview -->
-          <div class="px-6 py-4 border-b border-gray-200">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3">Team Members</h2>
-            <div v-if="team.length === 0" class="text-sm text-gray-500">
-              No team members yet.
-            </div>
-            <div v-else class="space-y-2">
-              <TeamCell
-                v-for="user in team.slice(0, 5)"
-                :key="user.id"
-                :user="user"
-                @click="navigateToProfile(user.id)"
-              />
+            <div class="flex-1 flex flex-col items-center justify-center py-1">
+              <h1 class="font-bold text-lg truncate max-w-full px-2">{{ goal?.title || 'Goal Details' }}</h1>
+              <!-- Portal Link (only show if goal has associated portal) -->
               <button
-                v-if="team.length > 5"
-                @click="selectedSegment = 2"
-                class="text-sm font-medium w-full text-left py-2"
-                style="color: #8cc65d"
+                v-if="goal?.portalId && goal?.portalName"
+                @click="navigateToPortal(goal.portalId)"
+                class="flex items-center gap-1 mt-0.5"
               >
-                View all {{ team.length }} members →
+                <span class="text-xs truncate max-w-[200px]" style="color: #006600;">{{ goal.portalName }}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="color: #006600;">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M7 17L17 7M17 7H7M17 7v10" />
+                </svg>
               </button>
             </div>
+            <div class="w-10"></div> <!-- Spacer -->
           </div>
 
-          <!-- Action Buttons -->
-          <div class="px-6 py-4 space-y-3 mt-auto">
-            <button
-              @click="openGoalTeamChat"
-              class="w-full flex items-center justify-center h-12 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
-              style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              Message Team
-            </button>
+          <!-- Scrollable Content Area -->
+          <div class="flex-1 overflow-y-auto">
+            <!-- Progress Bar and Metrics -->
+            <div class="px-6 py-4 border-b border-gray-200">
+              <h2 class="text-sm font-semibold text-gray-700 mb-3">Progress</h2>
+              <!-- Progress Bar -->
+              <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-3">
+                <div
+                  class="bg-rep-green h-full transition-all duration-300 ease-out"
+                  :style="{ width: `${Math.min(100, Math.max(0, goal.progress * 100))}%` }"
+                ></div>
+              </div>
 
-            <button
-              @click="handleAddAction"
-              class="w-full flex items-center justify-center h-12 rounded-lg transition-transform hover:scale-105 active:scale-95"
-              style="background-color: #8cc65d; color: white;"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Add Action
-            </button>
+              <!-- Metrics Info -->
+              <div class="text-sm text-gray-600 space-y-2">
+                <div class="flex justify-between">
+                  <span class="font-medium">Quota:</span>
+                  <span>{{ Math.round(goal.quota) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-medium">Progress:</span>
+                  <span>{{ Math.round(goal.filledQuota) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-medium">Metric:</span>
+                  <span>{{ goal.metricName }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-medium">Type:</span>
+                  <span>{{ goal.typeName }}</span>
+                </div>
+                <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-sm mt-2 pt-2 border-t border-gray-200">
+                  {{ goal.subtitle }}
+                </div>
+                <div v-if="goal.description && goal.description.trim()" class="text-secondary text-sm">
+                  {{ goal.description }}
+                </div>
+              </div>
+            </div>
+          </div>
 
-            <!-- Support Button (for Fund/Sales goals) -->
-            <button
-              v-if="goal.typeName === 'Fund' || goal.typeName === 'Sales'"
-              @click="showPaymentSheet = true"
-              class="w-full px-5 py-3 bg-white border-2 rounded-lg shadow-md flex items-center justify-center gap-2 font-bold transition-transform hover:scale-105 active:scale-95"
-              style="border-color: #006600; color: #006600;"
-            >
-              <span class="text-[22px]">$</span>
-              <span>Support</span>
-            </button>
+          <!-- Fixed Bottom Bar (Desktop) -->
+          <div class="shrink-0 bg-white border-t shadow-lg" style="border-color: #e5e7eb;">
+            <div class="flex items-center justify-center gap-3 py-1.5 px-4">
+              <!-- Message Button -->
+              <button
+                @click="openGoalTeamChat"
+                class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
+                style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+              </button>
+
+              <!-- Add Button -->
+              <button
+                @click="handleAddAction"
+                class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
+                style="background-color: #8cc65d; color: white;"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Support Button (for Fund/Sales goals) - Full Width Below -->
+            <div v-if="goal.typeName === 'Fund' || goal.typeName === 'Sales'" class="px-4 pb-3">
+              <button
+                @click="showPaymentSheet = true"
+                class="w-full px-5 py-2.5 bg-white border-2 rounded-lg shadow-md flex items-center justify-center gap-2 font-bold transition-transform hover:scale-105 active:scale-95"
+                style="border-color: #006600; color: #006600;"
+              >
+                <span class="text-[22px]">$</span>
+                <span>Support</span>
+              </button>
+            </div>
           </div>
         </div>
 

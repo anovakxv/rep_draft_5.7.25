@@ -43,8 +43,8 @@
               />
             </div>
 
-            <!-- Sticky Segmented Picker (mobile) / Static Picker (desktop) -->
-            <div class="sticky top-0 z-10 bg-white md:static">
+            <!-- Sticky Segmented Picker (mobile & desktop) -->
+            <div class="sticky top-0 z-10 bg-white">
               <div class="py-2 px-4 border-b border-t border-gray-200">
                 <PortalSegmentedPicker
                   :segments="['Goal Teams', 'Story']"

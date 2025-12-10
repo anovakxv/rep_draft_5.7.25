@@ -1346,6 +1346,8 @@ struct GroupMessageBubble: View {
     // Popular emojis matching web app
     let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
+    @State private var showReactionPicker = false
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if isCurrentUser {
@@ -1357,17 +1359,27 @@ struct GroupMessageBubble: View {
                             .background(Color.black)
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
-                            .contextMenu {
-                                // Inline emoji reactions
-                                ForEach(reactionEmojis, id: \.self) { emoji in
-                                    Button(action: { onReact(emoji) }) {
-                                        Text(emoji)
-                                            .font(.title2)
+                            .onLongPressGesture {
+                                showReactionPicker = true
+                            }
+                            .overlay(
+                                Group {
+                                    if showReactionPicker {
+                                        HorizontalReactionPicker(
+                                            emojis: reactionEmojis,
+                                            onSelect: { emoji in
+                                                onReact(emoji)
+                                                showReactionPicker = false
+                                            },
+                                            onDismiss: {
+                                                showReactionPicker = false
+                                            }
+                                        )
+                                        .offset(y: -50)
                                     }
                                 }
-
-                                Divider()
-
+                            )
+                            .contextMenu {
                                 Button(action: { onEdit(message) }) {
                                     Label("Edit", systemImage: "pencil")
                                 }
@@ -1423,15 +1435,26 @@ struct GroupMessageBubble: View {
                             .background(Color(UIColor.systemGray5))
                             .foregroundColor(.black)
                             .cornerRadius(8)
-                            .contextMenu {
-                                // Inline emoji reactions
-                                ForEach(reactionEmojis, id: \.self) { emoji in
-                                    Button(action: { onReact(emoji) }) {
-                                        Text(emoji)
-                                            .font(.title2)
+                            .onLongPressGesture {
+                                showReactionPicker = true
+                            }
+                            .overlay(
+                                Group {
+                                    if showReactionPicker {
+                                        HorizontalReactionPicker(
+                                            emojis: reactionEmojis,
+                                            onSelect: { emoji in
+                                                onReact(emoji)
+                                                showReactionPicker = false
+                                            },
+                                            onDismiss: {
+                                                showReactionPicker = false
+                                            }
+                                        )
+                                        .offset(y: -50)
                                     }
                                 }
-                            }
+                            )
 
                         // Edit indicator
                         if message.isEdited == true {
@@ -1490,6 +1513,45 @@ fileprivate enum GroupMessagePlaceholder {
         }
         let data = try! JSONSerialization.data(withJSONObject: json)
         return try! JSONDecoder().decode(GroupMessage.self, from: data)
+    }
+}
+
+// MARK: - Horizontal Reaction Picker
+
+struct HorizontalReactionPicker: View {
+    let emojis: [String]
+    let onSelect: (String) -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(emojis, id: \.self) { emoji in
+                Button(action: {
+                    onSelect(emoji)
+                }) {
+                    Text(emoji)
+                        .font(.title2)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                        .shadow(radius: 4)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(radius: 8)
+        .onTapGesture {
+            // Prevent dismissal when tapping inside
+        }
+        .background(
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onDismiss()
+                }
+        )
     }
 }
 

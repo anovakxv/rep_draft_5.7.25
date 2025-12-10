@@ -374,32 +374,51 @@ class MessageViewModel: ObservableObject {
                 return
             }
 
+            // Debug: Print raw response
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📦 [CHAT_VM] Toggle reaction response: \(jsonString)")
+            }
+
             // Parse response to get updated reactions
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let reactionsArray = json["reactions"] as? [[String: Any]] {
-                let decoder = JSONDecoder()
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
-                if let reactionsData = try? JSONSerialization.data(withJSONObject: reactionsArray),
-                   let reactions = try? decoder.decode([MessageReaction].self, from: reactionsData) {
-                    DispatchQueue.main.async {
-                        if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
-                            // Update the message with new reactions
-                            var updatedMessage = self.messages[index]
-                            self.messages[index] = SimpleMessage(
-                                id: updatedMessage.id,
-                                senderId: updatedMessage.senderId,
-                                senderName: updatedMessage.senderName,
-                                text: updatedMessage.text,
-                                timestamp: updatedMessage.timestamp,
-                                read: updatedMessage.read,
-                                reactions: reactions,
-                                isEdited: updatedMessage.isEdited,
-                                editedAt: updatedMessage.editedAt
-                            )
-                            print("✅ [CHAT_VM] Reaction toggled successfully.")
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                print("📦 [CHAT_VM] Parsed JSON: \(json)")
+
+                if let reactionsArray = json["reactions"] as? [[String: Any]] {
+                    print("📦 [CHAT_VM] Found reactions array with \(reactionsArray.count) items")
+                    let decoder = JSONDecoder()
+                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    if let reactionsData = try? JSONSerialization.data(withJSONObject: reactionsArray),
+                       let reactions = try? decoder.decode([MessageReaction].self, from: reactionsData) {
+                        print("📦 [CHAT_VM] Decoded \(reactions.count) reactions")
+                        DispatchQueue.main.async {
+                            if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                                print("📦 [CHAT_VM] Found message at index \(index), updating...")
+                                // Update the message with new reactions
+                                var updatedMessage = self.messages[index]
+                                self.messages[index] = SimpleMessage(
+                                    id: updatedMessage.id,
+                                    senderId: updatedMessage.senderId,
+                                    senderName: updatedMessage.senderName,
+                                    text: updatedMessage.text,
+                                    timestamp: updatedMessage.timestamp,
+                                    read: updatedMessage.read,
+                                    reactions: reactions,
+                                    isEdited: updatedMessage.isEdited,
+                                    editedAt: updatedMessage.editedAt
+                                )
+                                print("✅ [CHAT_VM] Reaction toggled successfully. New reaction count: \(reactions.count)")
+                            } else {
+                                print("❌ [CHAT_VM] Message with id \(messageId) not found in messages array")
+                            }
                         }
+                    } else {
+                        print("❌ [CHAT_VM] Failed to decode reactions")
                     }
+                } else {
+                    print("❌ [CHAT_VM] No 'reactions' key in response or wrong format")
                 }
+            } else {
+                print("❌ [CHAT_VM] Failed to parse response as JSON")
             }
         }.resume()
     }
@@ -631,6 +650,8 @@ struct MessageBubble: View {
     // Popular emojis matching web app
     let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
+    @State private var showReactionPicker = false
+
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
             if isCurrentUser {
@@ -643,17 +664,27 @@ struct MessageBubble: View {
                             .background(Color.black)
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
-                            .contextMenu {
-                                // Inline emoji reactions
-                                ForEach(reactionEmojis, id: \.self) { emoji in
-                                    Button(action: { onReact(emoji) }) {
-                                        Text(emoji)
-                                            .font(.title2)
+                            .onLongPressGesture {
+                                showReactionPicker = true
+                            }
+                            .overlay(
+                                Group {
+                                    if showReactionPicker {
+                                        HorizontalReactionPicker(
+                                            emojis: reactionEmojis,
+                                            onSelect: { emoji in
+                                                onReact(emoji)
+                                                showReactionPicker = false
+                                            },
+                                            onDismiss: {
+                                                showReactionPicker = false
+                                            }
+                                        )
+                                        .offset(y: -50)
                                     }
                                 }
-
-                                Divider()
-
+                            )
+                            .contextMenu {
                                 Button(action: { onEdit(message) }) {
                                     Label("Edit", systemImage: "pencil")
                                 }
@@ -712,15 +743,26 @@ struct MessageBubble: View {
                             .background(Color(UIColor.systemGray5))
                             .foregroundColor(.black)
                             .cornerRadius(8)
-                            .contextMenu {
-                                // Inline emoji reactions
-                                ForEach(reactionEmojis, id: \.self) { emoji in
-                                    Button(action: { onReact(emoji) }) {
-                                        Text(emoji)
-                                            .font(.title2)
+                            .onLongPressGesture {
+                                showReactionPicker = true
+                            }
+                            .overlay(
+                                Group {
+                                    if showReactionPicker {
+                                        HorizontalReactionPicker(
+                                            emojis: reactionEmojis,
+                                            onSelect: { emoji in
+                                                onReact(emoji)
+                                                showReactionPicker = false
+                                            },
+                                            onDismiss: {
+                                                showReactionPicker = false
+                                            }
+                                        )
+                                        .offset(y: -50)
                                     }
                                 }
-                            }
+                            )
 
                         // Edit indicator
                         if message.isEdited == true {
@@ -757,6 +799,45 @@ struct MessageBubble: View {
             }
         }
         .id(message.id)
+    }
+}
+
+// MARK: - Horizontal Reaction Picker
+
+struct HorizontalReactionPicker: View {
+    let emojis: [String]
+    let onSelect: (String) -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(emojis, id: \.self) { emoji in
+                Button(action: {
+                    onSelect(emoji)
+                }) {
+                    Text(emoji)
+                        .font(.title2)
+                        .frame(width: 40, height: 40)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                        .shadow(radius: 4)
+                }
+            }
+        }
+        .padding(8)
+        .background(Color.white)
+        .cornerRadius(12)
+        .shadow(radius: 8)
+        .onTapGesture {
+            // Prevent dismissal when tapping inside
+        }
+        .background(
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onDismiss()
+                }
+        )
     }
 }
 

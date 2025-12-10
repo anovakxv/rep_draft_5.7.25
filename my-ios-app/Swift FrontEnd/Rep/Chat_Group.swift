@@ -1518,7 +1518,7 @@ fileprivate enum GroupMessagePlaceholder {
 
 // MARK: - Horizontal Reaction Picker
 
-struct HorizontalReactionPicker: View {
+private struct HorizontalReactionPicker: View {
     let emojis: [String]
     let onSelect: (String) -> Void
     let onDismiss: () -> Void

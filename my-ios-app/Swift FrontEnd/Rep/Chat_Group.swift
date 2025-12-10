@@ -670,7 +670,7 @@ struct GroupChatNavigationHeaderView: View {
 private struct GroupMessageRow: View {
     let message: GroupMessage
     let isCurrentUser: Bool
-    let onReact: (GroupMessage) -> Void
+    let onReact: (String) -> Void
     let onEdit: (GroupMessage) -> Void
 
     var body: some View {
@@ -702,7 +702,7 @@ private struct GroupMessageRow: View {
 private struct GroupMessagesListView: View {
     let messages: [GroupMessage]
     let currentUserId: Int
-    let onReact: (GroupMessage) -> Void
+    let onReact: (GroupMessage, String) -> Void
     let onEdit: (GroupMessage) -> Void
 
     var body: some View {
@@ -713,7 +713,9 @@ private struct GroupMessagesListView: View {
                         GroupMessageRow(
                             message: message,
                             isCurrentUser: message.senderId == currentUserId,
-                            onReact: onReact,
+                            onReact: { emoji in
+                                onReact(message, emoji)
+                            },
                             onEdit: onEdit
                         )
                     }
@@ -722,20 +724,16 @@ private struct GroupMessagesListView: View {
                 .padding(.horizontal, 12)
             }
             .background(Color.white)
-            // NEW: scroll to bottom on initial appear
+            // FIX: Instantly scroll to bottom on initial appear (no animation)
             .onAppear {
                 if let lastId = messages.last?.id {
-                    DispatchQueue.main.async {
-                        withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
-                    }
+                    proxy.scrollTo(lastId, anchor: .bottom)
                 }
             }
-            // Keep auto-scrolling on new messages
+            // Auto-scroll when new messages arrive (with animation for smooth UX)
             .onChange(of: messages.last?.id) { lastId in
                 guard let lastId = lastId else { return }
-                DispatchQueue.main.async {
-                    withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
-                }
+                withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
             }
         }
     }
@@ -758,10 +756,8 @@ struct GroupChatView: View {
     @State private var navigateToNewChat = false
     @State private var chatDeleted = false
 
-    // State for showing reaction picker and edit message sheet
-    @State private var showReactionPicker = false
+    // State for showing edit message sheet
     @State private var showEditMessageSheet = false
-    @State private var selectedMessageForReaction: GroupMessage? = nil
     @State private var selectedMessageForEdit: GroupMessage? = nil
 
     private var newChatDestination: AnyView {
@@ -809,9 +805,8 @@ struct GroupChatView: View {
             GroupMessagesListView(
                 messages: viewModel.messages,
                 currentUserId: viewModel.currentUserId,
-                onReact: { message in
-                    selectedMessageForReaction = message
-                    showReactionPicker = true
+                onReact: { message, emoji in
+                    viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                 },
                 onEdit: { message in
                     selectedMessageForEdit = message
@@ -895,25 +890,6 @@ struct GroupChatView: View {
             // Post a notification to trigger an immediate, non-animated refresh
             NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
         }
-        .overlay(
-            Group {
-                if showReactionPicker {
-                    Color.black.opacity(0.3)
-                        .edgesIgnoringSafeArea(.all)
-                        .onTapGesture {
-                            showReactionPicker = false
-                        }
-                        .overlay(
-                            ReactionPicker(onSelectEmoji: { emoji in
-                                if let message = selectedMessageForReaction {
-                                    viewModel.toggleReaction(messageId: message.id, emoji: emoji)
-                                }
-                                showReactionPicker = false
-                            })
-                        )
-                }
-            }
-        )
         .sheet(isPresented: $showEditMessageSheet) {
             if let message = selectedMessageForEdit {
                 EditMessageSheet(
@@ -1364,8 +1340,11 @@ struct NTWKUserPicker: View {
 struct GroupMessageBubble: View {
     let message: GroupMessage
     let isCurrentUser: Bool
-    let onReact: (GroupMessage) -> Void
+    let onReact: (String) -> Void
     let onEdit: (GroupMessage) -> Void
+
+    // Popular emojis matching web app
+    let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -1379,9 +1358,16 @@ struct GroupMessageBubble: View {
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
                             .contextMenu {
-                                Button(action: { onReact(message) }) {
-                                    Label("React", systemImage: "face.smiling")
+                                // Inline emoji reactions
+                                ForEach(reactionEmojis, id: \.self) { emoji in
+                                    Button(action: { onReact(emoji) }) {
+                                        Text(emoji)
+                                            .font(.title2)
+                                    }
                                 }
+
+                                Divider()
+
                                 Button(action: { onEdit(message) }) {
                                     Label("Edit", systemImage: "pencil")
                                 }
@@ -1438,8 +1424,12 @@ struct GroupMessageBubble: View {
                             .foregroundColor(.black)
                             .cornerRadius(8)
                             .contextMenu {
-                                Button(action: { onReact(message) }) {
-                                    Label("React", systemImage: "face.smiling")
+                                // Inline emoji reactions
+                                ForEach(reactionEmojis, id: \.self) { emoji in
+                                    Button(action: { onReact(emoji) }) {
+                                        Text(emoji)
+                                            .font(.title2)
+                                    }
                                 }
                             }
 

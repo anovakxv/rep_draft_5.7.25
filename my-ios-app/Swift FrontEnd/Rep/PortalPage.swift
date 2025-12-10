@@ -40,14 +40,31 @@ class PortalViewModel: ObservableObject {
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
+    // CRASH FIX: Request cancellation tracking
+    private var detailTask: URLSessionDataTask?
+    private var goalsTask: URLSessionDataTask?
+    private var incrementsTask: URLSessionDataTask?
+
+    deinit {
+        cancelAllRequests()
+    }
+
+    func cancelAllRequests() {
+        detailTask?.cancel()
+        goalsTask?.cancel()
+        incrementsTask?.cancel()
+    }
+
     func fetchPortalDetail(portalId: Int, userId: Int) {
+        // CRASH FIX: Cancel previous request
+        detailTask?.cancel()
         let urlString = "\(APIConfig.baseURL)/api/portal/details?portals_id=\(portalId)&user_id=\(userId)"
         guard let url = URL(string: urlString) else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        detailTask = URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode(PortalDetailResponse.self, from: data)
@@ -57,17 +74,20 @@ class PortalViewModel: ObservableObject {
             } catch {
                 print("Decode error:", error)
             }
-        }.resume()
+        }
+        detailTask?.resume()
     }
 
     func fetchPortalGoals(portalId: Int) {
+        // CRASH FIX: Cancel previous request
+        goalsTask?.cancel()
         let urlString = "\(APIConfig.baseURL)/api/goals/portal?portals_id=\(portalId)"
         guard let url = URL(string: urlString) else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        goalsTask = URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode(PortalGoalsResponse.self, from: data)
@@ -77,17 +97,20 @@ class PortalViewModel: ObservableObject {
             } catch {
                 print("Decode error:", error)
             }
-        }.resume()
+        }
+        goalsTask?.resume()
     }
 
     func fetchReportingIncrements() {
+        // CRASH FIX: Cancel previous request
+        incrementsTask?.cancel()
         let urlString = "\(APIConfig.baseURL)/api/reporting_increments/list"
         guard let url = URL(string: urlString) else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        incrementsTask = URLSession.shared.dataTask(with: request) { data, _, error in
             guard let data = data else { return }
             do {
                 let increments = try JSONDecoder().decode([ReportingIncrement].self, from: data)
@@ -97,7 +120,8 @@ class PortalViewModel: ObservableObject {
             } catch {
                 print("Decode error:", error)
             }
-        }.resume()
+        }
+        incrementsTask?.resume()
     }
 }
 

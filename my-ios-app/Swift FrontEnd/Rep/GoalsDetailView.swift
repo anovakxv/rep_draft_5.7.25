@@ -584,6 +584,13 @@ class GoalsDetailViewModel: ObservableObject {
 
     private let s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 
+    // CRASH FIX: Request cancellation tracking
+    private var loadTask: URLSessionDataTask?
+
+    deinit {
+        loadTask?.cancel()
+    }
+
     func patchProfilePictureURL(_ imageName: String?) -> URL? {
         guard let imageName = imageName, !imageName.isEmpty else { return nil }
         if imageName.starts(with: "http") {
@@ -599,14 +606,17 @@ class GoalsDetailViewModel: ObservableObject {
     }
 
     func load(goalId: Int) {
+        // CRASH FIX: Cancel previous request
+        loadTask?.cancel()
+
         // Create URL with num_periods parameter for the detailed view
         guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/details?goals_id=\(goalId)&num_periods=7") else { return }
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        
-        URLSession.shared.dataTask(with: request) { data, _, _ in
+
+        loadTask = URLSession.shared.dataTask(with: request) { data, _, _ in
             guard let data = data else { return }
             do {
                 let response = try JSONDecoder().decode(GoalDetailAPIResponse.self, from: data)
@@ -709,7 +719,8 @@ class GoalsDetailViewModel: ObservableObject {
             } catch {
                 print("Goal detail decode error:", error)
             }
-        }.resume()
+        }
+        loadTask?.resume()
     }
     
     // Helper to parse timestamp string to Date

@@ -470,11 +470,11 @@ struct MessageView: View {
     @StateObject var viewModel: MessageViewModel
     @Environment(\.dismiss) private var dismiss
 
-    // State for showing reaction picker and edit sheet
-    @State private var showReactionPicker = false
+    // State for showing edit sheet and reaction bar
     @State private var showEditSheet = false
-    @State private var selectedMessageForReaction: SimpleMessage? = nil
     @State private var selectedMessageForEdit: SimpleMessage? = nil
+    @State private var showReactionBar: Bool = false
+    @State private var selectedMessageForReaction: SimpleMessage? = nil
 
     init(viewModel: MessageViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -526,9 +526,8 @@ struct MessageView: View {
                                             message: message,
                                             isCurrentUser: true,
                                             profilePicURL: nil,
-                                            onReact: { msg in
-                                                selectedMessageForReaction = msg
-                                                showReactionPicker = true
+                                            onReact: { emoji in
+                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                                             },
                                             onEdit: { msg in
                                                 selectedMessageForEdit = msg
@@ -540,9 +539,8 @@ struct MessageView: View {
                                             message: message,
                                             isCurrentUser: false,
                                             profilePicURL: viewModel.otherUserPhotoURL,
-                                            onReact: { msg in
-                                                selectedMessageForReaction = msg
-                                                showReactionPicker = true
+                                            onReact: { emoji in
+                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                                             },
                                             onEdit: { msg in
                                                 // Edit not available for other user's messages
@@ -561,20 +559,16 @@ struct MessageView: View {
                         .padding(.horizontal, 12)
                     }
                     .background(Color.white)
-                    .onChange(of: viewModel.messages.count) { newCount in
-                        print("🎨 [CHAT_VIEW] Message count changed to \(newCount). Scrolling to bottom.")
-                        if let last = viewModel.messages.last, !viewModel.isLoadingOlder {
-                            withAnimation {
-                                proxy.scrollTo(last.id, anchor: .bottom)
-                            }
+                    // FIX: Instantly scroll to bottom on initial appear (no animation)
+                    .onAppear {
+                        if let lastId = viewModel.messages.last?.id {
+                            proxy.scrollTo(lastId, anchor: .bottom)
                         }
                     }
-                    .onReceive(NotificationCenter.default.publisher(for: Notification.Name("scrollToMessageBottom"))) { notif in
-                        if let id = notif.object as? Int {
-                            withAnimation {
-                                proxy.scrollTo(id, anchor: .bottom)
-                            }
-                        }
+                    // Auto-scroll when new messages arrive (with animation for smooth UX)
+                    .onChange(of: viewModel.messages.last?.id) { lastId in
+                        guard let lastId = lastId, !viewModel.isLoadingOlder else { return }
+                        withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
                     }
                 }
 
@@ -605,38 +599,10 @@ struct MessageView: View {
             }
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
-        .onAppear {
-            print("🎨 [CHAT_VIEW] ON_APPEAR")
-            // Scroll to bottom after a short delay to ensure view is ready
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                if viewModel.isInitialized, let last = viewModel.messages.last {
-                    NotificationCenter.default.post(name: Notification.Name("scrollToMessageBottom"), object: last.id)
-                }
-            }
-        }
         .onDisappear {
             print("🎨 [CHAT_VIEW] ON_DISAPPEAR")
         }
         .navigationBarHidden(true)
-        .overlay(
-            Group {
-                if showReactionPicker {
-                    Color.black.opacity(0.3)
-                        .edgesIgnoringSafeArea(.all)
-                        .onTapGesture {
-                            showReactionPicker = false
-                        }
-                        .overlay(
-                            ReactionPicker(onSelectEmoji: { emoji in
-                                if let message = selectedMessageForReaction {
-                                    viewModel.toggleReaction(messageId: message.id, emoji: emoji)
-                                }
-                                showReactionPicker = false
-                            })
-                        )
-                }
-            }
-        )
         .sheet(isPresented: $showEditSheet) {
             if let message = selectedMessageForEdit {
                 EditMessageSheet(
@@ -659,8 +625,11 @@ struct MessageBubble: View {
     let message: SimpleMessage
     let isCurrentUser: Bool
     let profilePicURL: URL?
-    let onReact: (SimpleMessage) -> Void
+    let onReact: (String) -> Void
     let onEdit: (SimpleMessage) -> Void
+
+    // Popular emojis matching web app
+    let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -675,9 +644,16 @@ struct MessageBubble: View {
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
                             .contextMenu {
-                                Button(action: { onReact(message) }) {
-                                    Label("React", systemImage: "face.smiling")
+                                // Inline emoji reactions
+                                ForEach(reactionEmojis, id: \.self) { emoji in
+                                    Button(action: { onReact(emoji) }) {
+                                        Text(emoji)
+                                            .font(.title2)
+                                    }
                                 }
+
+                                Divider()
+
                                 Button(action: { onEdit(message) }) {
                                     Label("Edit", systemImage: "pencil")
                                 }
@@ -737,8 +713,12 @@ struct MessageBubble: View {
                             .foregroundColor(.black)
                             .cornerRadius(8)
                             .contextMenu {
-                                Button(action: { onReact(message) }) {
-                                    Label("React", systemImage: "face.smiling")
+                                // Inline emoji reactions
+                                ForEach(reactionEmojis, id: \.self) { emoji in
+                                    Button(action: { onReact(emoji) }) {
+                                        Text(emoji)
+                                            .font(.title2)
+                                    }
                                 }
                             }
 

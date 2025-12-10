@@ -61,7 +61,38 @@ class PortalsViewModel: ObservableObject {
 
     @AppStorage("jwtToken") var jwtToken: String = ""
 
+    // PERFORMANCE FIX: Request cancellation
+    private var currentFetchTask: URLSessionDataTask?
+    private var currentSearchTask: URLSessionDataTask?
+    private var backgroundTasks: [URLSessionDataTask] = []
+
+    init() {
+        // PERFORMANCE FIX: Add memory pressure handling
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleMemoryWarning()
+        }
+    }
+
+    deinit {
+        cancelAllRequests()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func handleMemoryWarning() {
+        print("⚠️ PortalsViewModel: Memory warning received, clearing background cache")
+        backgroundPortalsTab0 = []
+        backgroundPortalsTab1 = []
+        backgroundPortalsTab2 = []
+    }
+
     func fetchPortals(userId: Int, section: Int, safeOnly: Bool = false, isTabSwitch: Bool = false) {
+        // PERFORMANCE FIX: Cancel previous fetch request
+        currentFetchTask?.cancel()
+
         if !isTabSwitch {
             isLoading = true
         }
@@ -85,7 +116,7 @@ class PortalsViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        currentFetchTask = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
                 if let http = response as? HTTPURLResponse {
@@ -125,10 +156,14 @@ class PortalsViewModel: ObservableObject {
                     self.portals = []
                 }
             }
-        }.resume()
+        }
+        currentFetchTask?.resume()
     }
 
     func searchPortals(query: String, limit: Int = 50) {
+        // PERFORMANCE FIX: Cancel previous search request
+        currentSearchTask?.cancel()
+
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
             searchResults = []
             isSearching = false
@@ -149,7 +184,7 @@ class PortalsViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, _, error in
+        currentSearchTask = URLSession.shared.dataTask(with: request) { data, _, error in
             DispatchQueue.main.async {
                 self.isLoading = false
                 if let error = error {
@@ -173,12 +208,21 @@ class PortalsViewModel: ObservableObject {
                 }
                 self.isSearching = false
             }
-        }.resume()
+        }
+        currentSearchTask?.resume()
     }
 
     func clearSearch() {
         searchResults = []
         isSearching = false
+        currentSearchTask?.cancel()
+    }
+
+    func cancelAllRequests() {
+        currentFetchTask?.cancel()
+        currentSearchTask?.cancel()
+        backgroundTasks.forEach { $0.cancel() }
+        backgroundTasks.removeAll()
     }
     func getBackgroundPortals(for section: Int) -> [Portal] {
         switch section {
@@ -192,44 +236,55 @@ class PortalsViewModel: ObservableObject {
     func loadBackgroundData(from section: Int, to targetSection: Int, userId: Int, safeOnly: Bool) {
         // Don't overwrite current tab
         if section == targetSection { return }
-        
-        let tab: String
-        switch targetSection {
-        case 0: tab = "open"
-        case 1: tab = "ntwk"
-        case 2: tab = "all"
-        default: tab = "open"
-        }
-        
-        let limitParam = (tab == "all") ? "&limit=200" : ""
-        let safeParam = safeOnly ? "&safe_only=true" : ""
-        let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)\(safeParam)"
-        
-        guard let url = URL(string: urlString) else { return }
-        var request = URLRequest(url: url)
-        if !jwtToken.isEmpty {
-            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        }
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
-            guard let data = data else { return }
-            
-            do {
-                let response = try JSONDecoder().decode([String: [Portal]].self, from: data)
-                DispatchQueue.main.async {
-                    let result = response["result"] ?? []
-                    switch targetSection {
-                    case 0: self.backgroundPortalsTab0 = result
-                    case 1: self.backgroundPortalsTab1 = result
-                    case 2: self.backgroundPortalsTab2 = result
-                    default: break
-                    }
-                }
-            } catch {
-                print("Background decode error: \(error.localizedDescription)")
+
+        // PERFORMANCE FIX: Run background loading on utility queue to avoid blocking user interactions
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+
+            let tab: String
+            switch targetSection {
+            case 0: tab = "open"
+            case 1: tab = "ntwk"
+            case 2: tab = "all"
+            default: tab = "open"
             }
-        }.resume()
+
+            let limitParam = (tab == "all") ? "&limit=200" : ""
+            let safeParam = safeOnly ? "&safe_only=true" : ""
+            let urlString = "\(APIConfig.baseURL)/api/portal/filter_network_portals?user_id=\(userId)&tab=\(tab)\(limitParam)\(safeParam)"
+
+            guard let url = URL(string: urlString) else { return }
+            var request = URLRequest(url: url)
+            if !self.jwtToken.isEmpty {
+                request.setValue("Bearer \(self.jwtToken)", forHTTPHeaderField: "Authorization")
+            }
+
+            let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
+                guard let data = data else { return }
+
+                do {
+                    let response = try JSONDecoder().decode([String: [Portal]].self, from: data)
+                    DispatchQueue.main.async { [weak self] in
+                        guard let self = self else { return }
+                        let result = response["result"] ?? []
+                        switch targetSection {
+                        case 0: self.backgroundPortalsTab0 = result
+                        case 1: self.backgroundPortalsTab1 = result
+                        case 2: self.backgroundPortalsTab2 = result
+                        default: break
+                        }
+                    }
+                } catch {
+                    print("Background decode error: \(error.localizedDescription)")
+                }
+            }
+
+            // Track background task for cancellation
+            DispatchQueue.main.async { [weak self] in
+                self?.backgroundTasks.append(task)
+            }
+            task.resume()
     }
 }
 
@@ -253,6 +308,12 @@ class PeopleViewModel: ObservableObject {
     private var lastRefreshRequestTime: Date = .distantPast
     private let minimumRefreshInterval: TimeInterval = 0.25
 
+    // PERFORMANCE FIX: Request cancellation
+    private var currentPeopleFetchTask: URLSessionDataTask?
+    private var currentActiveChatsFetchTask: URLSessionDataTask?
+    private var currentSearchTask: URLSessionDataTask?
+    private var backgroundTasks: [URLSessionDataTask] = []
+
     @Published var hasUnreadDirectMessages: Bool = false {
         didSet {
             if oldValue != hasUnreadDirectMessages {
@@ -269,6 +330,39 @@ class PeopleViewModel: ObservableObject {
     }
 
     @AppStorage("jwtToken") var jwtToken: String = ""
+
+    init() {
+        // PERFORMANCE FIX: Add memory pressure handling
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.handleMemoryWarning()
+        }
+    }
+
+    deinit {
+        cancelAllRequests()
+        fetchThrottleTimer?.invalidate()
+        NotificationCenter.default.removeObserver(self)
+    }
+
+    @objc private func handleMemoryWarning() {
+        print("⚠️ PeopleViewModel: Memory warning received, clearing background cache")
+        backgroundUsersTab1 = []
+        backgroundUsersTab2 = []
+        backgroundActiveChats = []
+    }
+
+    func cancelAllRequests() {
+        currentPeopleFetchTask?.cancel()
+        currentActiveChatsFetchTask?.cancel()
+        currentSearchTask?.cancel()
+        backgroundTasks.forEach { $0.cancel() }
+        backgroundTasks.removeAll()
+        activeRefreshTask?.cancel()
+    }
 
     func fetchPeople(userId: Int, section: Int, force: Bool = false, isTabSwitch: Bool = false) {
         // Cancel any previous refresh task
@@ -324,6 +418,9 @@ class PeopleViewModel: ObservableObject {
     }
 
     func searchPeople(query: String, limit: Int = 50) {
+        // PERFORMANCE FIX: Cancel previous search request
+        currentSearchTask?.cancel()
+
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else {
             searchResults = []
             isSearching = false
@@ -344,7 +441,7 @@ class PeopleViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        URLSession.shared.dataTask(with: request) { data, response, error in
+        currentSearchTask = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
                 if let http = response as? HTTPURLResponse {
@@ -383,12 +480,14 @@ class PeopleViewModel: ObservableObject {
                 }
                 self.isSearching = false
             }
-        }.resume()
+        }
+        currentSearchTask?.resume()
     }
 
     func clearSearch() {
         searchResults = []
         isSearching = false
+        currentSearchTask?.cancel()
     }
 
     func getBackgroundData(for section: Int) -> [User] {
@@ -403,72 +502,93 @@ class PeopleViewModel: ObservableObject {
     func loadBackgroundData(from section: Int, to targetSection: Int, userId: Int) {
         // Don't overwrite current tab
         if section == targetSection { return }
-        
-        if targetSection == 0 {
-            // Load active chats in background
-            let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
-            guard let url = URL(string: urlString) else { return }
-            var request = URLRequest(url: url)
-            if !jwtToken.isEmpty {
-                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-            }
-            
-            URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
-                guard let data = data else { return }
-                
-                do {
-                    let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
-                    DispatchQueue.main.async {
-                        self.backgroundActiveChats = response.result
-                    }
-                } catch {
-                    print("Background decode error: \(error.localizedDescription)")
+
+        // PERFORMANCE FIX: Run background loading on utility queue to avoid blocking user interactions
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+
+            if targetSection == 0 {
+                // Load active chats in background
+                let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
+                guard let url = URL(string: urlString) else { return }
+                var request = URLRequest(url: url)
+                if !self.jwtToken.isEmpty {
+                    request.setValue("Bearer \(self.jwtToken)", forHTTPHeaderField: "Authorization")
                 }
-            }.resume()
-        } else {
-            // Load users in background
-            let tab = targetSection == 1 ? "ntwk" : "all"
-            let limitParam = (tab == "all") ? "&limit=200" : ""
-            let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
-            guard let url = URL(string: urlString) else { return }
-            var request = URLRequest(url: url)
-            if !jwtToken.isEmpty {
-                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-            }
-            
-            URLSession.shared.dataTask(with: request) { data, response, error in
-                if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
-                guard let data = data else { return }
-                
-                do {
-                    let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
-                    DispatchQueue.main.async {
-                        if targetSection == 1 {
-                            self.backgroundUsersTab1 = response.result
-                        } else {
-                            self.backgroundUsersTab2 = response.result
+
+                let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                    if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
+                    guard let data = data else { return }
+
+                    do {
+                        let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
+                        DispatchQueue.main.async { [weak self] in
+                            self?.backgroundActiveChats = response.result
                         }
+                    } catch {
+                        print("Background decode error: \(error.localizedDescription)")
                     }
-                } catch {
-                    print("Background decode error: \(error.localizedDescription)")
                 }
-            }.resume()
+
+                // Track background task for cancellation
+                DispatchQueue.main.async { [weak self] in
+                    self?.backgroundTasks.append(task)
+                }
+                task.resume()
+            } else {
+                // Load users in background
+                let tab = targetSection == 1 ? "ntwk" : "all"
+                let limitParam = (tab == "all") ? "&limit=200" : ""
+                let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
+                guard let url = URL(string: urlString) else { return }
+                var request = URLRequest(url: url)
+                if !self.jwtToken.isEmpty {
+                    request.setValue("Bearer \(self.jwtToken)", forHTTPHeaderField: "Authorization")
+                }
+
+                let task = URLSession.shared.dataTask(with: request) { data, response, error in
+                    if let error = error { print("Background fetch error: \(error.localizedDescription)"); return }
+                    guard let data = data else { return }
+
+                    do {
+                        let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
+                        DispatchQueue.main.async { [weak self] in
+                            guard let self = self else { return }
+                            if targetSection == 1 {
+                                self.backgroundUsersTab1 = response.result
+                            } else {
+                                self.backgroundUsersTab2 = response.result
+                            }
+                        }
+                    } catch {
+                        print("Background decode error: \(error.localizedDescription)")
+                    }
+                }
+
+                // Track background task for cancellation
+                DispatchQueue.main.async { [weak self] in
+                    self?.backgroundTasks.append(task)
+                }
+                task.resume()
+            }
         }
     }
 
     private func performActiveChatsFetch(userId: Int, force: Bool) {
+        // PERFORMANCE FIX: Cancel previous active chats fetch
+        currentActiveChatsFetchTask?.cancel()
+
         // Prevent concurrent fetches
         if isFetching && !force {
             return
         }
-        
+
         isFetching = true
         if !skipNextAnimations {
             isLoading = true
         }
         errorMessage = nil
-        
+
         // Active chats fetch code
         let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"
         guard let url = URL(string: urlString) else {
@@ -477,13 +597,13 @@ class PeopleViewModel: ObservableObject {
             self.isFetching = false
             return
         }
-        
+
         var request = URLRequest(url: url)
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
+
+        currentActiveChatsFetchTask = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
                 self.isFetching = false
@@ -538,11 +658,14 @@ class PeopleViewModel: ObservableObject {
                     self.activeChats = []
                 }
             }
-        }.resume()
+        }
+        currentActiveChatsFetchTask?.resume()
     }
 
     // New helper method for people list fetches
     private func performPeopleFetch(userId: Int, section: Int) {
+        // PERFORMANCE FIX: Cancel previous people fetch
+        currentPeopleFetchTask?.cancel()
         isFetching = true
         isLoading = true
         errorMessage = nil
@@ -562,8 +685,8 @@ class PeopleViewModel: ObservableObject {
         if !jwtToken.isEmpty {
             request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
         }
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
+
+        currentPeopleFetchTask = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
                 self.isLoading = false
                 self.isFetching = false
@@ -598,9 +721,13 @@ class PeopleViewModel: ObservableObject {
                     self.users = []
                 }
             }
-        }.resume()
+        }
+        currentPeopleFetchTask?.resume()
     }
-}
+
+    func searchPeople(query: String, limit: Int = 50) {
+        // PERFORMANCE FIX: Cancel previous search request
+        currentSearchTask?.cancel()
 
 // MARK: - MainSegmentedPicker
 

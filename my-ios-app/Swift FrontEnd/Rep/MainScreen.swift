@@ -725,10 +725,7 @@ class PeopleViewModel: ObservableObject {
         }
         currentPeopleFetchTask?.resume()
     }
-
-    func searchPeople(query: String, limit: Int = 50) {
-        // PERFORMANCE FIX: Cancel previous search request
-        currentSearchTask?.cancel()
+}
 
 // MARK: - MainSegmentedPicker
 

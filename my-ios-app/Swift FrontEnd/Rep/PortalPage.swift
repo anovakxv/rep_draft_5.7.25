@@ -41,9 +41,9 @@ class PortalViewModel: ObservableObject {
     @AppStorage("jwtToken") var jwtToken: String = ""
 
     // CRASH FIX: Request cancellation tracking
-    private var detailTask: URLSessionDataTask?
-    private var goalsTask: URLSessionDataTask?
-    private var incrementsTask: URLSessionDataTask?
+    nonisolated(unsafe) private var detailTask: URLSessionDataTask?
+    nonisolated(unsafe) private var goalsTask: URLSessionDataTask?
+    nonisolated(unsafe) private var incrementsTask: URLSessionDataTask?
 
     deinit {
         cancelAllRequests()

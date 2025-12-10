@@ -49,7 +49,7 @@ class PortalViewModel: ObservableObject {
         cancelAllRequests()
     }
 
-    func cancelAllRequests() {
+    nonisolated func cancelAllRequests() {
         detailTask?.cancel()
         goalsTask?.cancel()
         incrementsTask?.cancel()

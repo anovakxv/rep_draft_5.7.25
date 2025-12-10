@@ -224,6 +224,7 @@ class PortalsViewModel: ObservableObject {
         backgroundTasks.forEach { $0.cancel() }
         backgroundTasks.removeAll()
     }
+
     func getBackgroundPortals(for section: Int) -> [Portal] {
         switch section {
         case 0: return backgroundPortalsTab0

@@ -144,6 +144,11 @@
 			path = RepUITests;
 			sourceTree = "<group>";
 		};
+		006000782EE8F64B00988C76 /* Messaging */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Messaging;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -216,6 +221,7 @@
 				005B636A2E16F88600A1F0C1 /* RepApp.swift */,
 				005B63722E16F88600A1F0C1 /* RepProfile */,
 				0054E71C2E2DDB3A00D09E4C /* Frameworks */,
+				006000782EE8F64B00988C76 /* Messaging */,
 			);
 			sourceTree = "<group>";
 		};
@@ -276,6 +282,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				005B632F2E16F83200A1F0C1 /* Rep */,
+				006000782EE8F64B00988C76 /* Messaging */,
 			);
 			name = Rep;
 			packageProductDependencies = (

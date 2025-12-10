@@ -143,6 +143,19 @@ struct GroupMessage: Identifiable, Decodable {
         isEdited = try? c.decodeIfPresent(Bool.self, forKey: .isEdited)
         editedAt = try? c.decodeIfPresent(String.self, forKey: .editedAt)
     }
+
+    // Memberwise initializer for creating updated messages
+    init(id: Int, senderId: Int, senderName: String, senderPhoto: String?, text: String, timestamp: Date, reactions: [GroupMessageReaction]?, isEdited: Bool?, editedAt: String?) {
+        self.id = id
+        self.senderId = senderId
+        self.senderName = senderName
+        self.senderPhoto = senderPhoto
+        self.text = text
+        self.timestamp = timestamp
+        self.reactions = reactions
+        self.isEdited = isEdited
+        self.editedAt = editedAt
+    }
 }
 
 // MARK: - Group Member Model
@@ -470,6 +483,109 @@ class GroupChatViewModel: ObservableObject {
             }
         }.resume()
     }
+
+    // Toggle reaction on a group message
+    func toggleReaction(messageId: Int, emoji: String) {
+        print("⬆️ [GROUP_VM] Toggling reaction \(emoji) on message \(messageId)...")
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/toggle-group-reaction/\(messageId)") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = ["emoji": emoji]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            if let error = error {
+                print("❌ [GROUP_VM] Toggle reaction error: \(error)")
+                return
+            }
+            guard let data else {
+                print("❌ [GROUP_VM] No data returned from toggle reaction")
+                return
+            }
+
+            // Parse response to get updated reactions
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let reactionsArray = json["reactions"] as? [[String: Any]] {
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                if let reactionsData = try? JSONSerialization.data(withJSONObject: reactionsArray),
+                   let reactions = try? decoder.decode([GroupMessageReaction].self, from: reactionsData) {
+                    DispatchQueue.main.async {
+                        if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                            let oldMessage = self.messages[index]
+                            self.messages[index] = GroupMessage(
+                                id: oldMessage.id,
+                                senderId: oldMessage.senderId,
+                                senderName: oldMessage.senderName,
+                                senderPhoto: oldMessage.senderPhoto,
+                                text: oldMessage.text,
+                                timestamp: oldMessage.timestamp,
+                                reactions: reactions,
+                                isEdited: oldMessage.isEdited,
+                                editedAt: oldMessage.editedAt
+                            )
+                            print("✅ [GROUP_VM] Reaction toggled successfully.")
+                        }
+                    }
+                }
+            }
+        }.resume()
+    }
+
+    // Edit a group message
+    func editMessage(messageId: Int, newText: String) {
+        let trimmed = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        print("⬆️ [GROUP_VM] Editing message \(messageId)...")
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group/\(messageId)") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = ["text": trimmed]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            if let error = error {
+                print("❌ [GROUP_VM] Edit message error: \(error)")
+                return
+            }
+            guard let data else {
+                print("❌ [GROUP_VM] No data returned from edit message")
+                return
+            }
+
+            // Parse response
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let editedAt = json["edited_at"] as? String {
+                DispatchQueue.main.async {
+                    if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                        let oldMessage = self.messages[index]
+                        self.messages[index] = GroupMessage(
+                            id: oldMessage.id,
+                            senderId: oldMessage.senderId,
+                            senderName: oldMessage.senderName,
+                            senderPhoto: oldMessage.senderPhoto,
+                            text: trimmed,
+                            timestamp: oldMessage.timestamp,
+                            reactions: oldMessage.reactions,
+                            isEdited: true,
+                            editedAt: editedAt
+                        )
+                        print("✅ [GROUP_VM] Message edited successfully.")
+                    }
+                }
+            }
+        }.resume()
+    }
 }
 
 // MARK: - Initials Helper
@@ -554,6 +670,8 @@ struct GroupChatNavigationHeaderView: View {
 private struct GroupMessageRow: View {
     let message: GroupMessage
     let isCurrentUser: Bool
+    let onReact: (GroupMessage) -> Void
+    let onEdit: (GroupMessage) -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -562,27 +680,15 @@ private struct GroupMessageRow: View {
                 GroupMessageBubble(
                     message: message,
                     isCurrentUser: true,
-                    onReact: { msg in
-                        // TODO: Show reaction picker
-                        print("React to group message: \(msg.id)")
-                    },
-                    onEdit: { msg in
-                        // TODO: Show edit sheet
-                        print("Edit group message: \(msg.id)")
-                    }
+                    onReact: onReact,
+                    onEdit: onEdit
                 )
             } else {
                 GroupMessageBubble(
                     message: message,
                     isCurrentUser: false,
-                    onReact: { msg in
-                        // TODO: Show reaction picker
-                        print("React to group message: \(msg.id)")
-                    },
-                    onEdit: { msg in
-                        // Not used for other user's messages
-                        print("Edit not available for other user's messages")
-                    }
+                    onReact: onReact,
+                    onEdit: { _ in }
                 )
                 Spacer()
             }
@@ -596,6 +702,8 @@ private struct GroupMessageRow: View {
 private struct GroupMessagesListView: View {
     let messages: [GroupMessage]
     let currentUserId: Int
+    let onReact: (GroupMessage) -> Void
+    let onEdit: (GroupMessage) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -604,7 +712,9 @@ private struct GroupMessagesListView: View {
                     ForEach(messages) { message in
                         GroupMessageRow(
                             message: message,
-                            isCurrentUser: message.senderId == currentUserId
+                            isCurrentUser: message.senderId == currentUserId,
+                            onReact: onReact,
+                            onEdit: onEdit
                         )
                     }
                 }
@@ -647,6 +757,12 @@ struct GroupChatView: View {
     @State private var newChatId: Int? = nil
     @State private var navigateToNewChat = false
     @State private var chatDeleted = false
+
+    // State for showing reaction picker and edit message sheet
+    @State private var showReactionPicker = false
+    @State private var showEditMessageSheet = false
+    @State private var selectedMessageForReaction: GroupMessage? = nil
+    @State private var selectedMessageForEdit: GroupMessage? = nil
 
     private var newChatDestination: AnyView {
         if let newChatId = newChatId {
@@ -692,7 +808,15 @@ struct GroupChatView: View {
 
             GroupMessagesListView(
                 messages: viewModel.messages,
-                currentUserId: viewModel.currentUserId
+                currentUserId: viewModel.currentUserId,
+                onReact: { message in
+                    selectedMessageForReaction = message
+                    showReactionPicker = true
+                },
+                onEdit: { message in
+                    selectedMessageForEdit = message
+                    showEditMessageSheet = true
+                }
             )
 
             HStack(spacing: 8) {
@@ -767,9 +891,41 @@ struct GroupChatView: View {
         .onDisappear {
             print("📤 GroupChatView onDisappear")
             viewModel.deactivate(reason: "onDisappear")
-            
+
             // Post a notification to trigger an immediate, non-animated refresh
             NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+        }
+        .overlay(
+            Group {
+                if showReactionPicker {
+                    Color.black.opacity(0.3)
+                        .edgesIgnoringSafeArea(.all)
+                        .onTapGesture {
+                            showReactionPicker = false
+                        }
+                        .overlay(
+                            ReactionPicker(onSelectEmoji: { emoji in
+                                if let message = selectedMessageForReaction {
+                                    viewModel.toggleReaction(messageId: message.id, emoji: emoji)
+                                }
+                                showReactionPicker = false
+                            })
+                        )
+                }
+            }
+        )
+        .sheet(isPresented: $showEditMessageSheet) {
+            if let message = selectedMessageForEdit {
+                EditMessageSheet(
+                    originalText: message.text,
+                    onSave: { newText in
+                        viewModel.editMessage(messageId: message.id, newText: newText)
+                    },
+                    onCancel: {
+                        showEditMessageSheet = false
+                    }
+                )
+            }
         }
     }
 }

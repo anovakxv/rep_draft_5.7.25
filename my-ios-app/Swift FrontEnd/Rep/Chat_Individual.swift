@@ -349,6 +349,110 @@ class MessageViewModel: ObservableObject {
             }
         }.resume()
     }
+
+    // Toggle reaction on a message
+    func toggleReaction(messageId: Int, emoji: String) {
+        print("⬆️ [CHAT_VM] Toggling reaction \(emoji) on message \(messageId)...")
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/toggle-reaction/\(messageId)") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = ["emoji": emoji]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            if let error = error {
+                print("❌ [CHAT_VM] Toggle reaction error: \(error)")
+                return
+            }
+            guard let data else {
+                print("❌ [CHAT_VM] No data returned from toggle reaction")
+                return
+            }
+
+            // Parse response to get updated reactions
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let reactionsArray = json["reactions"] as? [[String: Any]] {
+                let decoder = JSONDecoder()
+                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                if let reactionsData = try? JSONSerialization.data(withJSONObject: reactionsArray),
+                   let reactions = try? decoder.decode([MessageReaction].self, from: reactionsData) {
+                    DispatchQueue.main.async {
+                        if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                            // Update the message with new reactions
+                            var updatedMessage = self.messages[index]
+                            self.messages[index] = SimpleMessage(
+                                id: updatedMessage.id,
+                                senderId: updatedMessage.senderId,
+                                senderName: updatedMessage.senderName,
+                                text: updatedMessage.text,
+                                timestamp: updatedMessage.timestamp,
+                                read: updatedMessage.read,
+                                reactions: reactions,
+                                isEdited: updatedMessage.isEdited,
+                                editedAt: updatedMessage.editedAt
+                            )
+                            print("✅ [CHAT_VM] Reaction toggled successfully.")
+                        }
+                    }
+                }
+            }
+        }.resume()
+    }
+
+    // Edit a message
+    func editMessage(messageId: Int, newText: String) {
+        let trimmed = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        print("⬆️ [CHAT_VM] Editing message \(messageId)...")
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/\(messageId)") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if !jwtToken.isEmpty {
+            request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        }
+        let body: [String: Any] = ["text": trimmed]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { data, _, error in
+            if let error = error {
+                print("❌ [CHAT_VM] Edit message error: \(error)")
+                return
+            }
+            guard let data else {
+                print("❌ [CHAT_VM] No data returned from edit message")
+                return
+            }
+
+            // Parse response
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let editedAt = json["edited_at"] as? String {
+                DispatchQueue.main.async {
+                    if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                        let updatedMessage = self.messages[index]
+                        self.messages[index] = SimpleMessage(
+                            id: updatedMessage.id,
+                            senderId: updatedMessage.senderId,
+                            senderName: updatedMessage.senderName,
+                            text: trimmed,
+                            timestamp: updatedMessage.timestamp,
+                            read: updatedMessage.read,
+                            reactions: updatedMessage.reactions,
+                            isEdited: true,
+                            editedAt: editedAt
+                        )
+                        print("✅ [CHAT_VM] Message edited successfully.")
+                    }
+                }
+            }
+        }.resume()
+    }
 }
 
 // Helper decoder for ISO8601
@@ -365,6 +469,12 @@ extension JSONDecoder {
 struct MessageView: View {
     @StateObject var viewModel: MessageViewModel
     @Environment(\.dismiss) private var dismiss
+
+    // State for showing reaction picker and edit sheet
+    @State private var showReactionPicker = false
+    @State private var showEditSheet = false
+    @State private var selectedMessageForReaction: SimpleMessage? = nil
+    @State private var selectedMessageForEdit: SimpleMessage? = nil
 
     init(viewModel: MessageViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -417,12 +527,12 @@ struct MessageView: View {
                                             isCurrentUser: true,
                                             profilePicURL: nil,
                                             onReact: { msg in
-                                                // TODO: Show reaction picker
-                                                print("React to message: \(msg.id)")
+                                                selectedMessageForReaction = msg
+                                                showReactionPicker = true
                                             },
                                             onEdit: { msg in
-                                                // TODO: Show edit sheet
-                                                print("Edit message: \(msg.id)")
+                                                selectedMessageForEdit = msg
+                                                showEditSheet = true
                                             }
                                         )
                                     } else {
@@ -431,12 +541,11 @@ struct MessageView: View {
                                             isCurrentUser: false,
                                             profilePicURL: viewModel.otherUserPhotoURL,
                                             onReact: { msg in
-                                                // TODO: Show reaction picker
-                                                print("React to message: \(msg.id)")
+                                                selectedMessageForReaction = msg
+                                                showReactionPicker = true
                                             },
                                             onEdit: { msg in
-                                                // Not used for other user's messages
-                                                print("Edit not available for other user's messages")
+                                                // Edit not available for other user's messages
                                             }
                                         )
                                         Spacer()
@@ -509,6 +618,38 @@ struct MessageView: View {
             print("🎨 [CHAT_VIEW] ON_DISAPPEAR")
         }
         .navigationBarHidden(true)
+        .overlay(
+            Group {
+                if showReactionPicker {
+                    Color.black.opacity(0.3)
+                        .edgesIgnoringSafeArea(.all)
+                        .onTapGesture {
+                            showReactionPicker = false
+                        }
+                        .overlay(
+                            ReactionPicker(onSelectEmoji: { emoji in
+                                if let message = selectedMessageForReaction {
+                                    viewModel.toggleReaction(messageId: message.id, emoji: emoji)
+                                }
+                                showReactionPicker = false
+                            })
+                        )
+                }
+            }
+        )
+        .sheet(isPresented: $showEditSheet) {
+            if let message = selectedMessageForEdit {
+                EditMessageSheet(
+                    originalText: message.text,
+                    onSave: { newText in
+                        viewModel.editMessage(messageId: message.id, newText: newText)
+                    },
+                    onCancel: {
+                        showEditSheet = false
+                    }
+                )
+            }
+        }
     }
 }
 

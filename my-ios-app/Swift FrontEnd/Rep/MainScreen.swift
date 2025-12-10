@@ -133,6 +133,10 @@ class PortalsViewModel: ObservableObject {
                     }
                 }
                 if let error = error {
+                    // Ignore cancellation errors (expected when switching tabs quickly)
+                    if (error as NSError).code == NSURLErrorCancelled {
+                        return
+                    }
                     self.errorMessage = error.localizedDescription
                     self.portals = []
                     return
@@ -623,6 +627,10 @@ class PeopleViewModel: ObservableObject {
                     }
                 }
                 if let error = error {
+                    // Ignore cancellation errors (expected when switching tabs quickly)
+                    if (error as NSError).code == NSURLErrorCancelled {
+                        return
+                    }
                     self.errorMessage = error.localizedDescription
                     self.activeChats = []
                     return
@@ -706,6 +714,10 @@ class PeopleViewModel: ObservableObject {
                     }
                 }
                 if let error = error {
+                    // Ignore cancellation errors (expected when switching tabs quickly)
+                    if (error as NSError).code == NSURLErrorCancelled {
+                        return
+                    }
                     self.errorMessage = error.localizedDescription
                     self.users = []
                     return

@@ -286,6 +286,7 @@ class PortalsViewModel: ObservableObject {
                 self?.backgroundTasks.append(task)
             }
             task.resume()
+        }
     }
 }
 

@@ -14,6 +14,27 @@ struct MessageReaction: Identifiable, Decodable, Equatable {
     let users: [ReactionUser]
 
     var id: String { emoji }
+
+    // Custom decoder to handle userReacted as either Bool or Int
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        emoji = try container.decode(String.self, forKey: .emoji)
+        count = try container.decode(Int.self, forKey: .count)
+        users = try container.decode([ReactionUser].self, forKey: .users)
+
+        // Handle userReacted as either Bool or Int (0/1)
+        if let boolValue = try? container.decode(Bool.self, forKey: .userReacted) {
+            userReacted = boolValue
+        } else if let intValue = try? container.decode(Int.self, forKey: .userReacted) {
+            userReacted = intValue != 0
+        } else {
+            userReacted = false
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case emoji, count, userReacted, users
+    }
 }
 
 struct ReactionUser: Decodable, Equatable {
@@ -672,23 +693,23 @@ struct MessageBubble: View {
                                     if showReactionPicker {
                                         HorizontalReactionPicker(
                                             emojis: reactionEmojis,
+                                            isCurrentUser: true,
+                                            showEdit: true,
                                             onSelect: { emoji in
                                                 onReact(emoji)
+                                                showReactionPicker = false
+                                            },
+                                            onEdit: {
+                                                onEdit(message)
                                                 showReactionPicker = false
                                             },
                                             onDismiss: {
                                                 showReactionPicker = false
                                             }
                                         )
-                                        .offset(y: -50)
                                     }
                                 }
                             )
-                            .contextMenu {
-                                Button(action: { onEdit(message) }) {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                            }
 
                         // Edit indicator
                         if message.isEdited == true {
@@ -751,15 +772,17 @@ struct MessageBubble: View {
                                     if showReactionPicker {
                                         HorizontalReactionPicker(
                                             emojis: reactionEmojis,
+                                            isCurrentUser: false,
+                                            showEdit: false,
                                             onSelect: { emoji in
                                                 onReact(emoji)
                                                 showReactionPicker = false
                                             },
+                                            onEdit: {},
                                             onDismiss: {
                                                 showReactionPicker = false
                                             }
                                         )
-                                        .offset(y: -50)
                                     }
                                 }
                             )
@@ -806,38 +829,67 @@ struct MessageBubble: View {
 
 private struct HorizontalReactionPicker: View {
     let emojis: [String]
+    let isCurrentUser: Bool
+    let showEdit: Bool
     let onSelect: (String) -> Void
+    let onEdit: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            ForEach(emojis, id: \.self) { emoji in
-                Button(action: {
-                    onSelect(emoji)
-                }) {
-                    Text(emoji)
-                        .font(.title2)
-                        .frame(width: 40, height: 40)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .shadow(radius: 4)
-                }
-            }
-        }
-        .padding(8)
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(radius: 8)
-        .onTapGesture {
-            // Prevent dismissal when tapping inside
-        }
-        .background(
+        ZStack {
+            // Full-screen transparent background to capture dismiss taps
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture {
                     onDismiss()
                 }
-        )
+
+            // The actual reaction picker
+            VStack(spacing: 8) {
+                // Emoji reactions
+                HStack(spacing: 8) {
+                    ForEach(emojis, id: \.self) { emoji in
+                        Button(action: {
+                            onSelect(emoji)
+                        }) {
+                            Text(emoji)
+                                .font(.title2)
+                                .frame(width: 40, height: 40)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                                .shadow(radius: 2)
+                        }
+                    }
+                }
+
+                // Edit button (only for current user's messages)
+                if showEdit {
+                    Button(action: {
+                        onEdit()
+                    }) {
+                        HStack {
+                            Image(systemName: "pencil")
+                            Text("Edit")
+                        }
+                        .font(.body)
+                        .foregroundColor(.primary)
+                        .frame(height: 40)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                        .shadow(radius: 2)
+                    }
+                }
+            }
+            .padding(8)
+            .background(Color.white)
+            .cornerRadius(12)
+            .shadow(radius: 8)
+            .position(
+                x: isCurrentUser ? 130 : 180,  // Move right for incoming messages
+                y: showEdit ? -70 : -30  // Position higher if Edit button is shown
+            )
+        }
     }
 }
 

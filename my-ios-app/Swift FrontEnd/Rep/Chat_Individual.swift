@@ -510,10 +510,10 @@ struct MessageView: View {
     @StateObject var viewModel: MessageViewModel
     @Environment(\.dismiss) private var dismiss
 
-    // State for showing edit sheet and reaction bar
+    // State for showing edit sheet and reaction picker
     @State private var showEditSheet = false
     @State private var selectedMessageForEdit: SimpleMessage? = nil
-    @State private var showReactionBar: Bool = false
+    @State private var showReactionPicker = false
     @State private var selectedMessageForReaction: SimpleMessage? = nil
 
     init(viewModel: MessageViewModel) {
@@ -566,12 +566,9 @@ struct MessageView: View {
                                             message: message,
                                             isCurrentUser: true,
                                             profilePicURL: nil,
-                                            onReact: { emoji in
-                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
-                                            },
-                                            onEdit: { msg in
-                                                selectedMessageForEdit = msg
-                                                showEditSheet = true
+                                            onLongPress: {
+                                                selectedMessageForReaction = message
+                                                showReactionPicker = true
                                             }
                                         )
                                     } else {
@@ -579,11 +576,9 @@ struct MessageView: View {
                                             message: message,
                                             isCurrentUser: false,
                                             profilePicURL: viewModel.otherUserPhotoURL,
-                                            onReact: { emoji in
-                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
-                                            },
-                                            onEdit: { msg in
-                                                // Edit not available for other user's messages
+                                            onLongPress: {
+                                                selectedMessageForReaction = message
+                                                showReactionPicker = true
                                             }
                                         )
                                         Spacer()
@@ -649,6 +644,7 @@ struct MessageView: View {
                     originalText: message.text,
                     onSave: { newText in
                         viewModel.editMessage(messageId: message.id, newText: newText)
+                        showEditSheet = false
                     },
                     onCancel: {
                         showEditSheet = false
@@ -656,6 +652,32 @@ struct MessageView: View {
                 )
             }
         }
+        .overlay(
+            // Full-screen reaction picker overlay
+            Group {
+                if showReactionPicker, let message = selectedMessageForReaction {
+                    FullScreenReactionPicker(
+                        emojis: ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"],
+                        showEdit: message.senderId == viewModel.currentUserId,
+                        onSelect: { emoji in
+                            viewModel.toggleReaction(messageId: message.id, emoji: emoji)
+                            showReactionPicker = false
+                            selectedMessageForReaction = nil
+                        },
+                        onEdit: {
+                            selectedMessageForEdit = message
+                            showEditSheet = true
+                            showReactionPicker = false
+                            selectedMessageForReaction = nil
+                        },
+                        onDismiss: {
+                            showReactionPicker = false
+                            selectedMessageForReaction = nil
+                        }
+                    )
+                }
+            }
+        )
     }
 }
 
@@ -665,13 +687,7 @@ struct MessageBubble: View {
     let message: SimpleMessage
     let isCurrentUser: Bool
     let profilePicURL: URL?
-    let onReact: (String) -> Void
-    let onEdit: (SimpleMessage) -> Void
-
-    // Popular emojis matching web app
-    let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
-
-    @State private var showReactionPicker = false
+    let onLongPress: () -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -686,30 +702,8 @@ struct MessageBubble: View {
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
                             .onLongPressGesture {
-                                showReactionPicker = true
+                                onLongPress()
                             }
-                            .overlay(
-                                Group {
-                                    if showReactionPicker {
-                                        HorizontalReactionPicker(
-                                            emojis: reactionEmojis,
-                                            isCurrentUser: true,
-                                            showEdit: true,
-                                            onSelect: { emoji in
-                                                onReact(emoji)
-                                                showReactionPicker = false
-                                            },
-                                            onEdit: {
-                                                onEdit(message)
-                                                showReactionPicker = false
-                                            },
-                                            onDismiss: {
-                                                showReactionPicker = false
-                                            }
-                                        )
-                                    }
-                                }
-                            )
 
                         // Edit indicator
                         if message.isEdited == true {
@@ -765,27 +759,8 @@ struct MessageBubble: View {
                             .foregroundColor(.black)
                             .cornerRadius(8)
                             .onLongPressGesture {
-                                showReactionPicker = true
+                                onLongPress()
                             }
-                            .overlay(
-                                Group {
-                                    if showReactionPicker {
-                                        HorizontalReactionPicker(
-                                            emojis: reactionEmojis,
-                                            isCurrentUser: false,
-                                            showEdit: false,
-                                            onSelect: { emoji in
-                                                onReact(emoji)
-                                                showReactionPicker = false
-                                            },
-                                            onEdit: {},
-                                            onDismiss: {
-                                                showReactionPicker = false
-                                            }
-                                        )
-                                    }
-                                }
-                            )
 
                         // Edit indicator
                         if message.isEdited == true {
@@ -825,73 +800,65 @@ struct MessageBubble: View {
     }
 }
 
-// MARK: - Horizontal Reaction Picker
+// MARK: - Full Screen Reaction Picker
 
-private struct HorizontalReactionPicker: View {
+private struct FullScreenReactionPicker: View {
     let emojis: [String]
-    let isCurrentUser: Bool
     let showEdit: Bool
     let onSelect: (String) -> Void
     let onEdit: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Full-screen transparent background to capture dismiss taps
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        onDismiss()
-                    }
+        ZStack {
+            // Semi-transparent background
+            Color.black.opacity(0.4)
+                .edgesIgnoringSafeArea(.all)
+                .onTapGesture {
+                    onDismiss()
+                }
 
-                // The actual reaction picker - centered on screen
-                VStack(spacing: 8) {
-                    // Emoji reactions
-                    HStack(spacing: 8) {
-                        ForEach(emojis, id: \.self) { emoji in
-                            Button(action: {
-                                onSelect(emoji)
-                            }) {
-                                Text(emoji)
-                                    .font(.title2)
-                                    .frame(width: 40, height: 40)
-                                    .background(Color.white)
-                                    .cornerRadius(8)
-                                    .shadow(radius: 2)
-                            }
-                        }
-                    }
-
-                    // Edit button (only for current user's messages)
-                    if showEdit {
+            // The actual reaction picker - centered on screen
+            VStack(spacing: 12) {
+                // Emoji reactions
+                HStack(spacing: 12) {
+                    ForEach(emojis, id: \.self) { emoji in
                         Button(action: {
-                            onEdit()
+                            onSelect(emoji)
                         }) {
-                            HStack {
-                                Image(systemName: "pencil")
-                                Text("Edit")
-                            }
-                            .font(.body)
-                            .foregroundColor(.primary)
-                            .frame(height: 40)
-                            .padding(.horizontal, 16)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            .shadow(radius: 2)
+                            Text(emoji)
+                                .font(.system(size: 36))
+                                .frame(width: 50, height: 50)
                         }
                     }
                 }
-                .padding(12)
-                .background(Color.white)
-                .cornerRadius(12)
-                .shadow(radius: 10)
-                .frame(maxWidth: 320)
-                .position(
-                    x: geometry.size.width / 2,  // Center horizontally
-                    y: geometry.size.height / 2  // Center vertically
-                )
+
+                // Edit button (only for current user's messages)
+                if showEdit {
+                    Button(action: {
+                        onEdit()
+                    }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "pencil")
+                            Text("Edit Message")
+                        }
+                        .font(.body)
+                        .foregroundColor(.primary)
+                        .frame(height: 44)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.white)
+                        .cornerRadius(10)
+                        .shadow(radius: 3)
+                    }
+                    .padding(.horizontal, 20)
+                }
             }
+            .padding(16)
+            .background(Color.white)
+            .cornerRadius(16)
+            .shadow(radius: 20)
+            .frame(maxWidth: 380)
+            .padding(.horizontal, 20)
         }
     }
 }

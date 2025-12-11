@@ -166,6 +166,7 @@ import { useRouter, useRoute } from 'vue-router'
 import api from '@/pages/utils/api'
 import WritingToolbar from '@/components/WritingToolbar.vue'
 import WriteStats from '@/components/WriteStats.vue'
+import { BREAKPOINTS } from '@/constants/breakpoints'
 
 // Props & Router
 const router = useRouter()
@@ -185,7 +186,7 @@ const isEditing = computed(() => writeId !== null)
 const distractionFreeMode = ref(false)
 const showShortcuts = ref(false)
 const focusedEditor = ref(false)
-const isMobile = ref(window.innerWidth < 768)
+const isMobile = ref(window.innerWidth < BREAKPOINTS.DESKTOP)
 const activeFormats = ref<string[]>([])
 const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
 const autoSaveTimer = ref<NodeJS.Timeout | null>(null)
@@ -455,7 +456,7 @@ async function loadExistingWrite() {
 }
 
 function handleResize() {
-  isMobile.value = window.innerWidth < 768
+  isMobile.value = window.innerWidth < BREAKPOINTS.DESKTOP
 }
 
 // Lifecycle

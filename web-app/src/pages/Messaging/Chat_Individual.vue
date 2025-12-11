@@ -154,6 +154,7 @@ import MessageBubble from '@/components/MessageBubble.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog.vue';
 import EditHistoryModal from '@/components/EditHistoryModal.vue';
+import { BREAKPOINTS } from '@/constants/breakpoints';
 
 // --- Constants ---
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
@@ -178,7 +179,7 @@ const canLoadOlder = ref(true);
 const scrollContainer = ref<HTMLElement | null>(null);
 const isTyping = ref(false);
 const otherUserTyping = ref(false);
-const isDesktop = ref(window.innerWidth >= 768);
+const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
@@ -358,7 +359,7 @@ function autoResizeTextarea() {
 }
 
 function updateDesktopDetection() {
-  isDesktop.value = window.innerWidth >= 768;
+  isDesktop.value = window.innerWidth >= BREAKPOINTS.DESKTOP;
   // Reset textarea height when switching between mobile/desktop
   if (textareaRef.value) {
     if (isDesktop.value) {
@@ -581,7 +582,8 @@ onUnmounted(() => {
   width: 100%;
 }
 
-@media (min-width: 768px) {
+/* Desktop breakpoint - keep in sync with BREAKPOINTS.DESKTOP in @/constants/breakpoints.ts */
+@media (min-width: 1024px) {
   .chat-individual-container {
     /* Desktop: break out to full viewport width */
     width: 100vw;

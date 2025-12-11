@@ -960,7 +960,8 @@ onMounted(fetchProfile)
   width: 100%;
 }
 
-@media (min-width: 768px) {
+/* Desktop breakpoint - keep in sync with BREAKPOINTS.DESKTOP in @/constants/breakpoints.ts */
+@media (min-width: 1024px) {
   .profile-view-container {
     /* Desktop: break out to full viewport width */
     width: 100vw;

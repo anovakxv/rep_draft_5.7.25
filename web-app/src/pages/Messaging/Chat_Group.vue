@@ -223,6 +223,7 @@ import MessageBubble from '@/components/MessageBubble.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog.vue';
 import GroupMemberAvatar from '@/components/GroupMemberAvatar';
+import { BREAKPOINTS } from '@/constants/breakpoints';
 
 // --- Constants ---
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
@@ -251,7 +252,7 @@ const creatorId = ref<number | null>(null);
 const showGroupInfo = ref(false);
 const showLeaveAlert = ref(false);
 const showDeleteAlert = ref(false);
-const isDesktop = ref(window.innerWidth >= 768);
+const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
 const desktopTextareaRef = ref<HTMLTextAreaElement | null>(null);
 // Message enhancement states
@@ -448,7 +449,7 @@ function autoResizeTextarea() {
 }
 
 function updateDesktopDetection() {
-  isDesktop.value = window.innerWidth >= 768;
+  isDesktop.value = window.innerWidth >= BREAKPOINTS.DESKTOP;
   // Reset textarea height when switching between mobile/desktop
   if (textareaRef.value) {
     if (isDesktop.value) {
@@ -746,7 +747,8 @@ onUnmounted(() => {
   width: 100%;
 }
 
-@media (min-width: 768px) {
+/* Desktop breakpoint - keep in sync with BREAKPOINTS.DESKTOP in @/constants/breakpoints.ts */
+@media (min-width: 1024px) {
   .chat-group-container {
     /* Desktop: break out to full viewport width */
     width: 100vw;

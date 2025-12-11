@@ -197,6 +197,7 @@ import { isAuthenticated } from '@/utils/auth';
 // Lazy load EditGoal to prevent Tailwind @apply errors from blocking page load
 const EditGoal = defineAsyncComponent(() => import('../GoalPages/EditGoal.vue'));
 import PayTransaction from './PayTransaction.vue';
+import { BREAKPOINTS } from '@/constants/breakpoints';
 
 // --- Interfaces (from Swift Models) ---
 interface User { 
@@ -888,7 +889,7 @@ const ActionSheetModal = defineComponent({
   },
   emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support'],
   setup(props, { emit }) {
-    const isDesktop = ref(window.innerWidth >= 768);
+    const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
 
     return () => h('div', {
       class: 'fixed inset-0 z-40 flex items-end justify-center',
@@ -1119,7 +1120,8 @@ const FullscreenImageViewer = defineComponent({
   width: 100%;
 }
 
-@media (min-width: 768px) {
+/* Desktop breakpoint - keep in sync with BREAKPOINTS.DESKTOP in @/constants/breakpoints.ts */
+@media (min-width: 1024px) {
   .portal-page-container {
     /* Desktop: break out to full viewport width */
     width: 100vw;

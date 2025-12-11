@@ -836,59 +836,62 @@ private struct HorizontalReactionPicker: View {
     let onDismiss: () -> Void
 
     var body: some View {
-        ZStack {
-            // Full-screen transparent background to capture dismiss taps
-            Color.clear
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onDismiss()
-                }
+        GeometryReader { geometry in
+            ZStack {
+                // Full-screen transparent background to capture dismiss taps
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onDismiss()
+                    }
 
-            // The actual reaction picker
-            VStack(spacing: 8) {
-                // Emoji reactions
-                HStack(spacing: 8) {
-                    ForEach(emojis, id: \.self) { emoji in
+                // The actual reaction picker - centered on screen
+                VStack(spacing: 8) {
+                    // Emoji reactions
+                    HStack(spacing: 8) {
+                        ForEach(emojis, id: \.self) { emoji in
+                            Button(action: {
+                                onSelect(emoji)
+                            }) {
+                                Text(emoji)
+                                    .font(.title2)
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.white)
+                                    .cornerRadius(8)
+                                    .shadow(radius: 2)
+                            }
+                        }
+                    }
+
+                    // Edit button (only for current user's messages)
+                    if showEdit {
                         Button(action: {
-                            onSelect(emoji)
+                            onEdit()
                         }) {
-                            Text(emoji)
-                                .font(.title2)
-                                .frame(width: 40, height: 40)
-                                .background(Color.white)
-                                .cornerRadius(8)
-                                .shadow(radius: 2)
+                            HStack {
+                                Image(systemName: "pencil")
+                                Text("Edit")
+                            }
+                            .font(.body)
+                            .foregroundColor(.primary)
+                            .frame(height: 40)
+                            .padding(.horizontal, 16)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .shadow(radius: 2)
                         }
                     }
                 }
-
-                // Edit button (only for current user's messages)
-                if showEdit {
-                    Button(action: {
-                        onEdit()
-                    }) {
-                        HStack {
-                            Image(systemName: "pencil")
-                            Text("Edit")
-                        }
-                        .font(.body)
-                        .foregroundColor(.primary)
-                        .frame(height: 40)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .shadow(radius: 2)
-                    }
-                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(12)
+                .shadow(radius: 10)
+                .frame(maxWidth: 320)
+                .position(
+                    x: geometry.size.width / 2,  // Center horizontally
+                    y: geometry.size.height / 2  // Center vertically
+                )
             }
-            .padding(8)
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(radius: 8)
-            .position(
-                x: isCurrentUser ? 130 : 180,  // Move right for incoming messages
-                y: showEdit ? -70 : -30  // Position higher if Edit button is shown
-            )
         }
     }
 }

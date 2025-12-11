@@ -21,7 +21,7 @@
       <!-- Two Column Layout (Desktop Only) -->
       <div class="flex flex-col flex-1 min-h-0 md:flex-row">
         <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
-        <div class="hidden md:flex md:w-[70%] md:h-[calc(100vh-3.5rem)] md:sticky md:top-[3.5rem] md:flex-col md:bg-black" style="border: 8px solid black;">
+        <div class="hidden md:flex md:w-[70%] md:h-[calc(100vh-3.5rem)] md:sticky md:top-[3.5rem] md:flex-col md:bg-black" style="border: 12px solid black;">
           <ImageTabView
             :sections="portalDetail.aSections || []"
             @image-tap="openFullscreen"

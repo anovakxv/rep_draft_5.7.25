@@ -591,7 +591,7 @@ class GroupChatViewModel: ObservableObject {
             // Parse response - backend returns {"result": {...}}
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let result = json["result"] as? [String: Any],
-               let editedAt = result["editedAt"] as? String {
+               let editedAt = result["edited_at"] as? String {
                 DispatchQueue.main.async {
                     if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                         let oldMessage = self.messages[index]

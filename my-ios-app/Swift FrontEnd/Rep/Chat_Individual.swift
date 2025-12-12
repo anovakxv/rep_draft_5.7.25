@@ -483,8 +483,8 @@ class MessageViewModel: ObservableObject {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 print("📦 [CHAT_VM] Parsed edit JSON: \(json)")
                 if let result = json["result"] as? [String: Any],
-                   let editedAt = result["editedAt"] as? String {
-                    print("📦 [CHAT_VM] Found editedAt: \(editedAt)")
+                   let editedAt = result["edited_at"] as? String {
+                    print("📦 [CHAT_VM] Found edited_at: \(editedAt)")
                     DispatchQueue.main.async {
                         if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                             print("📦 [CHAT_VM] Found message at index \(index), updating with new text: \(trimmed)")
@@ -510,7 +510,7 @@ class MessageViewModel: ObservableObject {
                         }
                     }
                 } else {
-                    print("❌ [CHAT_VM] No 'result' or 'editedAt' key in response")
+                    print("❌ [CHAT_VM] No 'result' or 'edited_at' key in response")
                 }
             } else {
                 print("❌ [CHAT_VM] Failed to parse edit response as JSON")

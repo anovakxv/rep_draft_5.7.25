@@ -414,6 +414,8 @@ class MessageViewModel: ObservableObject {
                         DispatchQueue.main.async {
                             if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                                 print("📦 [CHAT_VM] Found message at index \(index), updating...")
+                                // Force SwiftUI to detect the change
+                                self.objectWillChange.send()
                                 // Update the message with new reactions
                                 var updatedMessage = self.messages[index]
                                 self.messages[index] = SimpleMessage(
@@ -819,16 +821,16 @@ private struct FullScreenReactionPicker: View {
                 }
 
             // The actual reaction picker - centered on screen
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 // Emoji reactions
-                HStack(spacing: 12) {
+                HStack(spacing: 8) {
                     ForEach(emojis, id: \.self) { emoji in
                         Button(action: {
                             onSelect(emoji)
                         }) {
                             Text(emoji)
-                                .font(.system(size: 36))
-                                .frame(width: 50, height: 50)
+                                .font(.system(size: 28))
+                                .frame(width: 40, height: 40)
                         }
                     }
                 }
@@ -838,26 +840,26 @@ private struct FullScreenReactionPicker: View {
                     Button(action: {
                         onEdit()
                     }) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             Image(systemName: "pencil")
+                                .font(.system(size: 14))
                             Text("Edit Message")
+                                .font(.system(size: 14))
                         }
-                        .font(.body)
                         .foregroundColor(.primary)
-                        .frame(height: 44)
-                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                        .padding(.horizontal, 16)
                         .background(Color.white)
-                        .cornerRadius(10)
-                        .shadow(radius: 3)
+                        .cornerRadius(8)
+                        .shadow(radius: 2)
                     }
-                    .padding(.horizontal, 20)
                 }
             }
-            .padding(16)
+            .padding(12)
             .background(Color.white)
-            .cornerRadius(16)
-            .shadow(radius: 20)
-            .frame(maxWidth: 380)
+            .cornerRadius(12)
+            .shadow(radius: 10)
+            .frame(maxWidth: 320)
             .padding(.horizontal, 20)
         }
     }

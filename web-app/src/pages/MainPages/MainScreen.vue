@@ -26,30 +26,23 @@
         :key="openNeedsAttention ? 'dot-on' : 'dot-off'"
       />
 
-      <div class="flex items-center gap-4">
-        <button @click="startSearch" style="color: #8cc65d" class="focus:outline-none">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
-        <button @click="handleAddButtonClick" style="color: #8cc65d" class="focus:outline-none">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-      </div>
+      <button @click="handleAddButtonClick" style="color: #8cc65d">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
     </header>
 
     <!-- Search Bar (slides from top) -->
     <Transition name="slide-down">
-      <div v-if="showSearch" class="sticky z-10 bg-white p-3 border-b shadow-sm flex justify-center" style="top: 56px;">
+      <div v-if="showSearch" class="sticky z-10 bg-white p-3 border-b border-gray-200 shadow-sm flex justify-center" style="top: 56px;">
         <div class="w-full flex items-center" style="max-width: 768px;">
           <input
             ref="searchInput"
             v-model="searchText"
             type="search"
             placeholder="Search..."
-            class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2"
+            class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-1"
             style="--tw-ring-color: #8cc65d"
             @input="handleSearchInput"
           />
@@ -216,6 +209,9 @@
               </button>
               <button @click="navigateToTeamChat" class="text-[#8cc65d] font-bold text-[28px] py-3">
                 Team Chat
+              </button>
+              <button @click="startSearch" class="text-[#8cc65d] font-bold text-[28px] py-3">
+                Search
               </button>
 
               <!-- Cancel Button -->

@@ -784,7 +784,7 @@ struct MainSegmentedPicker: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: attentionDotIndices)
-        .frame(width: 204, height: 32)
+        .frame(width: 210, height: 32)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
         .overlay(
             RoundedRectangle(cornerRadius: 4)

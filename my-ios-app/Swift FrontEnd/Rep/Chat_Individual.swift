@@ -622,14 +622,11 @@ struct MessageView: View {
                         .padding(.horizontal, 12)
                     }
                     .background(Color.white)
-                    // FIX: Scroll to bottom spacer to ensure last message is fully visible
+                    .defaultScrollAnchor(.bottom)
                     .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            proxy.scrollTo("bottomSpacer", anchor: .bottom)
-                        }
+                        proxy.scrollTo("bottomSpacer", anchor: .bottom)
                     }
-                    // Auto-scroll when new messages arrive (instant, no animation)
-                    .onChange(of: viewModel.messages.last?.id) { _ in
+                    .onChange(of: viewModel.messages.count) { _ in
                         guard !viewModel.isLoadingOlder else { return }
                         proxy.scrollTo("bottomSpacer", anchor: .bottom)
                     }

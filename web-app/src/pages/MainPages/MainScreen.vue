@@ -12,8 +12,8 @@
     <header class="sticky top-0 z-20 border-b border-gray-200 flex items-center justify-between h-14 px-4" style="background-color: #f7f7f7">
       <button @click="handleProfileClick" class="focus:outline-none">
         <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
-             class="w-7 h-7 rounded-full object-cover" alt="Profile"/>
-        <div v-else class="w-7 h-7 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-semibold">
+             class="w-8 h-8 rounded-full object-cover" alt="Profile"/>
+        <div v-else class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-semibold">
           {{ getInitials(currentUser?.full_name || 'User') }}
         </div>
       </button>
@@ -26,12 +26,37 @@
         :key="openNeedsAttention ? 'dot-on' : 'dot-off'"
       />
 
-      <button @click="handleAddButtonClick" style="color: #8cc65d">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
+      <div class="flex items-center gap-4">
+        <button @click="startSearch" style="color: #8cc65d" class="focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
+        <button @click="handleAddButtonClick" style="color: #8cc65d" class="focus:outline-none">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </button>
+      </div>
     </header>
+
+    <!-- Search Bar (slides from top) -->
+    <Transition name="slide-down">
+      <div v-if="showSearch" class="sticky z-10 bg-white p-3 border-b shadow-sm flex justify-center" style="top: 56px;">
+        <div class="w-full flex items-center" style="max-width: 768px;">
+          <input
+            ref="searchInput"
+            v-model="searchText"
+            type="search"
+            placeholder="Search..."
+            class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2"
+            style="--tw-ring-color: #8cc65d"
+            @input="handleSearchInput"
+          />
+          <button @click="cancelSearch" class="ml-2 px-4 py-2 text-gray-700">Cancel</button>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto relative pb-20">
@@ -156,22 +181,6 @@
       </div>
     </main>
 
-    <!-- Search Overlay -->
-    <Transition name="slide-up">
-      <div v-if="showSearch" class="fixed bottom-0 left-0 right-0 bg-white p-3 border-t shadow-md z-20 flex justify-center">
-        <div class="w-full flex items-center" style="max-width: 768px;">
-          <input
-            v-model="searchText"
-            type="search"
-            placeholder="Search..."
-            class="flex-grow p-3 border rounded-lg bg-gray-100 focus:outline-none focus:ring-2"
-            style="--tw-ring-color: #8cc65d"
-            @input="handleSearchInput"
-          />
-          <button @click="cancelSearch" class="ml-2 px-4 py-2 text-gray-700">Cancel</button>
-        </div>
-      </div>
-    </Transition>
 
     <!-- Action Sheet Modal -->
     <Transition name="fade">
@@ -207,9 +216,6 @@
               </button>
               <button @click="navigateToTeamChat" class="text-[#8cc65d] font-bold text-[28px] py-3">
                 Team Chat
-              </button>
-              <button @click="startSearch" class="text-[#8cc65d] font-bold text-[28px] py-3">
-                Search
               </button>
 
               <!-- Cancel Button -->
@@ -671,6 +677,7 @@ const currentUser = ref<User | null>(null);
 const mainActiveSheet = ref<'actionSheet' | 'addPurpose' | null>(null);
 const showSearch = ref(false);
 const searchText = ref('');
+const searchInput = ref<HTMLInputElement | null>(null);
 const initialUnreadPollScheduled = ref(false);
 
 // --- Computed Filters ---
@@ -795,9 +802,8 @@ const startSearch = () => {
   mainActiveSheet.value = null;
   showSearch.value = true;
   nextTick(() => {
-    const searchInput = document.querySelector('input[type="search"]');
-    if (searchInput) {
-      (searchInput as HTMLInputElement).focus();
+    if (searchInput.value) {
+      searchInput.value.focus();
     }
   });
 };
@@ -1130,7 +1136,7 @@ const MainSegmentedPicker = defineComponent({
   emits: ['select'],
   setup(props, { emit }) {
     return () => h('div', {
-      class: 'flex w-56 md:w-60 h-8 bg-gray-200 rounded overflow-hidden border border-black'
+      class: 'flex w-52 md:w-56 h-8 bg-gray-200 rounded overflow-hidden border border-black'
     },
     props.segments?.flatMap((segment, index) => {
       const button = h('button', {
@@ -1393,5 +1399,27 @@ const ActiveChatList = defineComponent({
 .logo {
   width: 120px;
   margin-bottom: 2rem;
+}
+
+/* Slide-down transition for search bar from top */
+.slide-down-enter-active,
+.slide-down-leave-active {
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.slide-down-enter-from {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.slide-down-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.slide-down-enter-to,
+.slide-down-leave-from {
+  transform: translateY(0);
+  opacity: 1;
 }
 </style>

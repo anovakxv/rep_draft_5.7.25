@@ -613,21 +613,25 @@ struct MessageView: View {
                                 ProgressView()
                                     .padding(.vertical, 8)
                             }
+                            // Spacer to ensure last message is visible above input bar
+                            Color.clear
+                                .frame(height: 20)
+                                .id("bottomSpacer")
                         }
-                        .padding(.vertical, 12)
+                        .padding(.top, 12)
                         .padding(.horizontal, 12)
                     }
                     .background(Color.white)
-                    // FIX: Instantly scroll to bottom on initial appear (no animation)
+                    // FIX: Scroll to bottom spacer to ensure last message is fully visible
                     .onAppear {
-                        if let lastId = viewModel.messages.last?.id {
-                            proxy.scrollTo(lastId, anchor: .bottom)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            proxy.scrollTo("bottomSpacer", anchor: .bottom)
                         }
                     }
-                    // Auto-scroll when new messages arrive (with animation for smooth UX)
-                    .onChange(of: viewModel.messages.last?.id) { lastId in
-                        guard let lastId = lastId, !viewModel.isLoadingOlder else { return }
-                        withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
+                    // Auto-scroll when new messages arrive (instant, no animation)
+                    .onChange(of: viewModel.messages.last?.id) { _ in
+                        guard !viewModel.isLoadingOlder else { return }
+                        proxy.scrollTo("bottomSpacer", anchor: .bottom)
                     }
                 }
 

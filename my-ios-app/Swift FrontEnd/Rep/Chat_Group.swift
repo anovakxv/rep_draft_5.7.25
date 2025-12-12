@@ -742,21 +742,24 @@ private struct GroupMessagesListView: View {
                             onLongPress: { onLongPress(message) }
                         )
                     }
+                    // Spacer to ensure last message is visible above input bar
+                    Color.clear
+                        .frame(height: 20)
+                        .id("bottomSpacer")
                 }
-                .padding(.vertical, 12)
+                .padding(.top, 12)
                 .padding(.horizontal, 12)
             }
             .background(Color.white)
-            // FIX: Instantly scroll to bottom on initial appear (no animation)
+            // FIX: Scroll to bottom spacer to ensure last message is fully visible
             .onAppear {
-                if let lastId = messages.last?.id {
-                    proxy.scrollTo(lastId, anchor: .bottom)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    proxy.scrollTo("bottomSpacer", anchor: .bottom)
                 }
             }
-            // Auto-scroll when new messages arrive (with animation for smooth UX)
-            .onChange(of: messages.last?.id) { lastId in
-                guard let lastId = lastId else { return }
-                withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
+            // Auto-scroll when new messages arrive (instant, no animation)
+            .onChange(of: messages.last?.id) { _ in
+                proxy.scrollTo("bottomSpacer", anchor: .bottom)
             }
         }
     }

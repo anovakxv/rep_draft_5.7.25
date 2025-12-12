@@ -52,11 +52,13 @@ def api_group_chat():
         msg_dict = m.as_dict(current_user_id=user_id)
 
         # Build response with both old format (for compatibility) and new fields (reactions, etc.)
+        # Ensure sender_photo_url is never null - use empty string instead
+        sender_photo = getattr(sender, "profile_picture_url", None) if sender else None
         flat_messages.append({
             "id": msg_dict["id"],
             "sender_id": msg_dict["sender_id"],
             "sender_name": full_name or "",
-            "sender_photo_url": getattr(sender, "profile_picture_url", None) if sender else None,
+            "sender_photo_url": sender_photo if sender_photo else "",
             "text": msg_dict["text"],
             "timestamp": m.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
             # NEW: Include reactions and edit fields

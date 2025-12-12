@@ -637,22 +637,41 @@ struct GroupMemberAvatar: View {
     var body: some View {
         ZStack {
             if let url = photoURL {
-                AsyncImage(url: url) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle().fill(Color.gray.opacity(0.3))
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: size, height: size)
+                            .clipShape(Circle())
+                    case .failure(_):
+                        // Show initials if image fails to load
+                        fallbackAvatar
+                    case .empty:
+                        // Show placeholder while loading
+                        Circle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: size, height: size)
+                    @unknown default:
+                        fallbackAvatar
+                    }
                 }
-                .frame(width: size, height: size)
-                .clipShape(Circle())
             } else {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: size, height: size)
-                Text(initials(for: name))
-                    .font(.caption2)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.white)
+                fallbackAvatar
             }
+        }
+    }
+
+    private var fallbackAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(Color.gray.opacity(0.3))
+                .frame(width: size, height: size)
+            Text(initials(for: name))
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
         }
     }
 }

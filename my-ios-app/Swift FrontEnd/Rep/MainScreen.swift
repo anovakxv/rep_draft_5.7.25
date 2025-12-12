@@ -388,27 +388,8 @@ class PeopleViewModel: ObservableObject {
             // Update the timestamp for this request
             lastRefreshRequestTime = now
 
-            // Set loading state immediately to prevent "No chats found" flash
-            if !skipNextAnimations {
-                isLoading = true
-            }
-
-            // Create a new task that will handle the refresh
-            activeRefreshTask = Task {
-                // If task was cancelled, exit
-                if Task.isCancelled {
-                    print("❌ Refresh task cancelled")
-                    await MainActor.run {
-                        self.isLoading = false
-                    }
-                    return
-                }
-
-                // Perform the actual fetch on the main thread
-                await MainActor.run {
-                    performActiveChatsFetch(userId: userId, force: force)
-                }
-            }
+            // Perform the fetch immediately (no async wrapper delay)
+            performActiveChatsFetch(userId: userId, force: force)
             return
         }
 
@@ -1009,10 +990,7 @@ struct MainScreen: View {
         .onChange(of: section) { newSection in
             if newSection == 0 {
                 // Always load chats when section 0 is selected
-                let backgroundChats = peopleVM.getBackgroundActiveChats()
-                if !backgroundChats.isEmpty {
-                    peopleVM.activeChats = backgroundChats
-                }
+                // Don't show cached data - just show loading indicator until fresh data arrives
                 peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
 
                 // Start loading the other sections in the background

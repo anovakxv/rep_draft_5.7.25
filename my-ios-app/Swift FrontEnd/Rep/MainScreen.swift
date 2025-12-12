@@ -388,11 +388,19 @@ class PeopleViewModel: ObservableObject {
             // Update the timestamp for this request
             lastRefreshRequestTime = now
 
+            // Set loading state immediately to prevent "No chats found" flash
+            if !skipNextAnimations {
+                isLoading = true
+            }
+
             // Create a new task that will handle the refresh
             activeRefreshTask = Task {
                 // If task was cancelled, exit
                 if Task.isCancelled {
                     print("❌ Refresh task cancelled")
+                    await MainActor.run {
+                        self.isLoading = false
+                    }
                     return
                 }
 
@@ -973,7 +981,12 @@ struct MainScreen: View {
             }
             recalcOpenNeedsAttention()
             scheduleUnreadPollingIfNeeded()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                // ALWAYS load Chats (section 0) in background if not already loaded
+                if section != 0 || page == .portals {
+                    peopleVM.loadBackgroundData(from: section, to: 0, userId: userId)
+                }
+
                 // Start background loading the other tabs
                 if page == .portals {
                     portalsVM.loadBackgroundData(from: section, to: (section + 1) % 3, userId: userId, safeOnly: showOnlySafePortals)

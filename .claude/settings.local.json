@@ -60,7 +60,8 @@
       "Bash(my-ios-app/Python_Backend/your-app/app/models/People_Models/Messaging_Models/__pycache__/Group_Messages.cpython-313.pyc )",
       "Bash(my-ios-app/Python_Backend/your-app/app/models/People_Models/Write_Models/__pycache__/Writings_Model.cpython-313.pyc )",
       "Bash(my-ios-app/Python_Backend/your-app/instance/test.db)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(xcodebuild:*)"
     ],
     "deny": [],
     "ask": []

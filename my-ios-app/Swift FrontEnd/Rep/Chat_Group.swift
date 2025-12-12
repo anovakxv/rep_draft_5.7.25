@@ -508,7 +508,7 @@ class GroupChatViewModel: ObservableObject {
     // Toggle reaction on a group message
     func toggleReaction(messageId: Int, emoji: String) {
         print("⬆️ [GROUP_VM] Toggling reaction \(emoji) on message \(messageId)...")
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/toggle-group-reaction/\(messageId)") else { return }
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/group/toggle-reaction/\(messageId)") else { return }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -588,9 +588,10 @@ class GroupChatViewModel: ObservableObject {
                 return
             }
 
-            // Parse response
+            // Parse response - backend returns {"result": {...}}
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let editedAt = json["editedAt"] as? String {
+               let result = json["result"] as? [String: Any],
+               let editedAt = result["editedAt"] as? String {
                 DispatchQueue.main.async {
                     if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                         let oldMessage = self.messages[index]

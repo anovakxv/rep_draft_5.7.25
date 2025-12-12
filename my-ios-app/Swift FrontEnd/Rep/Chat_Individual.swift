@@ -479,10 +479,11 @@ class MessageViewModel: ObservableObject {
                 print("📦 [CHAT_VM] Edit message response: \(jsonString)")
             }
 
-            // Parse response
+            // Parse response - backend returns {"result": {...}}
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 print("📦 [CHAT_VM] Parsed edit JSON: \(json)")
-                if let editedAt = json["editedAt"] as? String {
+                if let result = json["result"] as? [String: Any],
+                   let editedAt = result["editedAt"] as? String {
                     print("📦 [CHAT_VM] Found editedAt: \(editedAt)")
                     DispatchQueue.main.async {
                         if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
@@ -509,7 +510,7 @@ class MessageViewModel: ObservableObject {
                         }
                     }
                 } else {
-                    print("❌ [CHAT_VM] No 'editedAt' key in response")
+                    print("❌ [CHAT_VM] No 'result' or 'editedAt' key in response")
                 }
             } else {
                 print("❌ [CHAT_VM] Failed to parse edit response as JSON")

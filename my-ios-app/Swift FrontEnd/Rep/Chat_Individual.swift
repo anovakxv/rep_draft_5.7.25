@@ -414,11 +414,9 @@ class MessageViewModel: ObservableObject {
                         DispatchQueue.main.async {
                             if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                                 print("📦 [CHAT_VM] Found message at index \(index), updating...")
-                                // Force SwiftUI to detect the change
-                                self.objectWillChange.send()
                                 // Update the message with new reactions
-                                var updatedMessage = self.messages[index]
-                                self.messages[index] = SimpleMessage(
+                                let updatedMessage = self.messages[index]
+                                let newMessage = SimpleMessage(
                                     id: updatedMessage.id,
                                     senderId: updatedMessage.senderId,
                                     senderName: updatedMessage.senderName,
@@ -429,6 +427,10 @@ class MessageViewModel: ObservableObject {
                                     isEdited: updatedMessage.isEdited,
                                     editedAt: updatedMessage.editedAt
                                 )
+                                // Create new array to trigger @Published
+                                var updatedMessages = self.messages
+                                updatedMessages[index] = newMessage
+                                self.messages = updatedMessages
                                 print("✅ [CHAT_VM] Reaction toggled successfully. New reaction count: \(reactions.count)")
                             } else {
                                 print("❌ [CHAT_VM] Message with id \(messageId) not found in messages array")
@@ -478,7 +480,7 @@ class MessageViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                         let updatedMessage = self.messages[index]
-                        self.messages[index] = SimpleMessage(
+                        let newMessage = SimpleMessage(
                             id: updatedMessage.id,
                             senderId: updatedMessage.senderId,
                             senderName: updatedMessage.senderName,
@@ -489,6 +491,10 @@ class MessageViewModel: ObservableObject {
                             isEdited: true,
                             editedAt: editedAt
                         )
+                        // Create new array to trigger @Published
+                        var updatedMessages = self.messages
+                        updatedMessages[index] = newMessage
+                        self.messages = updatedMessages
                         print("✅ [CHAT_VM] Message edited successfully.")
                     }
                 }

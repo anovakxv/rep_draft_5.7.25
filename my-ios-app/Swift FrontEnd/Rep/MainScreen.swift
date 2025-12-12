@@ -876,7 +876,8 @@ struct MainScreen: View {
                 },
                 openNeedsAttention: $openNeedsAttention,
                 forceShowPeopleOpen: forceShowPeopleOpen,
-                showOnlySafePortals: showOnlySafePortals
+                showOnlySafePortals: showOnlySafePortals,
+                showSearch: $showSearch
             ))
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
@@ -1414,6 +1415,7 @@ struct MainScreenContent: View {
     @Binding var showOnlySafePortals: Bool
 
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
+    @FocusState private var isSearchFieldFocused: Bool
 
     // Break up complex views into separate computed properties
     var peopleContent: some View {
@@ -1512,38 +1514,44 @@ struct MainScreenContent: View {
             .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
-        .overlay(
-            Group {
-                if showSearch {
-                    VStack {
-                        Spacer()
-                        HStack {
-                            TextField("Search...", text: $searchText)
-                                .padding(10)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(8)
-                                .padding(.horizontal)
-                                .onChange(of: searchText) { newValue in
-                                    searchDebounceTimer?.invalidate()
-                                    searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
-                                        performSearch(newValue)
-                                    }
-                                }
-                            Button("Cancel") {
-                                showSearch = false
-                                searchText = ""
-                                portalsVM.clearSearch()
-                                peopleVM.clearSearch()
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if showSearch {
+                HStack {
+                    TextField("Search...", text: $searchText)
+                        .padding(10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .padding(.horizontal)
+                        .focused($isSearchFieldFocused)
+                        .onChange(of: searchText) { newValue in
+                            searchDebounceTimer?.invalidate()
+                            searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
+                                performSearch(newValue)
                             }
-                            .padding(.trailing)
                         }
-                        .padding(.bottom, 8)
+                    Button("Cancel") {
+                        withAnimation {
+                            showSearch = false
+                        }
+                        searchText = ""
+                        portalsVM.clearSearch()
+                        peopleVM.clearSearch()
+                        isSearchFieldFocused = false
                     }
-                    .transition(.move(edge: .bottom))
-                    .animation(.easeInOut, value: showSearch)
+                    .padding(.trailing)
                 }
-            }, alignment: .bottom
-        )
+                .padding(.vertical, 8)
+                .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+                .transition(.move(edge: .top))
+                .onChange(of: showSearch) { isShowing in
+                    if isShowing {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isSearchFieldFocused = true
+                        }
+                    }
+                }
+            }
+        }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .actionSheet:
@@ -1620,16 +1628,6 @@ struct MainScreenContent: View {
                             .fontWeight(.bold)
                             .padding(.vertical, 12)
                     }
-                    Button(action: {
-                        activeSheet = nil
-                        showSearch = true
-                    }) {
-                        Text("Search")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                            .padding(.vertical, 12)
-                    }
                     Button(action: { activeSheet = nil }) {
                         Text("Cancel")
                             .foregroundColor(.secondary)
@@ -1688,6 +1686,7 @@ struct MainScreenToolbar: ViewModifier {
     @Binding var openNeedsAttention: Bool
     var forceShowPeopleOpen: () -> Void
     var showOnlySafePortals: Bool
+    @Binding var showSearch: Bool
 
     func body(content: Content) -> some View {
         content
@@ -1728,19 +1727,38 @@ struct MainScreenToolbar: ViewModifier {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(
-                        action: { showActionSheet() },
-                        label: {
-                            Image(systemName: "plus")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(
-                                    width: MainScreen.Constants.imageSize/1.5,
-                                    height: MainScreen.Constants.imageSize/1.5
-                                )
-                                .foregroundColor(Color.repGreen)
-                        }
-                    )
+                    HStack(spacing: 16) {
+                        Button(
+                            action: {
+                                withAnimation {
+                                    showSearch.toggle()
+                                }
+                            },
+                            label: {
+                                Image(systemName: "magnifyingglass")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(
+                                        width: MainScreen.Constants.imageSize/1.5,
+                                        height: MainScreen.Constants.imageSize/1.5
+                                    )
+                                    .foregroundColor(Color.repGreen)
+                            }
+                        )
+                        Button(
+                            action: { showActionSheet() },
+                            label: {
+                                Image(systemName: "plus")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(
+                                        width: MainScreen.Constants.imageSize/1.5,
+                                        height: MainScreen.Constants.imageSize/1.5
+                                    )
+                                    .foregroundColor(Color.repGreen)
+                            }
+                        )
+                    }
                 }
             }
     }

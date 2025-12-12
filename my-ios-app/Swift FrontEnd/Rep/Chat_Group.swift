@@ -538,10 +538,8 @@ class GroupChatViewModel: ObservableObject {
                    let reactions = try? decoder.decode([GroupMessageReaction].self, from: reactionsData) {
                     DispatchQueue.main.async {
                         if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
-                            // Force SwiftUI to detect the change
-                            self.objectWillChange.send()
                             let oldMessage = self.messages[index]
-                            self.messages[index] = GroupMessage(
+                            let newMessage = GroupMessage(
                                 id: oldMessage.id,
                                 senderId: oldMessage.senderId,
                                 senderName: oldMessage.senderName,
@@ -552,6 +550,10 @@ class GroupChatViewModel: ObservableObject {
                                 isEdited: oldMessage.isEdited,
                                 editedAt: oldMessage.editedAt
                             )
+                            // Create new array to trigger @Published
+                            var updatedMessages = self.messages
+                            updatedMessages[index] = newMessage
+                            self.messages = updatedMessages
                             print("✅ [GROUP_VM] Reaction toggled successfully.")
                         }
                     }
@@ -592,7 +594,7 @@ class GroupChatViewModel: ObservableObject {
                 DispatchQueue.main.async {
                     if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                         let oldMessage = self.messages[index]
-                        self.messages[index] = GroupMessage(
+                        let newMessage = GroupMessage(
                             id: oldMessage.id,
                             senderId: oldMessage.senderId,
                             senderName: oldMessage.senderName,
@@ -603,6 +605,10 @@ class GroupChatViewModel: ObservableObject {
                             isEdited: true,
                             editedAt: editedAt
                         )
+                        // Create new array to trigger @Published
+                        var updatedMessages = self.messages
+                        updatedMessages[index] = newMessage
+                        self.messages = updatedMessages
                         print("✅ [GROUP_VM] Message edited successfully.")
                     }
                 }

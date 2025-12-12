@@ -533,7 +533,7 @@ class GroupChatViewModel: ObservableObject {
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                let reactionsArray = json["reactions"] as? [[String: Any]] {
                 let decoder = JSONDecoder()
-                decoder.keyDecodingStrategy = .convertFromSnakeCase
+                // Don't use convertFromSnakeCase - API response is already camelCase
                 if let reactionsData = try? JSONSerialization.data(withJSONObject: reactionsArray),
                    let reactions = try? decoder.decode([GroupMessageReaction].self, from: reactionsData) {
                     DispatchQueue.main.async {
@@ -590,7 +590,7 @@ class GroupChatViewModel: ObservableObject {
 
             // Parse response
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let editedAt = json["edited_at"] as? String {
+               let editedAt = json["editedAt"] as? String {
                 DispatchQueue.main.async {
                     if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
                         let oldMessage = self.messages[index]

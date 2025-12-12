@@ -407,7 +407,7 @@ class MessageViewModel: ObservableObject {
                 if let reactionsArray = json["reactions"] as? [[String: Any]] {
                     print("📦 [CHAT_VM] Found reactions array with \(reactionsArray.count) items")
                     let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
+                    // Don't use convertFromSnakeCase - API response is already camelCase
                     if let reactionsData = try? JSONSerialization.data(withJSONObject: reactionsArray),
                        let reactions = try? decoder.decode([MessageReaction].self, from: reactionsData) {
                         print("📦 [CHAT_VM] Decoded \(reactions.count) reactions")
@@ -474,30 +474,45 @@ class MessageViewModel: ObservableObject {
                 return
             }
 
+            // Debug: Print raw response
+            if let jsonString = String(data: data, encoding: .utf8) {
+                print("📦 [CHAT_VM] Edit message response: \(jsonString)")
+            }
+
             // Parse response
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-               let editedAt = json["edited_at"] as? String {
-                DispatchQueue.main.async {
-                    if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
-                        let updatedMessage = self.messages[index]
-                        let newMessage = SimpleMessage(
-                            id: updatedMessage.id,
-                            senderId: updatedMessage.senderId,
-                            senderName: updatedMessage.senderName,
-                            text: trimmed,
-                            timestamp: updatedMessage.timestamp,
-                            read: updatedMessage.read,
-                            reactions: updatedMessage.reactions,
-                            isEdited: true,
-                            editedAt: editedAt
-                        )
-                        // Create new array to trigger @Published
-                        var updatedMessages = self.messages
-                        updatedMessages[index] = newMessage
-                        self.messages = updatedMessages
-                        print("✅ [CHAT_VM] Message edited successfully.")
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                print("📦 [CHAT_VM] Parsed edit JSON: \(json)")
+                if let editedAt = json["editedAt"] as? String {
+                    print("📦 [CHAT_VM] Found editedAt: \(editedAt)")
+                    DispatchQueue.main.async {
+                        if let index = self.messages.firstIndex(where: { $0.id == messageId }) {
+                            print("📦 [CHAT_VM] Found message at index \(index), updating with new text: \(trimmed)")
+                            let updatedMessage = self.messages[index]
+                            let newMessage = SimpleMessage(
+                                id: updatedMessage.id,
+                                senderId: updatedMessage.senderId,
+                                senderName: updatedMessage.senderName,
+                                text: trimmed,
+                                timestamp: updatedMessage.timestamp,
+                                read: updatedMessage.read,
+                                reactions: updatedMessage.reactions,
+                                isEdited: true,
+                                editedAt: editedAt
+                            )
+                            // Create new array to trigger @Published
+                            var updatedMessages = self.messages
+                            updatedMessages[index] = newMessage
+                            self.messages = updatedMessages
+                            print("✅ [CHAT_VM] Message edited successfully. New text: \(newMessage.text)")
+                        } else {
+                            print("❌ [CHAT_VM] Message with id \(messageId) not found in messages array")
+                        }
                     }
+                } else {
+                    print("❌ [CHAT_VM] No 'editedAt' key in response")
                 }
+            } else {
+                print("❌ [CHAT_VM] Failed to parse edit response as JSON")
             }
         }.resume()
     }

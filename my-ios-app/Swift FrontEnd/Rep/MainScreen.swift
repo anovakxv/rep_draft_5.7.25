@@ -1530,13 +1530,11 @@ struct MainScreenContent: View {
                             }
                         }
                     Button("Cancel") {
-                        withAnimation {
-                            showSearch = false
-                        }
+                        isSearchFieldFocused = false
+                        showSearch = false
                         searchText = ""
                         portalsVM.clearSearch()
                         peopleVM.clearSearch()
-                        isSearchFieldFocused = false
                     }
                     .padding(.trailing)
                 }

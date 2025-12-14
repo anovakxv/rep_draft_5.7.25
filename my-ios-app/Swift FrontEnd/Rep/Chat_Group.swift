@@ -926,8 +926,11 @@ struct GroupChatView: View {
             print("📤 GroupChatView onDisappear")
             viewModel.deactivate(reason: "onDisappear")
 
-            // Post a notification to trigger an immediate, non-animated refresh
-            NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+            // Post notification to refresh MainScreen chat list with updated read status
+            // Small delay to ensure backend has processed the read status
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+            }
         }
         .sheet(isPresented: $showEditMessageSheet) {
             if let message = selectedMessageForEdit {

@@ -1172,8 +1172,8 @@ struct MainScreen: View {
             DispatchQueue.main.async {
                 // Instant UI feedback
                 self.peopleVM.hasUnreadDirectMessages = true
-                // Reconcile after brief delay
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                // Fetch updated chat list immediately for instant updates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
             }
@@ -1185,7 +1185,8 @@ struct MainScreen: View {
             if senderId == self.userId { return }
             DispatchQueue.main.async {
                 self.peopleVM.hasUnreadGroupMessages = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                // Fetch updated chat list immediately for instant updates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
             }
@@ -1197,7 +1198,8 @@ struct MainScreen: View {
             if senderId == self.userId { return }
             DispatchQueue.main.async {
                 self.peopleVM.hasUnreadGroupMessages = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                // Fetch updated chat list immediately for instant updates
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
             }

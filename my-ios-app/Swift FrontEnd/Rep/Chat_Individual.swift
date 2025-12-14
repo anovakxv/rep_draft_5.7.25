@@ -625,7 +625,10 @@ struct MessageView: View {
                     .background(Color.white)
                     .defaultScrollAnchor(.bottom)
                     .onAppear {
-                        proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                        // Small delay to ensure messages are rendered before scrolling
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                        }
                     }
                     .onChange(of: viewModel.messages.count) { _ in
                         guard !viewModel.isLoadingOlder else { return }

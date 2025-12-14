@@ -376,12 +376,17 @@ class PeopleViewModel: ObservableObject {
 
         // For section 0 (active chats), implement strict refresh control
         if section == 0 {
+            // Set loading state immediately for UI responsiveness
+            isLoading = true
+
             let now = Date()
             let timeSinceLastRequest = now.timeIntervalSince(lastRefreshRequestTime)
 
             // If we've refreshed very recently and this isn't a manual tab switch or forced, skip it
             if timeSinceLastRequest < minimumRefreshInterval && !force && !isTabSwitch {
                 print("⏱️ Skipping refresh - too soon (interval: \(timeSinceLastRequest)s)")
+                // Clear loading state since we're not fetching
+                isLoading = false
                 return
             }
 
@@ -573,15 +578,16 @@ class PeopleViewModel: ObservableObject {
         // PERFORMANCE FIX: Cancel previous active chats fetch
         currentActiveChatsFetchTask?.cancel()
 
+        // Always set loading state FIRST - even if we return early, the in-progress fetch will clear it
+        isLoading = true
+        errorMessage = nil
+
         // Prevent concurrent fetches
         if isFetching && !force {
             return
         }
 
         isFetching = true
-        // Always show loading indicator for Chats tab to prevent "No chats found." flash
-        isLoading = true
-        errorMessage = nil
 
         // Active chats fetch code
         let urlString = "\(APIConfig.baseURL)/api/active_chat_list?user_id=\(userId)"

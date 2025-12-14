@@ -757,16 +757,14 @@ class GoalsDetailViewModel: ObservableObject {
         let isoFormatter = ISO8601DateFormatter()
         if let date = isoFormatter.date(from: isoString) {
             let formatter = DateFormatter()
-            formatter.dateStyle = .none
-            formatter.timeStyle = .short
+            formatter.dateFormat = "MM-dd-yyyy h:mma zzz"
             return formatter.string(from: date)
         }
         let fallbackFormatter = DateFormatter()
         fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         if let date = fallbackFormatter.date(from: isoString) {
             let formatter = DateFormatter()
-            formatter.dateStyle = .none
-            formatter.timeStyle = .short
+            formatter.dateFormat = "MM-dd-yyyy h:mma zzz"
             return formatter.string(from: date)
         }
         return isoString

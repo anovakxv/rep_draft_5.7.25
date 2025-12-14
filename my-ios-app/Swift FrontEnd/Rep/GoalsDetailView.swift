@@ -754,20 +754,36 @@ class GoalsDetailViewModel: ObservableObject {
 
     static func formatDateString(_ isoString: String?) -> String {
         guard let isoString = isoString else { return "" }
+
+        // Output formatter for all successful parses
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "MM-dd-yyyy h:mma zzz"
+
+        // Try format: "2025-12-07T22:04:30.052298" (with microseconds, no timezone)
+        let microsecondFormatter = DateFormatter()
+        microsecondFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        microsecondFormatter.timeZone = TimeZone(identifier: "UTC") // Assume UTC if no timezone specified
+        if let date = microsecondFormatter.date(from: isoString) {
+            return outputFormatter.string(from: date)
+        }
+
+        // Try ISO8601 format with timezone (e.g., "2025-12-07T22:04:30Z")
         let isoFormatter = ISO8601DateFormatter()
         if let date = isoFormatter.date(from: isoString) {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MM-dd-yyyy h:mma zzz"
-            return formatter.string(from: date)
+            return outputFormatter.string(from: date)
         }
+
+        // Try fallback format: "yyyy-MM-dd HH:mm:ss"
         let fallbackFormatter = DateFormatter()
         fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        fallbackFormatter.timeZone = TimeZone(identifier: "UTC")
         if let date = fallbackFormatter.date(from: isoString) {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MM-dd-yyyy h:mma zzz"
-            return formatter.string(from: date)
+            return outputFormatter.string(from: date)
         }
-        return isoString
+
+        // If parsing fails, return a placeholder instead of raw string
+        print("⚠️ Failed to parse timestamp: \(isoString)")
+        return "Invalid date"
     }
 
     func joinRecruitingGoal(goalId: Int, completion: @escaping (Bool) -> Void) {

@@ -1379,7 +1379,7 @@ struct WriteContentView: View {
 
     @State private var showDeleteAlert = false
     @State private var blockToDelete: WriteBlock?
-    @State private var showEditWriteSheet = false
+    @State private var showAddWriteSheet = false
     @State private var editingWrite: WriteBlock? = nil
 
     var body: some View {
@@ -1389,8 +1389,7 @@ struct WriteContentView: View {
                 HStack {
                     Spacer()
                     Button(action: {
-                        editingWrite = nil
-                        showEditWriteSheet = true
+                        showAddWriteSheet = true
                     }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.title2)
@@ -1420,7 +1419,6 @@ struct WriteContentView: View {
                             HStack {
                                 Button("Edit") {
                                     editingWrite = write
-                                    showEditWriteSheet = true
                                 }
                                 .font(.title3)
                                 .foregroundColor(.blue)
@@ -1445,27 +1443,32 @@ struct WriteContentView: View {
         .onAppear {
             viewModel.fetchWrites(for: viewModel.viewedUserId)
         }
-        .sheet(isPresented: $showEditWriteSheet) {
+        .sheet(item: $editingWrite) { write in
             EditWriteBlockView(
-                write: editingWrite,
+                write: write,
                 onSave: { title, content in
-                    if let editing = editingWrite {
-                        // Update existing write
-                        var updated = editing
-                        updated.title = title
-                        updated.content = content
-                        viewModel.editWrite(updated)
-                    } else {
-                        // Add new write
-                        viewModel.writeTitle = title ?? ""
-                        viewModel.writeText = content
-                        viewModel.addWrite()
-                    }
+                    // Update existing write
+                    var updated = write
+                    updated.title = title
+                    updated.content = content
+                    viewModel.editWrite(updated)
                     editingWrite = nil
                 },
                 onCancel: {
                     editingWrite = nil
                 }
+            )
+        }
+        .sheet(isPresented: $showAddWriteSheet) {
+            EditWriteBlockView(
+                write: nil,
+                onSave: { title, content in
+                    // Add new write
+                    viewModel.writeTitle = title ?? ""
+                    viewModel.writeText = content
+                    viewModel.addWrite()
+                },
+                onCancel: {}
             )
         }
         .alert("Delete Writing Block", isPresented: $showDeleteAlert) {

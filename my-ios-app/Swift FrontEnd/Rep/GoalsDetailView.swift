@@ -391,7 +391,13 @@ struct GoalsDetailView: View {
                     viewModel: GroupChatViewModel(
                         currentUserId: viewModel.currentUserId,
                         chatId: chatId,
-                        customChatTitle: "Goal Team: \(viewModel.goal.title)"
+                        customChatTitle: {
+                            if let portalName = viewModel.goal.portalName, !portalName.isEmpty {
+                                return "\(portalName): \(viewModel.goal.title)"
+                            } else {
+                                return viewModel.goal.title
+                            }
+                        }()
                     )
                 )
                 .presentationDetents([.large]) // Full screen sheet
@@ -458,8 +464,16 @@ struct GoalsDetailView: View {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
 
+        // Create chat title: "{Portal Name}: {Goal Name}" if portal exists, otherwise just goal name
+        let chatTitle: String
+        if let portalName = viewModel.goal.portalName, !portalName.isEmpty {
+            chatTitle = "\(portalName): \(viewModel.goal.title)"
+        } else {
+            chatTitle = viewModel.goal.title
+        }
+
         let body: [String: Any] = [
-            "title": "Goal Team: \(viewModel.goal.title)",
+            "title": chatTitle,
             "aAddIDs": memberIds
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)

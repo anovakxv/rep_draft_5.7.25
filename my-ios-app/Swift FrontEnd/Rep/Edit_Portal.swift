@@ -270,7 +270,7 @@ struct PortalStoryBlocksEditorView: View {
 
     @State private var showDeleteAlert = false
     @State private var blockToDelete: PortalWriteBlock?
-    @State private var showEditStorySheet = false
+    @State private var showAddStorySheet = false
     @State private var editingBlock: PortalWriteBlock? = nil
 
     var body: some View {
@@ -282,8 +282,7 @@ struct PortalStoryBlocksEditorView: View {
                     .fontWeight(.medium)
                 Spacer()
                 Button(action: {
-                    editingBlock = nil
-                    showEditStorySheet = true
+                    showAddStorySheet = true
                 }) {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
@@ -311,7 +310,6 @@ struct PortalStoryBlocksEditorView: View {
                         HStack {
                             Button("Edit") {
                                 editingBlock = block
-                                showEditStorySheet = true
                             }
                             .font(.title3)
                             .foregroundColor(.blue)
@@ -332,26 +330,31 @@ struct PortalStoryBlocksEditorView: View {
             }
         }
         .padding(.vertical)
-        .sheet(isPresented: $showEditStorySheet) {
+        .sheet(item: $editingBlock) { block in
             EditStoryBlockView(
-                block: editingBlock,
+                block: block,
                 onSave: { title, content in
-                    if let editing = editingBlock {
-                        // Update existing block
-                        var updated = editing
-                        updated.title = title
-                        updated.content = content
-                        viewModel.editStoryBlock(updated)
-                    } else {
-                        // Add new block
-                        let newBlock = PortalWriteBlock(title: title, content: content, order: (viewModel.storyBlocks.last?.order ?? 0) + 1)
-                        viewModel.storyBlocks.append(newBlock)
-                    }
+                    // Update existing block
+                    var updated = block
+                    updated.title = title
+                    updated.content = content
+                    viewModel.editStoryBlock(updated)
                     editingBlock = nil
                 },
                 onCancel: {
                     editingBlock = nil
                 }
+            )
+        }
+        .sheet(isPresented: $showAddStorySheet) {
+            EditStoryBlockView(
+                block: nil,
+                onSave: { title, content in
+                    // Add new block
+                    let newBlock = PortalWriteBlock(title: title, content: content, order: (viewModel.storyBlocks.last?.order ?? 0) + 1)
+                    viewModel.storyBlocks.append(newBlock)
+                },
+                onCancel: {}
             )
         }
         .alert(isPresented: $showDeleteAlert) {

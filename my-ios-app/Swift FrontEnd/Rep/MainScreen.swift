@@ -579,9 +579,8 @@ class PeopleViewModel: ObservableObject {
         }
 
         isFetching = true
-        if !skipNextAnimations {
-            isLoading = true
-        }
+        // Always show loading indicator for Chats tab to prevent "No chats found." flash
+        isLoading = true
         errorMessage = nil
 
         // Active chats fetch code
@@ -968,13 +967,21 @@ struct MainScreen: View {
                     peopleVM.loadBackgroundData(from: section, to: 0, userId: userId)
                 }
 
-                // Start background loading the other tabs
+                // Start background loading the other tabs for the CURRENT page
                 if page == .portals {
                     portalsVM.loadBackgroundData(from: section, to: (section + 1) % 3, userId: userId, safeOnly: showOnlySafePortals)
                     portalsVM.loadBackgroundData(from: section, to: (section + 2) % 3, userId: userId, safeOnly: showOnlySafePortals)
+
+                    // Also preload Network (People) sections for instant switching to Network tab
+                    peopleVM.loadBackgroundData(from: 0, to: 1, userId: userId)
+                    peopleVM.loadBackgroundData(from: 0, to: 2, userId: userId)
                 } else {
                     peopleVM.loadBackgroundData(from: section, to: (section + 1) % 3, userId: userId)
                     peopleVM.loadBackgroundData(from: section, to: (section + 2) % 3, userId: userId)
+
+                    // Also preload Purpose (Portals) sections for instant switching to Purpose tab
+                    portalsVM.loadBackgroundData(from: 0, to: 1, userId: userId, safeOnly: showOnlySafePortals)
+                    portalsVM.loadBackgroundData(from: 0, to: 2, userId: userId, safeOnly: showOnlySafePortals)
                 }
             }
         }

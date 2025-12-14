@@ -666,11 +666,8 @@ struct MessageView: View {
         .onDisappear {
             print("🎨 [CHAT_VIEW] ON_DISAPPEAR")
 
-            // Post notification to refresh MainScreen chat list with updated read status
-            // Small delay to ensure backend has processed the read status
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                NotificationCenter.default.post(name: Notification.Name("oneTimeRefreshActiveChats"), object: nil)
-            }
+            // Post notification immediately - backend marks messages as read during the fetch
+            NotificationCenter.default.post(name: Notification.Name("oneTimeRefreshActiveChats"), object: nil)
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showEditSheet) {

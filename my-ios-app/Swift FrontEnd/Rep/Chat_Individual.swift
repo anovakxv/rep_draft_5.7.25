@@ -4,6 +4,7 @@
 //  (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
+import Kingfisher
 
 // MARK: - Message Model
 
@@ -763,13 +764,14 @@ struct MessageBubble: View {
                 .frame(maxWidth: 260, alignment: .trailing)
             } else {
                 if let url = profilePicURL {
-                    AsyncImage(url: url) { image in
-                        image.resizable().aspectRatio(contentMode: .fill)
-                    } placeholder: {
-                        Circle().fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                    KFImage(url)
+                        .placeholder {
+                            Circle().fill(Color.gray.opacity(0.3))
+                        }
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 32, height: 32)
+                        .clipShape(Circle())
                 } else {
                     Circle()
                         .fill(Color.gray.opacity(0.3))

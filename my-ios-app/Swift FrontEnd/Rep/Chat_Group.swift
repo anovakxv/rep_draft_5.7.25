@@ -5,6 +5,7 @@
 //  (c) 2025 Networked Capital Inc. All rights reserved.
 
 import SwiftUI
+import Kingfisher
 
 // MARK: - AnyDecodable (for dynamic JSON parsing)
 
@@ -633,30 +634,25 @@ struct GroupMemberAvatar: View {
     let name: String
     let photoURL: URL?
     var size: CGFloat = 36
+    @State private var loadFailed = false
 
     var body: some View {
         ZStack {
-            if let url = photoURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: size, height: size)
-                            .clipShape(Circle())
-                    case .failure(_):
+            if let url = photoURL, !loadFailed {
+                KFImage(url)
+                    .onFailure { _ in
                         // Show initials if image fails to load
-                        fallbackAvatar
-                    case .empty:
-                        // Show placeholder while loading
+                        loadFailed = true
+                    }
+                    .placeholder {
                         Circle()
                             .fill(Color.gray.opacity(0.3))
                             .frame(width: size, height: size)
-                    @unknown default:
-                        fallbackAvatar
                     }
-                }
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: size, height: size)
+                    .clipShape(Circle())
             } else {
                 fallbackAvatar
             }

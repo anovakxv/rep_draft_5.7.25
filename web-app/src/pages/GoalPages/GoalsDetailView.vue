@@ -387,12 +387,12 @@
     />
 
     <!-- Group Chat Sheet -->
-    <GroupChatView 
-      v-if="showChatSheet && goalTeamChatId" 
+    <GroupChatView
+      v-if="showChatSheet && goalTeamChatId"
       :current-user-id="currentUserId"
       :chat-id="goalTeamChatId"
-      :custom-chat-title="`Goal Team: ${goal?.title}`"
-      @close="handleChatClose" 
+      :custom-chat-title="goal?.portalName ? `${goal.portalName}: ${goal.title}` : goal?.title"
+      @close="handleChatClose"
     />
 
     <!-- Payment Sheet - EXACTLY matching Swift -->
@@ -917,10 +917,15 @@ const openGoalTeamChat = async () => {
       .map(user => user.id)
       .filter(id => id !== currentUserId);
 
+    // Create chat title: "{Portal Name}: {Goal Name}" if portal exists, otherwise just goal name
+    const chatTitle = goal.value?.portalName
+      ? `${goal.value.portalName}: ${goal.value.title}`
+      : goal.value?.title || 'Goal Team';
+
     const res = await api.post(
       '/api/message/manage_chat',
       {
-        title: `Goal Team: ${goal.value?.title}`,
+        title: chatTitle,
         aAddIDs: memberIds
       }
     );

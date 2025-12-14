@@ -572,6 +572,9 @@ onUnmounted(() => {
 
   // Remove desktop detection listener
   window.removeEventListener('resize', updateDesktopDetection);
+
+  // Refresh MainScreen chat list when leaving - backend marks messages as read during fetch
+  emit('refresh-chats');
 });
 </script>
 

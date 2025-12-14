@@ -972,10 +972,10 @@ const ActionSheetModal = defineComponent({
   }
 });
 
-// Fullscreen viewer with proper zoom functionality
+// Fullscreen viewer with proper zoom functionality and true fullscreen support
 const FullscreenImageViewer = defineComponent({
-  props: { 
-    images: Array as () => PortalFile[], 
+  props: {
+    images: Array as () => PortalFile[],
     startIndex: Number,
   },
   emits: ['close'],
@@ -983,26 +983,27 @@ const FullscreenImageViewer = defineComponent({
     const currentIndex = ref(props.startIndex || 0);
     const scale = ref(1);
     const offset = ref({ x: 0, y: 0 });
-    
+    const containerRef = ref<HTMLElement | null>(null);
+
     const nextImage = () => {
       if (props.images && props.images.length > 0) {
         resetZoom();
         currentIndex.value = (currentIndex.value + 1) % props.images.length;
       }
     };
-    
+
     const prevImage = () => {
       if (props.images && props.images.length > 0) {
         resetZoom();
         currentIndex.value = (currentIndex.value - 1 + props.images.length) % props.images.length;
       }
     };
-    
+
     const resetZoom = () => {
       scale.value = 1;
       offset.value = { x: 0, y: 0 };
     };
-    
+
     const handleDoubleTap = () => {
       if (scale.value > 1.01) {
         resetZoom();
@@ -1010,12 +1011,67 @@ const FullscreenImageViewer = defineComponent({
         scale.value = 2.5;
       }
     };
-    
+
     const transformStyle = computed(() => {
       return `scale(${scale.value}) translate(${offset.value.x}px, ${offset.value.y}px)`;
     });
+
+    // Enter browser fullscreen mode
+    const enterFullscreen = async () => {
+      if (!containerRef.value) return;
+
+      try {
+        if (containerRef.value.requestFullscreen) {
+          await containerRef.value.requestFullscreen();
+        } else if ((containerRef.value as any).webkitRequestFullscreen) {
+          // Safari support
+          await (containerRef.value as any).webkitRequestFullscreen();
+        } else if ((containerRef.value as any).mozRequestFullScreen) {
+          // Firefox support
+          await (containerRef.value as any).mozRequestFullScreen();
+        } else if ((containerRef.value as any).msRequestFullscreen) {
+          // IE/Edge support
+          await (containerRef.value as any).msRequestFullscreen();
+        }
+      } catch (err) {
+        console.error('Failed to enter fullscreen:', err);
+      }
+    };
+
+    // Exit browser fullscreen mode
+    const exitFullscreen = async () => {
+      try {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        } else if ((document as any).mozCancelFullScreen) {
+          await (document as any).mozCancelFullScreen();
+        } else if ((document as any).msExitFullscreen) {
+          await (document as any).msExitFullscreen();
+        }
+      } catch (err) {
+        console.error('Failed to exit fullscreen:', err);
+      }
+    };
+
+    const handleClose = async () => {
+      await exitFullscreen();
+      emit('close');
+    };
+
+    // Enter fullscreen when component mounts
+    onMounted(() => {
+      enterFullscreen();
+    });
+
+    // Clean up fullscreen on unmount
+    onBeforeUnmount(() => {
+      exitFullscreen();
+    });
     
     return () => h('div', {
+      ref: containerRef,
       class: 'fixed inset-0 bg-black z-50',
       style: {
         // Use dynamic viewport height for mobile browsers (handles landscape properly)
@@ -1046,7 +1102,7 @@ const FullscreenImageViewer = defineComponent({
         // Close button overlay (top-right)
         h('button', {
           class: 'absolute top-4 right-4 bg-black bg-opacity-50 rounded-full p-2 z-10',
-          onClick: () => emit('close')
+          onClick: handleClose
         }, [
           h('svg', {
             xmlns: 'http://www.w3.org/2000/svg',

@@ -478,18 +478,18 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
           );
 
           // Always set to true if API shows unreads
-          // Only clear to false if user is currently viewing Chats tab
+          // Only clear to false if we're fetching Chats tab data (section 0)
           if (newHasUnreadDM) {
             hasUnreadDM.value = true;
-          } else if (section.value === 0) {
-            // User is on Chats tab, so clear the flag if no unreads found
+          } else if (section === 0) {
+            // Fetching Chats tab, so clear the flag if no unreads found
             hasUnreadDM.value = false;
           }
 
           if (newHasUnreadGroup) {
             hasUnreadGroup.value = true;
-          } else if (section.value === 0) {
-            // User is on Chats tab, so clear the flag if no unreads found
+          } else if (section === 0) {
+            // Fetching Chats tab, so clear the flag if no unreads found
             hasUnreadGroup.value = false;
           }
         } else {

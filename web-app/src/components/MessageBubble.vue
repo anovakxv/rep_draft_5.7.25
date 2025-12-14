@@ -129,16 +129,37 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
             </svg>
           </button>
+
+          <!-- Edit Button (only for current user) -->
+          <button
+            v-if="isCurrentUser"
+            @click="$emit('startEdit', message)"
+            class="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-gray-100 border border-gray-200 hover:bg-gray-200 transition-all"
+            title="Edit message"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </button>
         </div>
 
-        <!-- Add Reaction Button (if no reactions yet) - Desktop only -->
-        <button
-          v-else
-          @click="$emit('showEmojiPicker', message.id)"
-          class="hidden md:block mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity text-xs text-gray-500 hover:text-gray-700"
-        >
-          + Add reaction
-        </button>
+        <!-- Add Reaction and Edit Buttons (if no reactions yet) - Desktop only -->
+        <div v-else class="hidden md:flex gap-2 mt-1 px-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            @click="$emit('showEmojiPicker', message.id)"
+            class="text-xs text-gray-500 hover:text-gray-700"
+          >
+            + Add reaction
+          </button>
+
+          <button
+            v-if="isCurrentUser"
+            @click="$emit('startEdit', message)"
+            class="text-xs text-gray-500 hover:text-gray-700"
+          >
+            + Edit
+          </button>
+        </div>
 
         <!-- Timestamp - Always visible on mobile, hover on desktop -->
         <div

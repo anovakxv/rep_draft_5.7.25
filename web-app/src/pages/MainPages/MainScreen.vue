@@ -448,9 +448,15 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
   const isSearching = ref(false);
   const hasUnreadDM = ref(localStorage.getItem('hasUnreadDMFlag') === 'true');
   const hasUnreadGroup = ref(localStorage.getItem('hasUnreadGroupFlag') === 'true');
+  const skipNextAnimation = ref(false);
 
   const fetchPeople = async (section: number) => {
-    isLoading.value = true;
+    // Skip loading animation if flag is set (prevents flicker when returning from chat)
+    if (!skipNextAnimation.value) {
+      isLoading.value = true;
+    } else {
+      skipNextAnimation.value = false; // Reset flag after using it
+    }
     errorMessage.value = null;
     const cacheKey = `people-${section}`;
 
@@ -570,16 +576,17 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
     isSearching.value = false;
   };
 
-  return { 
-    users, 
-    activeChats, 
-    searchResults, 
-    isLoading, 
-    errorMessage, 
+  return {
+    users,
+    activeChats,
+    searchResults,
+    isLoading,
+    errorMessage,
     isSearching,
-    hasUnreadDM, 
-    hasUnreadGroup, 
-    fetchPeople, 
+    hasUnreadDM,
+    hasUnreadGroup,
+    skipNextAnimation,
+    fetchPeople,
     searchPeople,
     clearSearch
   };
@@ -661,6 +668,7 @@ const {
   errorMessage: errorPeople,
   hasUnreadDM,
   hasUnreadGroup,
+  skipNextAnimation,
   fetchPeople,
   searchPeople,
   clearSearch: clearPeopleSearch
@@ -1040,6 +1048,8 @@ onMounted(() => {
   
   // Add DOM event for refreshing active chats (like NotificationCenter in Swift)
   document.addEventListener('refreshActiveChats', () => {
+    // Skip loading animation to prevent flicker when returning from chat
+    skipNextAnimation.value = true;
     fetchPeople(0);
   });
   

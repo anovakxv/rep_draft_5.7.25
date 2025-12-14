@@ -984,6 +984,7 @@ const FullscreenImageViewer = defineComponent({
     const scale = ref(1);
     const offset = ref({ x: 0, y: 0 });
     const containerRef = ref<HTMLElement | null>(null);
+    const isClosing = ref(false);
 
     const nextImage = () => {
       if (props.images && props.images.length > 0) {
@@ -1056,18 +1057,56 @@ const FullscreenImageViewer = defineComponent({
     };
 
     const handleClose = async () => {
+      if (isClosing.value) return; // Prevent double-close
+      isClosing.value = true;
+
+      // Exit fullscreen first, then close after a small delay to ensure browser processes it
       await exitFullscreen();
-      emit('close');
+
+      // Small delay to ensure fullscreen has fully exited
+      setTimeout(() => {
+        emit('close');
+      }, 100);
+    };
+
+    // Listen for fullscreen changes (ESC key or fullscreen exit)
+    const handleFullscreenChange = () => {
+      if (isClosing.value) return; // Ignore if we're already closing via X button
+
+      const isCurrentlyFullscreen = !!(
+        document.fullscreenElement ||
+        (document as any).webkitFullscreenElement ||
+        (document as any).mozFullScreenElement ||
+        (document as any).msFullscreenElement
+      );
+
+      // If we exited fullscreen (user pressed ESC), close the viewer
+      if (!isCurrentlyFullscreen) {
+        isClosing.value = true;
+        emit('close');
+      }
     };
 
     // Enter fullscreen when component mounts
     onMounted(() => {
       enterFullscreen();
+
+      // Listen for fullscreen changes
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.addEventListener('msfullscreenchange', handleFullscreenChange);
     });
 
     // Clean up fullscreen on unmount
     onBeforeUnmount(() => {
       exitFullscreen();
+
+      // Remove fullscreen change listeners
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('msfullscreenchange', handleFullscreenChange);
     });
     
     return () => h('div', {

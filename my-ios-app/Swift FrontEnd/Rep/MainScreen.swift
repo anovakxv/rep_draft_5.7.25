@@ -309,6 +309,7 @@ class PeopleViewModel: ObservableObject {
     private var fetchThrottleTimer: Timer?
     private var lastFetchTime: TimeInterval = 0
     private var isFetching = false
+    private var retryAttemptCount: Int = 0
 
     private var activeRefreshTask: Task<Void, Never>?
     private var lastRefreshRequestTime: Date = .distantPast
@@ -378,6 +379,11 @@ class PeopleViewModel: ObservableObject {
         if section == 0 {
             // Set loading state immediately for UI responsiveness
             isLoading = true
+
+            // Reset retry counter for user-initiated fetches (tab switch or forced)
+            if isTabSwitch || force {
+                retryAttemptCount = 0
+            }
 
             let now = Date()
             let timeSinceLastRequest = now.timeIntervalSince(lastRefreshRequestTime)
@@ -578,6 +584,13 @@ class PeopleViewModel: ObservableObject {
         // PERFORMANCE FIX: Cancel previous active chats fetch
         currentActiveChatsFetchTask?.cancel()
 
+        // CRITICAL: Immediately clear isFetching when cancelling to prevent race condition
+        // The completion handler will also clear it, but that's async - we need it cleared NOW
+        // so the subsequent check doesn't block this new fetch attempt
+        if currentActiveChatsFetchTask != nil {
+            isFetching = false
+        }
+
         // Always set loading state FIRST - even if we return early, the in-progress fetch will clear it
         isLoading = true
         errorMessage = nil
@@ -605,37 +618,77 @@ class PeopleViewModel: ObservableObject {
 
         currentActiveChatsFetchTask = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
+                // CRITICAL: Check for cancellation FIRST, before clearing any flags
+                // Cancelled tasks should NOT clear flags because a new fetch may have already started
+                if let error = error, (error as NSError).code == NSURLErrorCancelled {
+                    // Don't clear isFetching/isLoading here - they were already cleared synchronously
+                    // at lines 584-586, and a new fetch may have started since then
+                    self.retryAttemptCount = 0 // Reset retry counter on intentional cancellation
+                    return
+                }
+
+                // For all non-cancelled paths, clear flags now
                 self.isLoading = false
                 self.isFetching = false
+
                 if let http = response as? HTTPURLResponse {
                     if http.statusCode == 401 || http.statusCode == 403 {
                         self.errorMessage = "Session expired. Please log in again."
                         self.activeChats = []
+                        self.retryAttemptCount = 0 // Don't retry auth errors
                         AuthSession.handleUnauthorized("PeopleViewModel.fetchPeople.active_chats")
                         return
                     }
                     if http.statusCode < 200 || http.statusCode >= 300 {
                         self.errorMessage = "Server error (\(http.statusCode))."
                         self.activeChats = []
+
+                        // SAFETY NET: Retry once after 2 seconds for server errors
+                        if self.retryAttemptCount < 1 {
+                            self.retryAttemptCount += 1
+                            print("⚠️ Server error (\(http.statusCode)), scheduling retry in 2s...")
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                                self.performActiveChatsFetch(userId: userId, force: true)
+                            }
+                        }
                         return
                     }
                 }
                 if let error = error {
-                    // Ignore cancellation errors (expected when switching tabs quickly)
-                    if (error as NSError).code == NSURLErrorCancelled {
-                        return
-                    }
+                    // All non-cancellation errors handled here
                     self.errorMessage = error.localizedDescription
                     self.activeChats = []
+
+                    // SAFETY NET: Retry once after 2 seconds for network errors
+                    if self.retryAttemptCount < 1 {
+                        self.retryAttemptCount += 1
+                        print("⚠️ Network error, scheduling retry in 2s...")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.performActiveChatsFetch(userId: userId, force: true)
+                        }
+                    }
                     return
                 }
                 guard let data = data else {
                     self.errorMessage = "No data"
                     self.activeChats = []
+
+                    // SAFETY NET: Retry once after 2 seconds if no data received
+                    if self.retryAttemptCount < 1 {
+                        self.retryAttemptCount += 1
+                        print("⚠️ No data received, scheduling retry in 2s...")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.performActiveChatsFetch(userId: userId, force: true)
+                        }
+                    }
                     return
                 }
                 do {
                     let response = try JSONDecoder().decode(ActiveChatAPIResponse.self, from: data)
+
+                    // SUCCESS: Reset retry counter for future errors
+                    self.retryAttemptCount = 0
+
                     if self.skipNextAnimations {
                         withAnimation(nil) {
                             self.activeChats = response.result
@@ -660,6 +713,15 @@ class PeopleViewModel: ObservableObject {
                 } catch {
                     self.errorMessage = "Failed to decode."
                     self.activeChats = []
+
+                    // SAFETY NET: Retry once after 2 seconds if decode fails
+                    if self.retryAttemptCount < 1 {
+                        self.retryAttemptCount += 1
+                        print("⚠️ Decode failed, scheduling retry in 2s...")
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                            self.performActiveChatsFetch(userId: userId, force: true)
+                        }
+                    }
                 }
             }
         }
@@ -692,8 +754,18 @@ class PeopleViewModel: ObservableObject {
 
         currentPeopleFetchTask = URLSession.shared.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
+                // CRITICAL: Check for cancellation FIRST, before clearing any flags
+                // Cancelled tasks should NOT clear flags because a new fetch may have already started
+                if let error = error, (error as NSError).code == NSURLErrorCancelled {
+                    // Don't clear isFetching/isLoading here - they were already cleared synchronously
+                    // when the task was cancelled, and a new fetch may have started since then
+                    return
+                }
+
+                // For all non-cancelled paths, clear flags now
                 self.isLoading = false
                 self.isFetching = false
+
                 if let http = response as? HTTPURLResponse {
                     if http.statusCode == 401 || http.statusCode == 403 {
                         self.errorMessage = "Session expired. Please log in again."
@@ -708,10 +780,7 @@ class PeopleViewModel: ObservableObject {
                     }
                 }
                 if let error = error {
-                    // Ignore cancellation errors (expected when switching tabs quickly)
-                    if (error as NSError).code == NSURLErrorCancelled {
-                        return
-                    }
+                    // All non-cancellation errors handled here
                     self.errorMessage = error.localizedDescription
                     self.users = []
                     return

@@ -961,6 +961,15 @@ struct MainScreen: View {
                     EmptyView()
                 }
             }
+            .onChange(of: navigateToGroupChat) { isPresented in
+                // When user navigates back from group chat (isPresented becomes false)
+                if !isPresented && section == 0 {
+                    // Trigger immediate refresh to clear unread indicators
+                    // This happens BEFORE MainScreen fully appears, preventing stale green indicators
+                    peopleVM.skipNextAnimations = true
+                    peopleVM.fetchPeople(userId: userId, section: 0, force: true)
+                }
+            }
         }
     }
     
@@ -2167,6 +2176,22 @@ struct ActiveChatList: View {
                 ),
                 label: { EmptyView() }
             )
+        }
+        .onChange(of: selectedDirectUserId) { userId in
+            // When user navigates back from DM chat (userId becomes nil)
+            if userId == nil {
+                // Trigger immediate refresh to clear unread indicators
+                // This happens BEFORE MainScreen fully appears, preventing stale green indicators
+                NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+            }
+        }
+        .onChange(of: selectedGroupChatId) { chatId in
+            // When user navigates back from group chat (chatId becomes nil)
+            if chatId == nil {
+                // Trigger immediate refresh to clear unread indicators
+                // This happens BEFORE MainScreen fully appears, preventing stale green indicators
+                NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+            }
         }
         .sheet(isPresented: $showInvitesSheet) {
             InvitesView(onDismiss: {

@@ -1477,7 +1477,8 @@ struct ChatsList: View {
             } else {
                 ActiveChatList(
                     chats: filteredActiveChats,
-                    invitesManager: invitesManager
+                    invitesManager: invitesManager,
+                    peopleVM: peopleVM
                 )
             }
         }
@@ -1524,7 +1525,8 @@ struct MainScreenContent: View {
                 } else {
                     ActiveChatList(
                         chats: filteredActiveChats,
-                        invitesManager: invitesManager
+                        invitesManager: invitesManager,
+                        peopleVM: peopleVM
                     )
                 }
             } else {
@@ -1952,11 +1954,12 @@ struct ChatList: View {
 struct ActiveChatList: View {
     var chats: [ActiveChat]
     @ObservedObject var invitesManager: GoalTeamInvitesManager
+    @ObservedObject var peopleVM: PeopleViewModel
 
     @State private var selectedProfileId: Int?
     @State private var selectedDirectUserId: Int?
     @State private var selectedGroupChatId: Int?
-    @State private var showInvitesSheet = false 
+    @State private var showInvitesSheet = false
     @AppStorage("userId") var currentUserId: Int = 0
 
     var body: some View {

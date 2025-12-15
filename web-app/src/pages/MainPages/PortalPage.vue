@@ -575,7 +575,13 @@ const ImageTabView = defineComponent({
       : 'relative w-full aspect-[16/9] bg-gray-200 overflow-hidden';
 
     return () => h('div', {
-      class: containerClass
+      class: containerClass,
+      style: {
+        userSelect: 'none', // Prevent text/content selection
+        WebkitUserSelect: 'none', // Safari
+        MozUserSelect: 'none', // Firefox
+        msUserSelect: 'none' // IE/Edge
+      }
     }, [
       // Main image display
       images.value.length > 0
@@ -605,7 +611,8 @@ const ImageTabView = defineComponent({
         h('button', {
           key: 'prev',
           class: 'absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
-          onClick: prevImage
+          onClick: prevImage,
+          onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
         }, [
           h('svg', {
             xmlns: 'http://www.w3.org/2000/svg',
@@ -625,7 +632,8 @@ const ImageTabView = defineComponent({
         h('button', {
           key: 'next',
           class: 'absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
-          onClick: nextImage
+          onClick: nextImage,
+          onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
         }, [
           h('svg', {
             xmlns: 'http://www.w3.org/2000/svg',
@@ -1115,7 +1123,11 @@ const FullscreenImageViewer = defineComponent({
       style: {
         // Use dynamic viewport height for mobile browsers (handles landscape properly)
         height: '100dvh',
-        width: '100vw'
+        width: '100vw',
+        userSelect: 'none', // Prevent text/content selection
+        WebkitUserSelect: 'none', // Safari
+        MozUserSelect: 'none', // Firefox
+        msUserSelect: 'none' // IE/Edge
       }
     }, [
       // Main image container (fullscreen - no header)
@@ -1141,7 +1153,8 @@ const FullscreenImageViewer = defineComponent({
         // Close button overlay (top-right)
         h('button', {
           class: 'absolute top-4 right-4 bg-black bg-opacity-50 rounded-full p-2 z-10',
-          onClick: handleClose
+          onClick: handleClose,
+          onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
         }, [
           h('svg', {
             xmlns: 'http://www.w3.org/2000/svg',
@@ -1164,7 +1177,8 @@ const FullscreenImageViewer = defineComponent({
           h('button', {
             key: 'prev',
             class: 'absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-2 z-10',
-            onClick: prevImage
+            onClick: prevImage,
+            onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
           }, [
             h('svg', {
               xmlns: 'http://www.w3.org/2000/svg',
@@ -1184,7 +1198,8 @@ const FullscreenImageViewer = defineComponent({
           h('button', {
             key: 'next',
             class: 'absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-2 z-10',
-            onClick: nextImage
+            onClick: nextImage,
+            onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
           }, [
             h('svg', {
               xmlns: 'http://www.w3.org/2000/svg',

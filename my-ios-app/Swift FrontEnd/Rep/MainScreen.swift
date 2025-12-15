@@ -411,7 +411,7 @@ class PeopleViewModel: ObservableObject {
 
         // Update timestamp for notification handlers
         lastFetchTime = Date().timeIntervalSince1970
-        performPeopleFetch(userId: userId, section: section)
+        performPeopleFetch(userId: userId, section: section, isTabSwitch: isTabSwitch)
     }
 
     func cancelPendingRefreshes(section: Int) {
@@ -729,11 +729,16 @@ class PeopleViewModel: ObservableObject {
     }
 
     // New helper method for people list fetches
-    private func performPeopleFetch(userId: Int, section: Int) {
+    private func performPeopleFetch(userId: Int, section: Int, isTabSwitch: Bool = false) {
         // PERFORMANCE FIX: Cancel previous people fetch
         currentPeopleFetchTask?.cancel()
         isFetching = true
-        isLoading = true
+
+        // Skip loading indicator on tab switches (cached data is already displayed)
+        if !isTabSwitch {
+            isLoading = true
+        }
+
         errorMessage = nil
         
         // People list fetch code

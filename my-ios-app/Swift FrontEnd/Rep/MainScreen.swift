@@ -2177,20 +2177,26 @@ struct ActiveChatList: View {
                 label: { EmptyView() }
             )
         }
+        .onAppear {
+            // Fetch initial data if needed
+            // This also runs when returning from a chat, ensuring fresh data
+        }
         .onChange(of: selectedDirectUserId) { userId in
             // When user navigates back from DM chat (userId becomes nil)
             if userId == nil {
-                // Trigger immediate refresh to clear unread indicators
-                // This happens BEFORE MainScreen fully appears, preventing stale green indicators
-                NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+                // Clear stale cached data immediately to prevent showing green indicators
+                // This shows loading state instead of stale green text
+                peopleVM.activeChats = []
+                peopleVM.isLoading = true
             }
         }
         .onChange(of: selectedGroupChatId) { chatId in
             // When user navigates back from group chat (chatId becomes nil)
             if chatId == nil {
-                // Trigger immediate refresh to clear unread indicators
-                // This happens BEFORE MainScreen fully appears, preventing stale green indicators
-                NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+                // Clear stale cached data immediately to prevent showing green indicators
+                // This shows loading state instead of stale green text
+                peopleVM.activeChats = []
+                peopleVM.isLoading = true
             }
         }
         .sheet(isPresented: $showInvitesSheet) {

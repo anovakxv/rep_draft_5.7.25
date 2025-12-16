@@ -1208,13 +1208,18 @@ struct MainScreen: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("oneTimeRefreshActiveChats"))) { _ in
             print("🔄 Processing one-time refresh (gentle version)")
-            
+
+            // CRITICAL: Clear cached data immediately to prevent showing stale green indicators
+            // This ensures MainScreen never displays old unread status when returning from a chat
+            peopleVM.activeChats = []
+            peopleVM.isLoading = true
+
             // Block any subsequent refreshes for a short period
             self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
-            
+
             // Cancel any pending refresh tasks
             peopleVM.cancelPendingRefreshes(section: section)
-            
+
             // Schedule a single refresh with animation suppression
             peopleVM.skipNextAnimations = true
             peopleVM.fetchPeople(userId: userId, section: 0, force: true)

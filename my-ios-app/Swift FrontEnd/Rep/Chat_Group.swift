@@ -768,10 +768,14 @@ private struct GroupMessagesListView: View {
             .background(Color.white)
             .defaultScrollAnchor(.bottom)
             .onAppear {
-                proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                withAnimation(nil) {
+                    proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                }
             }
             .onChange(of: messages.count) { _ in
-                proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                withAnimation(nil) {
+                    proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                }
             }
         }
     }

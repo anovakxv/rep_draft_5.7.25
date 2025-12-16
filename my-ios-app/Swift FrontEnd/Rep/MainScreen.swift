@@ -2061,6 +2061,7 @@ struct ActiveChatList: View {
                                 }
                                 .padding(.leading, 8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(PlainButtonStyle())
                         }

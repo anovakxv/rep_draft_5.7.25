@@ -623,10 +623,12 @@ struct MessageView: View {
                         .padding(.horizontal, 12)
                     }
                     .background(Color.white)
-                    .defaultScrollAnchor(.bottom)
                     .onAppear {
-                        withAnimation(nil) {
-                            proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                        // Use async to ensure scroll happens after initial layout completes
+                        DispatchQueue.main.async {
+                            withAnimation(nil) {
+                                proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                            }
                         }
                     }
                     .onChange(of: viewModel.messages.count) { _ in

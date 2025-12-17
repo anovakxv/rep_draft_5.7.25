@@ -47,21 +47,32 @@ def on_connect():
     Validates JWT and automatically joins the user's personal room (user_<id>).
     Supports both iOS (query param) and web (auth object/header).
     """
+    print(f"[Socket] connect attempt from {request.sid}")
+    print(f"[Socket] request.args: {request.args}")
+    print(f"[Socket] Authorization header: {request.headers.get('Authorization', 'NONE')}")
+
     token = _get_socket_token()
+    print(f"[Socket] token extracted: {token[:20] if token else 'NONE'}...")
+
     payload = _decode_jwt(token) if token else None
+    print(f"[Socket] JWT payload: {payload}")
+
     if not token or not payload:
+        print(f"[Socket] REJECTING - no token or invalid JWT")
         return False  # reject connection
 
     uid = payload.get("sub") or payload.get("user_id")
+    print(f"[Socket] user_id from payload: {uid}")
+
     if not uid:
+        print(f"[Socket] REJECTING - no user_id in payload")
         return False
 
     room = f"user_{uid}"
     join_room(room)
+    print(f"[Socket] ACCEPTED - user {uid} joined {room}")
     # Acknowledge to the connecting socket only (helps client-side debugging)
     emit("joined_user_room", {"room": room}, room=request.sid)
-    # Optional debug:
-    # print(f"[Socket] connect sid={request.sid} auto-joined {room}")
 
 @socketio.on("disconnect")
 def on_disconnect():

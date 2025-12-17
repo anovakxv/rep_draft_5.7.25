@@ -38,7 +38,11 @@ This document describes the donations workflow implementation for Rep's iOS app,
 
 **Frontend:**
 - User selects "Donations" from goal creation form
-- `Edit_Goal.swift` maps "Donations" → "Fund" before API call (lines 167-168)
+- `Edit_Goal.swift` maps "Donations" → "Fund" before API call (lines 167-168):
+  ```swift
+  // Map "Donations" to "Fund" for backend (Phase 1 - frontend-only implementation)
+  let backendGoalType = (goalType == "Donations") ? "Fund" : goalType
+  ```
 - Goals are stored with `goal_type = "Fund"` but display as "Donations" in app
 - Checks `goal.typeName == "Donations"` to trigger special workflow
 - "Donations" goals → Disclosure + External Safari
@@ -129,8 +133,9 @@ From `DonationDisclosureView.swift`:
 |------|--------|-------|
 | `DonationDisclosureView.swift` | **NEW** - Disclosure screen | All |
 | `PayTransaction.swift` | Re-enabled `.donation` enum, added disclosure logic | 13-70, 110-112, 207-215, 332-346, 515-520 |
-| `GoalsDetailView.swift` | Check for "Donations" type | 430 |
-| `PortalPage.swift` | Check for "Donations" type | 407 |
+| `Edit_Goal.swift` | Added "Donations" to goal types, backend mapping "Donations" → "Fund" | 47, 167-168 |
+| `GoalsDetailView.swift` | Check for "Donations" type, show Support button | 192, 430, 694 |
+| `PortalPage.swift` | Check for "Donations" type | 228, 407 |
 | `PortalPaymentSetup.swift` | Re-added "donations" to language | 300 |
 
 ### Backend (Python)

@@ -502,7 +502,10 @@ const showDeletePortalAlert = ref(false);
 const showStoryBlockModal = ref(false);
 
 // --- Methods ---
-const dismiss = () => router.back();
+const dismiss = () => {
+  // Navigate directly to MainScreen to avoid action menu state issues
+  router.push('/main');
+};
 
 const fetchPortalData = async () => {
   if (portalId === 0) { // New portal

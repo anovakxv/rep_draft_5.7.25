@@ -773,11 +773,10 @@ const handleSectionSelect = (index: number) => {
     return;
   }
 
-  // Always load chats data for tab 0 (regardless of notification dot or page state)
+  // Set the section - watcher will handle fetching
+  // For Chats (section 0), watcher always fetches fresh data
+  // For other sections, watcher uses cache if available
   section.value = index;
-  if (index === 0) {
-    fetchPeople(0); // Always fetch chats when switching to Chats tab
-  }
 };
 
 const handleAddButtonClick = () => {
@@ -918,14 +917,15 @@ const scheduleUnreadPollingIfNeeded = () => {
 // --- Watchers ---
 // Combine page, section, and safe filter
 watch([page, section, showOnlySafePortals], () => {
-  // Don't reload data if we're on Chats tab - it doesn't change with page toggle
+  // SPECIAL CASE: Chats tab (section 0) always fetches fresh data
+  // Chats always shows people (active chats), regardless of page toggle state
   if (section.value === 0) {
+    fetchPeople(0);
     return;
   }
 
-  // Skip if component is not mounted yet (will be handled by immediate: true on mount)
-  // Also skip if we just came from cache (onActivated handles it with cache checking)
-  // But DO fetch when user actively changes page/section/filter
+  // Skip if we just came from cache (onActivated handles it with cache checking)
+  // But DO fetch when user actively changes page/section/filter or on first load
   const cacheKey = `${page.value}-${section.value}-${showOnlySafePortals.value}`;
 
   // If we have a cached timestamp for this exact state, and it's fresh, skip fetching
@@ -941,7 +941,7 @@ watch([page, section, showOnlySafePortals], () => {
   } else {
     fetchPeople(section.value);
   }
-}, { immediate: true });
+});
 
 // Track unread status
 watch([hasUnreadDM, hasUnreadGroup, pendingInvites], () => {
@@ -964,6 +964,10 @@ let unsubscribeGroup: (() => void) | null = null;
 let unsubscribeInvite: (() => void) | null = null;
 
 onMounted(() => {
+  // Reload auth values from localStorage first (critical for login/logout flow)
+  token.value = localStorage.getItem('jwtToken') || '';
+  userId.value = Number(localStorage.getItem('userId')) || 0;
+
   // For public web, we allow viewing MainScreen ALL tab without authentication
   // Only initialize authenticated features if user is logged in
   const authenticated = isAuthenticated();
@@ -1006,6 +1010,25 @@ onMounted(() => {
 
     // Schedule one-shot unread polling
     scheduleUnreadPollingIfNeeded();
+
+    // PRE-FETCH Network and Purpose tabs for instant switching (NOT Chats - keep it fresh)
+    // This mirrors iOS behavior for fast tab switching
+    console.log('[MainScreen] Pre-fetching Network and Purpose tabs for instant switching');
+
+    // Pre-fetch Network tab (section 1) for both pages
+    fetchPortals(1);  // Network portals
+    fetchPeople(1);   // Network people
+
+    // Pre-fetch Purpose/All tab (section 2) for both pages
+    fetchPortals(2);  // All portals
+    fetchPeople(2);   // All people
+
+    // Fetch current tab data if it's Chats (section 0) to show initial content
+    if (section.value === 0) {
+      fetchPeople(0);
+    }
+
+    // Note: Chats (section 0) always fetches fresh data when user switches to it
   } else {
     // Public user - ensure we're on the ALL tab (section 2) for portals unless tab param overrides
     page.value = 'portals';
@@ -1056,6 +1079,10 @@ onMounted(() => {
   // Add visibilitychange event (similar to willEnterForeground in Swift)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
+      // Reload auth values from localStorage (in case they changed)
+      token.value = localStorage.getItem('jwtToken') || '';
+      userId.value = Number(localStorage.getItem('userId')) || 0;
+
       // Only reconnect socket and poll for authenticated users
       if (isAuthenticated()) {
         connect(apiBaseUrl, token.value, userId.value);
@@ -1069,6 +1096,13 @@ onMounted(() => {
 onActivated(() => {
   console.log('[MainScreen] Component activated from cache');
   isInitialMount.value = false;
+
+  // Reset action menu state when returning to MainScreen
+  mainActiveSheet.value = null;
+
+  // Reload auth values from localStorage (in case user logged in while component was cached)
+  token.value = localStorage.getItem('jwtToken') || '';
+  userId.value = Number(localStorage.getItem('userId')) || 0;
 
   // Reconnect socket if needed
   if (isAuthenticated()) {

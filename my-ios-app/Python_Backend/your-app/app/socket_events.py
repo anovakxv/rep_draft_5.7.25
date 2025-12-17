@@ -48,7 +48,7 @@ def _current_user_id():
 # ---------------- Core Events ---------------- #
 
 @socketio.on("connect")
-def on_connect():
+def on_connect(auth=None):
     """
     Validates JWT and automatically joins the user's personal room (user_<id>).
     Supports both iOS (query param) and web (auth object/header).
@@ -56,14 +56,16 @@ def on_connect():
     print(f"[Socket] connect attempt from {request.sid}")
     print(f"[Socket] request.args: {request.args}")
     print(f"[Socket] Authorization header: {request.headers.get('Authorization', 'NONE')}")
+    print(f"[Socket] auth parameter: {auth}")
 
-    # Debug: Log request.event to see what's available
-    if hasattr(request, 'event'):
-        print(f"[Socket] request.event keys: {request.event.keys() if hasattr(request.event, 'keys') else 'N/A'}")
-        print(f"[Socket] request.event: {request.event}")
-
-    token = _get_socket_token()
-    print(f"[Socket] token extracted: {token[:20] if token else 'NONE'}...")
+    # Try to extract token from auth parameter first (web), then fallback to query param (iOS) or header
+    token = None
+    if auth and isinstance(auth, dict) and 'token' in auth:
+        token = auth['token']
+        print(f"[Socket] token from auth parameter: {token[:20]}...")
+    else:
+        token = _get_socket_token()
+        print(f"[Socket] token from _get_socket_token(): {token[:20] if token else 'NONE'}...")
 
     payload = _decode_jwt(token) if token else None
     print(f"[Socket] JWT payload: {payload}")

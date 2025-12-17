@@ -48,6 +48,7 @@
 		00C118972EE8E43C004DB273 /* EditWriteBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C118962EE8E43C004DB273 /* EditWriteBlockView.swift */; };
 		00D465922E4ACD0F0032A43D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 00D465912E4ACD0F0032A43D /* FirebaseMessaging */; };
 		00D80A612E1B6B0C003C926D /* SkillAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00D80A602E1B6B0C003C926D /* SkillAPI.swift */; };
+		00DC01702EF3269600DD3620 /* DonationDisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00DC016F2EF3269600DD3620 /* DonationDisclosureView.swift */; };
 		00E10AAD2E21951E00BC7392 /* Edit_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */; };
 		00E10AAF2E21953000BC7392 /* Update_Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00E10AAE2E21953000BC7392 /* Update_Goal.swift */; };
 		00FDCFA52E1C2F3C00A63D8D /* appstore.png in Resources */ = {isa = PBXBuildFile; fileRef = 00FDCFA42E1C2F3C00A63D8D /* appstore.png */; };
@@ -110,6 +111,7 @@
 		00C118942EE8E3FD004DB273 /* EditStoryBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditStoryBlockView.swift; sourceTree = "<group>"; };
 		00C118962EE8E43C004DB273 /* EditWriteBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditWriteBlockView.swift; sourceTree = "<group>"; };
 		00D80A602E1B6B0C003C926D /* SkillAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillAPI.swift; sourceTree = "<group>"; };
+		00DC016F2EF3269600DD3620 /* DonationDisclosureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DonationDisclosureView.swift; sourceTree = "<group>"; };
 		00E10AAC2E21951E00BC7392 /* Edit_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Edit_Goal.swift; sourceTree = "<group>"; };
 		00E10AAE2E21953000BC7392 /* Update_Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Update_Goal.swift; sourceTree = "<group>"; };
 		00FDCFA42E1C2F3C00A63D8D /* appstore.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = appstore.png; sourceTree = "<group>"; };
@@ -210,6 +212,7 @@
 				005B63652E16F88600A1F0C1 /* LoginView.swift */,
 				005B63662E16F88600A1F0C1 /* MainScreen.swift */,
 				000920052E4DB6E600D25E51 /* Menu_Invites.swift */,
+				00DC016F2EF3269600DD3620 /* DonationDisclosureView.swift */,
 				0078573A2E6E6D160021C53B /* PayTransaction.swift */,
 				00A56AF62E4D87710068D404 /* RealtimeSocketManager.swift */,
 				00E10AAE2E21953000BC7392 /* Update_Goal.swift */,
@@ -431,6 +434,7 @@
 				00C118952EE8E3FD004DB273 /* EditStoryBlockView.swift in Sources */,
 				005B63742E16F88600A1F0C1 /* Edit_Portal.swift in Sources */,
 				005B63752E16F88600A1F0C1 /* RepApp.swift in Sources */,
+				00DC01702EF3269600DD3620 /* DonationDisclosureView.swift in Sources */,
 				005B63762E16F88600A1F0C1 /* MainScreen.swift in Sources */,
 				005B63772E16F88600A1F0C1 /* ActivityIndicator.swift in Sources */,
 				005B63782E16F88600A1F0C1 /* SupportingTypes.swift in Sources */,
@@ -614,7 +618,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.61;
+				CURRENT_PROJECT_VERSION = 1.73;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -631,11 +635,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.61;
+				MARKETING_VERSION = 1.73;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -655,7 +659,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.61;
+				CURRENT_PROJECT_VERSION = 1.73;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -672,11 +676,11 @@
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 18.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.61;
+				MARKETING_VERSION = 1.73;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;

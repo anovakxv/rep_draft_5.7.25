@@ -189,7 +189,7 @@ struct GoalsDetailView: View {
             .disabled(isCreatingTeamChat)
 
             // Floating Support Button
-            if viewModel.goal.typeName == "Fund" || viewModel.goal.typeName == "Sales" {
+            if viewModel.goal.typeName == "Fund" || viewModel.goal.typeName == "Sales" || viewModel.goal.typeName == "Donations" {
                 Button(action: {
                     showPaymentSheet = true // <-- Change to use sheet instead
                 }) {
@@ -691,7 +691,7 @@ class GoalsDetailViewModel: ObservableObject {
                         // Show only the individual transaction value, not the cumulative
                         let transactionValue = log.added_value ?? 0
                         let valueString: String
-                        if self.goal.typeName == "Fund" || self.goal.typeName == "Sales" {
+                        if self.goal.typeName == "Fund" || self.goal.typeName == "Sales" || self.goal.typeName == "Donations" {
                             valueString = "Value: $\(Int(round(transactionValue)))"
                         } else {
                             valueString = "Value: \(Int(round(transactionValue)))"

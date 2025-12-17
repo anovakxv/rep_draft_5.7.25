@@ -44,7 +44,7 @@ struct EditGoalPage: View {
     @State private var loadedIncrements: [ReportingIncrement] = []
     @State private var isLoadingIncrements = false
 
-    let goalTypes = ["Recruiting", "Sales", "Fund", "Marketing", "Hours", "Other"]
+    let goalTypes = ["Recruiting", "Sales", "Fund", "Donations", "Marketing", "Hours", "Other"]
 
     var isEdit: Bool { existingGoal != nil }
 

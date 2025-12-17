@@ -225,7 +225,7 @@ struct PortalPage: View {
     }
 
     private func findSupportableGoal(from goals: [Goal]) -> Goal? {
-        return goals.first { $0.typeName == "Fund" || $0.typeName == "Sales" }
+        return goals.first { $0.typeName == "Fund" || $0.typeName == "Sales" || $0.typeName == "Donations" }
     }
 
     // Helper for sheet content

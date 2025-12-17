@@ -425,7 +425,8 @@ struct GoalsDetailView: View {
                 portalName: viewModel.goal.portalName ?? "Portal",
                 goalId: viewModel.goal.id,
                 goalName: viewModel.goal.title,
-                transactionType: viewModel.goal.typeName == "Fund" ? .donation : .payment
+                // CHANGED FOR APPLE APP STORE COMPLIANCE - All payments use .payment (not .donation)
+                transactionType: .payment
             )
             .presentationDetents([.large]) // Full screen
         }

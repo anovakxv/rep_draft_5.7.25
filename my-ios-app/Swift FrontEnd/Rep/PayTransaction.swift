@@ -10,13 +10,14 @@ import WebKit
 // MARK: - Transaction Types
 
 enum TransactionType {
-    case donation
+    // COMMENTED OUT FOR APPLE APP STORE COMPLIANCE - Will re-enable in future version with proper tax workflow
+    // case donation
     case payment
     case purchase
 
     var title: String {
         switch self {
-        case .donation: return "Donate"
+        // case .donation: return "Donate"
         case .payment: return "Pay"
         case .purchase: return "Purchase"
         }
@@ -24,7 +25,7 @@ enum TransactionType {
 
     var subtitle: String {
         switch self {
-        case .donation: return "Your contribution helps this organization achieve its goals"
+        // case .donation: return "Your contribution helps this organization achieve its goals"
         case .payment: return "Your payment helps fund this business initiative"
         case .purchase: return "Complete your purchase to support this business"
         }
@@ -32,7 +33,7 @@ enum TransactionType {
 
     var amountLabel: String {
         switch self {
-        case .donation: return "Donation Amount"
+        // case .donation: return "Donation Amount"
         case .payment: return "Payment Amount"
         case .purchase: return "Total Amount"
         }
@@ -40,7 +41,7 @@ enum TransactionType {
 
     var messageLabel: String {
         switch self {
-        case .donation: return "Message (Optional)"
+        // case .donation: return "Message (Optional)"
         case .payment: return "Notes for Recipient (Optional)"
         case .purchase: return "Order Notes (Optional)"
         }
@@ -48,7 +49,7 @@ enum TransactionType {
 
     var ctaText: String {
         switch self {
-        case .donation: return "Donate"
+        // case .donation: return "Donate"
         case .payment: return "Pay"
         case .purchase: return "Complete Purchase"
         }
@@ -56,7 +57,7 @@ enum TransactionType {
 
     var receiptTitle: String {
         switch self {
-        case .donation: return "Thank You for Your Donation!"
+        // case .donation: return "Thank You for Your Donation!"
         case .payment: return "Payment Complete"
         case .purchase: return "Purchase Successful"
         }
@@ -64,7 +65,7 @@ enum TransactionType {
 
     var receiptMessage: String {
         switch self {
-        case .donation: return "Your donation has been processed successfully."
+        // case .donation: return "Your donation has been processed successfully."
         case .payment: return "Your payment has been processed successfully."
         case .purchase: return "Your purchase has been completed successfully."
         }
@@ -234,13 +235,14 @@ struct PayTransactionView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
 
-                    if transactionType == .donation {
-                        Text("If your payment is a donation, it may be tax deductible. A receipt will be emailed to you.")
-                            .font(.body) // Increased font size
-                            .foregroundColor(.black) // Black text
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
+                    // COMMENTED OUT FOR APPLE APP STORE COMPLIANCE - Tax-deductibility language removed
+                    // if transactionType == .donation {
+                    //     Text("If your payment is a donation, it may be tax deductible. A receipt will be emailed to you.")
+                    //         .font(.body) // Increased font size
+                    //         .foregroundColor(.black) // Black text
+                    //         .multilineTextAlignment(.center)
+                    //         .padding(.horizontal)
+                    // }
 
                     Spacer(minLength: 40)
                 }
@@ -364,12 +366,13 @@ struct PayTransactionView: View {
     @ViewBuilder
     private var quickAmountsView: some View {
         switch transactionType {
-        case .donation:
-            HStack {
-                ForEach([10, 20, 50, 100], id: \.self) { value in
-                    quickAmountButton(value)
-                }
-            }
+        // COMMENTED OUT FOR APPLE APP STORE COMPLIANCE
+        // case .donation:
+        //     HStack {
+        //         ForEach([10, 20, 50, 100], id: \.self) { value in
+        //             quickAmountButton(value)
+        //         }
+        //     }
         case .payment:
             HStack {
                 ForEach([10, 20, 50, 100], id: \.self) { value in
@@ -575,7 +578,8 @@ struct PayTransactionView: View {
 
     private var transactionTypeString: String {
         switch transactionType {
-        case .donation: return "donation"
+        // COMMENTED OUT FOR APPLE APP STORE COMPLIANCE
+        // case .donation: return "donation"
         case .payment: return "payment"
         case .purchase: return "purchase"
         }

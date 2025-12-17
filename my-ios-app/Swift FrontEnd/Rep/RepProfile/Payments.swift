@@ -39,7 +39,7 @@ struct PaymentsView: View {
                             .cornerRadius(10)
                         }
                         
-                        Text("Your saved payment cards are used for your donations, payments, and subscriptions.")
+                        Text("Your saved payment cards are used for your payments and subscriptions.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             

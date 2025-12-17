@@ -297,7 +297,7 @@ struct PortalPaymentSetup: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     } else {
-                        Text("Connect your portal to Stripe to receive donations, payments, and purchases from users.")
+                        Text("Connect your portal to Stripe to receive payments and purchases from users.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         

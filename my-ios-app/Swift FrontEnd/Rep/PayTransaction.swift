@@ -10,14 +10,13 @@ import WebKit
 // MARK: - Transaction Types
 
 enum TransactionType {
-    // COMMENTED OUT FOR APPLE APP STORE COMPLIANCE - Will re-enable in future version with proper tax workflow
-    // case donation
+    case donation
     case payment
     case purchase
 
     var title: String {
         switch self {
-        // case .donation: return "Donate"
+        case .donation: return "Donate"
         case .payment: return "Pay"
         case .purchase: return "Purchase"
         }
@@ -25,7 +24,7 @@ enum TransactionType {
 
     var subtitle: String {
         switch self {
-        // case .donation: return "Your contribution helps this organization achieve its goals"
+        case .donation: return "Your contribution helps this organization achieve its goals"
         case .payment: return "Your payment helps fund this business initiative"
         case .purchase: return "Complete your purchase to support this business"
         }
@@ -33,7 +32,7 @@ enum TransactionType {
 
     var amountLabel: String {
         switch self {
-        // case .donation: return "Donation Amount"
+        case .donation: return "Donation Amount"
         case .payment: return "Payment Amount"
         case .purchase: return "Total Amount"
         }
@@ -41,7 +40,7 @@ enum TransactionType {
 
     var messageLabel: String {
         switch self {
-        // case .donation: return "Message (Optional)"
+        case .donation: return "Message (Optional)"
         case .payment: return "Notes for Recipient (Optional)"
         case .purchase: return "Order Notes (Optional)"
         }
@@ -49,7 +48,7 @@ enum TransactionType {
 
     var ctaText: String {
         switch self {
-        // case .donation: return "Donate"
+        case .donation: return "Donate"
         case .payment: return "Pay"
         case .purchase: return "Complete Purchase"
         }
@@ -57,7 +56,7 @@ enum TransactionType {
 
     var receiptTitle: String {
         switch self {
-        // case .donation: return "Thank You for Your Donation!"
+        case .donation: return "Thank You for Your Donation!"
         case .payment: return "Payment Complete"
         case .purchase: return "Purchase Successful"
         }
@@ -65,7 +64,7 @@ enum TransactionType {
 
     var receiptMessage: String {
         switch self {
-        // case .donation: return "Your donation has been processed successfully."
+        case .donation: return "Your donation has been processed successfully."
         case .payment: return "Your payment has been processed successfully."
         case .purchase: return "Your purchase has been completed successfully."
         }
@@ -107,6 +106,10 @@ struct PayTransactionView: View {
     @State private var webViewTitle: String = ""
 
     @State private var showMonthlyNotAvailableAlert = false
+
+    // NEW: Donation disclosure state
+    @State private var showDonationDisclosure = false
+    @State private var donationDisclosureAccepted = false
 
     // MARK: - Payment Status
 
@@ -201,9 +204,16 @@ struct PayTransactionView: View {
                             .padding(.horizontal)
                     }
 
-                    // Stripe Checkout button (now opens in-app web view)
+                    // Stripe Checkout button
                     Button(action: {
                         guard validateAmount() else { return }
+
+                        // CRITICAL: For donations, show disclosure FIRST
+                        if transactionType == .donation && !donationDisclosureAccepted {
+                            showDonationDisclosure = true
+                            return
+                        }
+
                         isLoading = true
                         createCheckoutSession()
                     }) {
@@ -331,6 +341,21 @@ struct PayTransactionView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showDonationDisclosure) {
+                DonationDisclosureView(
+                    portalName: portalName,
+                    goalName: goalName,
+                    onAccept: {
+                        donationDisclosureAccepted = true
+                        isLoading = true
+                        createCheckoutSession()
+                    },
+                    onCancel: {
+                        // User cancelled - reset state
+                        donationDisclosureAccepted = false
+                    }
+                )
+            }
             .overlay(
                 Group {
                     if showSuccessBanner {
@@ -366,13 +391,12 @@ struct PayTransactionView: View {
     @ViewBuilder
     private var quickAmountsView: some View {
         switch transactionType {
-        // COMMENTED OUT FOR APPLE APP STORE COMPLIANCE
-        // case .donation:
-        //     HStack {
-        //         ForEach([10, 20, 50, 100], id: \.self) { value in
-        //             quickAmountButton(value)
-        //         }
-        //     }
+        case .donation:
+            HStack {
+                ForEach([10, 20, 50, 100], id: \.self) { value in
+                    quickAmountButton(value)
+                }
+            }
         case .payment:
             HStack {
                 ForEach([10, 20, 50, 100], id: \.self) { value in
@@ -513,10 +537,20 @@ struct PayTransactionView: View {
                     UserDefaults.standard.set(sessionId, forKey: "lastCheckoutSessionId")
                 }
 
-                // Present Stripe Checkout in-app web view
-                self.webViewURL = url
-                self.webViewTitle = "Stripe's Secure Website:"
-                self.showWebView = true
+                // CRITICAL: For donations, open in external Safari (Apple App Store compliance)
+                // This makes it clear to users that this is an external financial transaction
+                if self.transactionType == .donation {
+                    UIApplication.shared.open(url)
+                    // Dismiss the payment sheet since user is now in Safari
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        self.dismiss()
+                    }
+                } else {
+                    // For payments/purchases, use in-app web view
+                    self.webViewURL = url
+                    self.webViewTitle = "Stripe's Secure Website:"
+                    self.showWebView = true
+                }
             }
         }.resume()
     }
@@ -578,8 +612,7 @@ struct PayTransactionView: View {
 
     private var transactionTypeString: String {
         switch transactionType {
-        // COMMENTED OUT FOR APPLE APP STORE COMPLIANCE
-        // case .donation: return "donation"
+        case .donation: return "donation"
         case .payment: return "payment"
         case .purchase: return "purchase"
         }

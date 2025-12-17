@@ -402,8 +402,8 @@ struct PortalPage: View {
                         portalName: viewModel.portalDetail?.name ?? "Portal",
                         goalId: goal.id,
                         goalName: goal.title,
-                        // CHANGED FOR APPLE APP STORE COMPLIANCE - All payments use .payment (not .donation)
-                        transactionType: .payment
+                        // Fund goals use donation workflow with disclosure
+                        transactionType: goal.typeName == "Fund" ? .donation : .payment
                     )
                     .presentationDetents([.large])
                 }

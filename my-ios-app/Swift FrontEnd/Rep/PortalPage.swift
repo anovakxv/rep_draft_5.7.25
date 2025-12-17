@@ -402,8 +402,9 @@ struct PortalPage: View {
                         portalName: viewModel.portalDetail?.name ?? "Portal",
                         goalId: goal.id,
                         goalName: goal.title,
-                        // Fund goals use donation workflow with disclosure
-                        transactionType: goal.typeName == "Fund" ? .donation : .payment
+                        // Only "Donations" type goals trigger disclosure workflow (stored as "Fund" in backend)
+                        // "Fund" goals use regular payment workflow without disclosure
+                        transactionType: goal.typeName == "Donations" ? .donation : .payment
                     )
                     .presentationDetents([.large])
                 }

@@ -37,6 +37,9 @@ This document describes the donations workflow implementation for Rep's iOS app,
 - Both update goal progress identically
 
 **Frontend:**
+- User selects "Donations" from goal creation form
+- `Edit_Goal.swift` maps "Donations" → "Fund" before API call (lines 167-168)
+- Goals are stored with `goal_type = "Fund"` but display as "Donations" in app
 - Checks `goal.typeName == "Donations"` to trigger special workflow
 - "Donations" goals → Disclosure + External Safari
 - "Fund" goals → Standard payment flow

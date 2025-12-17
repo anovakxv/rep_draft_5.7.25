@@ -21,15 +21,21 @@ def _get_socket_token():
     token = request.args.get("token")
     if token:
         return token
-    # 2. Try SocketIO v4+ auth object (web)
-    if hasattr(request, 'namespace') and hasattr(request.namespace, 'socket'):
-        auth = getattr(request.namespace.socket, 'auth', None)
-        if auth and isinstance(auth, dict) and 'token' in auth:
-            return auth['token']
+
+    # 2. Try SocketIO v4+ auth object (web) - Flask-SocketIO stores it in request.event
+    try:
+        if hasattr(request, 'event') and 'args' in request.event:
+            auth = request.event.get('args', [{}])[0] if request.event.get('args') else {}
+            if isinstance(auth, dict) and 'token' in auth:
+                return auth['token']
+    except Exception as e:
+        print(f"[Socket] Error accessing auth from event: {e}")
+
     # 3. Try Authorization header (web polling fallback)
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         return auth_header[7:]
+
     return None
 
 def _current_user_id():
@@ -50,6 +56,11 @@ def on_connect():
     print(f"[Socket] connect attempt from {request.sid}")
     print(f"[Socket] request.args: {request.args}")
     print(f"[Socket] Authorization header: {request.headers.get('Authorization', 'NONE')}")
+
+    # Debug: Log request.event to see what's available
+    if hasattr(request, 'event'):
+        print(f"[Socket] request.event keys: {request.event.keys() if hasattr(request.event, 'keys') else 'N/A'}")
+        print(f"[Socket] request.event: {request.event}")
 
     token = _get_socket_token()
     print(f"[Socket] token extracted: {token[:20] if token else 'NONE'}...")

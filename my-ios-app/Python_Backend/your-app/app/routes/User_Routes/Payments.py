@@ -629,8 +629,9 @@ def create_checkout_session():
     customer = get_or_create_stripe_customer(user_id)
     print(f"[Checkout] Stripe customer: {customer.id}")
 
-    success_url = f"https://rep-june2025.onrender.com/payment-return?status=success&session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"https://rep-june2025.onrender.com/payment-return?status=canceled"
+    # Use URLs from request data (web app) or fall back to iOS deep links
+    success_url = data.get('success_url', f"https://rep-june2025.onrender.com/payment-return?status=success&session_id={{CHECKOUT_SESSION_ID}}")
+    cancel_url = data.get('cancel_url', f"https://rep-june2025.onrender.com/payment-return?status=canceled")
 
     goal = None
     if goal_id:

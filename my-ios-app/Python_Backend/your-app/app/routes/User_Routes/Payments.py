@@ -350,7 +350,7 @@ def stripe_webhook():
             if transaction.goal_id and transaction.transaction_type in ['donation', 'payment', 'subscription']:
                 try:
                     goal = db.session.query(Goal).filter_by(id=transaction.goal_id).first()
-                    if goal and goal.goal_type in ['Fund', 'Sales']:
+                    if goal and goal.goal_type in ['Fund', 'Sales', 'Donations']:
                         amount_in_units = transaction.amount / 100
                         progress_log = GoalProgressLog(
                             users_id=transaction.user_id,
@@ -428,7 +428,7 @@ def stripe_webhook():
 
                                 if goal_id:
                                     goal = db.session.query(Goal).filter_by(id=goal_id).first()
-                                    if goal and goal.goal_type in ['Fund', 'Sales']:
+                                    if goal and goal.goal_type in ['Fund', 'Sales', 'Donations']:
                                         amount_in_units = invoice.get('amount_paid') / 100
                                         progress_log = GoalProgressLog(
                                             users_id=user_id,

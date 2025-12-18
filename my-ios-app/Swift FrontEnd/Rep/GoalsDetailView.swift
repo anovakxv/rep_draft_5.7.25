@@ -425,8 +425,8 @@ struct GoalsDetailView: View {
                 portalName: viewModel.goal.portalName ?? "Portal",
                 goalId: viewModel.goal.id,
                 goalName: viewModel.goal.title,
-                // Only "Donations" type goals trigger disclosure workflow (stored as "Fund" in backend)
-                // "Fund" goals use regular payment workflow without disclosure
+                // "Donations" type goals trigger disclosure workflow and open in Safari
+                // "Fund" and "Sales" goals use regular payment workflow without disclosure
                 transactionType: viewModel.goal.typeName == "Donations" ? .donation : .payment
             )
             .presentationDetents([.large]) // Full screen

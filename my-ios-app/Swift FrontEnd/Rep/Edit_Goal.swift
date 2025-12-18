@@ -164,14 +164,11 @@ struct EditGoalPage: View {
         errorMessage = nil
         let urlString: String
 
-        // Map "Donations" to "Fund" for backend (Phase 1 - frontend-only implementation)
-        let backendGoalType = (goalType == "Donations") ? "Fund" : goalType
-
         var params: [String: Any] = [
             "title": title,
             "subtitle": subtitle,
             "description": description,
-            "goal_type": backendGoalType,
+            "goal_type": goalType,
             "quota": Int(quota) ?? 1,
             "reporting_increments_id": reportingIncrementId ?? 1,
             "user_id": userId

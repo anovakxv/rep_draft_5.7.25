@@ -1,8 +1,8 @@
 # Donations Workflow Documentation
 
-**Last Updated:** December 17, 2025
+**Last Updated:** December 18, 2025
 **Status:** Production (Apple App Store Compliant)
-**Implementation Type:** Frontend-Only (Phase 1)
+**Implementation Type:** Phase 2.5 Complete - Full Backend & Frontend Integration
 
 ---
 
@@ -31,19 +31,16 @@ This document describes the donations workflow implementation for Rep's iOS app,
 
 ### How It Works
 
-**Backend:**
-- Both "Donations" and "Fund" goals are stored as `goal_type = "Fund"`
-- No backend distinction between nonprofit donations and crowdfunding
+**Backend (Phase 2.5):**
+- "Donations" goals are stored as `goal_type = "Donations"`
+- "Fund" goals are stored as `goal_type = "Fund"`
+- Backend processes both types correctly with distinct tracking
 - Both update goal progress identically
 
-**Frontend:**
+**Frontend (Phase 2.5):**
 - User selects "Donations" from goal creation form
-- `Edit_Goal.swift` maps "Donations" → "Fund" before API call (lines 167-168):
-  ```swift
-  // Map "Donations" to "Fund" for backend (Phase 1 - frontend-only implementation)
-  let backendGoalType = (goalType == "Donations") ? "Fund" : goalType
-  ```
-- Goals are stored with `goal_type = "Fund"` but display as "Donations" in app
+- `Edit_Goal.swift` sends `goal_type = "Donations"` directly to backend (no mapping)
+- Goals are stored with `goal_type = "Donations"` and display as "Donations" in app
 - Checks `goal.typeName == "Donations"` to trigger special workflow
 - "Donations" goals → Disclosure + External Safari
 - "Fund" goals → Standard payment flow
@@ -133,14 +130,25 @@ From `DonationDisclosureView.swift`:
 |------|--------|-------|
 | `DonationDisclosureView.swift` | **NEW** - Disclosure screen | All |
 | `PayTransaction.swift` | Re-enabled `.donation` enum, added disclosure logic | 13-70, 110-112, 207-215, 332-346, 515-520 |
-| `Edit_Goal.swift` | Added "Donations" to goal types, backend mapping "Donations" → "Fund" | 47, 167-168 |
-| `GoalsDetailView.swift` | Check for "Donations" type, show Support button | 192, 430, 694 |
-| `PortalPage.swift` | Check for "Donations" type | 228, 407 |
+| `Edit_Goal.swift` | Added "Donations" to goal types, sends directly to backend (Phase 2.5) | 47, 171 |
+| `GoalsDetailView.swift` | Check for "Donations" type, show Support button, updated comments | 192, 428-430, 694 |
+| `PortalPage.swift` | Check for "Donations" type, updated comments | 228, 405-407 |
 | `PortalPaymentSetup.swift` | Re-added "donations" to language | 300 |
 
 ### Backend (Python)
 
-**No changes required** - Backend treats "Donations" and "Fund" identically as `goal_type = "Fund"`.
+**Phase 2 Complete** (December 18, 2025) - Backend:
+- Updated [Goal_Details.py:22](my-ios-app\Python_Backend\your-app\app\routes\Goals_Routes\Goal_Details.py#L22) to add 'Donations' to GOAL_TYPE_METRIC_MAP
+- Updated [Payments.py:353](my-ios-app\Python_Backend\your-app\app\routes\User_Routes\Payments.py#L353) to include 'Donations' in goal progress updates
+- Updated [Payments.py:431](my-ios-app\Python_Backend\your-app\app\routes\User_Routes\Payments.py#L431) to include 'Donations' in subscription payment progress updates
+- Backend now fully accepts `goal_type = "Donations"` for goal creation and payment processing
+
+**Phase 2.5 Complete** (December 18, 2025) - Frontend:
+- Removed temporary mapping in [Edit_Goal.swift](my-ios-app\Swift FrontEnd\Rep\Edit_Goal.swift) (removed lines 167-168)
+- Frontend now sends `goal_type = "Donations"` directly to backend instead of mapping to "Fund"
+- Updated comments in [GoalsDetailView.swift:428-429](my-ios-app\Swift FrontEnd\Rep\GoalsDetailView.swift#L428)
+- Updated comments in [PortalPage.swift:405-406](my-ios-app\Swift FrontEnd\Rep\PortalPage.swift#L405)
+- Fully backwards compatible with existing "Fund" and "Sales" goals
 
 ---
 
@@ -173,77 +181,105 @@ From `DonationDisclosureView.swift`:
 
 ---
 
-## Future Backend Updates (Phase 2)
-
-**When:** After Apple App Store approval
+## ✅ Phase 2 Complete (December 18, 2025)
 
 ### Database Schema Changes
 
-**1. Add "Donations" as Distinct Goal Type**
+**No database migration required!** ✅
+
+The `goal_type` column in the Goal model is already defined as `String(50)` with no validation constraints, so it accepts "Donations" natively without schema changes.
+
+### Backend Changes Completed
+
+**File 1:** [Goal_Details.py](my-ios-app\Python_Backend\your-app\app\routes\Goals_Routes\Goal_Details.py)
+
+**Change: Add "Donations" to GOAL_TYPE_METRIC_MAP** (Line 22) ✅ DONE
 
 ```python
-# In Goal model or validation
-ALLOWED_GOAL_TYPES = ['Fund', 'Sales', 'Donations']
+# Before
+GOAL_TYPE_METRIC_MAP = {
+    "Recruiting": "Team Members",
+    "Sales": "Dollars",
+    "Fund": "Dollars",
+    "Marketing": "Shares",
+    "Hours": "Hours"
+}
+
+# After
+GOAL_TYPE_METRIC_MAP = {
+    "Recruiting": "Team Members",
+    "Sales": "Dollars",
+    "Fund": "Dollars",
+    "Donations": "Dollars",  # ← ADDED
+    "Marketing": "Shares",
+    "Hours": "Hours"
+}
 ```
 
-**Benefits:**
-- Separate reporting for nonprofit donations vs crowdfunding
-- Can add donation-specific features (tax receipt generation, etc.)
-- Clearer data model
+**File 2:** [Payments.py](my-ios-app\Python_Backend\your-app\app\routes\User_Routes\Payments.py)
 
-### API Changes Needed
-
-**File:** `app/routes/User_Routes/Payments.py`
-
-**Change 1: Update Goal Progress Logic** (Line 353)
+**Change 1: Update Goal Progress Logic** (Line 353) ✅ DONE
 
 ```python
-# Current
+# Before
 if goal and goal.goal_type in ['Fund', 'Sales']:
 
-# Change to
+# After
 if goal and goal.goal_type in ['Fund', 'Sales', 'Donations']:
 ```
 
-**Change 2: Optional - Add Validation**
+**Change 2: Update Subscription Payment Logic** (Line 431) ✅ DONE
 
 ```python
-# Validate transaction_type matches goal_type
-if goal.goal_type == 'Donations' and transaction_type != 'donation':
-    return jsonify({'error': 'Donations goals require transaction_type=donation'}), 400
+# Before
+if goal and goal.goal_type in ['Fund', 'Sales']:
+
+# After
+if goal and goal.goal_type in ['Fund', 'Sales', 'Donations']:
 ```
 
-### Migration Script
+### Backwards Compatibility Verified ✅
 
-```python
-# migrations/versions/add_donations_goal_type.py
+- Existing "Fund" goals continue to work identically
+- Existing "Sales" goals continue to work identically
+- "Recruiting" goals unaffected (handled separately)
+- iOS app updated to send "Donations" directly (Phase 2.5)
+- Python syntax validated successfully
+- No database migration needed
 
-def upgrade():
-    # No data migration needed - existing "Fund" goals remain as-is
-    # New "Donations" goals will be created with proper type
-    pass
+### Frontend Updates (Phase 2.5) ✅ COMPLETE
 
-def downgrade():
-    # Convert any "Donations" goals back to "Fund"
-    op.execute("""
-        UPDATE goals
-        SET goal_type = 'Fund'
-        WHERE goal_type = 'Donations'
-    """)
-```
-
-### Frontend Updates (Phase 2)
-
-**Remove Temporary Comments**
-
-In `GoalsDetailView.swift` and `PortalPage.swift`, update comments:
+**Change 1: Remove Temporary Mapping in Edit_Goal.swift** ✅ DONE
 
 ```swift
-// Current comment:
-// Only "Donations" type goals trigger disclosure workflow (stored as "Fund" in backend)
+// Before (Phase 1)
+// Map "Donations" to "Fund" for backend (Phase 1 - frontend-only implementation)
+let backendGoalType = (goalType == "Donations") ? "Fund" : goalType
 
-// Phase 2 comment:
-// Donations goals trigger disclosure workflow
+var params: [String: Any] = [
+    "goal_type": backendGoalType,
+    // ...
+]
+
+// After (Phase 2.5)
+var params: [String: Any] = [
+    "goal_type": goalType,  // Send "Donations" directly
+    // ...
+]
+```
+
+**Change 2: Update Comments** ✅ DONE
+
+In `GoalsDetailView.swift` and `PortalPage.swift`:
+
+```swift
+// Before
+// Only "Donations" type goals trigger disclosure workflow (stored as "Fund" in backend)
+// "Fund" goals use regular payment workflow without disclosure
+
+// After
+// "Donations" type goals trigger disclosure workflow and open in Safari
+// "Fund" and "Sales" goals use regular payment workflow without disclosure
 transactionType: goal.typeName == "Donations" ? .donation : .payment
 ```
 
@@ -360,5 +396,6 @@ For questions about this implementation, see:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 1.0 | Dec 17, 2025 | Initial implementation - Frontend only |
-| TBD | Future | Phase 2 - Backend "Donations" goal type |
+| 1.0 | Dec 17, 2025 | Initial implementation - Frontend only (Phase 1) |
+| 2.0 | Dec 18, 2025 | Backend "Donations" goal type support (Phase 2) |
+| 2.5 | Dec 18, 2025 | Frontend direct integration - removed mapping (Phase 2.5) |

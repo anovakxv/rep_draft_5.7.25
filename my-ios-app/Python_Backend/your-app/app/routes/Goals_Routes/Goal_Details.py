@@ -19,6 +19,7 @@ GOAL_TYPE_METRIC_MAP = {
     "Recruiting": "Team Members",
     "Sales": "Dollars",
     "Fund": "Dollars",
+    "Donations": "Dollars",
     "Marketing": "Shares",
     "Hours": "Hours"
     # "Other" handled separately

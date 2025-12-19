@@ -129,7 +129,7 @@ const errorMessage = ref('');
 const isLoadingIncrements = ref(false);
 const loadedIncrements = ref<{ id: number; title: string }[]>([]);
 
-const goalTypes = ["Recruiting", "Sales", "Fund", "Marketing", "Hours", "Other"];
+const goalTypes = ["Recruiting", "Sales", "Fund", "Donations", "Marketing", "Hours", "Other"];
 const isEdit = computed(() => goalId.value > 0);
 const incrementsToUse = computed(() => loadedIncrements.value.length ? loadedIncrements.value : (props.reportingIncrements || []));
 

@@ -142,8 +142,8 @@
               </button>
             </div>
 
-            <!-- Support Button (for Fund/Sales goals) - Full Width Below -->
-            <div v-if="goal.typeName === 'Fund' || goal.typeName === 'Sales'" class="px-4 pb-3">
+            <!-- Support Button (for Fund/Sales/Donations goals) - Full Width Below -->
+            <div v-if="goal.typeName === 'Fund' || goal.typeName === 'Sales' || goal.typeName === 'Donations'" class="px-4 pb-3">
               <button
                 @click="showPaymentSheet = true"
                 class="w-full px-5 py-2.5 bg-white border-2 rounded-lg shadow-md flex items-center justify-center gap-2 font-bold transition-transform hover:scale-105 active:scale-95"
@@ -271,9 +271,9 @@
     </div>
 
     <!-- Floating Support Button (Mobile Only) - White background with dark green border (matching iOS) -->
-    <!-- Positioned bottom-right for Fund/Sales goals (matching iOS .bottomTrailing) -->
+    <!-- Positioned bottom-right for Fund/Sales/Donations goals (matching iOS .bottomTrailing) -->
     <div
-      v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales')"
+      v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales' || goal.typeName === 'Donations')"
       class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
       style="bottom: 70px"
     >
@@ -402,7 +402,7 @@
         :portal-name="goal?.portalName || 'Portal'"
         :goal-id="goal?.id || 0"
         :goal-name="goal?.title || ''"
-        :transaction-type="goal?.typeName === 'Fund' ? 'donation' : 'payment'"
+        :transaction-type="goal?.typeName === 'Donations' ? 'donation' : 'payment'"
         @close="showPaymentSheet = false"
         @payment-success="handlePaymentSuccess"
       />

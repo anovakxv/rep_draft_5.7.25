@@ -137,6 +137,79 @@
         </button>
       </div>
     </div>
+
+    <!-- Donation Disclosure Modal -->
+    <div v-if="showDonationDisclosure" class="fixed inset-0 bg-black bg-opacity-60 z-50 overflow-y-auto">
+      <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <!-- Header -->
+          <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <button @click="showDonationDisclosure = false" class="text-rep-green font-semibold">
+              Cancel
+            </button>
+            <h2 class="text-lg font-bold">Donation Disclosure</h2>
+            <div class="w-16"></div> <!-- Spacer -->
+          </div>
+
+          <!-- Content -->
+          <div class="px-6 py-6 space-y-6">
+            <!-- Header -->
+            <div class="space-y-2">
+              <h3 class="text-2xl font-bold" style="color: #006600;">Donation Information</h3>
+              <p class="text-gray-600">Please read this important information before proceeding with your donation.</p>
+            </div>
+
+            <div class="border-t border-gray-200"></div>
+
+            <!-- Recipient Information -->
+            <div class="space-y-3">
+              <p class="text-base">You are about to make a donation to:</p>
+              <div class="bg-gray-100 p-4 rounded-lg">
+                <p class="text-xl font-bold" style="color: #006600;">{{ props.portalName }}</p>
+                <p class="text-gray-600 mt-1">For: {{ props.goalName }}</p>
+              </div>
+            </div>
+
+            <!-- Tax Deductibility Warning -->
+            <div class="border-2 border-orange-500 bg-orange-50 p-4 rounded-lg space-y-3">
+              <div class="flex items-start gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-orange-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div class="space-y-2">
+                  <h4 class="font-bold text-gray-900">Tax Deductibility Status</h4>
+                  <p class="text-sm">Rep does not verify the tax-exempt status of organizations on this platform. This donation may not be tax-deductible.</p>
+                  <p class="text-sm font-semibold">Please consult your tax advisor to determine if this donation qualifies for a tax deduction.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Payment Processing Information -->
+            <div class="bg-gray-100 p-4 rounded-lg space-y-2">
+              <h4 class="font-bold">Payment Processing</h4>
+              <p class="text-sm text-gray-600">Your donation will be processed securely through Stripe. You will be redirected to complete your donation.</p>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-3 pt-4">
+              <button
+                @click="() => { donationDisclosureAccepted = true; showDonationDisclosure = false; startPayment(); }"
+                class="w-full py-3 text-white font-bold rounded-lg"
+                style="background-color: #006600;"
+              >
+                I Understand - Continue to Donation
+              </button>
+              <button
+                @click="() => { showDonationDisclosure = false; donationDisclosureAccepted = false; }"
+                class="w-full py-3 bg-gray-200 text-gray-800 font-semibold rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -227,6 +300,8 @@ const message = ref('');
 const paymentStatus = ref<PaymentStatus>({ status: 'initial' });
 const isMonthlySubscription = ref(false);
 const selectedPriceId = ref('');
+const showDonationDisclosure = ref(false);
+const donationDisclosureAccepted = ref(false);
 
 // --- Computed ---
 const isAuthenticated = computed(() => checkAuth());
@@ -273,6 +348,13 @@ const startPayment = async () => {
     paymentStatus.value = { status: 'failed', message: isMonthlySubscription.value ? 'Please select a monthly amount.' : 'Please enter a valid amount (minimum $1.00)' };
     return;
   }
+
+  // CRITICAL: For donations, show disclosure FIRST
+  if (transactionType.key === 'donation' && !donationDisclosureAccepted.value) {
+    showDonationDisclosure.value = true;
+    return;
+  }
+
   paymentStatus.value = { status: 'loading' };
 
   try {

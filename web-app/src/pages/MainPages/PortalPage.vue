@@ -128,7 +128,7 @@
         :portal-name="portalDetail?.name || 'Portal'"
         :goal-id="supportGoal.id"
         :goal-name="supportGoal.title"
-        :transaction-type="supportGoal.typeName === 'Fund' ? 'donation' : 'payment'"
+        :transaction-type="supportGoal.typeName === 'Donations' ? 'donation' : 'payment'"
         @close="showPaymentSheet = false"
       />
     </div>
@@ -307,7 +307,7 @@ const fullscreenStartIndex = ref(0);
 
 // --- Computed Properties (matching Swift logic exactly) ---
 const supportGoal = computed(() => {
-  return portalGoals.value.find(g => g.typeName === 'Fund' || g.typeName === 'Sales');
+  return portalGoals.value.find(g => g.typeName === 'Fund' || g.typeName === 'Sales' || g.typeName === 'Donations');
 });
 
 const isCurrentUserLead = computed(() => {

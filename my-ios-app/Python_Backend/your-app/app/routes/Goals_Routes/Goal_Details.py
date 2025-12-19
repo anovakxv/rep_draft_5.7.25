@@ -28,6 +28,25 @@ GOAL_TYPE_METRIC_MAP = {
 def check_permission(goal, user_id):
     return user_id == goal.users_id or user_id == goal.lead_id
 
+def check_portal_permission(portal, user_id):
+    """Check if user can create goals for this portal (creator or lead only)"""
+    # Check if user is portal creator
+    if portal.users_id == user_id:
+        return True
+    # Check if user is portal lead (single field)
+    if portal.lead_id == user_id:
+        return True
+    # Check if user is a lead via PortalUser table
+    from app.models.Purpose_Models.PortalUser import PortalUser
+    portal_user = PortalUser.query.filter_by(
+        portal_id=portal.id,
+        user_id=user_id,
+        role='lead'
+    ).first()
+    if portal_user:
+        return True
+    return False
+
 @goals_bp.route('/details', methods=['GET'])
 @jwt_required
 def api_goal_details():
@@ -183,8 +202,12 @@ def api_create_goal():
             portals_id = int(portals_id)
         except (TypeError, ValueError):
             return jsonify({'error': 'portals_id must be an integer or null'}), 400
-        if not db.session.query(Portal).filter_by(id=portals_id).first():
+        portal = db.session.query(Portal).filter_by(id=portals_id).first()
+        if not portal:
             return jsonify({'error': 'Invalid portals_id'}), 400
+        # SECURITY: Check if user has permission to create goals for this portal
+        if not check_portal_permission(portal, user_id):
+            return jsonify({'error': 'You do not have permission to create goals for this portal'}), 403
 
     goal = Goal(
         title=data['title'],

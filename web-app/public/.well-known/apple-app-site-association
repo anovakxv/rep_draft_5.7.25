@@ -1,0 +1,14 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "6H7VWPYG48.com.rep.RepApp",
+        "paths": [
+          "/portal/*",
+          "/goal/*"
+        ]
+      }
+    ]
+  }
+}

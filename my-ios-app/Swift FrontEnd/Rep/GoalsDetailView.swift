@@ -321,6 +321,20 @@ struct GoalsDetailView: View {
                             .fontWeight(.bold)
                             .padding(.vertical, 5)
                     }
+
+                    // Share Goal
+                    ShareLink(
+                        item: URL(string: "https://www.repsomething.com/goal/\(viewModel.goal.id)")!,
+                        subject: Text(viewModel.goal.title),
+                        message: Text("Check out \(viewModel.goal.title) on Rep")
+                    ) {
+                        Text("Share")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.vertical, 5)
+                    }
+
                     Button(role: .destructive) {
                         activeSheet = nil
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {

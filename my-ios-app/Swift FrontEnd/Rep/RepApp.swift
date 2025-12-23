@@ -39,7 +39,40 @@ struct RepApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: Notification.Name("ForceRootReload"))) { _ in
                     rootReloadKey = UUID()
                 }
+                .onOpenURL { url in
+                    handleUniversalLink(url)
+                }
                 .preferredColorScheme(.light)
+        }
+    }
+
+    // MARK: - Universal Links Handler
+
+    private func handleUniversalLink(_ url: URL) {
+        // Handle Universal Links from https://www.repsomething.com
+        guard url.host == "www.repsomething.com" || url.host == "repsomething.com" else {
+            return
+        }
+
+        let pathComponents = url.pathComponents.filter { $0 != "/" }
+
+        // Handle /portal/{id}
+        if pathComponents.count == 2 && pathComponents[0] == "portal",
+           let portalId = Int(pathComponents[1]) {
+            NotificationCenter.default.post(
+                name: Notification.Name("OpenPortalFromDeepLink"),
+                object: nil,
+                userInfo: ["portal_id": portalId]
+            )
+        }
+        // Handle /goal/{id}
+        else if pathComponents.count == 2 && pathComponents[0] == "goal",
+                let goalId = Int(pathComponents[1]) {
+            NotificationCenter.default.post(
+                name: Notification.Name("OpenGoalFromDeepLink"),
+                object: nil,
+                userInfo: ["goal_id": goalId]
+            )
         }
     }
 }

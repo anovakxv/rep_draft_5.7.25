@@ -909,7 +909,13 @@ struct MainScreen: View {
     @State private var initialUnreadPollScheduled = false
     @State private var notifObserversInstalled = false
     @State private var socketHandlersInstalled = false
-    
+
+    // Deep Link Navigation
+    @State private var deepLinkPortalId: Int? = nil
+    @State private var deepLinkGoalId: Int? = nil
+    @State private var navigateToDeepLinkPortal = false
+    @State private var navigateToDeepLinkGoal = false
+
     // Break up the complex view into smaller properties
     private var mainContent: some View {
         NavigationStack {
@@ -968,6 +974,34 @@ struct MainScreen: View {
                     // This happens BEFORE MainScreen fully appears, preventing stale green indicators
                     peopleVM.skipNextAnimations = true
                     peopleVM.fetchPeople(userId: userId, section: 0, force: true)
+                }
+            }
+            .navigationDestination(isPresented: $navigateToDeepLinkPortal) {
+                if let portalId = deepLinkPortalId {
+                    PortalPage(portalId: portalId, userId: userId)
+                } else {
+                    EmptyView()
+                }
+            }
+            .navigationDestination(isPresented: $navigateToDeepLinkGoal) {
+                if let goalId = deepLinkGoalId,
+                   let goal = Goal(
+                    id: goalId,
+                    title: "Loading...",
+                    subtitle: "",
+                    description: "",
+                    quota: 0,
+                    typeName: "Other",
+                    metricName: "",
+                    progress: 0,
+                    reportingName: "",
+                    creatorId: 0,
+                    portalId: nil,
+                    portalName: nil
+                   ) {
+                    GoalsDetailView(initialGoal: goal)
+                } else {
+                    EmptyView()
                 }
             }
         }
@@ -1039,6 +1073,7 @@ struct MainScreen: View {
             fetchCurrentUser()
             setupSocketNotifications()
             installSocketInviteObservers()
+            setupDeepLinkObservers()
             // Invite polling: quick one-shot at 1s, then every 30s (unchanged)
             inviteCheckTimer?.invalidate()
             inviteCheckTimer = nil
@@ -1313,6 +1348,23 @@ struct MainScreen: View {
             // Keep it simple: flip dot on; fetch will reconcile state
             self.openNeedsAttention = true
             GoalTeamInvitesManager.shared.fetchPendingInvites()
+        }
+    }
+
+    // MARK: - Deep Link Observers
+    private func setupDeepLinkObservers() {
+        NotificationCenter.default.addObserver(forName: Notification.Name("OpenPortalFromDeepLink"), object: nil, queue: .main) { notification in
+            if let portalId = notification.userInfo?["portal_id"] as? Int {
+                self.deepLinkPortalId = portalId
+                self.navigateToDeepLinkPortal = true
+            }
+        }
+
+        NotificationCenter.default.addObserver(forName: Notification.Name("OpenGoalFromDeepLink"), object: nil, queue: .main) { notification in
+            if let goalId = notification.userInfo?["goal_id"] as? Int {
+                self.deepLinkGoalId = goalId
+                self.navigateToDeepLinkGoal = true
+            }
         }
     }
 

@@ -539,6 +539,13 @@ struct PortalPageContent: View {
                         // Use direct navigation trigger
                         NotificationCenter.default.post(name: .init("ShowEditPortalFromToolbar"), object: nil)
                     }
+                    ShareLink(
+                        item: URL(string: "https://www.repsomething.com/portal/\(portal.id)")!,
+                        subject: Text(portal.name),
+                        message: Text("Check out \(portal.name) on Rep")
+                    ) {
+                        Label("Share", systemImage: "square.and.arrow.up")
+                    }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }

@@ -520,6 +520,12 @@ struct PortalPageContent: View {
                     }
                     .onAppear {
                         print("Portal aLeads:", portal.aLeads?.map { $0.id } ?? [])
+                        // Preload lead profile images immediately for faster Story tab display
+                        let leadImageURLs = (portal.aLeads ?? []).compactMap { $0.profilePictureURL }
+                        if !leadImageURLs.isEmpty {
+                            let imagePrefetcher = ImagePrefetcher(urls: leadImageURLs)
+                            imagePrefetcher.start()
+                        }
                     }
                     // Sticky segmented picker
                     Section(header: stickyHeader) {
@@ -815,6 +821,13 @@ struct PortalSegmentedPicker: View {
 
 struct PortalStorySection: View {
     let portal: PortalDetail
+
+    // Preload lead images immediately when view is created
+    private func preloadLeadImages() {
+        let imagePrefetcher = ImagePrefetcher(urls: (portal.aLeads ?? []).compactMap { $0.profilePictureURL })
+        imagePrefetcher.start()
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Leads")
@@ -824,13 +837,14 @@ struct PortalStorySection: View {
                     ForEach(portal.aLeads ?? []) { user in   // <-- Use aLeads here
                         VStack {
                             if let url = user.profilePictureURL {
-                                AsyncImage(url: url) { image in
-                                    image.resizable().scaledToFill()
-                                } placeholder: {
-                                    Circle().fill(Color.gray.opacity(0.3))
-                                }
-                                .frame(width: 28, height: 28)
-                                .clipShape(Circle())
+                                KFImage(url)
+                                    .placeholder {
+                                        Circle().fill(Color.gray.opacity(0.3))
+                                    }
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 28, height: 28)
+                                    .clipShape(Circle())
                             } else {
                                 Circle()
                                     .fill(Color.gray.opacity(0.3))
@@ -842,6 +856,10 @@ struct PortalStorySection: View {
                         }
                     }
                 }
+            }
+            .onAppear {
+                // Preload images when scroll view appears
+                preloadLeadImages()
             }
             Divider()
             // Story Text Blocks with clickable links

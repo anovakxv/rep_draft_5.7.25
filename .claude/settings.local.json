@@ -62,7 +62,8 @@
       "Bash(my-ios-app/Python_Backend/your-app/instance/test.db)",
       "Bash(curl:*)",
       "Bash(xcodebuild:*)",
-      "Bash(swiftc:*)"
+      "Bash(swiftc:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

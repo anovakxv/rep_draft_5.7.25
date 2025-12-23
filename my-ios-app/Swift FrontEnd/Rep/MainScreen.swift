@@ -984,22 +984,9 @@ struct MainScreen: View {
                 }
             }
             .navigationDestination(isPresented: $navigateToDeepLinkGoal) {
-                if let goalId = deepLinkGoalId,
-                   let goal = Goal(
-                    id: goalId,
-                    title: "Loading...",
-                    subtitle: "",
-                    description: "",
-                    quota: 0,
-                    typeName: "Other",
-                    metricName: "",
-                    progress: 0,
-                    reportingName: "",
-                    creatorId: 0,
-                    portalId: nil,
-                    portalName: nil
-                   ) {
-                    GoalsDetailView(initialGoal: goal)
+                if let goalId = deepLinkGoalId {
+                    // Use placeholder goal with the correct ID for deep link loading
+                    GoalsDetailView(initialGoal: Goal.placeholder.withId(goalId))
                 } else {
                     EmptyView()
                 }

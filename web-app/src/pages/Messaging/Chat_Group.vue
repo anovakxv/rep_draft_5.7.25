@@ -23,9 +23,9 @@
       </div>
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
-      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+      <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
         <!-- LEFT COLUMN (Desktop): Input Area (40% width) -->
-        <div class="hidden md:flex md:flex-col md:w-[40%] md:border-r md:border-gray-200">
+        <div class="hidden xl:flex xl:flex-col xl:w-[40%] xl:border-r xl:border-gray-200">
           <!-- Input Area (Desktop - always visible) -->
           <div class="flex-1 flex flex-col justify-end p-6">
             <div class="space-y-4">
@@ -56,7 +56,7 @@
         </div>
 
         <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Messages Feed (60% width) -->
-        <div class="flex flex-col flex-1 min-h-0 md:w-[60%]">
+        <div class="flex flex-col flex-1 min-h-0 xl:w-[60%]">
 
           <!-- Group Members Horizontal Scroll -->
           <div v-if="groupMembers.length > 0" class="flex overflow-x-auto bg-white px-3 py-2 border-b border-gray-200 shrink-0" style="scrollbar-width: none; -ms-overflow-style: none;">
@@ -69,7 +69,7 @@
           </div>
 
           <!-- Messages List -->
-          <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-32 md:pb-3" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
+          <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 py-3 pb-32 xl:pb-3" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
             <div v-if="canLoadOlder" class="flex justify-center py-2">
               <button @click="loadOlder" :disabled="isLoadingOlder" class="text-xs text-gray-500 hover:underline">
                 <span v-if="isLoadingOlder" class="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full inline-block mr-1"></span>
@@ -109,7 +109,7 @@
       </div>
 
       <!-- Input Bar (Mobile Only - Fixed Bottom) -->
-      <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+      <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
         <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
           <div class="flex items-center gap-2">
             <textarea

@@ -30,7 +30,7 @@
     <div v-else class="flex flex-col flex-1 min-h-0">
       <!-- Navigation Header (Mobile Only) -->
       <NavigationHeaderView
-        class="md:hidden"
+        class="xl:hidden"
         :name="user.displayName"
         :show-settings="isCurrentUser"
         @back="goBack"
@@ -38,9 +38,9 @@
       />
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
-      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+      <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
         <!-- LEFT COLUMN (Desktop): Profile Summary Panel (30% width) -->
-        <div class="hidden md:flex md:flex-col md:w-[30%] md:border-r md:border-gray-200">
+        <div class="hidden xl:flex xl:flex-col xl:w-[30%] xl:border-r xl:border-gray-200">
           <!-- Desktop Header -->
           <div class="flex items-center px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
             <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
@@ -103,12 +103,12 @@
         </div>
 
         <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (70% width) -->
-        <div class="flex flex-col flex-1 min-h-0 md:w-[70%]">
+        <div class="flex flex-col flex-1 min-h-0 xl:w-[70%]">
           <!-- Scrollable Content -->
-          <main class="flex-1 overflow-y-auto pb-20 md:pb-4">
+          <main class="flex-1 overflow-y-auto pb-20 xl:pb-4">
             <div class="relative">
               <!-- Profile Info (Mobile Only) -->
-              <div class="md:hidden">
+              <div class="xl:hidden">
                 <ProfileInfoView
                   :photo-url="user.profile_picture_url"
                   :city="user.city"
@@ -171,7 +171,7 @@
       </div>
 
       <!-- Fixed Bottom Bar (Mobile Only) -->
-      <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+      <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
         <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
           <!-- Message Button -->
           <button
@@ -200,8 +200,8 @@
 
     <!-- Action Menu Modal -->
     <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end justify-center">
-      <div class="bg-black bg-opacity-50 w-full max-w-[768px] md:max-w-full" style="position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
-      <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10 max-w-[768px] md:max-w-full max-h-[80vh] overflow-y-auto">
+      <div class="bg-black bg-opacity-50 w-full max-w-[768px] xl:max-w-full" style="position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+      <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10 max-w-[768px] xl:max-w-full max-h-[80vh] overflow-y-auto">
         <div class="flex flex-col items-center space-y-6">
           <!-- Current User Actions -->
           <template v-if="isCurrentUser">

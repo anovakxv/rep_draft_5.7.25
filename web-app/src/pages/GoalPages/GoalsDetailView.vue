@@ -22,7 +22,7 @@
     <!-- Main Content -->
     <div v-else-if="goal" class="flex flex-col flex-1 min-h-0">
       <!-- Custom Top Bar (Mobile Only) -->
-      <header class="md:hidden flex items-center justify-between px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
+      <header class="xl:hidden flex items-center justify-between px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
         <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -46,9 +46,9 @@
       </header>
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
-      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+      <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
         <!-- LEFT COLUMN (Desktop): Dashboard Panel (30% width) -->
-        <div class="hidden md:flex md:flex-col md:w-[30%] md:border-r md:border-gray-200">
+        <div class="hidden xl:flex xl:flex-col xl:w-[30%] xl:border-r xl:border-gray-200">
           <!-- Goal Header -->
           <div class="flex items-center px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
             <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
@@ -157,9 +157,9 @@
         </div>
 
         <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (60% width) -->
-        <div class="flex flex-col flex-1 min-h-0 md:w-[60%]">
+        <div class="flex flex-col flex-1 min-h-0 xl:w-[60%]">
           <!-- Mobile: Progress Bar and Metrics Section -->
-          <div class="md:hidden p-4 border-b border-gray-200">
+          <div class="xl:hidden p-4 border-b border-gray-200">
             <!-- Progress Bar -->
             <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-2">
               <div
@@ -196,7 +196,7 @@
           />
 
           <!-- Content List -->
-          <div class="flex-1 overflow-y-auto pb-24 md:pb-4">
+          <div class="flex-1 overflow-y-auto pb-24 xl:pb-4">
             <!-- Feed Tab -->
             <div v-if="selectedSegment === 0" class="px-4">
               <div v-if="feed.length === 0" class="text-center text-gray-500 py-10">
@@ -241,7 +241,7 @@
       </div>
 
       <!-- Fixed Bottom Bar (Mobile Only) -->
-      <div class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center" :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }">
+      <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center" :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }">
         <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
           <!-- Message Button (only for team members) -->
           <button
@@ -274,7 +274,7 @@
     <!-- Positioned bottom-right for Fund/Sales/Donations goals (matching iOS .bottomTrailing) -->
     <div
       v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales' || goal.typeName === 'Donations')"
-      class="md:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
+      class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
       style="bottom: 70px"
     >
       <div class="w-full relative flex justify-end pr-5" style="max-width: 768px">
@@ -1234,12 +1234,12 @@ const LargeBarChartView = defineComponent({
   setup(props) {
     return () => h('div', {
       // Responsive container height: mobile 260px -> tablet 340px -> desktop 400px (scaled down)
-      class: 'h-[260px] md:h-[340px] lg:h-[400px] p-4 md:p-5 lg:p-6 bg-white'
+      class: 'h-[260px] xl:h-[340px] lg:h-[400px] p-4 xl:p-5 lg:p-6 bg-white'
     }, [
       h('div', {
         // Responsive chart area - Mobile optimized, desktop scaled down for better proportions
         // Mobile: 220px, Tablet: 280px, Desktop: 340px (more reasonable on desktop)
-        class: 'h-[220px] md:h-[280px] lg:h-[340px] flex items-end justify-center space-x-2 md:space-x-3 lg:space-x-4'
+        class: 'h-[220px] xl:h-[280px] lg:h-[340px] flex items-end justify-center space-x-2 xl:space-x-3 lg:space-x-4'
       }, props.data.map(item => {
         const quotaValue = props.quota > 0 ? props.quota : 1;
         const heightPercent = Math.min(100, Math.max(1, (item.value / quotaValue) * 100));
@@ -1251,11 +1251,11 @@ const LargeBarChartView = defineComponent({
         }, [
           // Responsive value label: mobile xs -> tablet sm -> desktop base (scaled down)
           h('div', {
-            class: 'text-xs md:text-sm lg:text-base text-center font-medium mb-1'
+            class: 'text-xs xl:text-sm lg:text-base text-center font-medium mb-1'
           }, item.valueLabel),
           // Bar element - height as percentage of container, width responsive (narrower on desktop)
           h('div', {
-            class: 'w-10 md:w-14 lg:w-20 rounded-sm',
+            class: 'w-10 xl:w-14 lg:w-20 rounded-sm',
             style: {
               height: `${heightPercent}%`,
               minHeight: '2px',
@@ -1264,7 +1264,7 @@ const LargeBarChartView = defineComponent({
           }),
           // Responsive bottom label: mobile xs -> tablet sm -> desktop base (scaled down)
           h('div', {
-            class: 'text-xs md:text-sm lg:text-base mt-1 w-10 md:w-14 lg:w-20 text-center truncate text-gray-600'
+            class: 'text-xs xl:text-sm lg:text-base mt-1 w-10 xl:w-14 lg:w-20 text-center truncate text-gray-600'
           }, item.bottomLabel)
         ]);
       }))

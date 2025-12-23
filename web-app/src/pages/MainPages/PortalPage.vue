@@ -19,9 +19,9 @@
       <PortalHeader :portal-name="portalDetail.name" @back="goBack" />
 
       <!-- Two Column Layout (Desktop Only) -->
-      <div class="flex flex-col flex-1 min-h-0 md:flex-row">
+      <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
         <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
-        <div class="hidden md:flex md:w-[70%] md:h-[calc(100vh-3.5rem)] md:sticky md:top-[3.5rem] md:flex-col md:bg-black" style="border: 12px solid black;">
+        <div class="hidden xl:flex xl:w-[70%] xl:h-[calc(100vh-3.5rem)] xl:sticky xl:top-[3.5rem] xl:flex-col xl:bg-black" style="border: 12px solid black;">
           <ImageTabView
             :sections="portalDetail.aSections || []"
             @image-tap="openFullscreen"
@@ -30,13 +30,13 @@
         </div>
 
         <!-- MOBILE & DESKTOP: Right Column - Content (30% on desktop) -->
-        <div class="flex flex-col flex-1 min-h-0 md:w-[30%]">
+        <div class="flex flex-col flex-1 min-h-0 xl:w-[30%]">
 
         <!-- 2. Main Scrollable Content -->
-        <div class="flex-1 overflow-y-auto pb-20 md:pb-0" style="overscroll-behavior-y: contain;">
+        <div class="flex-1 overflow-y-auto pb-20 xl:pb-0" style="overscroll-behavior-y: contain;">
           <div class="relative">
             <!-- MOBILE ONLY: Image Gallery -->
-            <div class="md:hidden">
+            <div class="xl:hidden">
               <ImageTabView
                 :sections="portalDetail.aSections || []"
                 @image-tap="openFullscreen"
@@ -54,7 +54,7 @@
             </div>
 
             <!-- Conditional Content -->
-            <div class="px-4 pt-4 pb-24 md:pb-4">
+            <div class="px-4 pt-4 pb-24 xl:pb-4">
               <PortalResultsSection
                 v-if="selectedSection === 0"
                 :goals="portalGoals"
@@ -68,8 +68,8 @@
         </div>
 
         <!-- Fixed Bottom Bar (mobile) / Sticky Bottom Bar (desktop) -->
-        <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center md:sticky md:bottom-0 md:left-auto md:right-auto md:mt-auto">
-          <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 md:py-3" style="max-width: 768px; border-color: #e5e7eb;">
+        <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center xl:sticky xl:bottom-0 xl:left-auto xl:right-auto xl:mt-auto">
+          <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 xl:py-3" style="max-width: 768px; border-color: #e5e7eb;">
             <!-- Message Button -->
             <button
               @click="openMessageSheet"

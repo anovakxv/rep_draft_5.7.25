@@ -2,19 +2,19 @@
  * Responsive breakpoints for the application
  *
  * BREAKPOINT STRATEGY:
- * - Mobile: < 1024px (phones and tablets, including iPads)
- * - Desktop: >= 1024px (laptops and desktop computers)
+ * - Mobile: < 1280px (phones and tablets, including all iPads)
+ * - Desktop: >= 1280px (laptops and desktop computers)
  *
- * This ensures tablets get the mobile-optimized layout while
- * preserving the desktop experience for larger screens.
+ * This ensures all tablets (including iPad Pro) get the mobile-optimized
+ * layout while preserving the desktop experience for larger screens.
  */
 
 export const BREAKPOINTS = {
   /** Desktop breakpoint in pixels */
-  DESKTOP: 1024,
+  DESKTOP: 1280,
 
   /** Desktop breakpoint for CSS media queries */
-  DESKTOP_MEDIA_QUERY: '1024px',
+  DESKTOP_MEDIA_QUERY: '1280px',
 } as const;
 
 /**

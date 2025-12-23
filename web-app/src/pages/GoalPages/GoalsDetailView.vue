@@ -1326,7 +1326,7 @@ const LargeBarChartView = defineComponent({
 }
 
 /* Desktop breakpoint - keep in sync with BREAKPOINTS.DESKTOP in @/constants/breakpoints.ts */
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .goal-detail-container {
     /* Desktop: break out to full viewport width */
     width: 100vw;

@@ -751,7 +751,7 @@ onUnmounted(() => {
 }
 
 /* Desktop breakpoint - keep in sync with BREAKPOINTS.DESKTOP in @/constants/breakpoints.ts */
-@media (min-width: 1024px) {
+@media (min-width: 1280px) {
   .chat-group-container {
     /* Desktop: break out to full viewport width */
     width: 100vw;

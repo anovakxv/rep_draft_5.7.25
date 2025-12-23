@@ -109,6 +109,7 @@
         @edit-purpose="navigateToEdit"
         @flag="showFlagConfirmation = true"
         @support="openPaymentSheet"
+        @share="handleShare"
       />
     </transition>
 
@@ -198,6 +199,7 @@ import { isAuthenticated } from '@/utils/auth';
 const EditGoal = defineAsyncComponent(() => import('../GoalPages/EditGoal.vue'));
 import PayTransaction from './PayTransaction.vue';
 import { BREAKPOINTS } from '@/constants/breakpoints';
+import { shareUrl } from '@/utils/share';
 
 // --- Interfaces (from Swift Models) ---
 interface User { 
@@ -450,6 +452,21 @@ const handleFlag = () => {
   showFlagConfirmation.value = false;
   activeSheet.value = null;
   flagPortal();
+};
+
+const handleShare = async () => {
+  activeSheet.value = null;
+  if (portalDetail.value) {
+    try {
+      await shareUrl({
+        url: `https://www.repsomething.com/portal/${portalDetail.value.id}`,
+        title: portalDetail.value.name,
+        text: `Check out ${portalDetail.value.name} on Rep`
+      });
+    } catch (error) {
+      console.error('Share failed:', error);
+    }
+  }
 };
 
 const handleAddGoalClose = () => {
@@ -895,7 +912,7 @@ const ActionSheetModal = defineComponent({
     isCurrentUserLead: Boolean,
     supportGoal: Object as () => Goal | null,
   },
-  emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support'],
+  emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support', 'share'],
   setup(props, { emit }) {
     const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
 
@@ -956,6 +973,12 @@ const ActionSheetModal = defineComponent({
               selectedSection.value = 0;
             }
           }, 'Select Goal Team'),
+
+          // Share - light green, large text (available for everyone)
+          h('button', {
+            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+            onClick: () => emit('share')
+          }, 'Share'),
 
           // Edit Purpose - light green, large text (only if portal owner AND authenticated)
           (props.portal?.users_id === userId && userId > 0) && h('button', {

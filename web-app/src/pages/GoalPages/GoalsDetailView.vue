@@ -339,6 +339,14 @@
               Edit Goal
             </button>
 
+            <!-- Share (available for everyone) -->
+            <button
+              @click="handleShare"
+              class="text-[#8cc65d] font-bold text-[28px] py-3"
+            >
+              Share
+            </button>
+
             <!-- Delete Goal -->
             <button
               @click="confirmDelete"
@@ -461,6 +469,7 @@ const EditGoalPage = defineAsyncComponent(() => import('./EditGoal.vue'));
 import InviteTeamSheet from './InviteTeamSheet.vue';
 import GroupChatView from '../Messaging/Chat_Group.vue';
 import PayTransactionView from '../MainPages/PayTransaction.vue';
+import { shareUrl } from '@/utils/share';
 
 // --- Types & Interfaces (EXACTLY matching Swift models) ---
 interface Goal {
@@ -980,6 +989,22 @@ const handleEditGoal = () => {
     return;
   }
   activeSheet.value = 'editGoal';
+};
+
+// Handler for Share action
+const handleShare = async () => {
+  activeSheet.value = null;
+  if (goal.value) {
+    try {
+      await shareUrl({
+        url: `https://www.repsomething.com/goal/${goal.value.id}`,
+        title: goal.value.title,
+        text: `Check out ${goal.value.title} on Rep`
+      });
+    } catch (error) {
+      console.error('Share failed:', error);
+    }
+  }
 };
 
 const confirmDelete = () => {

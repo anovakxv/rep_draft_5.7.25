@@ -281,6 +281,18 @@ struct PortalPage: View {
                         .fontWeight(.bold)
                         .padding(.vertical, 5)
                 }
+                // Share button (available to everyone)
+                ShareLink(
+                    item: URL(string: "https://www.repsomething.com/portal/\(portal.id)")!,
+                    subject: Text(portal.name),
+                    message: Text("Check out \(portal.name) on Rep")
+                ) {
+                    Text("Share")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
+                }
                 if portal.users_id == userId {
                     Button(action: {
                         navigateToEditAfterDismiss = true

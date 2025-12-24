@@ -49,13 +49,14 @@ The following changes have been made to the iOS app:
 
 ## ⚠️ Part 3: Web Server Setup (YOU NEED TO DO THIS)
 
-### Step 1: Update the apple-app-site-association file
+### Step 1: apple-app-site-association file (ALREADY CONFIGURED)
 
-1. Open the file: `apple-app-site-association` (in this directory)
-2. Replace `TEAM_ID` with your actual Apple Team ID from Xcode
-   - Find this line: `"appID": "TEAM_ID.com.rep.RepApp"`
-   - Replace `TEAM_ID` with your actual Team ID
-   - Example: `"appID": "AB12CD34EF.com.rep.RepApp"`
+The file has been configured with:
+- **Team ID:** `6H7VWPYG48`
+- **Bundle ID:** `NetworkedCapital.Rep`
+- **App ID:** `6H7VWPYG48.NetworkedCapital.Rep`
+
+This matches your Xcode project settings.
 
 ### Step 2: Add to Vercel Web App
 
@@ -138,15 +139,16 @@ The Share functionality is already complete and working:
 
 ---
 
-## ⚠️ IMPORTANT: Bundle Identifier
+## ✅ Bundle Identifier Configuration
 
-The code assumes your bundle identifier is: `com.rep.RepApp`
+Your app is configured with:
+- **Bundle Identifier:** `NetworkedCapital.Rep`
+- **Team ID:** `6H7VWPYG48`
+- **App ID in association file:** `6H7VWPYG48.NetworkedCapital.Rep`
 
-If it's different, you'll need to update the `appID` in `apple-app-site-association`:
-- Format: `TEAM_ID.YOUR_BUNDLE_ID`
-- Example: `AB12CD34EF.com.yourcompany.YourApp`
+This has been properly set up in both Xcode and the `apple-app-site-association` file.
 
-To find your bundle identifier:
+To verify your bundle identifier:
 1. Open Xcode
 2. Select your target
 3. Go to "General" tab

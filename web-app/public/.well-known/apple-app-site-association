@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "6H7VWPYG48.com.rep.RepApp",
+        "appID": "6H7VWPYG48.NetworkedCapital.Rep",
         "paths": [
           "/portal/*",
           "/goal/*"

@@ -110,6 +110,18 @@
         @flag="showFlagConfirmation = true"
         @support="openPaymentSheet"
         @share="handleShare"
+        @join-goal-team="activeSheet = 'goalPicker'"
+      />
+    </transition>
+
+    <transition name="fade">
+      <GoalPickerSheet
+        v-if="activeSheet === 'goalPicker'"
+        :goals="portalGoals"
+        :current-user-id="userId"
+        @close="activeSheet = null"
+        @join="(goalId) => { joinGoalTeam(goalId); activeSheet = null; }"
+        @view-details="(goal) => { router.push(`/goal/${goal.id}`); }"
       />
     </transition>
 
@@ -219,6 +231,7 @@ interface Goal {
   subtitle?: string;
   progressPercent?: number;
   progress?: number;
+  creatorId?: number;
   // Other goal fields would be defined here
 }
 
@@ -293,7 +306,7 @@ const isLoading = ref(true);
 const errorMessage = ref<string | null>(null);
 
 // Modal/Sheet State
-type ActiveSheet = 'portalActionMenu' | 'addGoal' | null;
+type ActiveSheet = 'portalActionMenu' | 'addGoal' | 'goalPicker' | null;
 const activeSheet = ref<ActiveSheet>(null);
 const showPaymentSheet = ref(false);
 const navigateToEditAfterDismiss = ref(false);
@@ -396,6 +409,25 @@ const flagPortal = async () => {
   } catch (err) {
     flagResultMessage.value = 'Failed to flag portal.';
     console.error(err);
+  }
+};
+
+// Join goal team function (matching iOS implementation)
+const joinGoalTeam = async (goalId: number) => {
+  try {
+    const res = await api.post('/api/goals/join_leave', {
+      aGoalsIDs: [goalId],
+      todo: 'join'
+    });
+
+    if (res.data && res.data.result && res.data.result[goalId] === 'ok') {
+      // Success - refresh portal goals
+      await fetchPortalGoals();
+    } else {
+      console.error('Error joining goal team');
+    }
+  } catch (err) {
+    console.error('Failed to join goal team:', err);
   }
 };
 
@@ -912,7 +944,7 @@ const ActionSheetModal = defineComponent({
     isCurrentUserLead: Boolean,
     supportGoal: Object as () => Goal | null,
   },
-  emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support', 'share'],
+  emits: ['close', 'add-goal', 'edit-purpose', 'flag', 'support', 'share', 'join-goal-team'],
   setup(props, { emit }) {
     const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
 
@@ -964,15 +996,11 @@ const ActionSheetModal = defineComponent({
             onClick: () => emit('add-goal')
           }, 'Add Goal'),
 
-          // Select Goal Team - light green, large text (available for everyone - navigates to Goal Teams tab)
+          // Join Goal Team - light green, large text (available for everyone)
           h('button', {
             class: 'text-[#8cc65d] font-bold text-[28px] py-3',
-            onClick: () => {
-              emit('close');
-              // Switch to "Goal Teams" tab (index 0)
-              selectedSection.value = 0;
-            }
-          }, 'Select Goal Team'),
+            onClick: () => emit('join-goal-team')
+          }, 'Join Goal Team'),
 
           // Share - light green, large text (available for everyone)
           h('button', {
@@ -998,6 +1026,234 @@ const ActionSheetModal = defineComponent({
             onClick: () => emit('close')
           }, 'Cancel')
         ])
+      ])
+    ]);
+  }
+});
+
+// GoalPickerRow - Individual goal row in the picker (matching Swift design)
+const GoalPickerRow = defineComponent({
+  props: {
+    goal: Object as () => Goal,
+    currentUserId: Number,
+  },
+  emits: ['join', 'view-details'],
+  setup(props, { emit }) {
+    const isCreator = computed(() => props.goal?.creatorId === props.currentUserId);
+
+    const tagText = computed(() => {
+      if (!props.goal) return '';
+      if (props.goal.typeName.toLowerCase() === 'other') {
+        const raw = (props.goal.metricName || '').trim();
+        return raw ? raw.substring(0, 9) : props.goal.typeName;
+      }
+      return props.goal.typeName;
+    });
+
+    return () => {
+      if (!props.goal) return null;
+
+      return h('div', {
+        class: 'flex items-center gap-4 p-4 hover:bg-gray-50',
+      }, [
+        // Bar Chart (matching iOS design)
+        h('div', { class: 'flex items-end gap-1.5 shrink-0', style: { width: '126px', height: '81px' } },
+          (props.goal.chartData || []).slice(-4).map((bar: any, idx: number) => {
+            const quota = (props.goal?.quota || 0) > 0 ? props.goal!.quota! : 1;
+            const barHeight = Math.max(0, Math.min(1.0, (bar.value || 0) / quota) * 77);
+            return h('div', {
+              key: `bar-${idx}`,
+              class: 'flex flex-col justify-end',
+              style: { width: '24px', height: '81px' }
+            }, [
+              h('div', {
+                class: 'rounded',
+                style: {
+                  backgroundColor: '#8cc65d',
+                  width: '24px',
+                  height: `${barHeight}px`
+                }
+              })
+            ]);
+          })
+        ),
+
+        // Title, subtitle, progress
+        h('div', { class: 'flex-1 min-w-0' }, [
+          h('div', { class: 'font-semibold text-base' }, props.goal.title),
+          props.goal.subtitle && h('div', { class: 'text-sm text-gray-600' }, props.goal.subtitle),
+          h('div', { class: 'text-sm text-black' }, `${Math.floor(props.goal.progressPercent || 0)}% [${tagText.value}]`)
+        ]),
+
+        // Action buttons
+        h('div', { class: 'flex flex-col gap-1 shrink-0' }, [
+          // Join or Creator badge
+          !isCreator.value
+            ? h('button', {
+                class: 'flex items-center gap-1 px-3 py-1.5 rounded text-white font-semibold text-sm',
+                style: { backgroundColor: '#8cc65d' },
+                onClick: () => emit('join')
+              }, [
+                h('svg', {
+                  xmlns: 'http://www.w3.org/2000/svg',
+                  class: 'h-3.5 w-3.5',
+                  fill: 'none',
+                  viewBox: '0 0 24 24',
+                  stroke: 'currentColor',
+                  strokeWidth: 2
+                }, [
+                  h('path', {
+                    strokeLinecap: 'round',
+                    strokeLinejoin: 'round',
+                    d: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z'
+                  })
+                ]),
+                'Join'
+              ])
+            : h('div', {
+                class: 'flex items-center gap-1 px-2.5 py-1 rounded text-xs font-semibold',
+                style: {
+                  color: '#8cc65d',
+                  backgroundColor: 'rgba(140, 198, 93, 0.1)'
+                }
+              }, [
+                h('svg', {
+                  xmlns: 'http://www.w3.org/2000/svg',
+                  class: 'h-3 w-3',
+                  fill: 'currentColor',
+                  viewBox: '0 0 20 20'
+                }, [
+                  h('path', {
+                    fillRule: 'evenodd',
+                    d: 'M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z',
+                    clipRule: 'evenodd'
+                  })
+                ]),
+                'Creator'
+              ]),
+
+          // Details button
+          h('button', {
+            class: 'px-2.5 py-1 text-xs border rounded',
+            style: {
+              borderColor: '#8cc65d',
+              color: '#8cc65d'
+            },
+            onClick: () => emit('view-details')
+          }, 'Details')
+        ])
+      ]);
+    };
+  }
+});
+
+// GoalPickerSheet - Modal for selecting and joining goals (matching Swift design)
+const GoalPickerSheet = defineComponent({
+  props: {
+    goals: Array as () => Goal[],
+    currentUserId: Number,
+  },
+  emits: ['close', 'join', 'view-details'],
+  setup(props, { emit }) {
+    const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
+    const recruitingGoals = computed(() =>
+      (props.goals || []).filter(g => g.typeName === 'Recruiting')
+    );
+
+    return () => h('div', {
+      class: 'fixed inset-0 z-50 flex items-center justify-center',
+      onClick: () => emit('close')
+    }, [
+      h('div', {
+        class: 'bg-black bg-opacity-50 absolute inset-0'
+      }),
+      h('div', {
+        class: 'bg-white w-full max-w-2xl h-[90vh] flex flex-col relative z-10 rounded-t-2xl',
+        onClick: (e: Event) => e.stopPropagation()
+      }, [
+        // Header
+        h('div', { class: 'flex items-center justify-between p-4 border-b border-gray-200 shrink-0' }, [
+          // Back button
+          h('button', {
+            class: 'flex items-center gap-1',
+            style: { color: '#8cc65d' },
+            onClick: () => emit('close')
+          }, [
+            h('svg', {
+              xmlns: 'http://www.w3.org/2000/svg',
+              class: 'h-5 w-5',
+              fill: 'none',
+              viewBox: '0 0 24 24',
+              stroke: 'currentColor',
+              strokeWidth: 2
+            }, [
+              h('path', {
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                d: 'M15 19l-7-7 7-7'
+              })
+            ]),
+            h('span', {}, 'Back')
+          ]),
+
+          // Title
+          h('h2', { class: 'font-semibold text-lg absolute left-1/2 transform -translate-x-1/2' }, 'Join Goal Team'),
+
+          // Close button
+          h('button', {
+            style: { color: '#8cc65d' },
+            onClick: () => emit('close')
+          }, [
+            h('svg', {
+              xmlns: 'http://www.w3.org/2000/svg',
+              class: 'h-6 w-6',
+              fill: 'none',
+              viewBox: '0 0 24 24',
+              stroke: 'currentColor',
+              strokeWidth: 2
+            }, [
+              h('path', {
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                d: 'M6 18L18 6M6 6l12 12'
+              })
+            ])
+          ])
+        ]),
+
+        // Goal List
+        h('div', { class: 'flex-1 overflow-y-auto' },
+          recruitingGoals.value.length === 0
+            ? h('div', { class: 'flex flex-col items-center justify-center h-full text-center px-4' }, [
+                h('svg', {
+                  xmlns: 'http://www.w3.org/2000/svg',
+                  class: 'h-12 w-12 text-gray-400 mb-4',
+                  fill: 'none',
+                  viewBox: '0 0 24 24',
+                  stroke: 'currentColor'
+                }, [
+                  h('path', {
+                    strokeLinecap: 'round',
+                    strokeLinejoin: 'round',
+                    strokeWidth: 1.5,
+                    d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z'
+                  })
+                ]),
+                h('h3', { class: 'font-semibold text-lg mb-2 text-gray-700' }, 'No Goal Teams Available'),
+                h('p', { class: 'text-sm text-gray-500' }, 'Check back later for new opportunities')
+              ])
+            : h('div', { class: 'divide-y divide-gray-200' },
+                recruitingGoals.value.map(goal =>
+                  h(GoalPickerRow, {
+                    key: goal.id,
+                    goal: goal,
+                    currentUserId: props.currentUserId,
+                    onJoin: () => emit('join', goal.id),
+                    onViewDetails: () => emit('view-details', goal)
+                  })
+                )
+              )
+        )
       ])
     ]);
   }

@@ -1623,61 +1623,30 @@ struct MainScreenContent: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            // Floating People/Purposes Toggle Button
-            HStack(spacing: 0) {
-                Button(action: {
-                    if page != .people {
-                        page = .people
-                        if section != 0 {
+            Button(
+                action: {
+                    page = page == .people ? .portals : .people
+                    if section != 0 {  // Only fetch if not on Chats tab
+                        if page == .portals {
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                        } else {
                             peopleVM.fetchPeople(userId: userId, section: section)
                         }
-                        searchText = ""
-                        portalsVM.clearSearch()
-                        peopleVM.clearSearch()
                     }
-                }) {
-                    Text("People")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(page == .people ? .white : Color.repGreen)
-                        .frame(width: 70, height: 32)
-                        .background(page == .people ? Color.repGreen : Color.white)
+                    searchText = ""
+                    portalsVM.clearSearch()
+                    peopleVM.clearSearch()
+                },
+                label: {
+                    Image("REPLogo")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 44.0, height: 44.0)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(PlainButtonStyle())
-
-                Rectangle()
-                    .frame(width: 1, height: 32)
-                    .foregroundColor(Color.repGreen.opacity(0.3))
-
-                Button(action: {
-                    if page != .portals {
-                        page = .portals
-                        if section != 0 {
-                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                        }
-                        searchText = ""
-                        portalsVM.clearSearch()
-                        peopleVM.clearSearch()
-                    }
-                }) {
-                    Text("Purposes")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(page == .portals ? .white : Color.repGreen)
-                        .frame(width: 70, height: 32)
-                        .background(page == .portals ? Color.repGreen : Color.white)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
-            .background(Color.white)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.repGreen, lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .shadow(color: Color.repGreen.opacity(0.15), radius: 8, x: 0, y: 4)
-            .padding(.trailing, 16)
-            .padding(.bottom, 16)
+            .padding(.trailing, 36)
+            .padding(.bottom, 12)
         }
         .navigationBarBackButtonHidden()
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -1855,74 +1824,82 @@ struct MainScreenToolbar: ViewModifier {
     func body(content: Content) -> some View {
         content
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    MainSegmentedPicker(
-                        segments: ["Chats", "Network", "All"],
-                        selectedIndex: $section,
-                        attentionDotIndices: openNeedsAttention ? [0] : [],
-                        onSelect: { idx in
-                            section = idx
-                            if idx == 0 {
-                                // Always load chats data for tab 0 (regardless of notification dot)
-                                peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
-                            } else if page == .portals {
-                                portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
+                ToolbarItem(placement: .bottomBar) {
+                    HStack {
+                        // Leading: Profile Picture
+                        NavigationLink(destination: ProfileView(userId: userId)) {
+                            if let url = currentUser?.profilePictureURL {
+                                KFImage(url)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                    .clipShape(Circle())
                             } else {
-                                peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
+                                Image(systemName: "person.crop.circle")
+                                    .resizable()
+                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                    .clipShape(Circle())
                             }
                         }
-                    )
-                    .id(openNeedsAttention ? "dot-on" : "dot-off")
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    NavigationLink(destination: ProfileView(userId: userId)) {
-                        if let url = currentUser?.profilePictureURL {
-                            KFImage(url)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                .clipShape(Circle())
-                        } else {
-                            Image(systemName: "person.crop.circle")
-                                .resizable()
-                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                .clipShape(Circle())
-                        }
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 16) {
-                        Button(
-                            action: {
-                                withAnimation {
-                                    showSearch.toggle()
+
+                        Spacer()
+
+                        // Center: Segmented Picker
+                        MainSegmentedPicker(
+                            segments: ["Chats", "Network", "Purpose"],
+                            selectedIndex: $section,
+                            attentionDotIndices: openNeedsAttention ? [0] : [],
+                            onSelect: { idx in
+                                section = idx
+                                if idx == 0 {
+                                    // Always load chats data for tab 0 (regardless of notification dot)
+                                    peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
+                                } else if page == .portals {
+                                    portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
+                                } else {
+                                    peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
                                 }
-                            },
-                            label: {
-                                Image(systemName: "magnifyingglass")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(
-                                        width: MainScreen.Constants.imageSize/1.5,
-                                        height: MainScreen.Constants.imageSize/1.5
-                                    )
-                                    .foregroundColor(Color.repGreen)
                             }
                         )
-                        Button(
-                            action: { showActionSheet() },
-                            label: {
-                                Image(systemName: "plus")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(
-                                        width: MainScreen.Constants.imageSize/1.5,
-                                        height: MainScreen.Constants.imageSize/1.5
-                                    )
-                                    .foregroundColor(Color.repGreen)
-                            }
-                        )
+                        .id(openNeedsAttention ? "dot-on" : "dot-off")
+
+                        Spacer()
+
+                        // Trailing: Search and Plus buttons
+                        HStack(spacing: 16) {
+                            Button(
+                                action: {
+                                    withAnimation {
+                                        showSearch.toggle()
+                                    }
+                                },
+                                label: {
+                                    Image(systemName: "magnifyingglass")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(
+                                            width: MainScreen.Constants.imageSize/1.5,
+                                            height: MainScreen.Constants.imageSize/1.5
+                                        )
+                                        .foregroundColor(Color.repGreen)
+                                }
+                            )
+                            Button(
+                                action: { showActionSheet() },
+                                label: {
+                                    Image(systemName: "plus")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(
+                                            width: MainScreen.Constants.imageSize/1.5,
+                                            height: MainScreen.Constants.imageSize/1.5
+                                        )
+                                        .foregroundColor(Color.repGreen)
+                                }
+                            )
+                        }
                     }
+                    .padding(.horizontal, 16)
                 }
             }
     }

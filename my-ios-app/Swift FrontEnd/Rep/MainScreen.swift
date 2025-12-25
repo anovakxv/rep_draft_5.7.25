@@ -1837,24 +1837,28 @@ struct MainScreenBottomBar: View {
         VStack(spacing: 0) {
             // Top padding
             Spacer()
-                .frame(height: 8)
+                .frame(height: 12)
 
             HStack(spacing: 0) {
-                // Leading: Profile Picture
-                NavigationLink(destination: ProfileView(userId: userId)) {
-                    if let url = currentUser?.profilePictureURL {
-                        KFImage(url)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                            .clipShape(Circle())
-                    } else {
-                        Image(systemName: "person.crop.circle")
-                            .resizable()
-                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                            .clipShape(Circle())
+                // Leading: Profile Picture (in equal-width container)
+                HStack {
+                    NavigationLink(destination: ProfileView(userId: userId)) {
+                        if let url = currentUser?.profilePictureURL {
+                            KFImage(url)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                .clipShape(Circle())
+                        } else {
+                            Image(systemName: "person.crop.circle")
+                                .resizable()
+                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                .clipShape(Circle())
+                        }
                     }
+                    Spacer(minLength: 0)
                 }
+                .frame(minWidth: 70)
 
                 Spacer()
 
@@ -1879,8 +1883,9 @@ struct MainScreenBottomBar: View {
 
                 Spacer()
 
-                // Trailing: Search and Plus buttons
+                // Trailing: Search and Plus buttons (in equal-width container)
                 HStack(spacing: 16) {
+                    Spacer(minLength: 0)
                     Button(
                         action: {
                             withAnimation {
@@ -1912,6 +1917,7 @@ struct MainScreenBottomBar: View {
                         }
                     )
                 }
+                .frame(minWidth: 70)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 15)

@@ -1825,24 +1825,26 @@ struct MainScreenToolbar: ViewModifier {
         content
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
-                    HStack {
+                    HStack(spacing: 0) {
                         // Leading: Profile Picture
-                        NavigationLink(destination: ProfileView(userId: userId)) {
-                            if let url = currentUser?.profilePictureURL {
-                                KFImage(url)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                    .clipShape(Circle())
-                            } else {
-                                Image(systemName: "person.crop.circle")
-                                    .resizable()
-                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                    .clipShape(Circle())
+                        HStack {
+                            NavigationLink(destination: ProfileView(userId: userId)) {
+                                if let url = currentUser?.profilePictureURL {
+                                    KFImage(url)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                        .clipShape(Circle())
+                                } else {
+                                    Image(systemName: "person.crop.circle")
+                                        .resizable()
+                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                        .clipShape(Circle())
+                                }
                             }
+                            Spacer()
                         }
-
-                        Spacer()
+                        .frame(maxWidth: .infinity)
 
                         // Center: Segmented Picker
                         MainSegmentedPicker(
@@ -1863,41 +1865,43 @@ struct MainScreenToolbar: ViewModifier {
                         )
                         .id(openNeedsAttention ? "dot-on" : "dot-off")
 
-                        Spacer()
-
                         // Trailing: Search and Plus buttons
-                        HStack(spacing: 16) {
-                            Button(
-                                action: {
-                                    withAnimation {
-                                        showSearch.toggle()
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 16) {
+                                Button(
+                                    action: {
+                                        withAnimation {
+                                            showSearch.toggle()
+                                        }
+                                    },
+                                    label: {
+                                        Image(systemName: "magnifyingglass")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(
+                                                width: MainScreen.Constants.imageSize/1.5,
+                                                height: MainScreen.Constants.imageSize/1.5
+                                            )
+                                            .foregroundColor(Color.repGreen)
                                     }
-                                },
-                                label: {
-                                    Image(systemName: "magnifyingglass")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(
-                                            width: MainScreen.Constants.imageSize/1.5,
-                                            height: MainScreen.Constants.imageSize/1.5
-                                        )
-                                        .foregroundColor(Color.repGreen)
-                                }
-                            )
-                            Button(
-                                action: { showActionSheet() },
-                                label: {
-                                    Image(systemName: "plus")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(
-                                            width: MainScreen.Constants.imageSize/1.5,
-                                            height: MainScreen.Constants.imageSize/1.5
-                                        )
-                                        .foregroundColor(Color.repGreen)
-                                }
-                            )
+                                )
+                                Button(
+                                    action: { showActionSheet() },
+                                    label: {
+                                        Image(systemName: "plus")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(
+                                                width: MainScreen.Constants.imageSize/1.5,
+                                                height: MainScreen.Constants.imageSize/1.5
+                                            )
+                                            .foregroundColor(Color.repGreen)
+                                    }
+                                )
+                            }
                         }
+                        .frame(maxWidth: .infinity)
                     }
                     .padding(.horizontal, 16)
                 }

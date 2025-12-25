@@ -186,15 +186,17 @@ struct PortalPage: View {
     @State private var showPaymentSheet = false
     @State private var supportGoal: Goal? = nil
 
-    // Enum for all possible sheets (EditGoal, PortalActionSheet)
+    // Enum for all possible sheets (EditGoal, PortalActionSheet, GoalPicker)
     enum ActiveSheet: Identifiable {
         case addGoal
         case portalActionMenu
+        case goalPicker
 
         var id: Int {
             switch self {
             case .addGoal: return 1
             case .portalActionMenu: return 2
+            case .goalPicker: return 3
             }
         }
     }
@@ -207,6 +209,10 @@ struct PortalPage: View {
     @State private var chatUserName: String = ""
     @State private var chatUserPhotoURL: URL? = nil
     @State private var showMessageSheet = false
+
+    // Goal picker navigation state
+    @State private var selectedGoal: Goal? = nil
+    @State private var navigateToGoalDetails = false
 
     // Crash Prevention Guard
     @State private var hasAppeared = false
@@ -226,6 +232,35 @@ struct PortalPage: View {
 
     private func findSupportableGoal(from goals: [Goal]) -> Goal? {
         return goals.first { $0.typeName == "Fund" || $0.typeName == "Sales" || $0.typeName == "Donations" }
+    }
+
+    @AppStorage("jwtToken") private var jwtToken: String = ""
+
+    // Join goal team function
+    private func joinGoalTeam(goalId: Int) {
+        Task {
+            do {
+                guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/join_team") else { return }
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+
+                let body: [String: Any] = ["goals_id": goalId, "users_id": userId]
+                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+                let (_, response) = try await URLSession.shared.data(for: request)
+
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    // Success - refresh portal goals
+                    await MainActor.run {
+                        viewModel.fetchPortalGoals(portalId: portalId)
+                    }
+                }
+            } catch {
+                print("Error joining goal team: \(error)")
+            }
+        }
     }
 
     // Helper for sheet content
@@ -273,13 +308,18 @@ struct PortalPage: View {
                     }
                 }
                 Button(action: {
-                    activeSheet = nil
+                    activeSheet = .goalPicker
                 }) {
-                    Text("Select Goal Team")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .padding(.vertical, 5)
+                    HStack {
+                        Text("Join Goal Team")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    }
+                    .padding(.vertical, 5)
                 }
                 // Share button (available to everyone)
                 ShareLink(
@@ -333,8 +373,26 @@ struct PortalPage: View {
             }
             .padding()
             .presentationDetents([.medium])
+        case .goalPicker:
+            GoalPickerSheet(
+                goals: viewModel.portalGoals.filter { $0.typeName == "Recruiting" },
+                currentUserId: userId,
+                onJoin: { goalId in
+                    joinGoalTeam(goalId: goalId)
+                    activeSheet = nil
+                },
+                onViewDetails: { goal in
+                    // Navigate to GoalsDetailView
+                    selectedGoal = goal
+                    navigateToGoalDetails = true
+                    activeSheet = nil
+                },
+                onCancel: {
+                    activeSheet = .portalActionMenu  // Back to main menu
+                }
+            )
         case .none:
-            EmptyView()    
+            EmptyView()
         }
     }
 
@@ -383,6 +441,11 @@ struct PortalPage: View {
                     .onDisappear {
                         viewModel.fetchPortalDetail(portalId: portal.id, userId: userId)
                     }
+            }
+            .navigationDestination(isPresented: $navigateToGoalDetails) {
+                if let goal = selectedGoal {
+                    GoalsDetailView(initialGoal: goal)
+                }
             }
             .sheet(item: $activeSheet, onDismiss: {
                 if navigateToEditAfterDismiss {
@@ -439,6 +502,179 @@ struct PortalPage: View {
                     Button("OK", role: .cancel) { flagResultMessage = nil }
                 }
         }
+    }
+}
+
+// MARK: - Goal Picker Sheet
+
+struct GoalPickerSheet: View {
+    let goals: [Goal]
+    let currentUserId: Int
+    let onJoin: (Int) -> Void
+    let onViewDetails: (Goal) -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Button(action: onCancel) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.left")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        Text("Back")
+                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    }
+                }
+                Spacer()
+                Text("Join Goal Team")
+                    .font(.headline)
+                Spacer()
+                // Spacer for symmetry
+                Button(action: onCancel) {
+                    Image(systemName: "xmark")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                }
+            }
+            .padding()
+
+            Divider()
+
+            // Goal List
+            ScrollView {
+                if goals.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "person.3.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.gray.opacity(0.5))
+                            .padding(.top, 40)
+                        Text("No Goal Teams Available")
+                            .font(.headline)
+                            .foregroundColor(.secondary)
+                        Text("Check back later for new opportunities")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(goals) { goal in
+                            GoalPickerRow(
+                                goal: goal,
+                                currentUserId: currentUserId,
+                                onJoin: { onJoin(goal.id) },
+                                onViewDetails: { onViewDetails(goal) }
+                            )
+                            Divider()
+                        }
+                    }
+                }
+            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+}
+
+struct GoalPickerRow: View {
+    let goal: Goal
+    let currentUserId: Int
+    let onJoin: () -> Void
+    let onViewDetails: () -> Void
+
+    // For now, we'll use a simplified check - in the future, you can pass team member data
+    // to properly check if user is already on team
+    private var isCreator: Bool {
+        goal.creatorId == currentUserId
+    }
+
+    // Compute tag text (matching GoalListItem logic)
+    private var tagText: String {
+        if goal.typeName.lowercased() == "other" {
+            let raw = goal.metricName.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !raw.isEmpty else { return goal.typeName }
+            return String(raw.prefix(9))
+        } else {
+            return goal.typeName
+        }
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 16) {
+            // Bar Chart (matching GoalListItem)
+            HStack(alignment: .bottom, spacing: 6) {
+                ForEach(goal.chartData.suffix(4)) { bar in
+                    let quota = goal.quota > 0 ? goal.quota : 1
+                    let barHeight = max(0, min(1.0, CGFloat(bar.value / quota)) * 77)
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        Rectangle()
+                            .fill(Color.repGreen)
+                            .frame(width: 24, height: barHeight)
+                            .cornerRadius(3)
+                    }
+                }
+            }
+            .frame(width: 4 * 24 + 3 * 6, height: 81, alignment: .leading)
+            .padding(.vertical, 4)
+
+            // Title, subtitle, progress (matching GoalListItem)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(goal.title)
+                    .font(.headline)
+                if !goal.subtitle.isEmpty {
+                    Text(goal.subtitle)
+                        .font(.subheadline)
+                }
+                Text("\(Int(goal.progressPercent))% [\(tagText)]")
+                    .font(.callout)
+                    .foregroundColor(.black)
+            }
+
+            Spacer()
+
+            // Action buttons (new functionality)
+            VStack(spacing: 4) {
+                if !isCreator {
+                    Button(action: onJoin) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.badge.plus")
+                                .font(.system(size: 14))
+                            Text("Join")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.repGreen)
+                        .cornerRadius(6)
+                    }
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                        Text("Creator")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(Color.repGreen)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.repGreen.opacity(0.1))
+                    .cornerRadius(6)
+                }
+
+                Button(action: onViewDetails) {
+                    Text("Details")
+                        .font(.system(size: 12))
+                        .foregroundColor(Color.repGreen)
+                }
+            }
+        }
+        .frame(height: 81)
+        .padding(.vertical, 4)
+        .padding(.horizontal)
+        .background(Color.white)
     }
 }
 

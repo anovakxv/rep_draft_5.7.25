@@ -1834,82 +1834,93 @@ struct MainScreenToolbar: ViewModifier {
         content
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
-                    HStack(spacing: 0) {
-                        // Leading: Profile Picture
-                        NavigationLink(destination: ProfileView(userId: userId)) {
-                            if let url = currentUser?.profilePictureURL {
-                                KFImage(url)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                    .clipShape(Circle())
-                            } else {
-                                Image(systemName: "person.crop.circle")
-                                    .resizable()
-                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                    .clipShape(Circle())
-                            }
-                        }
+                    VStack(spacing: 0) {
+                        // Top border line
+                        Rectangle()
+                            .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
+                            .frame(height: 1)
 
-                        Spacer()
-
-                        // Center: Segmented Picker
-                        MainSegmentedPicker(
-                            segments: ["Chats", "Network", "Purpose"],
-                            selectedIndex: $section,
-                            attentionDotIndices: openNeedsAttention ? [0] : [],
-                            onSelect: { idx in
-                                section = idx
-                                if idx == 0 {
-                                    // Always load chats data for tab 0 (regardless of notification dot)
-                                    peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
-                                } else if page == .portals {
-                                    portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
+                        HStack(spacing: 0) {
+                            // Leading: Profile Picture
+                            NavigationLink(destination: ProfileView(userId: userId)) {
+                                if let url = currentUser?.profilePictureURL {
+                                    KFImage(url)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                        .clipShape(Circle())
                                 } else {
-                                    peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
+                                    Image(systemName: "person.crop.circle")
+                                        .resizable()
+                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                        .clipShape(Circle())
                                 }
                             }
-                        )
-                        .id(openNeedsAttention ? "dot-on" : "dot-off")
 
-                        Spacer()
+                            Spacer()
 
-                        // Trailing: Search and Plus buttons
-                        HStack(spacing: 16) {
-                            Button(
-                                action: {
-                                    withAnimation {
-                                        showSearch.toggle()
+                            // Center: Segmented Picker
+                            MainSegmentedPicker(
+                                segments: ["Chats", "Network", "Purpose"],
+                                selectedIndex: $section,
+                                attentionDotIndices: openNeedsAttention ? [0] : [],
+                                onSelect: { idx in
+                                    section = idx
+                                    if idx == 0 {
+                                        // Always load chats data for tab 0 (regardless of notification dot)
+                                        peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
+                                    } else if page == .portals {
+                                        portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
+                                    } else {
+                                        peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
                                     }
-                                },
-                                label: {
-                                    Image(systemName: "magnifyingglass")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(
-                                            width: MainScreen.Constants.imageSize/1.5,
-                                            height: MainScreen.Constants.imageSize/1.5
-                                        )
-                                        .foregroundColor(Color.repGreen)
                                 }
                             )
-                            Button(
-                                action: { showActionSheet() },
-                                label: {
-                                    Image(systemName: "plus")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(
-                                            width: MainScreen.Constants.imageSize/1.5,
-                                            height: MainScreen.Constants.imageSize/1.5
-                                        )
-                                        .foregroundColor(Color.repGreen)
-                                }
-                            )
+                            .id(openNeedsAttention ? "dot-on" : "dot-off")
+
+                            Spacer()
+
+                            // Trailing: Search and Plus buttons
+                            HStack(spacing: 16) {
+                                Button(
+                                    action: {
+                                        withAnimation {
+                                            showSearch.toggle()
+                                        }
+                                    },
+                                    label: {
+                                        Image(systemName: "magnifyingglass")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(
+                                                width: MainScreen.Constants.imageSize/1.5,
+                                                height: MainScreen.Constants.imageSize/1.5
+                                            )
+                                            .foregroundColor(Color.repGreen)
+                                            .frame(maxHeight: .infinity)
+                                            .contentShape(Rectangle())
+                                    }
+                                )
+                                Button(
+                                    action: { showActionSheet() },
+                                    label: {
+                                        Image(systemName: "plus")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(
+                                                width: MainScreen.Constants.imageSize/1.5,
+                                                height: MainScreen.Constants.imageSize/1.5
+                                            )
+                                            .foregroundColor(Color.repGreen)
+                                            .frame(maxHeight: .infinity)
+                                            .contentShape(Rectangle())
+                                    }
+                                )
+                            }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 20)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
                     .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
                 }
             }

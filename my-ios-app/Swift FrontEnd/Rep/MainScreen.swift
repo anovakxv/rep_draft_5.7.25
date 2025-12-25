@@ -936,7 +936,8 @@ struct MainScreen: View {
                 filteredActiveChats: filteredActiveChats,
                 filteredPortals: filteredPortals,
                 fetchCurrentUser: fetchCurrentUser,
-                showOnlySafePortals: $showOnlySafePortals
+                showOnlySafePortals: $showOnlySafePortals,
+                openNeedsAttention: $openNeedsAttention
             )
             .modifier(MainScreenToolbar(
                 section: $section,
@@ -949,7 +950,6 @@ struct MainScreen: View {
                     mainActiveSheet = .actionSheet
                 },
                 openNeedsAttention: $openNeedsAttention,
-                forceShowPeopleOpen: forceShowPeopleOpen,
                 showOnlySafePortals: showOnlySafePortals,
                 showSearch: $showSearch
             ))
@@ -1547,6 +1547,7 @@ struct MainScreenContent: View {
     var filteredPortals: [Portal]
     var fetchCurrentUser: () -> Void
     @Binding var showOnlySafePortals: Bool
+    @Binding var openNeedsAttention: Bool
 
     @ObservedObject private var invitesManager = GoalTeamInvitesManager.shared
     @FocusState private var isSearchFieldFocused: Bool
@@ -1826,7 +1827,6 @@ struct MainScreenToolbar: ViewModifier {
     var currentUser: User?
     var showActionSheet: () -> Void
     @Binding var openNeedsAttention: Bool
-    var forceShowPeopleOpen: () -> Void
     var showOnlySafePortals: Bool
     @Binding var showSearch: Bool
 
@@ -1835,12 +1835,7 @@ struct MainScreenToolbar: ViewModifier {
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
                     VStack(spacing: 0) {
-                        // Top border line
-                        Rectangle()
-                            .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
-                            .frame(height: 1)
-
-                        // Top padding spacer
+                        // Top padding
                         Spacer()
                             .frame(height: 3)
 
@@ -1923,18 +1918,15 @@ struct MainScreenToolbar: ViewModifier {
                             }
                         }
                         .padding(.horizontal, 16)
-
-                        // Bottom padding spacer
-                        Spacer()
-                            .frame(height: 20)
-
-                        // Additional spacer to fill safe area
-                        Spacer()
-                            .frame(minHeight: 0, maxHeight: .infinity)
+                        .padding(.bottom, 20)
                     }
-                    .background(
-                        Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0))
-                            .ignoresSafeArea(edges: .bottom)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+                    .overlay(
+                        Rectangle()
+                            .frame(height: 1)
+                            .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
+                        alignment: .top
                     )
                 }
             }

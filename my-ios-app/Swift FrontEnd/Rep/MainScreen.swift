@@ -1647,22 +1647,7 @@ struct MainScreenContent: View {
                 }
             }
 
-            // Bottom navigation bar
-            MainScreenBottomBar(
-                section: $section,
-                page: $page,
-                portalsVM: portalsVM,
-                peopleVM: peopleVM,
-                userId: userId,
-                currentUser: currentUser,
-                showActionSheet: { activeSheet = .actionSheet },
-                openNeedsAttention: $openNeedsAttention,
-                showOnlySafePortals: showOnlySafePortals,
-                showSearch: $showSearch
-            )
-        }
-        .navigationBarBackButtonHidden()
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+            // Search bar (appears above bottom bar)
             if showSearch {
                 HStack {
                     TextField("Search...", text: $searchText)
@@ -1697,7 +1682,22 @@ struct MainScreenContent: View {
                     }
                 }
             }
+
+            // Bottom navigation bar
+            MainScreenBottomBar(
+                section: $section,
+                page: $page,
+                portalsVM: portalsVM,
+                peopleVM: peopleVM,
+                userId: userId,
+                currentUser: currentUser,
+                showActionSheet: { activeSheet = .actionSheet },
+                openNeedsAttention: $openNeedsAttention,
+                showOnlySafePortals: showOnlySafePortals,
+                showSearch: $showSearch
+            )
         }
+        .navigationBarBackButtonHidden()
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .actionSheet:
@@ -1858,7 +1858,7 @@ struct MainScreenBottomBar: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .frame(minWidth: 70)
+                .frame(minWidth: 55)
 
                 Spacer()
 
@@ -1879,6 +1879,7 @@ struct MainScreenBottomBar: View {
                         }
                     }
                 )
+                .frame(width: 210)
                 .id(openNeedsAttention ? "dot-on" : "dot-off")
 
                 Spacer()
@@ -1917,7 +1918,7 @@ struct MainScreenBottomBar: View {
                         }
                     )
                 }
-                .frame(minWidth: 70)
+                .frame(minWidth: 55)
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 15)

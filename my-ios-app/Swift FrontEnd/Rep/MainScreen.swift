@@ -1783,12 +1783,13 @@ struct MainScreenContent: View {
                                     performSearch(newValue)
                                 }
                             }
-                        Button("Cancel") {
+                        Button("Clear") {
                             isSearchFieldFocused = false
                             searchText = ""
                             portalsVM.clearSearch()
                             peopleVM.clearSearch()
                         }
+                        .foregroundColor(.secondary)
                         .padding(.trailing)
                     }
                     .padding(.vertical, 8)
@@ -1880,7 +1881,7 @@ struct MainScreenContent: View {
                         }
                         Button(action: { activeSheet = nil }) {
                             Text("Cancel")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.blue)
                                 .padding(.vertical, 12)
                         }
                     }
@@ -1972,12 +1973,12 @@ struct MainScreenBottomBar: View {
                     Button(
                         action: { showActionSheet() },
                         label: {
-                            Image(systemName: "ellipsis.circle")
+                            Image(systemName: "plus")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(
-                                    width: MainScreen.Constants.imageSize,
-                                    height: MainScreen.Constants.imageSize
+                                    width: MainScreen.Constants.imageSize/1.5,
+                                    height: MainScreen.Constants.imageSize/1.5
                                 )
                                 .foregroundColor(Color.repGreen)
                         }

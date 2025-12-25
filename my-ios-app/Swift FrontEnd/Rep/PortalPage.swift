@@ -238,29 +238,33 @@ struct PortalPage: View {
 
     // Join goal team function
     private func joinGoalTeam(goalId: Int) {
-        Task {
-            do {
-                guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/join_team") else { return }
-                var request = URLRequest(url: url)
-                request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/join_leave"),
+              !jwtToken.isEmpty else { return }
 
-                let body: [String: Any] = ["goals_id": goalId, "users_id": userId]
-                request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
-                let (_, response) = try await URLSession.shared.data(for: request)
+        let params: [String: Any] = [
+            "aGoalsIDs": [goalId],
+            "todo": "join"
+        ]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: params)
 
-                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let result = json["result"] as? [String: Any],
+                   result["\(goalId)"] as? String == "ok" {
                     // Success - refresh portal goals
-                    await MainActor.run {
-                        viewModel.fetchPortalGoals(portalId: portalId)
-                    }
+                    self.viewModel.fetchPortalGoals(portalId: self.portalId)
+                } else {
+                    print("Error joining goal team")
                 }
-            } catch {
-                print("Error joining goal team: \(error)")
             }
-        }
+        }.resume()
     }
 
     // Helper for sheet content
@@ -310,16 +314,11 @@ struct PortalPage: View {
                 Button(action: {
                     activeSheet = .goalPicker
                 }) {
-                    HStack {
-                        Text("Join Goal Team")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                    }
-                    .padding(.vertical, 5)
+                    Text("Join Goal Team")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .padding(.vertical, 5)
                 }
                 // Share button (available to everyone)
                 ShareLink(

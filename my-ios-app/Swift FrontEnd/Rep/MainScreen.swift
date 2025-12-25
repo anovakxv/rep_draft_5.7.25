@@ -1625,12 +1625,20 @@ struct MainScreenContent: View {
         .overlay(alignment: .bottomTrailing) {
             Button(
                 action: {
-                    page = page == .people ? .portals : .people
-                    if section != 0 {  // Only fetch if not on Chats tab
-                        if page == .portals {
-                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                        } else {
-                            peopleVM.fetchPeople(userId: userId, section: section)
+                    // Special case: Chats (section 0) + People -> jump to Purpose All (section 2)
+                    if section == 0 && page == .people {
+                        page = .portals
+                        section = 2
+                        portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
+                    } else {
+                        // Normal toggle behavior
+                        page = page == .people ? .portals : .people
+                        if section != 0 {  // Only fetch if not on Chats tab
+                            if page == .portals {
+                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                            } else {
+                                peopleVM.fetchPeople(userId: userId, section: section)
+                            }
                         }
                     }
                     searchText = ""
@@ -1825,87 +1833,91 @@ struct MainScreenToolbar: ViewModifier {
         content
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
-                    HStack(spacing: 0) {
-                        // Leading: Profile Picture
-                        HStack {
-                            NavigationLink(destination: ProfileView(userId: userId)) {
-                                if let url = currentUser?.profilePictureURL {
-                                    KFImage(url)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                        .clipShape(Circle())
-                                } else {
-                                    Image(systemName: "person.crop.circle")
-                                        .resizable()
-                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                        .clipShape(Circle())
+                    GeometryReader { geometry in
+                        HStack(spacing: 0) {
+                            // Leading: Profile Picture
+                            HStack {
+                                NavigationLink(destination: ProfileView(userId: userId)) {
+                                    if let url = currentUser?.profilePictureURL {
+                                        KFImage(url)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                            .clipShape(Circle())
+                                    } else {
+                                        Image(systemName: "person.crop.circle")
+                                            .resizable()
+                                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                            .clipShape(Circle())
+                                    }
                                 }
+                                Spacer()
                             }
-                            Spacer()
-                        }
-                        .frame(maxWidth: .infinity)
+                            .frame(width: (geometry.size.width - 210 - 32) / 2)
 
-                        // Center: Segmented Picker
-                        MainSegmentedPicker(
-                            segments: ["Chats", "Network", "Purpose"],
-                            selectedIndex: $section,
-                            attentionDotIndices: openNeedsAttention ? [0] : [],
-                            onSelect: { idx in
-                                section = idx
-                                if idx == 0 {
-                                    // Always load chats data for tab 0 (regardless of notification dot)
-                                    peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
-                                } else if page == .portals {
-                                    portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
-                                } else {
-                                    peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
+                            // Center: Segmented Picker
+                            MainSegmentedPicker(
+                                segments: ["Chats", "Network", "Purpose"],
+                                selectedIndex: $section,
+                                attentionDotIndices: openNeedsAttention ? [0] : [],
+                                onSelect: { idx in
+                                    section = idx
+                                    if idx == 0 {
+                                        // Always load chats data for tab 0 (regardless of notification dot)
+                                        peopleVM.fetchPeople(userId: userId, section: 0, isTabSwitch: true)
+                                    } else if page == .portals {
+                                        portalsVM.fetchPortals(userId: userId, section: idx, safeOnly: showOnlySafePortals, isTabSwitch: true)
+                                    } else {
+                                        peopleVM.fetchPeople(userId: userId, section: idx, isTabSwitch: true)
+                                    }
                                 }
-                            }
-                        )
-                        .id(openNeedsAttention ? "dot-on" : "dot-off")
+                            )
+                            .id(openNeedsAttention ? "dot-on" : "dot-off")
 
-                        // Trailing: Search and Plus buttons
-                        HStack {
-                            Spacer()
-                            HStack(spacing: 16) {
-                                Button(
-                                    action: {
-                                        withAnimation {
-                                            showSearch.toggle()
+                            // Trailing: Search and Plus buttons
+                            HStack {
+                                Spacer()
+                                HStack(spacing: 16) {
+                                    Button(
+                                        action: {
+                                            withAnimation {
+                                                showSearch.toggle()
+                                            }
+                                        },
+                                        label: {
+                                            Image(systemName: "magnifyingglass")
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(
+                                                    width: MainScreen.Constants.imageSize/1.5,
+                                                    height: MainScreen.Constants.imageSize/1.5
+                                                )
+                                                .foregroundColor(Color.repGreen)
                                         }
-                                    },
-                                    label: {
-                                        Image(systemName: "magnifyingglass")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(
-                                                width: MainScreen.Constants.imageSize/1.5,
-                                                height: MainScreen.Constants.imageSize/1.5
-                                            )
-                                            .foregroundColor(Color.repGreen)
-                                    }
-                                )
-                                Button(
-                                    action: { showActionSheet() },
-                                    label: {
-                                        Image(systemName: "plus")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(
-                                                width: MainScreen.Constants.imageSize/1.5,
-                                                height: MainScreen.Constants.imageSize/1.5
-                                            )
-                                            .foregroundColor(Color.repGreen)
-                                    }
-                                )
+                                    )
+                                    Button(
+                                        action: { showActionSheet() },
+                                        label: {
+                                            Image(systemName: "plus")
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(
+                                                    width: MainScreen.Constants.imageSize/1.5,
+                                                    height: MainScreen.Constants.imageSize/1.5
+                                                )
+                                                .foregroundColor(Color.repGreen)
+                                        }
+                                    )
+                                }
                             }
+                            .frame(width: (geometry.size.width - 210 - 32) / 2)
                         }
-                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 15)
                     }
-                    .padding(.horizontal, 16)
                 }
             }
+            .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .bottomBar)
     }
 }
 

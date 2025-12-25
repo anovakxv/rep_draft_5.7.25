@@ -44,6 +44,7 @@
 		009219BB2E37FA5E00AC0A40 /* NewPassword.swift in Sources */ = {isa = PBXBuildFile; fileRef = 009219BA2E37FA5800AC0A40 /* NewPassword.swift */; };
 		0092BB492E3B30570018B500 /* Terms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0092BB482E3B30530018B500 /* Terms.swift */; };
 		00A56AF72E4D87710068D404 /* RealtimeSocketManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00A56AF62E4D87710068D404 /* RealtimeSocketManager.swift */; };
+		00AFE9C02EFCE1770012A7B6 /* MainScreen2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00AFE9BF2EFCE1770012A7B6 /* MainScreen2.swift */; };
 		00C118952EE8E3FD004DB273 /* EditStoryBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C118942EE8E3FD004DB273 /* EditStoryBlockView.swift */; };
 		00C118972EE8E43C004DB273 /* EditWriteBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C118962EE8E43C004DB273 /* EditWriteBlockView.swift */; };
 		00D465922E4ACD0F0032A43D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 00D465912E4ACD0F0032A43D /* FirebaseMessaging */; };
@@ -108,6 +109,7 @@
 		009219BA2E37FA5800AC0A40 /* NewPassword.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewPassword.swift; sourceTree = "<group>"; };
 		0092BB482E3B30530018B500 /* Terms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Terms.swift; sourceTree = "<group>"; };
 		00A56AF62E4D87710068D404 /* RealtimeSocketManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealtimeSocketManager.swift; sourceTree = "<group>"; };
+		00AFE9BF2EFCE1770012A7B6 /* MainScreen2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainScreen2.swift; sourceTree = "<group>"; };
 		00C118942EE8E3FD004DB273 /* EditStoryBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditStoryBlockView.swift; sourceTree = "<group>"; };
 		00C118962EE8E43C004DB273 /* EditWriteBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditWriteBlockView.swift; sourceTree = "<group>"; };
 		00D80A602E1B6B0C003C926D /* SkillAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillAPI.swift; sourceTree = "<group>"; };
@@ -211,6 +213,7 @@
 				002C5EC12E4ABA920075E82B /* GoogleService-Info.plist */,
 				005B63652E16F88600A1F0C1 /* LoginView.swift */,
 				005B63662E16F88600A1F0C1 /* MainScreen.swift */,
+				00AFE9BF2EFCE1770012A7B6 /* MainScreen2.swift */,
 				000920052E4DB6E600D25E51 /* Menu_Invites.swift */,
 				00DC016F2EF3269600DD3620 /* DonationDisclosureView.swift */,
 				0078573A2E6E6D160021C53B /* PayTransaction.swift */,
@@ -449,6 +452,7 @@
 				009219B92E37F85C00AC0A40 /* ResetPassword.swift in Sources */,
 				00C118972EE8E43C004DB273 /* EditWriteBlockView.swift in Sources */,
 				005B637E2E16F88600A1F0C1 /* RepTypeModel.swift in Sources */,
+				00AFE9C02EFCE1770012A7B6 /* MainScreen2.swift in Sources */,
 				005B637F2E16F88600A1F0C1 /* GoalsDetailView.swift in Sources */,
 				000920062E4DB6E600D25E51 /* Menu_Invites.swift in Sources */,
 				005B63812E16F88600A1F0C1 /* RegisterNewProfile.swift in Sources */,
@@ -618,7 +622,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.73;
+				CURRENT_PROJECT_VERSION = 1.75;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -639,7 +643,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.73;
+				MARKETING_VERSION = 1.75;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -659,7 +663,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = Rep/Rep.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1.73;
+				CURRENT_PROJECT_VERSION = 1.75;
 				DEVELOPMENT_ASSET_PATHS = "\"Rep/Preview Content\"";
 				DEVELOPMENT_TEAM = 6H7VWPYG48;
 				ENABLE_PREVIEWS = YES;
@@ -680,7 +684,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.7;
-				MARKETING_VERSION = 1.73;
+				MARKETING_VERSION = 1.75;
 				PRODUCT_BUNDLE_IDENTIFIER = NetworkedCapital.Rep;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;

@@ -1779,6 +1779,10 @@ struct MainScreenContent: View {
                             .focused($isSearchFieldFocused)
                             .onChange(of: searchText) { newValue in
                                 searchDebounceTimer?.invalidate()
+                                // Dismiss sheet when user starts typing
+                                if !newValue.isEmpty {
+                                    activeSheet = nil
+                                }
                                 searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
                                     performSearch(newValue)
                                 }
@@ -1881,13 +1885,13 @@ struct MainScreenContent: View {
                         }
                         Button(action: { activeSheet = nil }) {
                             Text("Cancel")
-                                .foregroundColor(.blue)
+                                .foregroundColor(.secondary)
                                 .padding(.vertical, 12)
                         }
                     }
                     .padding()
                 }
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium])
             }
         }
         .onChange(of: pendingAction) { action in

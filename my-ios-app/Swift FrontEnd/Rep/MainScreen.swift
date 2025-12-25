@@ -1625,20 +1625,18 @@ struct MainScreenContent: View {
         .overlay(alignment: .bottomTrailing) {
             Button(
                 action: {
-                    // Special case: Chats (section 0) + People -> jump to Purpose All (section 2)
-                    if section == 0 && page == .people {
+                    // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
+                    if section == 0 {
                         page = .portals
                         section = 2
                         portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
                     } else {
-                        // Normal toggle behavior
+                        // Normal toggle behavior for Network and All tabs
                         page = page == .people ? .portals : .people
-                        if section != 0 {  // Only fetch if not on Chats tab
-                            if page == .portals {
-                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                            } else {
-                                peopleVM.fetchPeople(userId: userId, section: section)
-                            }
+                        if page == .portals {
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                        } else {
+                            peopleVM.fetchPeople(userId: userId, section: section)
                         }
                     }
                     searchText = ""
@@ -1833,27 +1831,24 @@ struct MainScreenToolbar: ViewModifier {
         content
             .toolbar {
                 ToolbarItem(placement: .bottomBar) {
-                    ZStack {
+                    HStack(spacing: 0) {
                         // Leading: Profile Picture
-                        HStack {
-                            NavigationLink(destination: ProfileView(userId: userId)) {
-                                if let url = currentUser?.profilePictureURL {
-                                    KFImage(url)
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                        .clipShape(Circle())
-                                } else {
-                                    Image(systemName: "person.crop.circle")
-                                        .resizable()
-                                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                        .clipShape(Circle())
-                                }
+                        NavigationLink(destination: ProfileView(userId: userId)) {
+                            if let url = currentUser?.profilePictureURL {
+                                KFImage(url)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                    .clipShape(Circle())
+                            } else {
+                                Image(systemName: "person.crop.circle")
+                                    .resizable()
+                                    .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                                    .clipShape(Circle())
                             }
-                            Spacer()
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 16)
+
+                        Spacer()
 
                         // Center: Segmented Picker
                         MainSegmentedPicker(
@@ -1874,50 +1869,48 @@ struct MainScreenToolbar: ViewModifier {
                         )
                         .id(openNeedsAttention ? "dot-on" : "dot-off")
 
+                        Spacer()
+
                         // Trailing: Search and Plus buttons
-                        HStack {
-                            Spacer()
-                            HStack(spacing: 16) {
-                                Button(
-                                    action: {
-                                        withAnimation {
-                                            showSearch.toggle()
-                                        }
-                                    },
-                                    label: {
-                                        Image(systemName: "magnifyingglass")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(
-                                                width: MainScreen.Constants.imageSize/1.5,
-                                                height: MainScreen.Constants.imageSize/1.5
-                                            )
-                                            .foregroundColor(Color.repGreen)
+                        HStack(spacing: 16) {
+                            Button(
+                                action: {
+                                    withAnimation {
+                                        showSearch.toggle()
                                     }
-                                )
-                                Button(
-                                    action: { showActionSheet() },
-                                    label: {
-                                        Image(systemName: "plus")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(
-                                                width: MainScreen.Constants.imageSize/1.5,
-                                                height: MainScreen.Constants.imageSize/1.5
-                                            )
-                                            .foregroundColor(Color.repGreen)
-                                    }
-                                )
-                            }
+                                },
+                                label: {
+                                    Image(systemName: "magnifyingglass")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(
+                                            width: MainScreen.Constants.imageSize/1.5,
+                                            height: MainScreen.Constants.imageSize/1.5
+                                        )
+                                        .foregroundColor(Color.repGreen)
+                                }
+                            )
+                            Button(
+                                action: { showActionSheet() },
+                                label: {
+                                    Image(systemName: "plus")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(
+                                            width: MainScreen.Constants.imageSize/1.5,
+                                            height: MainScreen.Constants.imageSize/1.5
+                                        )
+                                        .foregroundColor(Color.repGreen)
+                                }
+                            )
                         }
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 16)
                     }
-                    .frame(height: 44)
+                    .padding(.horizontal, 16)
                     .padding(.bottom, 30)
                 }
             }
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .bottomBar)
+            .toolbarBackgroundVisibility(.visible, for: .bottomBar)
     }
 }
 

@@ -1623,30 +1623,61 @@ struct MainScreenContent: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            Button(
-                action: {
-                    page = page == .people ? .portals : .people
-                    if section != 0 {  // Only fetch if not on Chats tab
-                        if page == .portals {
-                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                        } else {
+            // Floating People/Purposes Toggle Button
+            HStack(spacing: 0) {
+                Button(action: {
+                    if page != .people {
+                        page = .people
+                        if section != 0 {
                             peopleVM.fetchPeople(userId: userId, section: section)
                         }
+                        searchText = ""
+                        portalsVM.clearSearch()
+                        peopleVM.clearSearch()
                     }
-                    searchText = ""
-                    portalsVM.clearSearch()
-                    peopleVM.clearSearch()
-                },
-                label: {
-                    Image("REPLogo")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 44.0, height: 44.0)
+                }) {
+                    Text("People")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(page == .people ? .white : Color.repGreen)
+                        .frame(width: 70, height: 32)
+                        .background(page == .people ? Color.repGreen : Color.white)
                         .contentShape(Rectangle())
                 }
+                .buttonStyle(PlainButtonStyle())
+
+                Rectangle()
+                    .frame(width: 1, height: 32)
+                    .foregroundColor(Color.repGreen.opacity(0.3))
+
+                Button(action: {
+                    if page != .portals {
+                        page = .portals
+                        if section != 0 {
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                        }
+                        searchText = ""
+                        portalsVM.clearSearch()
+                        peopleVM.clearSearch()
+                    }
+                }) {
+                    Text("Purposes")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(page == .portals ? .white : Color.repGreen)
+                        .frame(width: 70, height: 32)
+                        .background(page == .portals ? Color.repGreen : Color.white)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            .background(Color.white)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.repGreen, lineWidth: 1)
             )
-            .padding(.trailing, 36)
-            .padding(.bottom, 12)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .shadow(color: Color.repGreen.opacity(0.15), radius: 8, x: 0, y: 4)
+            .padding(.trailing, 16)
+            .padding(.bottom, 16)
         }
         .navigationBarBackButtonHidden()
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -1826,7 +1857,7 @@ struct MainScreenToolbar: ViewModifier {
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     MainSegmentedPicker(
-                        segments: ["Chats", "Network", "Purpose"],
+                        segments: ["Chats", "Network", "All"],
                         selectedIndex: $section,
                         attentionDotIndices: openNeedsAttention ? [0] : [],
                         onSelect: { idx in

@@ -1474,11 +1474,13 @@ extension MainScreenContent {
     enum ActiveSheet: Identifiable {
         case actionSheet
         case addPurpose
+        case menuSheet
 
         var id: Int {
             switch self {
             case .actionSheet: return 1
             case .addPurpose: return 2
+            case .menuSheet: return 3
             }
         }
     }
@@ -1612,75 +1614,37 @@ struct MainScreenContent: View {
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                // Hide REP logo when search is active to avoid overlap
-                if !showSearch {
-                    Button(
-                        action: {
-                            // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
-                            if section == 0 {
-                                page = .portals
-                                section = 2
-                                portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
+                // REP logo toggle button
+                Button(
+                    action: {
+                        // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
+                        if section == 0 {
+                            page = .portals
+                            section = 2
+                            portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
+                        } else {
+                            // Normal toggle behavior for Network and All tabs
+                            page = page == .people ? .portals : .people
+                            if page == .portals {
+                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
                             } else {
-                                // Normal toggle behavior for Network and All tabs
-                                page = page == .people ? .portals : .people
-                                if page == .portals {
-                                    portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                                } else {
-                                    peopleVM.fetchPeople(userId: userId, section: section)
-                                }
-                            }
-                            searchText = ""
-                            portalsVM.clearSearch()
-                            peopleVM.clearSearch()
-                        },
-                        label: {
-                            Image("REPLogo")
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 44.0, height: 44.0)
-                                .contentShape(Rectangle())
-                        }
-                    )
-                    .padding(.trailing, 36)
-                    .padding(.bottom, 12)
-                }
-            }
-
-            // Search bar (appears above bottom bar)
-            if showSearch {
-                HStack {
-                    TextField("Search...", text: $searchText)
-                        .padding(10)
-                        .background(Color(.systemGray6))
-                        .cornerRadius(8)
-                        .padding(.horizontal)
-                        .focused($isSearchFieldFocused)
-                        .onChange(of: searchText) { newValue in
-                            searchDebounceTimer?.invalidate()
-                            searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
-                                performSearch(newValue)
+                                peopleVM.fetchPeople(userId: userId, section: section)
                             }
                         }
-                    Button("Cancel") {
-                        isSearchFieldFocused = false
-                        showSearch = false
                         searchText = ""
                         portalsVM.clearSearch()
                         peopleVM.clearSearch()
+                    },
+                    label: {
+                        Image("REPLogo")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44.0, height: 44.0)
+                            .contentShape(Rectangle())
                     }
-                    .padding(.trailing)
-                }
-                .padding(.vertical, 8)
-                .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
-                .transition(.move(edge: .bottom))
-                .onChange(of: showSearch) { isShowing in
-                    if isShowing {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            isSearchFieldFocused = true
-                        }
-                    }
-                }
+                )
+                .padding(.trailing, 36)
+                .padding(.bottom, 12)
             }
 
             // Bottom navigation bar
@@ -1691,10 +1655,9 @@ struct MainScreenContent: View {
                 peopleVM: peopleVM,
                 userId: userId,
                 currentUser: currentUser,
-                showActionSheet: { activeSheet = .actionSheet },
+                showActionSheet: { activeSheet = .menuSheet },
                 openNeedsAttention: $openNeedsAttention,
-                showOnlySafePortals: showOnlySafePortals,
-                showSearch: $showSearch
+                showOnlySafePortals: showOnlySafePortals
             )
         }
         .navigationBarBackButtonHidden()
@@ -1804,6 +1767,126 @@ struct MainScreenContent: View {
                     ),
                     userId: userId
                 )
+            case .menuSheet:
+                VStack(spacing: 0) {
+                    // Search bar at top
+                    HStack {
+                        TextField("Search...", text: $searchText)
+                            .padding(10)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(8)
+                            .padding(.horizontal)
+                            .focused($isSearchFieldFocused)
+                            .onChange(of: searchText) { newValue in
+                                searchDebounceTimer?.invalidate()
+                                searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
+                                    performSearch(newValue)
+                                }
+                            }
+                        Button("Cancel") {
+                            isSearchFieldFocused = false
+                            searchText = ""
+                            portalsVM.clearSearch()
+                            peopleVM.clearSearch()
+                        }
+                        .padding(.trailing)
+                    }
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+                    .onChange(of: activeSheet) { sheet in
+                        if sheet == .menuSheet {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                isSearchFieldFocused = true
+                            }
+                        }
+                    }
+
+                    Divider()
+                        .padding(.vertical, 8)
+
+                    // Action buttons below
+                    VStack(spacing: 24) {
+                        HStack(spacing: 24) {
+                            Text("Show:")
+                                .font(.body)
+                                .fontWeight(.regular)
+                                .foregroundColor(.secondary)
+                                .padding(.trailing, 4)
+                            Button(action: {
+                                showOnlySafePortals = false
+                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: false)
+                            }) {
+                                HStack {
+                                    ZStack {
+                                        Circle()
+                                            .stroke(Color.secondary, lineWidth: 2)
+                                            .frame(width: 20, height: 20)
+                                        if !showOnlySafePortals {
+                                            Image(systemName: "checkmark")
+                                                .foregroundColor(.blue)
+                                                .font(.system(size: 14, weight: .bold))
+                                        }
+                                    }
+                                    Text("All")
+                                        .font(.body)
+                                        .fontWeight(!showOnlySafePortals ? .bold : .regular)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            Button(action: {
+                                showOnlySafePortals = true
+                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: true)
+                            }) {
+                                HStack {
+                                    ZStack {
+                                        Circle()
+                                            .stroke(Color.secondary, lineWidth: 2)
+                                            .frame(width: 20, height: 20)
+                                        if showOnlySafePortals {
+                                            Image(systemName: "checkmark")
+                                                .foregroundColor(.blue)
+                                                .font(.system(size: 14, weight: .bold))
+                                        }
+                                    }
+                                    Text("Safe")
+                                        .font(.body)
+                                        .fontWeight(showOnlySafePortals ? .bold : .regular)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(.vertical, 12)
+                        Button(action: {
+                            pendingAction = .addPurpose
+                            activeSheet = nil
+                        }) {
+                            Text("Add Purpose")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 12)
+                        }
+                        Button(action: {
+                            pendingAction = .teamChat
+                            activeSheet = nil
+                        }) {
+                            Text("Team Chat")
+                                .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                .font(.title2)
+                                .fontWeight(.bold)
+                                .padding(.vertical, 12)
+                        }
+                        Button(action: { activeSheet = nil }) {
+                            Text("Cancel")
+                                .foregroundColor(.secondary)
+                                .padding(.vertical, 12)
+                        }
+                    }
+                    .padding()
+                }
+                .presentationDetents([.medium, .large])
             }
         }
         .onChange(of: pendingAction) { action in
@@ -1831,7 +1914,6 @@ struct MainScreenBottomBar: View {
     var showActionSheet: () -> Void
     @Binding var openNeedsAttention: Bool
     var showOnlySafePortals: Bool
-    @Binding var showSearch: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -1884,35 +1966,18 @@ struct MainScreenBottomBar: View {
 
                 Spacer()
 
-                // Trailing: Search and Plus buttons (in equal-width container)
-                HStack(spacing: 16) {
+                // Trailing: Menu button (in equal-width container)
+                HStack {
                     Spacer(minLength: 0)
-                    Button(
-                        action: {
-                            withAnimation {
-                                showSearch.toggle()
-                            }
-                        },
-                        label: {
-                            Image(systemName: "magnifyingglass")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(
-                                    width: MainScreen.Constants.imageSize/1.5,
-                                    height: MainScreen.Constants.imageSize/1.5
-                                )
-                                .foregroundColor(Color.repGreen)
-                        }
-                    )
                     Button(
                         action: { showActionSheet() },
                         label: {
-                            Image(systemName: "plus")
+                            Image(systemName: "ellipsis.circle")
                                 .resizable()
                                 .scaledToFit()
                                 .frame(
-                                    width: MainScreen.Constants.imageSize/1.5,
-                                    height: MainScreen.Constants.imageSize/1.5
+                                    width: MainScreen.Constants.imageSize,
+                                    height: MainScreen.Constants.imageSize
                                 )
                                 .foregroundColor(Color.repGreen)
                         }

@@ -1592,20 +1592,58 @@ struct MainScreenContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if section == 0 {
-                // Always show chats for section 0, regardless of page
-                ChatsList(
-                    peopleVM: peopleVM,
-                    filteredActiveChats: filteredActiveChats,
-                    invitesManager: invitesManager
-                )
-            } else {
-                // For sections 1 & 2, keep the toggle between people/portals
-                switch page {
-                case .people:
-                    peopleContent
-                case .portals:
-                    portalsContent
+            // Main content area with REP toggle button overlay
+            Group {
+                if section == 0 {
+                    // Always show chats for section 0, regardless of page
+                    ChatsList(
+                        peopleVM: peopleVM,
+                        filteredActiveChats: filteredActiveChats,
+                        invitesManager: invitesManager
+                    )
+                } else {
+                    // For sections 1 & 2, keep the toggle between people/portals
+                    switch page {
+                    case .people:
+                        peopleContent
+                    case .portals:
+                        portalsContent
+                    }
+                }
+            }
+            .overlay(alignment: .bottomTrailing) {
+                // Hide REP logo when search is active to avoid overlap
+                if !showSearch {
+                    Button(
+                        action: {
+                            // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
+                            if section == 0 {
+                                page = .portals
+                                section = 2
+                                portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
+                            } else {
+                                // Normal toggle behavior for Network and All tabs
+                                page = page == .people ? .portals : .people
+                                if page == .portals {
+                                    portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                                } else {
+                                    peopleVM.fetchPeople(userId: userId, section: section)
+                                }
+                            }
+                            searchText = ""
+                            portalsVM.clearSearch()
+                            peopleVM.clearSearch()
+                        },
+                        label: {
+                            Image("REPLogo")
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 44.0, height: 44.0)
+                                .contentShape(Rectangle())
+                        }
+                    )
+                    .padding(.trailing, 36)
+                    .padding(.bottom, 12)
                 }
             }
 
@@ -1622,41 +1660,6 @@ struct MainScreenContent: View {
                 showOnlySafePortals: showOnlySafePortals,
                 showSearch: $showSearch
             )
-        }
-        .overlay(alignment: .bottomTrailing) {
-            // Hide REP logo when search is active to avoid overlap
-            if !showSearch {
-                Button(
-                    action: {
-                        // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
-                        if section == 0 {
-                            page = .portals
-                            section = 2
-                            portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
-                        } else {
-                            // Normal toggle behavior for Network and All tabs
-                            page = page == .people ? .portals : .people
-                            if page == .portals {
-                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                            } else {
-                                peopleVM.fetchPeople(userId: userId, section: section)
-                            }
-                        }
-                        searchText = ""
-                        portalsVM.clearSearch()
-                        peopleVM.clearSearch()
-                    },
-                    label: {
-                        Image("REPLogo")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 44.0, height: 44.0)
-                            .contentShape(Rectangle())
-                    }
-                )
-                .padding(.trailing, 36)
-                .padding(.bottom, 12)
-            }
         }
         .navigationBarBackButtonHidden()
         .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -1834,7 +1837,7 @@ struct MainScreenBottomBar: View {
         VStack(spacing: 0) {
             // Top padding
             Spacer()
-                .frame(height: 3)
+                .frame(height: 8)
 
             HStack(spacing: 0) {
                 // Leading: Profile Picture
@@ -1911,7 +1914,7 @@ struct MainScreenBottomBar: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 20)
+            .padding(.bottom, 15)
         }
         .frame(maxWidth: .infinity)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))

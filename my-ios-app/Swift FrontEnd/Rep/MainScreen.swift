@@ -1893,8 +1893,6 @@ struct MainScreenBottomBar: View {
                                     height: MainScreen.Constants.imageSize/1.5
                                 )
                                 .foregroundColor(Color.repGreen)
-                                .frame(maxHeight: .infinity)
-                                .contentShape(Rectangle())
                         }
                     )
                     Button(
@@ -1908,8 +1906,6 @@ struct MainScreenBottomBar: View {
                                     height: MainScreen.Constants.imageSize/1.5
                                 )
                                 .foregroundColor(Color.repGreen)
-                                .frame(maxHeight: .infinity)
-                                .contentShape(Rectangle())
                         }
                     )
                 }

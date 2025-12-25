@@ -1923,23 +1923,20 @@ struct MainScreenBottomBar: View {
                 .frame(height: 12)
 
             HStack(spacing: 0) {
-                // Leading: Profile Picture (in equal-width container)
-                HStack {
-                    NavigationLink(destination: ProfileView(userId: userId)) {
-                        if let url = currentUser?.profilePictureURL {
-                            KFImage(url)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                .clipShape(Circle())
-                        } else {
-                            Image(systemName: "person.crop.circle")
-                                .resizable()
-                                .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                                .clipShape(Circle())
-                        }
+                // Leading: Profile Picture (centered in equal-width container)
+                NavigationLink(destination: ProfileView(userId: userId)) {
+                    if let url = currentUser?.profilePictureURL {
+                        KFImage(url)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                            .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.crop.circle")
+                            .resizable()
+                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                            .clipShape(Circle())
                     }
-                    Spacer(minLength: 0)
                 }
                 .frame(minWidth: 55)
 
@@ -1967,23 +1964,20 @@ struct MainScreenBottomBar: View {
 
                 Spacer()
 
-                // Trailing: Menu button (in equal-width container)
-                HStack {
-                    Spacer(minLength: 0)
-                    Button(
-                        action: { showActionSheet() },
-                        label: {
-                            Image(systemName: "plus")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(
-                                    width: MainScreen.Constants.imageSize/1.5,
-                                    height: MainScreen.Constants.imageSize/1.5
-                                )
-                                .foregroundColor(Color.repGreen)
-                        }
-                    )
-                }
+                // Trailing: Menu button (centered in equal-width container)
+                Button(
+                    action: { showActionSheet() },
+                    label: {
+                        Image(systemName: "plus")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(
+                                width: MainScreen.Constants.imageSize/1.5,
+                                height: MainScreen.Constants.imageSize/1.5
+                            )
+                            .foregroundColor(Color.repGreen)
+                    }
+                )
                 .frame(minWidth: 55)
             }
             .padding(.horizontal, 16)

@@ -1927,9 +1927,15 @@ struct MainScreenToolbar: ViewModifier {
                         // Bottom padding spacer
                         Spacer()
                             .frame(height: 20)
+
+                        // Additional spacer to fill safe area
+                        Spacer()
+                            .frame(minHeight: 0, maxHeight: .infinity)
                     }
-                    .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
-                    .edgesIgnoringSafeArea(.bottom)
+                    .background(
+                        Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0))
+                            .ignoresSafeArea(edges: .bottom)
+                    )
                 }
             }
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .bottomBar)

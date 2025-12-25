@@ -1623,39 +1623,42 @@ struct MainScreenContent: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            Button(
-                action: {
-                    // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
-                    if section == 0 {
-                        page = .portals
-                        section = 2
-                        portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
-                    } else {
-                        // Normal toggle behavior for Network and All tabs
-                        page = page == .people ? .portals : .people
-                        if page == .portals {
-                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+            // Hide REP logo when search is active to avoid overlap
+            if !showSearch {
+                Button(
+                    action: {
+                        // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
+                        if section == 0 {
+                            page = .portals
+                            section = 2
+                            portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
                         } else {
-                            peopleVM.fetchPeople(userId: userId, section: section)
+                            // Normal toggle behavior for Network and All tabs
+                            page = page == .people ? .portals : .people
+                            if page == .portals {
+                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                            } else {
+                                peopleVM.fetchPeople(userId: userId, section: section)
+                            }
                         }
+                        searchText = ""
+                        portalsVM.clearSearch()
+                        peopleVM.clearSearch()
+                    },
+                    label: {
+                        Image("REPLogo")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 44.0, height: 44.0)
+                            .contentShape(Rectangle())
                     }
-                    searchText = ""
-                    portalsVM.clearSearch()
-                    peopleVM.clearSearch()
-                },
-                label: {
-                    Image("REPLogo")
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 44.0, height: 44.0)
-                        .contentShape(Rectangle())
-                }
-            )
-            .padding(.trailing, 36)
-            .padding(.bottom, 12)
+                )
+                .padding(.trailing, 36)
+                .padding(.bottom, 12)
+            }
         }
         .navigationBarBackButtonHidden()
-        .safeAreaInset(edge: .top, spacing: 0) {
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             if showSearch {
                 HStack {
                     TextField("Search...", text: $searchText)
@@ -1681,7 +1684,7 @@ struct MainScreenContent: View {
                 }
                 .padding(.vertical, 8)
                 .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
-                .transition(.move(edge: .top))
+                .transition(.move(edge: .bottom))
                 .onChange(of: showSearch) { isShowing in
                     if isShowing {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -1906,7 +1909,8 @@ struct MainScreenToolbar: ViewModifier {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.bottom, 30)
+                    .padding(.bottom, 20)
+                    .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
                 }
             }
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .bottomBar)

@@ -1,3 +1,13 @@
+/*
+
+ ⚠️ THIS FILE IS COMMENTED OUT - ORIGINAL VERSION PRESERVED FOR REFERENCE
+
+ Active development is now in MainScreen.swift
+ This file is kept for reference only and will not compile.
+
+ ===========================================================================
+
+
 //  Rep
 //
 //  Created by Dmytro Holovko on 02.12.2023.
@@ -2269,3 +2279,9 @@ struct Chat: View {
         )
     }
 }
+
+
+ END OF COMMENTED OUT FILE
+
+ */
+

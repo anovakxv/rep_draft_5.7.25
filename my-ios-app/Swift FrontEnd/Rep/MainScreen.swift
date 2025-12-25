@@ -1840,6 +1840,10 @@ struct MainScreenToolbar: ViewModifier {
                             .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
                             .frame(height: 1)
 
+                        // Top padding spacer
+                        Spacer()
+                            .frame(height: 3)
+
                         HStack(spacing: 0) {
                             // Leading: Profile Picture
                             NavigationLink(destination: ProfileView(userId: userId)) {
@@ -1919,9 +1923,13 @@ struct MainScreenToolbar: ViewModifier {
                             }
                         }
                         .padding(.horizontal, 16)
-                        .padding(.bottom, 20)
+
+                        // Bottom padding spacer
+                        Spacer()
+                            .frame(height: 20)
                     }
                     .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+                    .edgesIgnoringSafeArea(.bottom)
                 }
             }
             .toolbarBackground(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)), for: .bottomBar)

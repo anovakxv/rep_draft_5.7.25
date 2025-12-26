@@ -63,7 +63,8 @@
       "Bash(curl:*)",
       "Bash(xcodebuild:*)",
       "Bash(swiftc:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(git config:*)"
     ],
     "deny": [],
     "ask": []

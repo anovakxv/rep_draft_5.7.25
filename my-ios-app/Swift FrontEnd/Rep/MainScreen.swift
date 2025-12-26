@@ -827,7 +827,7 @@ struct MainSegmentedPicker: View {
                         Text(segments[index])
                             .font(.system(size: 14, weight: .medium))
                             .foregroundColor(selectedIndex == index ? .white : .black)
-                            .frame(maxWidth: .infinity, minHeight: 40)
+                            .frame(maxWidth: .infinity, minHeight: 36)
                             .padding(.vertical, 2)
 
                         if index == 0 && attentionDotIndices.contains(0) {
@@ -852,7 +852,7 @@ struct MainSegmentedPicker: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: attentionDotIndices)
-        .frame(width: 240, height: 40)
+        .frame(width: 240, height: 36)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
@@ -870,7 +870,7 @@ extension MainScreen {
         case people
     }
     enum Constants {
-        static let imageSize: CGFloat = 40.0
+        static let imageSize: CGFloat = 36.0
     }
     enum MainActionSheetAction {
         case addPurpose
@@ -1647,6 +1647,47 @@ struct MainScreenContent: View {
                 .padding(.bottom, 12)
             }
 
+
+            // Search bar (appears when menu sheet is open or when searching)
+            if activeSheet == .menuSheet || !searchText.isEmpty {
+                HStack {
+                    TextField("Search...", text: $searchText)
+                        .padding(10)
+                        .background(Color(.systemGray6))
+                        .cornerRadius(8)
+                        .padding(.horizontal)
+                        .focused($isSearchFieldFocused)
+                        .onChange(of: searchText) { newValue in
+                            searchDebounceTimer?.invalidate()
+                            // Dismiss sheet when user starts typing
+                            if !newValue.isEmpty {
+                                activeSheet = nil
+                            }
+                            searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
+                                performSearch(newValue)
+                            }
+                        }
+                    Button("Clear") {
+                        isSearchFieldFocused = false
+                        searchText = ""
+                        portalsVM.clearSearch()
+                        peopleVM.clearSearch()
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.trailing)
+                }
+                .padding(.vertical, 8)
+                .padding(.bottom, 4)
+                .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
+                .transition(.move(edge: .bottom))
+                .onChange(of: activeSheet) { sheet in
+                    if sheet == .menuSheet {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            isSearchFieldFocused = true
+                        }
+                    }
+                }
+            }
             // Bottom navigation bar
             MainScreenBottomBar(
                 section: $section,
@@ -1769,47 +1810,7 @@ struct MainScreenContent: View {
                 )
             case .menuSheet:
                 VStack(spacing: 0) {
-                    // Search bar at top
-                    HStack {
-                        TextField("Search...", text: $searchText)
-                            .padding(10)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-                            .focused($isSearchFieldFocused)
-                            .onChange(of: searchText) { newValue in
-                                searchDebounceTimer?.invalidate()
-                                // Dismiss sheet when user starts typing
-                                if !newValue.isEmpty {
-                                    activeSheet = nil
-                                }
-                                searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
-                                    performSearch(newValue)
-                                }
-                            }
-                        Button("Clear") {
-                            isSearchFieldFocused = false
-                            searchText = ""
-                            portalsVM.clearSearch()
-                            peopleVM.clearSearch()
-                        }
-                        .foregroundColor(.secondary)
-                        .padding(.trailing)
-                    }
-                    .padding(.vertical, 8)
-                    .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
-                    .onChange(of: activeSheet) { sheet in
-                        if sheet == .menuSheet {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                isSearchFieldFocused = true
-                            }
-                        }
-                    }
-
-                    Divider()
-                        .padding(.vertical, 8)
-
-                    // Action buttons below
+                    // Action buttons
                     VStack(spacing: 24) {
                         HStack(spacing: 24) {
                             Text("Show:")
@@ -1976,8 +1977,8 @@ struct MainScreenBottomBar: View {
                             .resizable()
                             .scaledToFit()
                             .frame(
-                                width: MainScreen.Constants.imageSize,
-                                height: MainScreen.Constants.imageSize
+                                width: MainScreen.Constants.imageSize/1.5,
+                                height: MainScreen.Constants.imageSize/1.5
                             )
                             .foregroundColor(Color.repGreen)
                     }

@@ -600,80 +600,86 @@ struct GoalPickerRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            // Bar Chart (matching GoalListItem)
-            HStack(alignment: .bottom, spacing: 6) {
-                ForEach(goal.chartData.suffix(4)) { bar in
-                    let quota = goal.quota > 0 ? goal.quota : 1
-                    let barHeight = max(0, min(1.0, CGFloat(bar.value / quota)) * 77)
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        Rectangle()
-                            .fill(Color.repGreen)
-                            .frame(width: 24, height: barHeight)
-                            .cornerRadius(3)
+        Button(action: onViewDetails) {
+            HStack(alignment: .center, spacing: 16) {
+                // Bar Chart (matching GoalListItem)
+                HStack(alignment: .bottom, spacing: 6) {
+                    ForEach(goal.chartData.suffix(4)) { bar in
+                        let quota = goal.quota > 0 ? goal.quota : 1
+                        let barHeight = max(0, min(1.0, CGFloat(bar.value / quota)) * 77)
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+                            Rectangle()
+                                .fill(Color.repGreen)
+                                .frame(width: 24, height: barHeight)
+                                .cornerRadius(3)
+                        }
                     }
                 }
-            }
-            .frame(width: 4 * 24 + 3 * 6, height: 81, alignment: .leading)
-            .padding(.vertical, 4)
+                .frame(width: 4 * 24 + 3 * 6, height: 81, alignment: .leading)
+                .padding(.vertical, 4)
 
-            // Title, subtitle, progress (matching GoalListItem)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(goal.title)
-                    .font(.headline)
-                if !goal.subtitle.isEmpty {
-                    Text(goal.subtitle)
-                        .font(.subheadline)
+                // Title, subtitle, progress (matching GoalListItem)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Text(goal.title)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color.repGreen)
+                    }
+                    if !goal.subtitle.isEmpty {
+                        Text(goal.subtitle)
+                            .font(.subheadline)
+                            .foregroundColor(.primary)
+                    }
+                    Text("\(Int(goal.progressPercent))% [\(tagText)]")
+                        .font(.callout)
+                        .foregroundColor(.black)
                 }
-                Text("\(Int(goal.progressPercent))% [\(tagText)]")
-                    .font(.callout)
-                    .foregroundColor(.black)
-            }
 
-            Spacer()
+                Spacer()
 
-            // Action buttons (new functionality)
-            VStack(spacing: 4) {
-                if !isCreator {
-                    Button(action: onJoin) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person.badge.plus")
-                                .font(.system(size: 14))
-                            Text("Join")
-                                .font(.system(size: 14, weight: .semibold))
+                // Action button
+                VStack(spacing: 4) {
+                    if !isCreator {
+                        Button(action: onJoin) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.badge.plus")
+                                    .font(.system(size: 14))
+                                Text("Join")
+                                    .font(.system(size: 14, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.repGreen)
+                            .cornerRadius(6)
                         }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.repGreen)
+                        .buttonStyle(PlainButtonStyle())
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 12))
+                            Text("Creator")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundColor(Color.repGreen)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Color.repGreen.opacity(0.1))
                         .cornerRadius(6)
                     }
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                        Text("Creator")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    .foregroundColor(Color.repGreen)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color.repGreen.opacity(0.1))
-                    .cornerRadius(6)
-                }
-
-                Button(action: onViewDetails) {
-                    Text("Details")
-                        .font(.system(size: 12))
-                        .foregroundColor(Color.repGreen)
                 }
             }
+            .frame(height: 81)
+            .padding(.vertical, 4)
+            .padding(.horizontal)
+            .background(Color.white)
+            .contentShape(Rectangle())
         }
-        .frame(height: 81)
-        .padding(.vertical, 4)
-        .padding(.horizontal)
-        .background(Color.white)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 

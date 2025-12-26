@@ -1905,7 +1905,7 @@ struct MainScreenTopBar: View {
     var showActionSheet: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
+HStack(spacing: 0) {
             // Leading: Profile Picture
             NavigationLink(destination: ProfileView(userId: userId)) {
                 if let url = currentUser?.profilePictureURL {
@@ -1941,7 +1941,8 @@ struct MainScreenTopBar: View {
             )
             .padding(.trailing, 16)
         }
-        .frame(height: 60)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
         .background(Color.white)
     }
 }

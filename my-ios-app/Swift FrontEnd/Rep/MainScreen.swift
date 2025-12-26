@@ -1978,7 +1978,7 @@ struct MainScreenBottomBar: View {
                                 width: MainScreen.Constants.imageSize/1.5,
                                 height: MainScreen.Constants.imageSize/1.5
                             )
-                            .foregroundColor(.primary)
+                            .foregroundColor(Color.repGreen)
                     }
                 )
                 .frame(minWidth: 55)
@@ -2014,7 +2014,7 @@ struct MainScreenBottomBar: View {
                         Image("REPLogo")
                             .resizable()
                             .scaledToFill()
-                            .frame(width: 30.0, height: 30.0)
+                            .frame(width: 34.0, height: 34.0)
                             .contentShape(Rectangle())
                     }
                 )

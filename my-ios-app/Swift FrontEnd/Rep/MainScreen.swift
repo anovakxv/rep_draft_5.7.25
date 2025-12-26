@@ -1941,8 +1941,8 @@ HStack(spacing: 0) {
             )
             .padding(.trailing, 16)
         }
-        .padding(.top, 4)
-        .padding(.bottom, 10)
+        .padding(.top, 3)
+        .padding(.bottom, 7)
         .background(Color.white)
     }
 }

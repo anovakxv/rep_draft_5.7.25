@@ -624,10 +624,10 @@ struct GoalPickerRow: View {
                     HStack(spacing: 4) {
                         Text(goal.title)
                             .font(.headline)
-                            .foregroundColor(.primary)
+                            .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
                         Image(systemName: "chevron.right")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color.repGreen)
+                            .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
                     }
                     if !goal.subtitle.isEmpty {
                         Text(goal.subtitle)
@@ -645,17 +645,17 @@ struct GoalPickerRow: View {
                 VStack(spacing: 4) {
                     if !isCreator {
                         Button(action: onJoin) {
-                            HStack(spacing: 4) {
+                            HStack(spacing: 6) {
                                 Image(systemName: "person.badge.plus")
-                                    .font(.system(size: 14))
+                                    .font(.system(size: 16))
                                 Text("Join")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: 16, weight: .semibold))
                             }
                             .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
                             .background(Color.repGreen)
-                            .cornerRadius(6)
+                            .cornerRadius(8)
                         }
                         .buttonStyle(PlainButtonStyle())
                     } else {

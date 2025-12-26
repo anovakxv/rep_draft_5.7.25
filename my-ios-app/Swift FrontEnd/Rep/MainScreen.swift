@@ -825,9 +825,9 @@ struct MainSegmentedPicker: View {
                     ZStack(alignment: .topLeading) {
                         (selectedIndex == index ? Color.black : Color.white)
                         Text(segments[index])
-                            .font(.system(size: 13, weight: .medium))
+                            .font(.system(size: 14, weight: .medium))
                             .foregroundColor(selectedIndex == index ? .white : .black)
-                            .frame(maxWidth: .infinity, minHeight: 32)
+                            .frame(maxWidth: .infinity, minHeight: 40)
                             .padding(.vertical, 2)
 
                         if index == 0 && attentionDotIndices.contains(0) {
@@ -852,7 +852,7 @@ struct MainSegmentedPicker: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: attentionDotIndices)
-        .frame(width: 210, height: 32)
+        .frame(width: 240, height: 40)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
@@ -870,7 +870,7 @@ extension MainScreen {
         case people
     }
     enum Constants {
-        static let imageSize: CGFloat = 32.0
+        static let imageSize: CGFloat = 40.0
     }
     enum MainActionSheetAction {
         case addPurpose
@@ -1963,7 +1963,7 @@ struct MainScreenBottomBar: View {
                         }
                     }
                 )
-                .frame(width: 210)
+                .frame(width: 240)
                 .id(openNeedsAttention ? "dot-on" : "dot-off")
 
                 Spacer()
@@ -1976,8 +1976,8 @@ struct MainScreenBottomBar: View {
                             .resizable()
                             .scaledToFit()
                             .frame(
-                                width: MainScreen.Constants.imageSize/1.5,
-                                height: MainScreen.Constants.imageSize/1.5
+                                width: MainScreen.Constants.imageSize,
+                                height: MainScreen.Constants.imageSize
                             )
                             .foregroundColor(Color.repGreen)
                     }
@@ -1985,7 +1985,7 @@ struct MainScreenBottomBar: View {
                 .frame(minWidth: 55)
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 15)
+            .padding(.bottom, 10)
         }
         .frame(maxWidth: .infinity)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))

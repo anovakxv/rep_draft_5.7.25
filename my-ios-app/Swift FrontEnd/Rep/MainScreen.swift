@@ -825,7 +825,7 @@ struct MainSegmentedPicker: View {
                     ZStack(alignment: .topLeading) {
                         (selectedIndex == index ? Color.black : Color.white)
                         Text(segments[index])
-                            .font(.system(size: 14, weight: .medium))
+                            .font(.system(size: 13, weight: .medium))
                             .foregroundColor(selectedIndex == index ? .white : .black)
                             .frame(maxWidth: .infinity, minHeight: 36)
                             .padding(.vertical, 2)
@@ -852,7 +852,7 @@ struct MainSegmentedPicker: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: attentionDotIndices)
-        .frame(width: 240, height: 36)
+        .frame(width: 221, height: 36)
         .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
@@ -1594,6 +1594,13 @@ struct MainScreenContent: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // Top navigation bar
+            MainScreenTopBar(
+                userId: userId,
+                currentUser: currentUser,
+                showActionSheet: { activeSheet = .menuSheet }
+            )
+
             // Main content area with REP toggle button overlay
             Group {
                 if section == 0 {
@@ -1613,43 +1620,9 @@ struct MainScreenContent: View {
                     }
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                // REP logo toggle button
-                Button(
-                    action: {
-                        // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
-                        if section == 0 {
-                            page = .portals
-                            section = 2
-                            portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
-                        } else {
-                            // Normal toggle behavior for Network and All tabs
-                            page = page == .people ? .portals : .people
-                            if page == .portals {
-                                portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
-                            } else {
-                                peopleVM.fetchPeople(userId: userId, section: section)
-                            }
-                        }
-                        searchText = ""
-                        portalsVM.clearSearch()
-                        peopleVM.clearSearch()
-                    },
-                    label: {
-                        Image("REPLogo")
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 44.0, height: 44.0)
-                            .contentShape(Rectangle())
-                    }
-                )
-                .padding(.trailing, 36)
-                .padding(.bottom, 12)
-            }
 
-
-            // Search bar (appears when menu sheet is open or when searching)
-            if activeSheet == .menuSheet || !searchText.isEmpty {
+            // Search bar (appears when search is active or when searching)
+            if showSearch || !searchText.isEmpty {
                 HStack {
                     TextField("Search...", text: $searchText)
                         .padding(10)
@@ -1659,10 +1632,6 @@ struct MainScreenContent: View {
                         .focused($isSearchFieldFocused)
                         .onChange(of: searchText) { newValue in
                             searchDebounceTimer?.invalidate()
-                            // Dismiss sheet when user starts typing
-                            if !newValue.isEmpty {
-                                activeSheet = nil
-                            }
                             searchDebounceTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: false) { _ in
                                 performSearch(newValue)
                             }
@@ -1670,6 +1639,7 @@ struct MainScreenContent: View {
                     Button("Clear") {
                         isSearchFieldFocused = false
                         searchText = ""
+                        showSearch = false
                         portalsVM.clearSearch()
                         peopleVM.clearSearch()
                     }
@@ -1680,8 +1650,8 @@ struct MainScreenContent: View {
                 .padding(.bottom, 4)
                 .background(Color(UIColor(red: 0.976, green: 0.976, blue: 0.976, alpha: 1.0)))
                 .transition(.move(edge: .bottom))
-                .onChange(of: activeSheet) { sheet in
-                    if sheet == .menuSheet {
+                .onChange(of: showSearch) { isActive in
+                    if isActive {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                             isSearchFieldFocused = true
                         }
@@ -1695,8 +1665,27 @@ struct MainScreenContent: View {
                 portalsVM: portalsVM,
                 peopleVM: peopleVM,
                 userId: userId,
-                currentUser: currentUser,
-                showActionSheet: { activeSheet = .menuSheet },
+                showSearch: $showSearch,
+                searchText: $searchText,
+                onRepLogoTap: {
+                    // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
+                    if section == 0 {
+                        page = .portals
+                        section = 2
+                        portalsVM.fetchPortals(userId: userId, section: 2, safeOnly: showOnlySafePortals)
+                    } else {
+                        // Normal toggle behavior for Network and All tabs
+                        page = page == .people ? .portals : .people
+                        if page == .portals {
+                            portalsVM.fetchPortals(userId: userId, section: section, safeOnly: showOnlySafePortals)
+                        } else {
+                            peopleVM.fetchPeople(userId: userId, section: section)
+                        }
+                    }
+                    searchText = ""
+                    portalsVM.clearSearch()
+                    peopleVM.clearSearch()
+                },
                 openNeedsAttention: $openNeedsAttention,
                 showOnlySafePortals: showOnlySafePortals
             )
@@ -1908,6 +1897,55 @@ struct MainScreenContent: View {
     }
 }
 
+// MARK: - MainScreenTopBar
+
+struct MainScreenTopBar: View {
+    var userId: Int
+    var currentUser: User?
+    var showActionSheet: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Leading: Profile Picture
+            NavigationLink(destination: ProfileView(userId: userId)) {
+                if let url = currentUser?.profilePictureURL {
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                        .clipShape(Circle())
+                } else {
+                    Image(systemName: "person.crop.circle")
+                        .resizable()
+                        .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
+                        .clipShape(Circle())
+                }
+            }
+            .padding(.leading, 16)
+
+            Spacer()
+
+            // Trailing: Plus button
+            Button(
+                action: { showActionSheet() },
+                label: {
+                    Image(systemName: "plus")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(
+                            width: MainScreen.Constants.imageSize/1.5,
+                            height: MainScreen.Constants.imageSize/1.5
+                        )
+                        .foregroundColor(Color.repGreen)
+                }
+            )
+            .padding(.trailing, 16)
+        }
+        .frame(height: 60)
+        .background(Color.white)
+    }
+}
+
 // MARK: - MainScreenBottomBar
 
 struct MainScreenBottomBar: View {
@@ -1916,8 +1954,9 @@ struct MainScreenBottomBar: View {
     var portalsVM: PortalsViewModel
     var peopleVM: PeopleViewModel
     var userId: Int
-    var currentUser: User?
-    var showActionSheet: () -> Void
+    @Binding var showSearch: Bool
+    @Binding var searchText: String
+    var onRepLogoTap: () -> Void
     @Binding var openNeedsAttention: Bool
     var showOnlySafePortals: Bool
 
@@ -1928,21 +1967,20 @@ struct MainScreenBottomBar: View {
                 .frame(height: 12)
 
             HStack(spacing: 0) {
-                // Leading: Profile Picture (centered in equal-width container)
-                NavigationLink(destination: ProfileView(userId: userId)) {
-                    if let url = currentUser?.profilePictureURL {
-                        KFImage(url)
+                // Leading: Search icon
+                Button(
+                    action: { showSearch.toggle() },
+                    label: {
+                        Image(systemName: "magnifyingglass")
                             .resizable()
-                            .scaledToFill()
-                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                            .clipShape(Circle())
-                    } else {
-                        Image(systemName: "person.crop.circle")
-                            .resizable()
-                            .frame(width: MainScreen.Constants.imageSize, height: MainScreen.Constants.imageSize)
-                            .clipShape(Circle())
+                            .scaledToFit()
+                            .frame(
+                                width: MainScreen.Constants.imageSize/1.5,
+                                height: MainScreen.Constants.imageSize/1.5
+                            )
+                            .foregroundColor(.primary)
                     }
-                }
+                )
                 .frame(minWidth: 55)
 
                 Spacer()
@@ -1964,23 +2002,20 @@ struct MainScreenBottomBar: View {
                         }
                     }
                 )
-                .frame(width: 240)
+                .frame(width: 221)
                 .id(openNeedsAttention ? "dot-on" : "dot-off")
 
                 Spacer()
 
-                // Trailing: Menu button (centered in equal-width container)
+                // Trailing: REP logo toggle button
                 Button(
-                    action: { showActionSheet() },
+                    action: { onRepLogoTap() },
                     label: {
-                        Image(systemName: "plus")
+                        Image("REPLogo")
                             .resizable()
-                            .scaledToFit()
-                            .frame(
-                                width: MainScreen.Constants.imageSize/1.5,
-                                height: MainScreen.Constants.imageSize/1.5
-                            )
-                            .foregroundColor(Color.repGreen)
+                            .scaledToFill()
+                            .frame(width: 30.0, height: 30.0)
+                            .contentShape(Rectangle())
                     }
                 )
                 .frame(minWidth: 55)

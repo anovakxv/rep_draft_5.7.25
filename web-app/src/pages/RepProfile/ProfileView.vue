@@ -860,8 +860,10 @@ const addToNetwork = async () => {
 
     networkResultMessage.value = 'Added to your network!'
     showNetworkResultAlert.value = true
-  } catch {
-    networkResultMessage.value = 'Failed to add to network.'
+  } catch (error: any) {
+    console.error('Add to network error:', error)
+    const errorMessage = error?.response?.data?.error || error?.message || 'Failed to add to network.'
+    networkResultMessage.value = errorMessage
     showNetworkResultAlert.value = true
   }
   showActionMenu.value = false

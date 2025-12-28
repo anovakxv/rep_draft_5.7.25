@@ -42,8 +42,58 @@ def api_join_leave_goal():
         team = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id).first()
 
         if todo == 'join':
-            if team:
+            if team and team.confirmed == 1:
                 results[goal_id] = "Already a member"
+            elif team and team.confirmed == 0:
+                # User has pending invite - accept it automatically
+                team.confirmed = 1
+                team.read2 = True
+                results[goal_id] = "ok"
+                # --- Add progress log for Recruiting goals ---
+                if getattr(goal, "goal_type", None) == "Recruiting":
+                    existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=user_id).first()
+                    if not existing_log:
+                        progress_log = GoalProgressLog(
+                            users_id=user_id,
+                            goals_id=goal_id,
+                            added_value=1.0,
+                            note="Joined team",
+                            value=1.0
+                        )
+                        db.session.add(progress_log)
+                # Notify inviter that invite was accepted
+                if emit_goal_team_invite_update:
+                    try:
+                        inviter_id = team.users_id1
+                        if inviter_id and inviter_id != user_id:
+                            emits.append((int(inviter_id), int(goal_id), "accepted"))
+                    except Exception:
+                        pass
+            elif team and team.confirmed == -1:
+                # User previously declined - allow them to join now
+                team.confirmed = 1
+                team.read2 = True
+                results[goal_id] = "ok"
+                # --- Add progress log for Recruiting goals ---
+                if getattr(goal, "goal_type", None) == "Recruiting":
+                    existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=user_id).first()
+                    if not existing_log:
+                        progress_log = GoalProgressLog(
+                            users_id=user_id,
+                            goals_id=goal_id,
+                            added_value=1.0,
+                            note="Joined team",
+                            value=1.0
+                        )
+                        db.session.add(progress_log)
+                # Notify inviter
+                if emit_goal_team_invite_update:
+                    try:
+                        inviter_id = team.users_id1
+                        if inviter_id and inviter_id != user_id:
+                            emits.append((int(inviter_id), int(goal_id), "accepted"))
+                    except Exception:
+                        pass
             else:
                 new_team = GoalTeam(goals_id=goal_id, users_id1=user_id, users_id2=user_id, confirmed=1)
                 db.session.add(new_team)

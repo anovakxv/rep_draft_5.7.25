@@ -600,9 +600,9 @@ struct GoalPickerRow: View {
     }
 
     var body: some View {
-        Button(action: onViewDetails) {
-            HStack(alignment: .center, spacing: 16) {
-                // Bar Chart (matching GoalListItem)
+        HStack(alignment: .center, spacing: 16) {
+            // Bar Chart (matching GoalListItem) - tappable to view details
+            Button(action: onViewDetails) {
                 HStack(alignment: .bottom, spacing: 6) {
                     ForEach(goal.chartData.suffix(4)) { bar in
                         let quota = goal.quota > 0 ? goal.quota : 1
@@ -616,10 +616,13 @@ struct GoalPickerRow: View {
                         }
                     }
                 }
-                .frame(width: 4 * 24 + 3 * 6, height: 81, alignment: .leading)
-                .padding(.vertical, 4)
+            }
+            .buttonStyle(PlainButtonStyle())
+            .frame(width: 4 * 24 + 3 * 6, height: 81, alignment: .leading)
+            .padding(.vertical, 4)
 
-                // Title, subtitle, progress (matching GoalListItem)
+            // Title, subtitle, progress (matching GoalListItem) - tappable to view details
+            Button(action: onViewDetails) {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
                         Text(goal.title)
@@ -638,48 +641,46 @@ struct GoalPickerRow: View {
                         .font(.callout)
                         .foregroundColor(.black)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(PlainButtonStyle())
 
-                Spacer()
-
-                // Action button
-                VStack(spacing: 4) {
-                    if !isCreator {
-                        Button(action: onJoin) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "person.badge.plus")
-                                    .font(.system(size: 16))
-                                Text("Join")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(Color.repGreen)
-                            .cornerRadius(8)
+            // Action button - independent, NOT nested
+            VStack(spacing: 4) {
+                if !isCreator {
+                    Button(action: onJoin) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "person.badge.plus")
+                                .font(.system(size: 16))
+                            Text("Join")
+                                .font(.system(size: 16, weight: .semibold))
                         }
-                        .buttonStyle(PlainButtonStyle())
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 12))
-                            Text("Creator")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                        .foregroundColor(Color.repGreen)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(Color.repGreen.opacity(0.1))
-                        .cornerRadius(6)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Color.repGreen)
+                        .cornerRadius(8)
                     }
+                    .buttonStyle(BorderlessButtonStyle())
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                        Text("Creator")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .foregroundColor(Color.repGreen)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Color.repGreen.opacity(0.1))
+                    .cornerRadius(6)
                 }
             }
-            .frame(height: 81)
-            .padding(.vertical, 4)
-            .padding(.horizontal)
-            .background(Color.white)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
+        .frame(height: 81)
+        .padding(.vertical, 4)
+        .padding(.horizontal)
+        .background(Color.white)
     }
 }
 

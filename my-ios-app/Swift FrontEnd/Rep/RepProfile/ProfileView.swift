@@ -1169,7 +1169,7 @@ struct ProfileTabContent: View {
                     isCurrentUser: viewModel.isCurrentUser,
                     showAddPartner: viewModel.showAddPartner,
                     addPartnerAction: viewModel.addPartner,
-                    userId: viewModel.user.id
+                    userId: viewModel.loggedInUserId
                 )
                 .padding(.top, 8)
                 .background(Color.white)

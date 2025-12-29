@@ -544,7 +544,7 @@ class PeopleViewModel: ObservableObject {
             } else {
                 // Load users in background
                 let tab = targetSection == 1 ? "ntwk" : "all"
-                let limitParam = (tab == "all") ? "&limit=200" : ""
+                let limitParam = (tab == "ntwk" || tab == "all") ? "&limit=200" : ""
                 let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
                 guard let url = URL(string: urlString) else { return }
                 var request = URLRequest(url: url)
@@ -740,10 +740,10 @@ class PeopleViewModel: ObservableObject {
         }
 
         errorMessage = nil
-        
+
         // People list fetch code
         let tab = section == 1 ? "ntwk" : "all"
-        let limitParam = (tab == "all") ? "&limit=200" : ""
+        let limitParam = (tab == "ntwk" || tab == "all") ? "&limit=200" : ""
         let urlString = "\(APIConfig.baseURL)/api/filter_people?user_id=\(userId)&tab=\(tab)\(limitParam)"
         guard let url = URL(string: urlString) else {
             errorMessage = "Invalid URL"

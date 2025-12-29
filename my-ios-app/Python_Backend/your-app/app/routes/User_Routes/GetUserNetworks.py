@@ -102,7 +102,10 @@ def api_members_of_my_network():
 
     query = db.session.query(User).join(
         UserNetwork, UserNetwork.users_id2 == User.id
-    ).filter(UserNetwork.users_id1 == users_id)
+    ).filter(
+        UserNetwork.users_id1 == users_id,
+        User.confirmed == True  # Only show confirmed/active users
+    )
 
     if invited_goal_id:
         subq = db.session.query(GoalTeam.users_id2).filter(

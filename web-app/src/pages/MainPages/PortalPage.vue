@@ -1078,9 +1078,29 @@ const GoalPickerRow = defineComponent({
           })
         ),
 
-        // Title, subtitle, progress
-        h('div', { class: 'flex-1 min-w-0' }, [
-          h('div', { class: 'font-semibold text-base' }, props.goal.title),
+        // Title, subtitle, progress - clickable to view details
+        h('button', {
+          class: 'flex-1 min-w-0 text-left',
+          onClick: () => emit('view-details')
+        }, [
+          // Title with chevron (dark green)
+          h('div', { class: 'flex items-center gap-1 font-semibold text-base', style: { color: '#006600' } }, [
+            h('span', {}, props.goal.title),
+            h('svg', {
+              xmlns: 'http://www.w3.org/2000/svg',
+              class: 'h-3.5 w-3.5 shrink-0',
+              fill: 'none',
+              viewBox: '0 0 24 24',
+              stroke: 'currentColor',
+              strokeWidth: 2.5
+            }, [
+              h('path', {
+                strokeLinecap: 'round',
+                strokeLinejoin: 'round',
+                d: 'M9 5l7 7-7 7'
+              })
+            ])
+          ]),
           props.goal.subtitle && h('div', { class: 'text-sm text-gray-600' }, props.goal.subtitle),
           h('div', { class: 'text-sm text-black' }, `${Math.floor(props.goal.progressPercent || 0)}% [${tagText.value}]`)
         ]),
@@ -1090,13 +1110,13 @@ const GoalPickerRow = defineComponent({
           // Join or Creator badge
           !isCreator.value
             ? h('button', {
-                class: 'flex items-center gap-1 px-3 py-1.5 rounded text-white font-semibold text-sm',
+                class: 'flex items-center gap-1.5 px-4 py-2.5 rounded-lg text-white font-semibold text-base',
                 style: { backgroundColor: '#8cc65d' },
                 onClick: () => emit('join')
               }, [
                 h('svg', {
                   xmlns: 'http://www.w3.org/2000/svg',
-                  class: 'h-3.5 w-3.5',
+                  class: 'h-4 w-4',
                   fill: 'none',
                   viewBox: '0 0 24 24',
                   stroke: 'currentColor',
@@ -1130,17 +1150,7 @@ const GoalPickerRow = defineComponent({
                   })
                 ]),
                 'Creator'
-              ]),
-
-          // Details button
-          h('button', {
-            class: 'px-2.5 py-1 text-xs border rounded',
-            style: {
-              borderColor: '#8cc65d',
-              color: '#8cc65d'
-            },
-            onClick: () => emit('view-details')
-          }, 'Details')
+              ])
         ])
       ]);
     };

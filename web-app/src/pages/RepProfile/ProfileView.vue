@@ -860,6 +860,9 @@ const addToNetwork = async () => {
 
     networkResultMessage.value = 'Added to your network!'
     showNetworkResultAlert.value = true
+
+    // Trigger network list refresh in MainScreen
+    document.dispatchEvent(new Event('refreshNetworkList'))
   } catch (error: any) {
     console.error('Add to network error:', error)
     const errorMessage = error?.response?.data?.error || error?.message || 'Failed to add to network.'

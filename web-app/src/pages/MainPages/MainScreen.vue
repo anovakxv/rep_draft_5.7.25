@@ -504,7 +504,7 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
       } else {
         // People list
         const tab = section === 1 ? 'ntwk' : 'all';
-        const limitParam = (tab === "all") ? "&limit=200" : "";
+        const limitParam = (tab === "ntwk" || tab === "all") ? "&limit=200" : "";
 
         const res = await api.get(
           `/api/filter_people?user_id=${userId.value}&tab=${tab}${limitParam}`
@@ -1074,6 +1074,17 @@ onMounted(() => {
     // Skip loading animation to prevent flicker when returning from chat
     skipNextAnimation.value = true;
     fetchPeople(0);
+  });
+
+  // Add DOM event for refreshing network list when user adds someone to network
+  document.addEventListener('refreshNetworkList', () => {
+    console.log('[MainScreen] Network list refresh requested');
+    // Invalidate cache for Network tab
+    delete lastFetchTime.value['people-1'];
+    // Refetch if currently on Network tab
+    if (section.value === 1 && page.value === 'people') {
+      fetchPeople(1);
+    }
   });
   
   // Add visibilitychange event (similar to willEnterForeground in Swift)

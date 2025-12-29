@@ -35,9 +35,12 @@ def api_add_to_network_action():
     if str(user_id) == str(target_user_id):
         return jsonify({'error': "You can't add yourself to your own network."}), 400
 
-    # Check if target user exists
-    if not User.query.filter_by(id=target_user_id).first():
+    # Check if target user exists and is confirmed
+    target_user = User.query.filter_by(id=target_user_id).first()
+    if not target_user:
         return jsonify({'error': "That users_id doesn't exist!"}), 404
+    if not target_user.confirmed:
+        return jsonify({'error': "That user account is not active."}), 400
 
     exists = UserNetwork.query.filter_by(users_id1=user_id, users_id2=target_user_id).first()
 

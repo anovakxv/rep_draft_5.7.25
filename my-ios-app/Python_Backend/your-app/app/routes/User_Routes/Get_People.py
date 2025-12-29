@@ -254,10 +254,10 @@ def filter_people():
     elif tab == "ntwk":
         # note: NTWK tab = users who are in my network (UserNetwork)
         network_user_ids = db.session.query(UserNetwork.users_id2).filter_by(users_id1=user_id)
-        query = query.filter(User.id.in_(network_user_ids))
+        query = query.filter(User.id.in_(network_user_ids), User.confirmed == True)
     elif tab == "all":
         # note: ALL tab = all users except myself
-        query = query.filter(User.id != user_id)
+        query = query.filter(User.id != user_id, User.confirmed == True)
     else:
         return jsonify({'error': 'Invalid tab value!'}), 400
 
@@ -266,7 +266,7 @@ def filter_people():
             (User.fname.ilike(f"%{keyword}%")) | (User.lname.ilike(f"%{keyword}%")) | (User.username.ilike(f"%{keyword}%"))
         )
 
-    users = query.offset(offset).limit(limit).all()
+    users = query.order_by(User.fname, User.lname).offset(offset).limit(limit).all()
     result = []
     for u in users:
         user_dict = u.as_dict()

@@ -464,7 +464,7 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
       if (section === 0) {
         // Active chats
         const res = await api.get(
-          `/api/active_chat_list?user_id=${userId.value}`
+          `/api/active_chat_list?user_id=${userId.value}&limit=200`
         );
 
         if (res.data && res.data.result) {

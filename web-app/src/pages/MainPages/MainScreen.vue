@@ -746,8 +746,12 @@ const fetchCurrentUser = async () => {
 };
 
 const togglePage = () => {
-  // Don't toggle page if we're on Chats tab - it doesn't use page context
+  // Special case: When on Chats tab (section 0), always jump to Portals/All (section 2)
   if (section.value === 0) {
+    page.value = 'portals';
+    section.value = 2;
+    fetchPortals(2);
+    cancelSearch();
     return;
   }
 
@@ -759,6 +763,8 @@ const togglePage = () => {
     });
     return;
   }
+
+  // Normal toggle behavior for Network and All tabs
   page.value = page.value === 'portals' ? 'people' : 'portals';
   cancelSearch();
 };

@@ -67,6 +67,20 @@
           </div>
         </div>
 
+        <!-- Floating RSVP Button (only show if Attendees goal exists) -->
+        <div
+          v-if="attendeesGoal"
+          class="fixed bottom-20 left-0 right-0 z-10 flex justify-center px-4 xl:sticky xl:bottom-20"
+        >
+          <button
+            @click="handleRSVP"
+            class="w-full max-w-md h-14 rounded-xl font-bold text-xl shadow-lg transition-transform hover:scale-105 active:scale-95"
+            style="background-color: #8cc65d; color: white;"
+          >
+            Register for Event
+          </button>
+        </div>
+
         <!-- Fixed Bottom Bar (mobile) / Sticky Bottom Bar (desktop) -->
         <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center xl:sticky xl:bottom-0 xl:left-auto xl:right-auto xl:mt-auto">
           <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 xl:py-3" style="max-width: 768px; border-color: #e5e7eb;">
@@ -337,6 +351,14 @@ const leadRepUser = computed(() => {
   return portalDetail.value?.aLeads?.[0] ?? null;
 });
 
+// Find "Attendees" goal for RSVP button
+const attendeesGoal = computed(() => {
+  return portalGoals.value.find(g =>
+    g.typeName === 'Recruiting' &&
+    (g.title?.toLowerCase() === 'attendees' || g.title?.toLowerCase().includes('attendee'))
+  );
+});
+
 // --- API Methods (from ViewModel) ---
 const fetchPortalDetail = async () => {
   isLoading.value = true;
@@ -431,6 +453,33 @@ const joinGoalTeam = async (goalId: number) => {
   }
 };
 
+// RSVP button handler
+const handleRSVP = async () => {
+  if (!attendeesGoal.value) return;
+
+  if (isAuthenticated()) {
+    // User is logged in - join immediately
+    try {
+      await joinGoalTeam(attendeesGoal.value.id);
+      alert('✓ You\'re registered for this event!');
+    } catch (err) {
+      console.error('RSVP failed:', err);
+      alert('Failed to register. Please try again.');
+    }
+  } else {
+    // User not logged in - store RSVP intent and redirect to registration
+    localStorage.setItem('rsvpIntent', JSON.stringify({
+      portalId: portalId,
+      goalId: attendeesGoal.value.id,
+      goalTitle: attendeesGoal.value.title
+    }));
+    router.push({
+      path: '/register',
+      query: { returnTo: `/portal/${portalId}` }
+    });
+  }
+};
+
 // --- Event Handlers ---
 const goBack = () => {
   const fromTab = route.query.from;
@@ -508,17 +557,35 @@ const handleAddGoalClose = () => {
 };
 
 // --- Lifecycle Hooks ---
-onMounted(() => {
+onMounted(async () => {
   // Allow public users to view portal page
   // Authentication is checked on protected actions (Message, Add)
 
   // Fetch portal data
-  fetchPortalDetail();
-  fetchPortalGoals();
+  await fetchPortalDetail();
+  await fetchPortalGoals();
 
   // Only fetch reporting increments if authenticated (needed for creating goals)
   if (isAuthenticated()) {
     fetchReportingIncrements();
+  }
+
+  // Check for RSVP intent after registration
+  const rsvpIntentStr = localStorage.getItem('rsvpIntent');
+  if (rsvpIntentStr && isAuthenticated()) {
+    try {
+      const rsvpIntent = JSON.parse(rsvpIntentStr);
+      if (rsvpIntent.portalId === portalId && rsvpIntent.goalId) {
+        // Auto-join the Attendees goal
+        await joinGoalTeam(rsvpIntent.goalId);
+        // Clear the intent
+        localStorage.removeItem('rsvpIntent');
+        console.log('Auto-joined Attendees goal after registration');
+      }
+    } catch (err) {
+      console.error('Failed to process RSVP intent:', err);
+      localStorage.removeItem('rsvpIntent');
+    }
   }
 
   // Set up orientation detection

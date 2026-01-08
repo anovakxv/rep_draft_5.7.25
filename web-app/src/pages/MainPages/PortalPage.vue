@@ -70,7 +70,7 @@
         <!-- Floating RSVP Button (only show if Attendees goal exists) -->
         <div
           v-if="attendeesGoal"
-          class="fixed bottom-20 left-0 right-0 z-10 flex justify-center px-4 xl:sticky xl:bottom-20"
+          class="fixed bottom-10 left-0 right-0 z-10 flex justify-center px-4 xl:sticky xl:bottom-20"
         >
           <button
             @click="handleRSVP"

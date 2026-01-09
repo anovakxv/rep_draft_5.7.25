@@ -489,15 +489,9 @@ const goBack = () => {
   if (fromTab) {
     router.push({ path: '/main', query: { tab: fromTab } });
   } else {
-    // Check if user has navigation history within the app
-    // If they arrived via external link (like event registration), send them to main screen
-    if (window.history.length <= 2) {
-      // No meaningful history - go to main screen
-      router.push('/main');
-    } else {
-      // Has history - go back
-      router.back();
-    }
+    // Always route to main screen for users without a specific fromTab
+    // This handles external arrivals (like event registration links) properly
+    router.push('/main');
   }
 };
 

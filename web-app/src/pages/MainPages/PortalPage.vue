@@ -74,7 +74,7 @@
         >
           <button
             @click="handleRSVP"
-            class="w-full max-w-md h-14 rounded-xl font-bold text-xl shadow-lg transition-transform hover:scale-105 active:scale-95"
+            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl shadow-lg transition-transform hover:scale-105 active:scale-95"
             style="background-color: #8cc65d; color: white;"
           >
             Register for Event

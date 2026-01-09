@@ -13,7 +13,7 @@
       <div class="flex space-x-2">
         <div class="w-3 h-3 rounded-full" :class="step === 0 ? '' : 'bg-gray-300'" :style="step === 0 ? 'background-color: #8cc65d;' : ''"></div>
         <div class="w-3 h-3 rounded-full" :class="step === 1 ? '' : 'bg-gray-300'" :style="step === 1 ? 'background-color: #8cc65d;' : ''"></div>
-        <div class="w-3 h-3 rounded-full" :class="step === 2 ? '' : 'bg-gray-300'" :style="step === 2 ? 'background-color: #8cc65d;' : ''"></div>
+        <div v-if="!isEventRegistration" class="w-3 h-3 rounded-full" :class="step === 2 ? '' : 'bg-gray-300'" :style="step === 2 ? 'background-color: #8cc65d;' : ''"></div>
       </div>
     </div>
 
@@ -84,6 +84,7 @@ import REPLogo from '@/assets/REPLogo.png'
 
 const router = useRouter()
 const step = ref(0)
+const isEventRegistration = ref(false)
 
 // Terms of use content (could be moved to a separate file or fetched from API)
 const termsText = `
@@ -127,9 +128,22 @@ Before proceeding, you must confirm acceptance of these terms.
 
 // Check if we need to start at a specific step based on already completed steps
 onMounted(() => {
+  // Check if this is an event registration
+  const rsvpIntentStr = localStorage.getItem('rsvpIntent')
+  if (rsvpIntentStr) {
+    try {
+      const rsvpIntent = JSON.parse(rsvpIntentStr)
+      if (rsvpIntent.isEventRegistration) {
+        isEventRegistration.value = true
+      }
+    } catch (err) {
+      console.error('Failed to parse rsvpIntent:', err)
+    }
+  }
+
   const hasCompletedProfile = localStorage.getItem('profileComplete') === 'true'
   const hasAcceptedTerms = localStorage.getItem('acceptedTermsOfUse') === 'true'
-  
+
   if (hasCompletedProfile && hasAcceptedTerms) {
     step.value = 2 // Go directly to walkthrough
   } else if (hasCompletedProfile) {
@@ -147,6 +161,23 @@ function onProfileSaved() {
 // Handler for terms acceptance
 function onTermsAccepted() {
   localStorage.setItem('acceptedTermsOfUse', 'true')
+
+  // Check if this is an event registration - if so, skip walkthrough
+  const rsvpIntentStr = localStorage.getItem('rsvpIntent')
+  if (rsvpIntentStr) {
+    try {
+      const rsvpIntent = JSON.parse(rsvpIntentStr)
+      if (rsvpIntent.isEventRegistration) {
+        // Skip walkthrough and complete onboarding immediately
+        completeOnboarding()
+        return
+      }
+    } catch (err) {
+      console.error('Failed to parse rsvpIntent:', err)
+    }
+  }
+
+  // Normal flow - go to walkthrough
   step.value = 2
 }
 

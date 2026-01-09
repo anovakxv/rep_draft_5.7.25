@@ -436,20 +436,22 @@ const flagPortal = async () => {
 
 // Join goal team function (matching iOS implementation)
 const joinGoalTeam = async (goalId: number) => {
-  try {
-    const res = await api.post('/api/goals/join_leave', {
-      aGoalsIDs: [goalId],
-      todo: 'join'
-    });
+  const res = await api.post('/api/goals/join_leave', {
+    aGoalsIDs: [goalId],
+    todo: 'join'
+  });
 
-    if (res.data && res.data.result && res.data.result[goalId] === 'ok') {
-      // Success - refresh portal goals
-      await fetchPortalGoals();
-    } else {
-      console.error('Error joining goal team');
-    }
-  } catch (err) {
-    console.error('Failed to join goal team:', err);
+  if (res.data && res.data.result && res.data.result[goalId] === 'ok') {
+    // Success - refresh portal goals
+    await fetchPortalGoals();
+    return true;
+  } else if (res.data && res.data.result && res.data.result[goalId] === 'Already a member') {
+    // User already registered - treat as success
+    await fetchPortalGoals();
+    return true;
+  } else {
+    console.error('Error joining goal team:', res.data);
+    throw new Error('Failed to join goal team');
   }
 };
 
@@ -471,7 +473,8 @@ const handleRSVP = async () => {
     localStorage.setItem('rsvpIntent', JSON.stringify({
       portalId: portalId,
       goalId: attendeesGoal.value.id,
-      goalTitle: attendeesGoal.value.title
+      goalTitle: attendeesGoal.value.title,
+      isEventRegistration: true  // Flag to streamline onboarding
     }));
     router.push({
       path: '/register',
@@ -577,14 +580,25 @@ onMounted(async () => {
       const rsvpIntent = JSON.parse(rsvpIntentStr);
       if (rsvpIntent.portalId === portalId && rsvpIntent.goalId) {
         // Auto-join the Attendees goal
-        await joinGoalTeam(rsvpIntent.goalId);
-        // Clear the intent
-        localStorage.removeItem('rsvpIntent');
-        console.log('Auto-joined Attendees goal after registration');
+        const success = await joinGoalTeam(rsvpIntent.goalId);
+        if (success) {
+          // Clear the intent only on success
+          localStorage.removeItem('rsvpIntent');
+          console.log('Auto-joined Attendees goal after registration');
+          // Show success message to new user
+          alert('✓ You\'re Registered!');
+        } else {
+          console.error('Failed to auto-join goal team');
+          // Don't clear rsvpIntent - user can try again
+        }
       }
     } catch (err) {
       console.error('Failed to process RSVP intent:', err);
-      localStorage.removeItem('rsvpIntent');
+      // Only clear if JSON parse failed (corrupted data)
+      if (err instanceof SyntaxError) {
+        localStorage.removeItem('rsvpIntent');
+      }
+      // Don't clear for API errors - user can try again
     }
   }
 

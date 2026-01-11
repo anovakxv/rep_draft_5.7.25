@@ -186,6 +186,11 @@ struct PortalPage: View {
     @State private var showPaymentSheet = false
     @State private var supportGoal: Goal? = nil
 
+    // RSVP state
+    @State private var rsvpResultMessage: String? = nil
+    @State private var showRSVPResultAlert = false
+    @State private var attendeesGoal: Goal? = nil
+
     // Enum for all possible sheets (EditGoal, PortalActionSheet, GoalPicker)
     enum ActiveSheet: Identifiable {
         case addGoal
@@ -234,12 +239,22 @@ struct PortalPage: View {
         return goals.first { $0.typeName == "Fund" || $0.typeName == "Sales" || $0.typeName == "Donations" }
     }
 
+    private func findAttendeesGoal(from goals: [Goal]) -> Goal? {
+        return goals.first {
+            $0.typeName == "Recruiting" &&
+            ($0.title.lowercased() == "attendees" || $0.title.lowercased().contains("attendee"))
+        }
+    }
+
     @AppStorage("jwtToken") private var jwtToken: String = ""
 
     // Join goal team function
-    private func joinGoalTeam(goalId: Int) {
+    private func joinGoalTeam(goalId: Int, completion: ((Bool, String?) -> Void)? = nil) {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/join_leave"),
-              !jwtToken.isEmpty else { return }
+              !jwtToken.isEmpty else {
+            completion?(false, "Authentication required")
+            return
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -256,15 +271,37 @@ struct PortalPage: View {
             DispatchQueue.main.async {
                 if let data = data,
                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let result = json["result"] as? [String: Any],
-                   result["\(goalId)"] as? String == "ok" {
-                    // Success - refresh portal goals
-                    self.viewModel.fetchPortalGoals(portalId: self.portalId)
+                   let result = json["result"] as? [String: Any] {
+                    let status = result["\(goalId)"] as? String
+                    if status == "ok" || status == "Already a member" {
+                        // Success - refresh portal goals
+                        self.viewModel.fetchPortalGoals(portalId: self.portalId)
+                        completion?(true, nil)
+                    } else {
+                        print("Error joining goal team")
+                        completion?(false, "Failed to register")
+                    }
                 } else {
                     print("Error joining goal team")
+                    completion?(false, "Failed to register")
                 }
             }
         }.resume()
+    }
+
+    // RSVP handler
+    private func handleRSVP() {
+        guard let goal = attendeesGoal else { return }
+
+        joinGoalTeam(goalId: goal.id) { success, errorMessage in
+            if success {
+                rsvpResultMessage = "✓ You're registered for this event!"
+                showRSVPResultAlert = true
+            } else {
+                rsvpResultMessage = errorMessage ?? "Failed to register. Please try again."
+                showRSVPResultAlert = true
+            }
+        }
     }
 
     // Helper for sheet content
@@ -406,6 +443,7 @@ struct PortalPage: View {
                 userId: userId,
                 leadRepUser: { leadRepUser(from: portal) },
                 isCurrentUserLead: isCurrentUserLead(portal),
+                attendeesGoal: attendeesGoal,
                 onAdd: { activeSheet = .portalActionMenu },
                 onMessage: {
                     if let lead = leadRepUser(from: portal) {
@@ -414,7 +452,8 @@ struct PortalPage: View {
                     } else {
                         print("No lead user found for portal!")
                     }
-                }
+                },
+                onRSVP: handleRSVP
             )
             .onAppear {
                 viewModel.fetchPortalGoals(portalId: portalId)
@@ -429,6 +468,7 @@ struct PortalPage: View {
             .disabled(!hasAppeared)
             .onChange(of: viewModel.portalGoals) { newGoals in
                 supportGoal = findSupportableGoal(from: newGoals)
+                attendeesGoal = findAttendeesGoal(from: newGoals)
             }
             .onDisappear {
                 // Remove NotificationCenter observer
@@ -499,6 +539,9 @@ struct PortalPage: View {
                 .navigationBarHidden(true)
                 .alert(flagResultMessage ?? "", isPresented: $showFlagResultAlert) {
                     Button("OK", role: .cancel) { flagResultMessage = nil }
+                }
+                .alert(rsvpResultMessage ?? "", isPresented: $showRSVPResultAlert) {
+                    Button("OK", role: .cancel) { rsvpResultMessage = nil }
                 }
         }
     }
@@ -693,8 +736,10 @@ struct PortalPageContent: View {
     let userId: Int
     let leadRepUser: () -> User?
     let isCurrentUserLead: Bool
+    let attendeesGoal: Goal?
     let onAdd: () -> Void
     let onMessage: () -> Void
+    let onRSVP: () -> Void
 
     @State private var showFullscreen = false
     @State private var fullscreenIndex = 0
@@ -786,6 +831,23 @@ struct PortalPageContent: View {
                 onAdd: onAdd,
                 onMessage: onMessage
             )
+        }
+        .overlay(alignment: .bottom) {
+            // Floating Register Button (only show if Attendees goal exists)
+            if attendeesGoal != nil {
+                Button(action: onRSVP) {
+                    Text("Register for Event")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                        .cornerRadius(12)
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 64)
+            }
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)

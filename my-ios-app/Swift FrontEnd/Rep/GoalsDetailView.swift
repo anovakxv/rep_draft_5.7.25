@@ -169,10 +169,10 @@ struct GoalsDetailView: View {
                         }
                     } else if selectedSegment == 2 {
                         ForEach(viewModel.team) { user in
-                            NavigationLink(destination: ProfileView(userId: user.id)) {
-                                TeamCell(user: user)
-                            }
-                            .buttonStyle(PlainButtonStyle()) // Keeps the cell's original appearance
+                            TeamCell(user: user)
+                                .onTapGesture {
+                                    selectedProfileUserId = user.id
+                                }
                         }
                     }
                 }
@@ -233,24 +233,11 @@ struct GoalsDetailView: View {
                     .shadow(radius: 8)
             }
 
-            // Navigation links
-                     
-            NavigationLink(
-                destination: selectedProfileUserId.map { ProfileView(userId: $0) },
-                isActive: Binding(
-                    get: { selectedProfileUserId != nil },
-                    set: { if !$0 { selectedProfileUserId = nil } }
-                )
-            ) {
-                EmptyView()
-            }
-            .hidden()
             .fullScreenCover(isPresented: $showPortalSheet) {
                 if let portalId = portalToNavigateTo {
                     PortalPage(portalId: portalId, userId: viewModel.currentUserId)
                 }
             }
-            .hidden()
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
@@ -261,6 +248,9 @@ struct GoalsDetailView: View {
             hasAppeared = true
         }
         .disabled(!hasAppeared)
+        .navigationDestination(item: $selectedProfileUserId) { userId in
+            ProfileView(userId: userId)
+        }
         .sheet(item: $activeSheet) { sheet in
             switch sheet {
             case .action:
@@ -968,16 +958,22 @@ struct FeedCell: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
-            if let url = feed.userProfilePictureURL {
-                KFImage(url)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 80, height: 80)
-                    .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 80, height: 80)
+            // Profile picture - tappable to view user profile
+            Group {
+                if let url = feed.userProfilePictureURL {
+                    KFImage(url)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 80, height: 80)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 80, height: 80)
+                }
+            }
+            .onTapGesture {
+                onProfileTap?()
             }
 
             VStack(alignment: .leading, spacing: 4) {

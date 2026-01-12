@@ -843,7 +843,7 @@ struct PortalPageContent: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 48)
                         .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                        .cornerRadius(12)
+                        .cornerRadius(6)
                         .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                 }
                 .padding(.horizontal, 16)

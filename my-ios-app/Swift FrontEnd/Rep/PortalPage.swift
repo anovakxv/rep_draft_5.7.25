@@ -228,8 +228,9 @@ struct PortalPage: View {
     }
 
     private func leadRepUser(from portal: PortalDetail) -> User? {
-    // Use the first lead user, not just any user
-    return portal.aLeads?.first
+        // Find the portal creator from aUsers using users_id
+        guard let creatorId = portal.users_id else { return nil }
+        return portal.aUsers?.first { $0.id == creatorId }
     }
     private func isCurrentUserLead(_ portal: PortalDetail) -> Bool {
         portal.aUsers?.contains(where: { $0.id == userId }) ?? false
@@ -351,8 +352,8 @@ struct PortalPage: View {
                 Button(action: {
                     activeSheet = .goalPicker
                 }) {
-                    Text("Join Goal Team")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    Text("Join Team")
+                        .foregroundColor(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
                         .font(.title2)
                         .fontWeight(.bold)
                         .padding(.vertical, 5)
@@ -569,7 +570,7 @@ struct GoalPickerSheet: View {
                     }
                 }
                 Spacer()
-                Text("Join Goal Team")
+                Text("Join Team")
                     .font(.headline)
                 Spacer()
                 // Spacer for symmetry

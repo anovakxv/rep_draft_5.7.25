@@ -348,7 +348,10 @@ const reportingIncrementsForEditGoal = computed(() => {
 });
 
 const leadRepUser = computed(() => {
-  return portalDetail.value?.aLeads?.[0] ?? null;
+  // Find the portal creator from aUsers using users_id
+  const creatorId = portalDetail.value?.users_id;
+  if (!creatorId) return null;
+  return portalDetail.value?.aUsers?.find(u => u.id === creatorId) ?? null;
 });
 
 // Find "Attendees" goal for RSVP button
@@ -1079,11 +1082,12 @@ const ActionSheetModal = defineComponent({
             onClick: () => emit('add-goal')
           }, 'Add Goal'),
 
-          // Join Goal Team - light green, large text (available for everyone)
+          // Join Team - dark green, large text (available for everyone)
           h('button', {
-            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+            class: 'font-bold text-[28px] py-3',
+            style: { color: '#006600' },
             onClick: () => emit('join-goal-team')
-          }, 'Join Goal Team'),
+          }, 'Join Team'),
 
           // Share - light green, large text (available for everyone)
           h('button', {
@@ -1290,7 +1294,7 @@ const GoalPickerSheet = defineComponent({
           ]),
 
           // Title
-          h('h2', { class: 'font-semibold text-lg absolute left-1/2 transform -translate-x-1/2' }, 'Join Goal Team'),
+          h('h2', { class: 'font-semibold text-lg absolute left-1/2 transform -translate-x-1/2' }, 'Join Team'),
 
           // Close button
           h('button', {

@@ -232,11 +232,10 @@ struct GoalsDetailView: View {
                     .cornerRadius(12)
                     .shadow(radius: 8)
             }
-
-            .fullScreenCover(isPresented: $showPortalSheet) {
-                if let portalId = portalToNavigateTo {
-                    PortalPage(portalId: portalId, userId: viewModel.currentUserId)
-                }
+        }
+        .fullScreenCover(isPresented: $showPortalSheet) {
+            if let portalId = portalToNavigateTo {
+                PortalPage(portalId: portalId, userId: viewModel.currentUserId)
             }
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))

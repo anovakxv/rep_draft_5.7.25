@@ -594,10 +594,6 @@ struct MessageView: View {
                                             onLongPress: {
                                                 selectedMessageForReaction = message
                                                 showReactionPicker = true
-                                            },
-                                            onEdit: {
-                                                selectedMessageForEdit = message
-                                                showEditSheet = true
                                             }
                                         )
                                     } else {
@@ -608,8 +604,7 @@ struct MessageView: View {
                                             onLongPress: {
                                                 selectedMessageForReaction = message
                                                 showReactionPicker = true
-                                            },
-                                            onEdit: nil
+                                            }
                                         )
                                         Spacer()
                                     }
@@ -668,7 +663,6 @@ struct MessageView: View {
                         .foregroundColor(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0))),
                     alignment: .top
                 )
-            }
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .onDisappear {
@@ -707,6 +701,11 @@ struct MessageView: View {
                         onEdit: {
                             selectedMessageForEdit = message
                             showEditSheet = true
+                            showReactionPicker = false
+                            selectedMessageForReaction = nil
+                        },
+                        onCopy: {
+                            UIPasteboard.general.string = message.text
                             showReactionPicker = false
                             selectedMessageForReaction = nil
                         },
@@ -756,7 +755,6 @@ struct MessageBubble: View {
     let isCurrentUser: Bool
     let profilePicURL: URL?
     let onLongPress: () -> Void
-    let onEdit: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -770,21 +768,8 @@ struct MessageBubble: View {
                             .background(Color.black)
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
-                            .textSelection(.enabled)
                             .onLongPressGesture {
                                 onLongPress()
-                            }
-                            .contextMenu {
-                                Button(action: {
-                                    UIPasteboard.general.string = message.text
-                                }) {
-                                    Label("Copy", systemImage: "doc.on.doc")
-                                }
-                                if let editAction = onEdit {
-                                    Button(action: editAction) {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                }
                             }
 
                         // Edit indicator
@@ -841,16 +826,8 @@ struct MessageBubble: View {
                             .background(Color(UIColor.systemGray5))
                             .foregroundColor(.black)
                             .cornerRadius(8)
-                            .textSelection(.enabled)
                             .onLongPressGesture {
                                 onLongPress()
-                            }
-                            .contextMenu {
-                                Button(action: {
-                                    UIPasteboard.general.string = message.text
-                                }) {
-                                    Label("Copy", systemImage: "doc.on.doc")
-                                }
                             }
 
                         // Edit indicator
@@ -898,6 +875,7 @@ private struct FullScreenReactionPicker: View {
     let showEdit: Bool
     let onSelect: (String) -> Void
     let onEdit: () -> Void
+    let onCopy: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -922,6 +900,24 @@ private struct FullScreenReactionPicker: View {
                                 .frame(width: 40, height: 40)
                         }
                     }
+                }
+
+                // Copy button
+                Button(action: {
+                    onCopy()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 14))
+                        Text("Copy")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(.primary)
+                    .frame(height: 36)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    .shadow(radius: 2)
                 }
 
                 // Edit button (only for current user's messages)

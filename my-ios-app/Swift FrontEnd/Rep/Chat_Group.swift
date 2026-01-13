@@ -716,7 +716,6 @@ private struct GroupMessageRow: View {
     let message: GroupMessage
     let isCurrentUser: Bool
     let onLongPress: () -> Void
-    let onEdit: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -725,15 +724,13 @@ private struct GroupMessageRow: View {
                 GroupMessageBubble(
                     message: message,
                     isCurrentUser: true,
-                    onLongPress: onLongPress,
-                    onEdit: onEdit
+                    onLongPress: onLongPress
                 )
             } else {
                 GroupMessageBubble(
                     message: message,
                     isCurrentUser: false,
-                    onLongPress: onLongPress,
-                    onEdit: nil
+                    onLongPress: onLongPress
                 )
                 Spacer()
             }
@@ -748,7 +745,6 @@ private struct GroupMessagesListView: View {
     let messages: [GroupMessage]
     let currentUserId: Int
     let onLongPress: (GroupMessage) -> Void
-    let onEdit: (GroupMessage) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -758,8 +754,7 @@ private struct GroupMessagesListView: View {
                         GroupMessageRow(
                             message: message,
                             isCurrentUser: message.senderId == currentUserId,
-                            onLongPress: { onLongPress(message) },
-                            onEdit: message.senderId == currentUserId ? { onEdit(message) } : nil
+                            onLongPress: { onLongPress(message) }
                         )
                     }
                     // Spacer to ensure last message is visible above input bar
@@ -861,10 +856,6 @@ struct GroupChatView: View {
                 onLongPress: { message in
                     selectedMessageForReaction = message
                     showReactionPicker = true
-                },
-                onEdit: { message in
-                    selectedMessageForEdit = message
-                    showEditMessageSheet = true
                 }
             )
 
@@ -959,6 +950,7 @@ struct GroupChatView: View {
             }
         }
         .overlay(
+            // Full-screen reaction picker overlay
             Group {
                 if showReactionPicker, let message = selectedMessageForReaction {
                     FullScreenReactionPicker(
@@ -972,6 +964,11 @@ struct GroupChatView: View {
                         onEdit: {
                             selectedMessageForEdit = message
                             showEditMessageSheet = true
+                            showReactionPicker = false
+                            selectedMessageForReaction = nil
+                        },
+                        onCopy: {
+                            UIPasteboard.general.string = message.text
                             showReactionPicker = false
                             selectedMessageForReaction = nil
                         },
@@ -1421,7 +1418,6 @@ struct GroupMessageBubble: View {
     let message: GroupMessage
     let isCurrentUser: Bool
     let onLongPress: () -> Void
-    let onEdit: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -1434,21 +1430,8 @@ struct GroupMessageBubble: View {
                             .background(Color.black)
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
-                            .textSelection(.enabled)
                             .onLongPressGesture {
                                 onLongPress()
-                            }
-                            .contextMenu {
-                                Button(action: {
-                                    UIPasteboard.general.string = message.text
-                                }) {
-                                    Label("Copy", systemImage: "doc.on.doc")
-                                }
-                                if let editAction = onEdit {
-                                    Button(action: editAction) {
-                                        Label("Edit", systemImage: "pencil")
-                                    }
-                                }
                             }
 
                         // Edit indicator
@@ -1501,16 +1484,8 @@ struct GroupMessageBubble: View {
                             .background(Color(UIColor.systemGray5))
                             .foregroundColor(.black)
                             .cornerRadius(8)
-                            .textSelection(.enabled)
                             .onLongPressGesture {
                                 onLongPress()
-                            }
-                            .contextMenu {
-                                Button(action: {
-                                    UIPasteboard.general.string = message.text
-                                }) {
-                                    Label("Copy", systemImage: "doc.on.doc")
-                                }
                             }
 
                         // Edit indicator
@@ -1580,6 +1555,7 @@ private struct FullScreenReactionPicker: View {
     let showEdit: Bool
     let onSelect: (String) -> Void
     let onEdit: () -> Void
+    let onCopy: () -> Void
     let onDismiss: () -> Void
 
     var body: some View {
@@ -1604,6 +1580,24 @@ private struct FullScreenReactionPicker: View {
                                 .frame(width: 40, height: 40)
                         }
                     }
+                }
+
+                // Copy button
+                Button(action: {
+                    onCopy()
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 14))
+                        Text("Copy")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(.primary)
+                    .frame(height: 36)
+                    .padding(.horizontal, 16)
+                    .background(Color.white)
+                    .cornerRadius(8)
+                    .shadow(radius: 2)
                 }
 
                 // Edit button (only for current user's messages)

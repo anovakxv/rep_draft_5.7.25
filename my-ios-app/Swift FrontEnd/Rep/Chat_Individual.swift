@@ -594,6 +594,13 @@ struct MessageView: View {
                                             onLongPress: {
                                                 selectedMessageForReaction = message
                                                 showReactionPicker = true
+                                            },
+                                            onEdit: {
+                                                selectedMessageForEdit = message
+                                                showEditSheet = true
+                                            },
+                                            onReaction: { emoji in
+                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                                             }
                                         )
                                     } else {
@@ -604,6 +611,10 @@ struct MessageView: View {
                                             onLongPress: {
                                                 selectedMessageForReaction = message
                                                 showReactionPicker = true
+                                            },
+                                            onEdit: nil,
+                                            onReaction: { emoji in
+                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                                             }
                                         )
                                         Spacer()
@@ -751,6 +762,10 @@ struct MessageBubble: View {
     let isCurrentUser: Bool
     let profilePicURL: URL?
     let onLongPress: () -> Void
+    let onEdit: (() -> Void)?
+    let onReaction: ((String) -> Void)?
+
+    private let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -771,10 +786,19 @@ struct MessageBubble: View {
                                 }) {
                                     Label("Copy", systemImage: "doc.on.doc")
                                 }
-                                Button(action: {
-                                    onLongPress()
-                                }) {
-                                    Label("Add Reaction", systemImage: "face.smiling")
+                                if let editAction = onEdit {
+                                    Button(action: editAction) {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                }
+                                if let reactionAction = onReaction {
+                                    ForEach(reactionEmojis, id: \.self) { emoji in
+                                        Button(action: {
+                                            reactionAction(emoji)
+                                        }) {
+                                            Text(emoji)
+                                        }
+                                    }
                                 }
                             }
 
@@ -839,10 +863,14 @@ struct MessageBubble: View {
                                 }) {
                                     Label("Copy", systemImage: "doc.on.doc")
                                 }
-                                Button(action: {
-                                    onLongPress()
-                                }) {
-                                    Label("Add Reaction", systemImage: "face.smiling")
+                                if let reactionAction = onReaction {
+                                    ForEach(reactionEmojis, id: \.self) { emoji in
+                                        Button(action: {
+                                            reactionAction(emoji)
+                                        }) {
+                                            Text(emoji)
+                                        }
+                                    }
                                 }
                             }
 

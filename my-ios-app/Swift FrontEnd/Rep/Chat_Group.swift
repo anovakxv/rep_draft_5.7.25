@@ -716,6 +716,8 @@ private struct GroupMessageRow: View {
     let message: GroupMessage
     let isCurrentUser: Bool
     let onLongPress: () -> Void
+    let onEdit: (() -> Void)?
+    let onReaction: ((String) -> Void)?
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -724,13 +726,17 @@ private struct GroupMessageRow: View {
                 GroupMessageBubble(
                     message: message,
                     isCurrentUser: true,
-                    onLongPress: onLongPress
+                    onLongPress: onLongPress,
+                    onEdit: onEdit,
+                    onReaction: onReaction
                 )
             } else {
                 GroupMessageBubble(
                     message: message,
                     isCurrentUser: false,
-                    onLongPress: onLongPress
+                    onLongPress: onLongPress,
+                    onEdit: nil,
+                    onReaction: onReaction
                 )
                 Spacer()
             }
@@ -745,6 +751,8 @@ private struct GroupMessagesListView: View {
     let messages: [GroupMessage]
     let currentUserId: Int
     let onLongPress: (GroupMessage) -> Void
+    let onEdit: (GroupMessage) -> Void
+    let onReaction: (GroupMessage, String) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -754,7 +762,9 @@ private struct GroupMessagesListView: View {
                         GroupMessageRow(
                             message: message,
                             isCurrentUser: message.senderId == currentUserId,
-                            onLongPress: { onLongPress(message) }
+                            onLongPress: { onLongPress(message) },
+                            onEdit: message.senderId == currentUserId ? { onEdit(message) } : nil,
+                            onReaction: { emoji in onReaction(message, emoji) }
                         )
                     }
                     // Spacer to ensure last message is visible above input bar
@@ -856,6 +866,13 @@ struct GroupChatView: View {
                 onLongPress: { message in
                     selectedMessageForReaction = message
                     showReactionPicker = true
+                },
+                onEdit: { message in
+                    selectedMessageForEdit = message
+                    showEditMessageSheet = true
+                },
+                onReaction: { message, emoji in
+                    viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                 }
             )
 
@@ -1412,6 +1429,10 @@ struct GroupMessageBubble: View {
     let message: GroupMessage
     let isCurrentUser: Bool
     let onLongPress: () -> Void
+    let onEdit: (() -> Void)?
+    let onReaction: ((String) -> Void)?
+
+    private let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -1431,10 +1452,19 @@ struct GroupMessageBubble: View {
                                 }) {
                                     Label("Copy", systemImage: "doc.on.doc")
                                 }
-                                Button(action: {
-                                    onLongPress()
-                                }) {
-                                    Label("Add Reaction", systemImage: "face.smiling")
+                                if let editAction = onEdit {
+                                    Button(action: editAction) {
+                                        Label("Edit", systemImage: "pencil")
+                                    }
+                                }
+                                if let reactionAction = onReaction {
+                                    ForEach(reactionEmojis, id: \.self) { emoji in
+                                        Button(action: {
+                                            reactionAction(emoji)
+                                        }) {
+                                            Text(emoji)
+                                        }
+                                    }
                                 }
                             }
 
@@ -1495,10 +1525,14 @@ struct GroupMessageBubble: View {
                                 }) {
                                     Label("Copy", systemImage: "doc.on.doc")
                                 }
-                                Button(action: {
-                                    onLongPress()
-                                }) {
-                                    Label("Add Reaction", systemImage: "face.smiling")
+                                if let reactionAction = onReaction {
+                                    ForEach(reactionEmojis, id: \.self) { emoji in
+                                        Button(action: {
+                                            reactionAction(emoji)
+                                        }) {
+                                            Text(emoji)
+                                        }
+                                    }
                                 }
                             }
 

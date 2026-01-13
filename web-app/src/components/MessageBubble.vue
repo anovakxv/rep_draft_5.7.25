@@ -482,8 +482,14 @@ function handleRightClick(event: MouseEvent) {
 
 /* Ensure links inside messages have proper styling */
 :deep(a) {
+  color: #2563eb !important; /* blue-600 */
+  text-decoration: underline;
   transition: color 0.15s ease;
   font-weight: 500;
+}
+
+:deep(a:hover) {
+  color: #1e40af !important; /* blue-800 */
 }
 
 /* Slide up animation for context menu */

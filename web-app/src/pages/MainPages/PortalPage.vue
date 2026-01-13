@@ -33,7 +33,7 @@
         <div class="flex flex-col flex-1 min-h-0 xl:w-[30%]">
 
         <!-- 2. Main Scrollable Content -->
-        <div class="flex-1 overflow-y-auto pb-20 xl:pb-0" style="overscroll-behavior-y: contain;">
+        <div class="flex-1 overflow-y-auto overflow-x-hidden pb-20 xl:pb-0" style="overscroll-behavior-y: contain;">
           <div class="relative">
             <!-- MOBILE ONLY: Image Gallery -->
             <div class="xl:hidden">
@@ -58,6 +58,8 @@
               <PortalResultsSection
                 v-if="selectedSection === 0"
                 :goals="portalGoals"
+                :supporters-goal="supportersGoal"
+                @join-supporters="handleJoinSupporters"
               />
               <PortalStorySection
                 v-else-if="selectedSection === 1"
@@ -362,6 +364,14 @@ const attendeesGoal = computed(() => {
   );
 });
 
+// Find "Supporters" goal for Join Supporters button
+const supportersGoal = computed(() => {
+  return portalGoals.value.find(g =>
+    g.typeName === 'Recruiting' &&
+    (g.title?.toLowerCase() === 'supporters' || g.title?.toLowerCase().includes('supporter'))
+  );
+});
+
 // --- API Methods (from ViewModel) ---
 const fetchPortalDetail = async () => {
   isLoading.value = true;
@@ -478,6 +488,34 @@ const handleRSVP = async () => {
       goalId: attendeesGoal.value.id,
       goalTitle: attendeesGoal.value.title,
       isEventRegistration: true  // Flag to streamline onboarding
+    }));
+    router.push({
+      path: '/register',
+      query: { returnTo: `/portal/${portalId}` }
+    });
+  }
+};
+
+// Join Supporters button handler
+const handleJoinSupporters = async () => {
+  if (!supportersGoal.value) return;
+
+  if (isAuthenticated()) {
+    // User is logged in - join immediately
+    try {
+      await joinGoalTeam(supportersGoal.value.id);
+      alert('✓ You\'ve joined the Supporters team!');
+    } catch (err) {
+      console.error('Join Supporters failed:', err);
+      alert('Failed to join. Please try again.');
+    }
+  } else {
+    // User not logged in - store join intent and redirect to registration
+    localStorage.setItem('rsvpIntent', JSON.stringify({
+      portalId: portalId,
+      goalId: supportersGoal.value.id,
+      goalTitle: supportersGoal.value.title,
+      isEventRegistration: true  // Use streamlined onboarding
     }));
     router.push({
       path: '/register',
@@ -816,8 +854,12 @@ const PortalSegmentedPicker = defineComponent({
 });
 
 const PortalResultsSection = defineComponent({
-  props: { goals: Array as () => Goal[] },
-  setup(props) {
+  props: {
+    goals: Array as () => Goal[],
+    supportersGoal: Object as () => Goal | null
+  },
+  emits: ['join-supporters'],
+  setup(props, { emit }) {
     const GoalListItem = (goal: Goal) => {
       // Compute tag text (matching iOS logic)
       const tagText = goal.typeName.toLowerCase() === 'other'
@@ -881,11 +923,24 @@ const PortalResultsSection = defineComponent({
               to: `/goal/${goal.id}`,
               class: 'block'
             }, () => GoalListItem(goal)),
-            h('div', { 
+            h('div', {
               key: `divider-${index}`,
-              class: 'border-b border-gray-200' 
-            })
-          ]).flat()
+              class: 'border-b border-gray-200'
+            }),
+            // Add "Join Supporters" button below the Supporters goal
+            props.supportersGoal && goal.id === props.supportersGoal.id
+              ? h('div', {
+                  key: `supporters-btn-${index}`,
+                  class: 'px-4 py-4'
+                }, [
+                  h('button', {
+                    class: 'w-full h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl shadow-lg transition-transform hover:scale-105 active:scale-95',
+                    style: 'background-color: #8cc65d; color: white;',
+                    onClick: () => emit('join-supporters')
+                  }, 'Join Supporters')
+                ])
+              : null
+          ]).flat().filter(Boolean)
         : h('p', { class: 'text-gray-500 py-8 text-center' }, 'No goals for this portal yet.')
     ]);
   }

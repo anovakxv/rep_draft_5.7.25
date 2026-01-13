@@ -1406,34 +1406,6 @@ struct NTWKUserPicker: View {
     }
 }
 
-// MARK: - Link Detection Helper
-
-extension String {
-    func detectingLinks() -> AttributedString {
-        var attributedString = AttributedString(self)
-
-        // Detect URLs using NSDataDetector
-        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
-            return attributedString
-        }
-
-        let matches = detector.matches(in: self, options: [], range: NSRange(location: 0, length: self.utf16.count))
-
-        for match in matches.reversed() {
-            guard let range = Range(match.range, in: self),
-                  let url = match.url else { continue }
-
-            let nsRange = NSRange(range, in: self)
-            if let attributedRange = Range<AttributedString.Index>(nsRange, in: attributedString) {
-                attributedString[attributedRange].link = url
-                attributedString[attributedRange].underlineStyle = .single
-            }
-        }
-
-        return attributedString
-    }
-}
-
 // MARK: - Group Message Bubble
 
 struct GroupMessageBubble: View {

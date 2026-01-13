@@ -716,6 +716,34 @@ struct MessageView: View {
     }
 }
 
+// MARK: - Link Detection Helper
+
+extension String {
+    func detectingLinks() -> AttributedString {
+        var attributedString = AttributedString(self)
+
+        // Detect URLs using NSDataDetector
+        guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else {
+            return attributedString
+        }
+
+        let matches = detector.matches(in: self, options: [], range: NSRange(location: 0, length: self.utf16.count))
+
+        for match in matches.reversed() {
+            guard let range = Range(match.range, in: self),
+                  let url = match.url else { continue }
+
+            let nsRange = NSRange(range, in: self)
+            if let attributedRange = Range<AttributedString.Index>(nsRange, in: attributedString) {
+                attributedString[attributedRange].link = url
+                attributedString[attributedRange].underlineStyle = .single
+            }
+        }
+
+        return attributedString
+    }
+}
+
 // MARK: - Message Bubble
 
 struct MessageBubble: View {
@@ -731,13 +759,23 @@ struct MessageBubble: View {
                 VStack(alignment: .trailing, spacing: 4) {
                     // Message bubble
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(message.text)
+                        Text(message.text.detectingLinks())
                             .padding(10)
                             .background(Color.black)
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
-                            .onLongPressGesture {
-                                onLongPress()
+                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button(action: {
+                                    UIPasteboard.general.string = message.text
+                                }) {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
+                                Button(action: {
+                                    onLongPress()
+                                }) {
+                                    Label("Add Reaction", systemImage: "face.smiling")
+                                }
                             }
 
                         // Edit indicator
@@ -789,13 +827,23 @@ struct MessageBubble: View {
                 VStack(alignment: .leading, spacing: 4) {
                     // Message bubble
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(message.text)
+                        Text(message.text.detectingLinks())
                             .padding(10)
                             .background(Color(UIColor.systemGray5))
                             .foregroundColor(.black)
                             .cornerRadius(8)
-                            .onLongPressGesture {
-                                onLongPress()
+                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button(action: {
+                                    UIPasteboard.general.string = message.text
+                                }) {
+                                    Label("Copy", systemImage: "doc.on.doc")
+                                }
+                                Button(action: {
+                                    onLongPress()
+                                }) {
+                                    Label("Add Reaction", systemImage: "face.smiling")
+                                }
                             }
 
                         // Edit indicator

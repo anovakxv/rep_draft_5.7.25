@@ -354,7 +354,7 @@ const formattedText = computed(() => {
   // Replace URLs with clickable links
   return escapedText.replace(urlRegex, (match) => {
     const href = match.startsWith('www.') ? `https://${match}` : match
-    const linkClass = props.isCurrentUser ? 'text-white underline hover:text-gray-200' : 'text-blue-600 underline hover:text-blue-800'
+    const linkClass = 'text-blue-600 underline hover:text-blue-800'
     return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${match}</a>`
   })
 })

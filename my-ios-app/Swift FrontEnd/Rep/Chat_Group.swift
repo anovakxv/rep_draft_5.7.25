@@ -717,7 +717,6 @@ private struct GroupMessageRow: View {
     let isCurrentUser: Bool
     let onLongPress: () -> Void
     let onEdit: (() -> Void)?
-    let onReaction: ((String) -> Void)?
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -727,16 +726,14 @@ private struct GroupMessageRow: View {
                     message: message,
                     isCurrentUser: true,
                     onLongPress: onLongPress,
-                    onEdit: onEdit,
-                    onReaction: onReaction
+                    onEdit: onEdit
                 )
             } else {
                 GroupMessageBubble(
                     message: message,
                     isCurrentUser: false,
                     onLongPress: onLongPress,
-                    onEdit: nil,
-                    onReaction: onReaction
+                    onEdit: nil
                 )
                 Spacer()
             }
@@ -752,7 +749,6 @@ private struct GroupMessagesListView: View {
     let currentUserId: Int
     let onLongPress: (GroupMessage) -> Void
     let onEdit: (GroupMessage) -> Void
-    let onReaction: (GroupMessage, String) -> Void
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -763,8 +759,7 @@ private struct GroupMessagesListView: View {
                             message: message,
                             isCurrentUser: message.senderId == currentUserId,
                             onLongPress: { onLongPress(message) },
-                            onEdit: message.senderId == currentUserId ? { onEdit(message) } : nil,
-                            onReaction: { emoji in onReaction(message, emoji) }
+                            onEdit: message.senderId == currentUserId ? { onEdit(message) } : nil
                         )
                     }
                     // Spacer to ensure last message is visible above input bar
@@ -870,9 +865,6 @@ struct GroupChatView: View {
                 onEdit: { message in
                     selectedMessageForEdit = message
                     showEditMessageSheet = true
-                },
-                onReaction: { message, emoji in
-                    viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                 }
             )
 
@@ -1430,9 +1422,6 @@ struct GroupMessageBubble: View {
     let isCurrentUser: Bool
     let onLongPress: () -> Void
     let onEdit: (() -> Void)?
-    let onReaction: ((String) -> Void)?
-
-    private let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -1446,6 +1435,9 @@ struct GroupMessageBubble: View {
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
                             .textSelection(.enabled)
+                            .onLongPressGesture {
+                                onLongPress()
+                            }
                             .contextMenu {
                                 Button(action: {
                                     UIPasteboard.general.string = message.text
@@ -1455,15 +1447,6 @@ struct GroupMessageBubble: View {
                                 if let editAction = onEdit {
                                     Button(action: editAction) {
                                         Label("Edit", systemImage: "pencil")
-                                    }
-                                }
-                                if let reactionAction = onReaction {
-                                    ForEach(reactionEmojis, id: \.self) { emoji in
-                                        Button(action: {
-                                            reactionAction(emoji)
-                                        }) {
-                                            Text(emoji)
-                                        }
                                     }
                                 }
                             }
@@ -1519,20 +1502,14 @@ struct GroupMessageBubble: View {
                             .foregroundColor(.black)
                             .cornerRadius(8)
                             .textSelection(.enabled)
+                            .onLongPressGesture {
+                                onLongPress()
+                            }
                             .contextMenu {
                                 Button(action: {
                                     UIPasteboard.general.string = message.text
                                 }) {
                                     Label("Copy", systemImage: "doc.on.doc")
-                                }
-                                if let reactionAction = onReaction {
-                                    ForEach(reactionEmojis, id: \.self) { emoji in
-                                        Button(action: {
-                                            reactionAction(emoji)
-                                        }) {
-                                            Text(emoji)
-                                        }
-                                    }
                                 }
                             }
 

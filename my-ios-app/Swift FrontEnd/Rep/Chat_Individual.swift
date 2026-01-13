@@ -598,9 +598,6 @@ struct MessageView: View {
                                             onEdit: {
                                                 selectedMessageForEdit = message
                                                 showEditSheet = true
-                                            },
-                                            onReaction: { emoji in
-                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
                                             }
                                         )
                                     } else {
@@ -612,10 +609,7 @@ struct MessageView: View {
                                                 selectedMessageForReaction = message
                                                 showReactionPicker = true
                                             },
-                                            onEdit: nil,
-                                            onReaction: { emoji in
-                                                viewModel.toggleReaction(messageId: message.id, emoji: emoji)
-                                            }
+                                            onEdit: nil
                                         )
                                         Spacer()
                                     }
@@ -763,9 +757,6 @@ struct MessageBubble: View {
     let profilePicURL: URL?
     let onLongPress: () -> Void
     let onEdit: (() -> Void)?
-    let onReaction: ((String) -> Void)?
-
-    private let reactionEmojis = ["👍", "❤️", "😂", "😮", "👎", "🙏", "🎉"]
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -780,6 +771,9 @@ struct MessageBubble: View {
                             .foregroundColor(Color.repGreen)
                             .cornerRadius(8)
                             .textSelection(.enabled)
+                            .onLongPressGesture {
+                                onLongPress()
+                            }
                             .contextMenu {
                                 Button(action: {
                                     UIPasteboard.general.string = message.text
@@ -789,15 +783,6 @@ struct MessageBubble: View {
                                 if let editAction = onEdit {
                                     Button(action: editAction) {
                                         Label("Edit", systemImage: "pencil")
-                                    }
-                                }
-                                if let reactionAction = onReaction {
-                                    ForEach(reactionEmojis, id: \.self) { emoji in
-                                        Button(action: {
-                                            reactionAction(emoji)
-                                        }) {
-                                            Text(emoji)
-                                        }
                                     }
                                 }
                             }
@@ -857,20 +842,14 @@ struct MessageBubble: View {
                             .foregroundColor(.black)
                             .cornerRadius(8)
                             .textSelection(.enabled)
+                            .onLongPressGesture {
+                                onLongPress()
+                            }
                             .contextMenu {
                                 Button(action: {
                                     UIPasteboard.general.string = message.text
                                 }) {
                                     Label("Copy", systemImage: "doc.on.doc")
-                                }
-                                if let reactionAction = onReaction {
-                                    ForEach(reactionEmojis, id: \.self) { emoji in
-                                        Button(action: {
-                                            reactionAction(emoji)
-                                        }) {
-                                            Text(emoji)
-                                        }
-                                    }
                                 }
                             }
 

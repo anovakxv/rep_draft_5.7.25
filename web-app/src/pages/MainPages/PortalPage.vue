@@ -931,7 +931,7 @@ const PortalResultsSection = defineComponent({
             props.supportersGoal && goal.id === props.supportersGoal.id
               ? h('div', {
                   key: `supporters-btn-${index}`,
-                  class: 'px-4 py-4'
+                  class: 'pt-2 pb-4'
                 }, [
                   h('button', {
                     class: 'w-full h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl shadow-lg transition-transform hover:scale-105 active:scale-95',

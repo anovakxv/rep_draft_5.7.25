@@ -68,6 +68,7 @@
               :city="user.city"
               :skills="user.skills ? user.skills.map(s => s.title) : []"
               :display-name="user.displayName"
+              :user-id="user.id"
             />
 
             <!-- Broadcast Message -->
@@ -114,6 +115,7 @@
                   :city="user.city"
                   :skills="user.skills ? user.skills.map(s => s.title) : []"
                   :display-name="user.displayName"
+                  :user-id="user.id"
                 />
 
                 <!-- Broadcast Message -->
@@ -310,9 +312,12 @@ const ProfileInfoView = defineComponent({
     photoUrl: String,
     city: String,
     skills: Array,
-    displayName: String
+    displayName: String,
+    userId: Number
   },
   setup(props) {
+    const router = useRouter()
+
     const getInitials = (name: string): string => {
       const parts = name.trim().split(' ');
       if (parts.length >= 2) {
@@ -321,27 +326,39 @@ const ProfileInfoView = defineComponent({
       return name.substring(0, 2).toUpperCase();
     };
 
+    const goToPhotos = () => {
+      if (props.userId) {
+        router.push(`/profile/${props.userId}/photos`)
+      }
+    }
+
     return () => h('div', { class: 'p-4 flex items-start space-x-4' }, [
-      props.photoUrl
-        ? h('img', {
-            src: props.photoUrl,
-            class: 'w-28 h-28 rounded-full object-cover',
-            alt: 'Profile Picture',
-            onError: (e: Event) => {
-              const target = e.target as HTMLImageElement;
-              const parent = target.parentElement;
-              if (parent) {
-                target.remove();
-                const initialsDiv = document.createElement('div');
-                initialsDiv.className = 'w-28 h-28 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-3xl';
-                initialsDiv.textContent = getInitials(props.displayName || 'User');
-                parent.prepend(initialsDiv);
+      // Clickable profile picture container
+      h('div', {
+        class: 'cursor-pointer hover:opacity-90 transition-opacity',
+        onClick: goToPhotos
+      }, [
+        props.photoUrl
+          ? h('img', {
+              src: props.photoUrl,
+              class: 'w-28 h-28 rounded-full object-cover',
+              alt: 'Profile Picture',
+              onError: (e: Event) => {
+                const target = e.target as HTMLImageElement;
+                const parent = target.parentElement;
+                if (parent) {
+                  target.remove();
+                  const initialsDiv = document.createElement('div');
+                  initialsDiv.className = 'w-28 h-28 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-3xl';
+                  initialsDiv.textContent = getInitials(props.displayName || 'User');
+                  parent.prepend(initialsDiv);
+                }
               }
-            }
-          })
-        : h('div', {
-            class: 'w-28 h-28 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-3xl'
-          }, getInitials(props.displayName || 'User')),
+            })
+          : h('div', {
+              class: 'w-28 h-28 rounded-full bg-gray-400 flex items-center justify-center text-white font-bold text-3xl'
+            }, getInitials(props.displayName || 'User'))
+      ]),
       h('div', { class: 'pt-2' }, [
         props.city && h('p', { class: 'font-bold text-lg' }, props.city),
         props.skills && props.skills.length > 0 && h('div', { class: 'mt-1' },

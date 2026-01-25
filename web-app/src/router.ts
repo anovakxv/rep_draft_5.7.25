@@ -10,6 +10,7 @@ import EditPortal from './pages/MainPages/Edit_Portal.vue'
 import PortalPaymentSetup from './pages/MainPages/PortalPaymentSetup.vue'
 import ProfileView from './pages/RepProfile/ProfileView.vue'
 import EditProfile from './pages/RepProfile/EditProfile.vue'
+import UserPhotos from './pages/RepProfile/UserPhotos.vue'
 import WriteView from './pages/RepProfile/WriteView.vue'
 import Terms from './pages/RepProfile/Terms.vue'
 // Lazy imports for pages with Tailwind issues (Settings, ResetPassword, NewPassword)
@@ -43,6 +44,7 @@ const routes = [
   { path: '/portal/:id/payment-setup', component: PortalPaymentSetup, meta: { requiresAuth: true } },
   { path: '/goal/edit/:id', component: EditGoal, meta: { requiresAuth: true } },
   { path: '/profile/:id', component: ProfileView, meta: { requiresAuth: true } },
+  { path: '/profile/:id/photos', component: UserPhotos, meta: { requiresAuth: true } },
   { path: '/profile/edit', component: EditProfile, meta: { requiresAuth: true } },
   {
     path: '/profile',

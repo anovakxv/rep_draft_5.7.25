@@ -915,19 +915,23 @@ const PortalResultsSection = defineComponent({
       ]);
     };
     
+    // Sort goals to put Supporters goal first
+    const sortedGoals = computed(() => {
+      if (!props.goals || props.goals.length === 0) return [];
+      if (!props.supportersGoal) return props.goals;
+
+      // Separate Supporters goal and other goals
+      const supportersGoal = props.goals.find(g => g.id === props.supportersGoal!.id);
+      const otherGoals = props.goals.filter(g => g.id !== props.supportersGoal!.id);
+
+      // Put Supporters goal first
+      return supportersGoal ? [supportersGoal, ...otherGoals] : props.goals;
+    });
+
     return () => h('div', { class: 'space-y-2' }, [
       (props.goals?.length || 0) > 0
-        ? props.goals!.map((goal, index) => [
-            h(RouterLink, {
-              key: `link-${index}`,
-              to: `/goal/${goal.id}`,
-              class: 'block'
-            }, () => GoalListItem(goal)),
-            h('div', {
-              key: `divider-${index}`,
-              class: 'border-b border-gray-200'
-            }),
-            // Add "Join Supporters" button below the Supporters goal
+        ? sortedGoals.value.map((goal, index) => [
+            // Add "Join Supporters" button ABOVE the Supporters goal
             props.supportersGoal && goal.id === props.supportersGoal.id
               ? h('div', {
                   key: `supporters-btn-${index}`,
@@ -939,7 +943,16 @@ const PortalResultsSection = defineComponent({
                     onClick: () => emit('join-supporters')
                   }, 'Join Supporters')
                 ])
-              : null
+              : null,
+            h(RouterLink, {
+              key: `link-${index}`,
+              to: `/goal/${goal.id}`,
+              class: 'block'
+            }, () => GoalListItem(goal)),
+            h('div', {
+              key: `divider-${index}`,
+              class: 'border-b border-gray-200'
+            })
           ]).flat().filter(Boolean)
         : h('p', { class: 'text-gray-500 py-8 text-center' }, 'No goals for this portal yet.')
     ]);

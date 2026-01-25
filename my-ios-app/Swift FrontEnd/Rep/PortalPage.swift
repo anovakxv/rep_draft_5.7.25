@@ -191,6 +191,11 @@ struct PortalPage: View {
     @State private var showRSVPResultAlert = false
     @State private var attendeesGoal: Goal? = nil
 
+    // Join Supporters state
+    @State private var joinSupportersResultMessage: String? = nil
+    @State private var showJoinSupportersResultAlert = false
+    @State private var supportersGoal: Goal? = nil
+
     // Enum for all possible sheets (EditGoal, PortalActionSheet, GoalPicker)
     enum ActiveSheet: Identifiable {
         case addGoal
@@ -244,6 +249,13 @@ struct PortalPage: View {
         return goals.first {
             $0.typeName == "Recruiting" &&
             ($0.title.lowercased() == "attendees" || $0.title.lowercased().contains("attendee"))
+        }
+    }
+
+    private func findSupportersGoal(from goals: [Goal]) -> Goal? {
+        return goals.first {
+            $0.typeName == "Recruiting" &&
+            ($0.title.lowercased() == "supporters" || $0.title.lowercased().contains("supporter"))
         }
     }
 
@@ -301,6 +313,21 @@ struct PortalPage: View {
             } else {
                 rsvpResultMessage = errorMessage ?? "Failed to register. Please try again."
                 showRSVPResultAlert = true
+            }
+        }
+    }
+
+    // Join Supporters handler
+    private func handleJoinSupporters() {
+        guard let goal = supportersGoal else { return }
+
+        joinGoalTeam(goalId: goal.id) { success, errorMessage in
+            if success {
+                joinSupportersResultMessage = "✓ You've joined the Supporters team!"
+                showJoinSupportersResultAlert = true
+            } else {
+                joinSupportersResultMessage = errorMessage ?? "Failed to join. Please try again."
+                showJoinSupportersResultAlert = true
             }
         }
     }
@@ -445,6 +472,7 @@ struct PortalPage: View {
                 leadRepUser: { leadRepUser(from: portal) },
                 isCurrentUserLead: isCurrentUserLead(portal),
                 attendeesGoal: attendeesGoal,
+                supportersGoal: supportersGoal,
                 onAdd: { activeSheet = .portalActionMenu },
                 onMessage: {
                     if let lead = leadRepUser(from: portal) {
@@ -454,7 +482,8 @@ struct PortalPage: View {
                         print("No lead user found for portal!")
                     }
                 },
-                onRSVP: handleRSVP
+                onRSVP: handleRSVP,
+                onJoinSupporters: handleJoinSupporters
             )
             .onAppear {
                 viewModel.fetchPortalGoals(portalId: portalId)
@@ -470,6 +499,7 @@ struct PortalPage: View {
             .onChange(of: viewModel.portalGoals) { newGoals in
                 supportGoal = findSupportableGoal(from: newGoals)
                 attendeesGoal = findAttendeesGoal(from: newGoals)
+                supportersGoal = findSupportersGoal(from: newGoals)
             }
             .onDisappear {
                 // Remove NotificationCenter observer
@@ -543,6 +573,9 @@ struct PortalPage: View {
                 }
                 .alert(rsvpResultMessage ?? "", isPresented: $showRSVPResultAlert) {
                     Button("OK", role: .cancel) { rsvpResultMessage = nil }
+                }
+                .alert(joinSupportersResultMessage ?? "", isPresented: $showJoinSupportersResultAlert) {
+                    Button("OK", role: .cancel) { joinSupportersResultMessage = nil }
                 }
         }
     }
@@ -738,9 +771,11 @@ struct PortalPageContent: View {
     let leadRepUser: () -> User?
     let isCurrentUserLead: Bool
     let attendeesGoal: Goal?
+    let supportersGoal: Goal?
     let onAdd: () -> Void
     let onMessage: () -> Void
     let onRSVP: () -> Void
+    let onJoinSupporters: () -> Void
 
     @State private var showFullscreen = false
     @State private var fullscreenIndex = 0
@@ -820,7 +855,9 @@ struct PortalPageContent: View {
                         PortalSectionContent(
                             viewModel: viewModel,
                             portal: portal,
-                            section: viewModel.section
+                            section: viewModel.section,
+                            supportersGoal: supportersGoal,
+                            onJoinSupporters: onJoinSupporters
                         )
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -1046,12 +1083,18 @@ struct PortalSectionContent: View {
     @ObservedObject var viewModel: PortalViewModel
     let portal: PortalDetail
     let section: Int
+    let supportersGoal: Goal?
+    let onJoinSupporters: () -> Void
 
     var body: some View {
         Group {
             if section == 0 {
                 // "Goal Teams" tab
-                PortalResultsSection(goals: viewModel.portalGoals)
+                PortalResultsSection(
+                    goals: viewModel.portalGoals,
+                    supportersGoal: supportersGoal,
+                    onJoinSupporters: onJoinSupporters
+                )
             } else if section == 1 {
                 // "Story" tab
                 PortalStorySection(portal: portal)
@@ -1187,10 +1230,38 @@ struct PortalStorySection: View {
 
 struct PortalResultsSection: View {
     let goals: [Goal]
-    
+    let supportersGoal: Goal?
+    let onJoinSupporters: () -> Void
+
+    // Sort goals to put Supporters first
+    private var sortedGoals: [Goal] {
+        guard let supportersGoal = supportersGoal else { return goals }
+
+        let supporters = goals.filter { $0.id == supportersGoal.id }
+        let others = goals.filter { $0.id != supportersGoal.id }
+
+        return supporters + others
+    }
+
     var body: some View {
-        ForEach(goals) { goal in
-            VStack {
+        ForEach(sortedGoals) { goal in
+            VStack(spacing: 0) {
+                // Show Join Supporters button above Supporters goal
+                if let supportersGoal = supportersGoal, goal.id == supportersGoal.id {
+                    Button(action: onJoinSupporters) {
+                        Text("Join Supporters")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                            .cornerRadius(6)
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    }
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                }
+
                 NavigationLink(destination: GoalsDetailView(initialGoal: goal)) {
                     GoalListItem(goal: goal)
                 }

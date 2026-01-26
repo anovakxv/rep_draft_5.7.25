@@ -855,9 +855,7 @@ struct PortalPageContent: View {
                         PortalSectionContent(
                             viewModel: viewModel,
                             portal: portal,
-                            section: viewModel.section,
-                            supportersGoal: supportersGoal,
-                            onJoinSupporters: onJoinSupporters
+                            section: viewModel.section
                         )
                         .padding(.horizontal)
                         .padding(.top, 8)
@@ -871,21 +869,37 @@ struct PortalPageContent: View {
             )
         }
         .overlay(alignment: .bottom) {
-            // Floating Register Button (only show if Attendees goal exists)
-            if attendeesGoal != nil {
-                Button(action: onRSVP) {
-                    Text("Register for Event")
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                        .cornerRadius(6)
-                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+            VStack(spacing: 8) {
+                // Floating Join Supporters Button (only show if Supporters goal exists and no Attendees goal)
+                if supportersGoal != nil && attendeesGoal == nil {
+                    Button(action: onJoinSupporters) {
+                        Text("Join Supporters")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                            .cornerRadius(6)
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    }
                 }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 64)
+
+                // Floating Register Button (only show if Attendees goal exists)
+                if attendeesGoal != nil {
+                    Button(action: onRSVP) {
+                        Text("Register for Event")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                            .cornerRadius(6)
+                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    }
+                }
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 64)
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
@@ -1083,18 +1097,12 @@ struct PortalSectionContent: View {
     @ObservedObject var viewModel: PortalViewModel
     let portal: PortalDetail
     let section: Int
-    let supportersGoal: Goal?
-    let onJoinSupporters: () -> Void
 
     var body: some View {
         Group {
             if section == 0 {
                 // "Goal Teams" tab
-                PortalResultsSection(
-                    goals: viewModel.portalGoals,
-                    supportersGoal: supportersGoal,
-                    onJoinSupporters: onJoinSupporters
-                )
+                PortalResultsSection(goals: viewModel.portalGoals)
             } else if section == 1 {
                 // "Story" tab
                 PortalStorySection(portal: portal)
@@ -1230,39 +1238,10 @@ struct PortalStorySection: View {
 
 struct PortalResultsSection: View {
     let goals: [Goal]
-    let supportersGoal: Goal?
-    let onJoinSupporters: () -> Void
-
-    // Sort goals to put Supporters first
-    private var sortedGoals: [Goal] {
-        guard let supportersGoal = supportersGoal else { return goals }
-
-        let supporters = goals.filter { $0.id == supportersGoal.id }
-        let others = goals.filter { $0.id != supportersGoal.id }
-
-        return supporters + others
-    }
 
     var body: some View {
-        ForEach(sortedGoals) { goal in
-            VStack(spacing: 0) {
-                // Show Join Supporters button above Supporters goal
-                if let supportersGoal = supportersGoal, goal.id == supportersGoal.id {
-                    Button(action: onJoinSupporters) {
-                        Text("Join Supporters")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                            .cornerRadius(6)
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
-                    .padding(.top, 8)
-                    .padding(.bottom, 8)
-                }
-
+        ForEach(goals) { goal in
+            VStack {
                 NavigationLink(destination: GoalsDetailView(initialGoal: goal)) {
                     GoalListItem(goal: goal)
                 }

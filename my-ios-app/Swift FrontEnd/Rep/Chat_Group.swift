@@ -1405,7 +1405,8 @@ struct NTWKUserPicker: View {
                 } else if let data = data,
                           let decoded = try? JSONDecoder().decode([String: [User]].self, from: data),
                           let usersArr = decoded["result"] {
-                    users = usersArr
+                    // Sort users alphabetically by full name
+                    users = usersArr.sorted { ($0.fullName ?? "").localizedCaseInsensitiveCompare($1.fullName ?? "") == .orderedAscending }
                 }
             }
         }.resume()

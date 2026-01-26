@@ -177,12 +177,12 @@ async function loadNetworkMembers() {
 
     const rawUsers = res.data.result || []
 
-    // Map users and patch profile picture URLs
+    // Map users and patch profile picture URLs, then sort alphabetically
     users.value = rawUsers.map((user: any) => ({
       ...user,
       full_name: user.full_name || (user.fname && user.lname ? `${user.fname} ${user.lname}` : user.fname || user.lname || 'User'),
       profile_picture_url: patchProfilePictureURL(user)
-    }))
+    })).sort((a: any, b: any) => (a.full_name || '').localeCompare(b.full_name || '', undefined, { sensitivity: 'base' }))
   } catch (err: any) {
     console.error('Failed to load network members:', err)
     errorMessage.value = err.response?.data?.error || err.message || 'Failed to load network members'

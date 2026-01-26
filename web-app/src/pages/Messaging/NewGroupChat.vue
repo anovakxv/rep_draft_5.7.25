@@ -251,7 +251,13 @@ async function fetchNetworkMembers() {
 
   try {
     const res = await api.get('/api/user/members_of_my_network');
-    networkMembers.value = res.data.result || [];
+    // Sort users alphabetically by full name
+    const users = res.data.result || [];
+    networkMembers.value = users.sort((a: any, b: any) => {
+      const nameA = a.full_name || `${a.fname || ''} ${a.lname || ''}`.trim() || '';
+      const nameB = b.full_name || `${b.fname || ''} ${b.lname || ''}`.trim() || '';
+      return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+    });
   } catch (err: any) {
     console.error('Failed to fetch network members:', err);
     errorMessage.value = 'Failed to load your network. Please try again.';

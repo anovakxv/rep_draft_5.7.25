@@ -1254,7 +1254,8 @@ struct InviteTeamSheet: View {
                 
                 do {
                     let response = try JSONDecoder().decode(UsersAPIResponse.self, from: data)
-                    self.users = response.result
+                    // Sort users alphabetically by full name
+                    self.users = response.result.sorted { ($0.fullName ?? "").localizedCaseInsensitiveCompare($1.fullName ?? "") == .orderedAscending }
                 } catch {
                     errorMessage = "Failed to decode response: \(error.localizedDescription)"
                 }

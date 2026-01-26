@@ -1497,7 +1497,7 @@ struct BottomBarView: View {
         HStack(spacing: 30) {
             Button(action: onAdd) {
                 Image(systemName: "ellipsis")
-                    .font(.system(size: 20))
+                    .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 291, height: 41)
                     .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))

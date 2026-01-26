@@ -1098,7 +1098,7 @@ struct BottomGoalBar: View {
     var body: some View {
         HStack(spacing: 30) {
             Button(action: onAdd) {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
                     .font(.system(size: 20))
                     .foregroundColor(.white)
                     .frame(width: showMessageButton ? 291 : 355, height: 41)  // Full width if message button hidden

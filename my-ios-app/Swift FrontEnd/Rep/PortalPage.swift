@@ -921,7 +921,7 @@ struct PortalPageContent: View {
                         Label("Share", systemImage: "square.and.arrow.up")
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
                 }
             }
         }

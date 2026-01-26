@@ -799,7 +799,7 @@ struct ProfileView: View {
                             }
                         }
                     } label: {
-                        Image(systemName: "ellipsis.circle")
+                        Image(systemName: "ellipsis")
                     }
                 }
             }
@@ -1496,7 +1496,7 @@ struct BottomBarView: View {
     var body: some View {
         HStack(spacing: 30) {
             Button(action: onAdd) {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
                     .font(.system(size: 20))
                     .foregroundColor(.white)
                     .frame(width: 291, height: 41)

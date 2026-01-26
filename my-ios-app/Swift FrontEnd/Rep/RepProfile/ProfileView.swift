@@ -1496,7 +1496,7 @@ struct BottomBarView: View {
     var body: some View {
         HStack(spacing: 30) {
             Button(action: onAdd) {
-                Image(systemName: "plus")
+                Image(systemName: "ellipsis.circle")
                     .font(.system(size: 20))
                     .foregroundColor(.white)
                     .frame(width: 291, height: 41)

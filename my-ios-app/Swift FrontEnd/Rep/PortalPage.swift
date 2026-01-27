@@ -1240,14 +1240,20 @@ struct PortalResultsSection: View {
     let goals: [Goal]
 
     var body: some View {
-        ForEach(goals) { goal in
-            VStack {
-                NavigationLink(destination: GoalsDetailView(initialGoal: goal)) {
-                    GoalListItem(goal: goal)
+        VStack(spacing: 0) {
+            ForEach(goals) { goal in
+                VStack {
+                    NavigationLink(destination: GoalsDetailView(initialGoal: goal)) {
+                        GoalListItem(goal: goal)
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    Divider()
                 }
-                .buttonStyle(PlainButtonStyle())
-                Divider()
             }
+
+            // Extra bottom padding to allow scrolling past floating buttons
+            Spacer()
+                .frame(height: 130)
         }
     }
 }

@@ -59,7 +59,6 @@
                 v-if="selectedSection === 0"
                 :goals="portalGoals"
                 :supporters-goal="supportersGoal"
-                @join-supporters="handleJoinSupporters"
               />
               <PortalStorySection
                 v-else-if="selectedSection === 1"
@@ -874,8 +873,7 @@ const PortalResultsSection = defineComponent({
     goals: Array as () => Goal[],
     supportersGoal: Object as () => Goal | null
   },
-  emits: ['join-supporters'],
-  setup(props, { emit }) {
+  setup(props) {
     const GoalListItem = (goal: Goal) => {
       // Compute tag text (matching iOS logic)
       const tagText = goal.typeName.toLowerCase() === 'other'
@@ -946,17 +944,21 @@ const PortalResultsSection = defineComponent({
 
     return () => h('div', { class: 'space-y-2' }, [
       (props.goals?.length || 0) > 0
-        ? sortedGoals.value.map((goal, index) => [
-            h(RouterLink, {
-              key: `link-${index}`,
-              to: `/goal/${goal.id}`,
-              class: 'block'
-            }, () => GoalListItem(goal)),
-            h('div', {
-              key: `divider-${index}`,
-              class: 'border-b border-gray-200'
-            })
-          ]).flat()
+        ? [
+            ...sortedGoals.value.map((goal, index) => [
+              h(RouterLink, {
+                key: `link-${index}`,
+                to: `/goal/${goal.id}`,
+                class: 'block'
+              }, () => GoalListItem(goal)),
+              h('div', {
+                key: `divider-${index}`,
+                class: 'border-b border-gray-200'
+              })
+            ]).flat(),
+            // Extra bottom padding to allow scrolling past floating buttons
+            h('div', { key: 'bottom-spacer', style: { height: '80px' } })
+          ]
         : h('p', { class: 'text-gray-500 py-8 text-center' }, 'No goals for this portal yet.')
     ]);
   }

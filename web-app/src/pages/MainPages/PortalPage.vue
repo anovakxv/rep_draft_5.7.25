@@ -83,6 +83,20 @@
           </button>
         </div>
 
+        <!-- Floating Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
+        <div
+          v-if="supportersGoal && !attendeesGoal"
+          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center px-4 xl:sticky xl:bottom-20"
+        >
+          <button
+            @click="handleJoinSupporters"
+            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl shadow-lg transition-transform hover:scale-105 active:scale-95"
+            style="background-color: #8cc65d; color: white;"
+          >
+            Join Supporters
+          </button>
+        </div>
+
         <!-- Fixed Bottom Bar (mobile) / Sticky Bottom Bar (desktop) -->
         <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center xl:sticky xl:bottom-0 xl:left-auto xl:right-auto xl:mt-auto">
           <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 xl:py-3" style="max-width: 768px; border-color: #e5e7eb;">
@@ -933,19 +947,6 @@ const PortalResultsSection = defineComponent({
     return () => h('div', { class: 'space-y-2' }, [
       (props.goals?.length || 0) > 0
         ? sortedGoals.value.map((goal, index) => [
-            // Add "Join Supporters" button ABOVE the Supporters goal
-            props.supportersGoal && goal.id === props.supportersGoal.id
-              ? h('div', {
-                  key: `supporters-btn-${index}`,
-                  class: 'pt-2 pb-2'
-                }, [
-                  h('button', {
-                    class: 'w-full h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl shadow-lg transition-transform hover:scale-105 active:scale-95',
-                    style: 'background-color: #8cc65d; color: white;',
-                    onClick: () => emit('join-supporters')
-                  }, 'Join Supporters')
-                ])
-              : null,
             h(RouterLink, {
               key: `link-${index}`,
               to: `/goal/${goal.id}`,
@@ -955,7 +956,7 @@ const PortalResultsSection = defineComponent({
               key: `divider-${index}`,
               class: 'border-b border-gray-200'
             })
-          ]).flat().filter(Boolean)
+          ]).flat()
         : h('p', { class: 'text-gray-500 py-8 text-center' }, 'No goals for this portal yet.')
     ]);
   }

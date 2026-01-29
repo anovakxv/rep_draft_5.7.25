@@ -637,14 +637,19 @@ onMounted(async () => {
     try {
       const rsvpIntent = JSON.parse(rsvpIntentStr);
       if (rsvpIntent.portalId === portalId && rsvpIntent.goalId) {
-        // Auto-join the Attendees goal
+        // Auto-join the goal
         const success = await joinGoalTeam(rsvpIntent.goalId);
         if (success) {
           // Clear the intent only on success
           localStorage.removeItem('rsvpIntent');
-          console.log('Auto-joined Attendees goal after registration');
-          // Show success message to new user
-          alert('✓ You\'re Registered!');
+          console.log('Auto-joined goal after registration:', rsvpIntent.goalTitle);
+          // Show appropriate success message based on goal type
+          const goalTitle = (rsvpIntent.goalTitle || '').toLowerCase();
+          if (goalTitle.includes('supporter')) {
+            alert('✓ You\'ve joined the Supporters team!');
+          } else {
+            alert('✓ You\'re Registered!');
+          }
         } else {
           console.error('Failed to auto-join goal team');
           // Don't clear rsvpIntent - user can try again

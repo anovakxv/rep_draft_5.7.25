@@ -134,6 +134,17 @@ def api_delete_user():
     user = g.current_user
     user_id = user.id
 
+    # SECURITY LAYER 1: Protect specific Master Admin user IDs (hardcoded failsafe)
+    # These accounts can NEVER be deleted via the app, regardless of user type
+    PROTECTED_USER_IDS = [45]  # Master Admin: anovakxv@gmail.com
+    if user_id in PROTECTED_USER_IDS:
+        return jsonify({'error': 'This account is protected and cannot be deleted.'}), 403
+
+    # SECURITY LAYER 2: Block deletion of Admin accounts (users_types_id = 3)
+    # Admin accounts can only be deleted via direct database access (pgAdmin)
+    if user.users_types_id == 3:
+        return jsonify({'error': 'Admin accounts cannot be deleted via the app. Please contact system administrator.'}), 403
+
     # Delete related UserSkill, UserNetwork, UserFollower
     UserSkill.query.filter_by(users_id=user_id).delete()
     UserNetwork.query.filter((UserNetwork.users_id1 == user_id) | (UserNetwork.users_id2 == user_id)).delete()

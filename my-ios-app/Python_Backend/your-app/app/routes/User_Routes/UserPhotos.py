@@ -264,10 +264,11 @@ def api_upload_user_photo_file():
         return jsonify({'error': 'Caption must be 500 characters or less'}), 400
 
     try:
-        # 1. Upload to S3
+        # 1. Upload to S3 (using put_object to avoid threading issues with eventlet)
         unique_filename = f"user_photo_{current_user_id}_{uuid.uuid4().hex}_{secure_filename(file.filename)}"
         file.seek(0)
-        s3.upload_fileobj(file, S3_BUCKET, unique_filename)
+        file_content = file.read()
+        s3.put_object(Bucket=S3_BUCKET, Key=unique_filename, Body=file_content, ContentType=file.mimetype)
         s3_url = f"{S3_BASE_URL}{unique_filename}"
 
         # 2. Create S3Content record (tbl_index=7 for user photos)

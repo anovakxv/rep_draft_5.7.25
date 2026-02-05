@@ -13,6 +13,7 @@ class PortalText(db.Model):
     title = db.Column(db.String(255), nullable=False)
     text = db.Column(db.Text, nullable=True)
     section = db.Column(db.String(64), nullable=True, index=True)  # e.g., 'about', 'mission', 'faq'
+    position = db.Column(db.Integer, nullable=True, default=0)  # For ordering text blocks
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -25,6 +26,7 @@ class PortalText(db.Model):
             'title': self.title,
             'text': self.text,
             'section': self.section,
+            'position': self.position,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

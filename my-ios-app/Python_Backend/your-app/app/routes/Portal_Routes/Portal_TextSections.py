@@ -48,12 +48,13 @@ def api_add_update_portal_texts():
     PortalText.query.filter_by(portal_id=portal_id).delete(synchronize_session=False)
 
     # Add new texts
-    for text_obj in texts:
+    for idx, text_obj in enumerate(texts):
         title = text_obj.get('title', '').strip()
         text = text_obj.get('text', '').strip()
         section = text_obj.get('section', '').strip()
+        position = text_obj.get('position', idx)  # Use provided position or array index
         if title or text:
-            new_text = PortalText(portal_id=portal_id, title=title, text=text, section=section)
+            new_text = PortalText(portal_id=portal_id, title=title, text=text, section=section, position=position)
             db.session.add(new_text)
 
     db.session.commit()

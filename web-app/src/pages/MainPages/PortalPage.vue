@@ -277,11 +277,12 @@ interface PortalSection {
   aFiles: PortalFile[]; 
 }
 
-interface PortalText { 
-  id: number; 
-  title?: string; 
-  text?: string; 
-  section?: string; 
+interface PortalText {
+  id: number;
+  title?: string;
+  text?: string;
+  section?: string;
+  position?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -973,8 +974,40 @@ const PortalStorySection = defineComponent({
   props: { portal: Object as () => PortalDetail | null },
   setup(props) {
     const storyTexts = computed(() =>
-      (props.portal?.aTexts || []).filter(t => (t.section || '') === 'story')
+      (props.portal?.aTexts || [])
+        .filter(t => (t.section || '') === 'story')
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
     );
+
+    // Gallery sections (non-Main Section) for display
+    const gallerySections = computed(() =>
+      (props.portal?.aSections || [])
+        .filter(s => s.title !== 'Main Section' && s.aFiles && s.aFiles.length > 0)
+        .sort((a: any, b: any) => (a.position || 0) - (b.position || 0))
+    );
+
+    // Fullscreen viewer state
+    const fullscreenImages = ref<PortalFile[]>([]);
+    const fullscreenIndex = ref(0);
+    const showFullscreen = ref(false);
+
+    const openGalleryFullscreen = (section: PortalSection, imgIndex: number) => {
+      fullscreenImages.value = section.aFiles;
+      fullscreenIndex.value = imgIndex;
+      showFullscreen.value = true;
+    };
+
+    const closeFullscreen = () => {
+      showFullscreen.value = false;
+    };
+
+    const fullscreenPrev = () => {
+      if (fullscreenIndex.value > 0) fullscreenIndex.value--;
+    };
+
+    const fullscreenNext = () => {
+      if (fullscreenIndex.value < fullscreenImages.value.length - 1) fullscreenIndex.value++;
+    };
 
     // Helper function to linkify a single line of text (matching iOS NSDataDetector behavior)
     const linkifyLine = (line: string) => {
@@ -1094,7 +1127,82 @@ const PortalStorySection = defineComponent({
             class: 'text-black text-[17px] leading-relaxed'
           }, renderLinkableText(textBlock.text))
         ])
-      )
+      ),
+
+      // Gallery Sections — horizontal scrollable image strips
+      ...gallerySections.value.map((section: any, sIdx: number) =>
+        h('div', { key: `gallery-${sIdx}`, class: 'space-y-2' }, [
+          h('div', { class: 'border-t border-gray-200 pt-4' }),
+          h('h3', { class: 'font-semibold text-lg' }, section.title),
+          h('div', {
+            class: 'overflow-x-auto -mx-4 px-4',
+            style: { WebkitOverflowScrolling: 'touch' }
+          }, [
+            h('div', { class: 'flex gap-3 pb-2' },
+              section.aFiles.map((file: any, imgIdx: number) =>
+                h('img', {
+                  key: file.id || imgIdx,
+                  src: file.url,
+                  class: 'w-[213px] h-[120px] flex-shrink-0 rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity',
+                  onClick: () => openGalleryFullscreen(section, imgIdx)
+                })
+              )
+            )
+          ])
+        ])
+      ),
+
+      // Fullscreen image viewer overlay
+      showFullscreen.value && h('div', {
+        class: 'fixed inset-0 z-50 bg-black flex flex-col items-center justify-center',
+        onClick: closeFullscreen
+      }, [
+        // Close button
+        h('button', {
+          class: 'absolute top-4 right-4 z-10 text-white text-3xl font-light w-10 h-10 flex items-center justify-center',
+          onClick: (e: Event) => { e.stopPropagation(); closeFullscreen(); }
+        }, '\u00D7'),
+
+        // Previous arrow
+        fullscreenIndex.value > 0 && h('button', {
+          class: 'absolute left-3 top-1/2 -translate-y-1/2 z-10 text-white text-4xl font-light w-12 h-12 flex items-center justify-center rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 transition-colors',
+          onClick: (e: Event) => { e.stopPropagation(); fullscreenPrev(); }
+        }, '\u2039'),
+
+        // Next arrow
+        fullscreenIndex.value < fullscreenImages.value.length - 1 && h('button', {
+          class: 'absolute right-3 top-1/2 -translate-y-1/2 z-10 text-white text-4xl font-light w-12 h-12 flex items-center justify-center rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 transition-colors',
+          onClick: (e: Event) => { e.stopPropagation(); fullscreenNext(); }
+        }, '\u203A'),
+
+        // Image
+        h('img', {
+          src: fullscreenImages.value[fullscreenIndex.value]?.url || '',
+          class: 'max-w-full max-h-[85vh] object-contain select-none',
+          style: { pointerEvents: 'none' },
+          draggable: false
+        }),
+
+        // Dot indicators
+        fullscreenImages.value.length > 1 && h('div', {
+          class: 'absolute bottom-6 left-0 right-0 flex justify-center gap-2',
+          onClick: (e: Event) => e.stopPropagation()
+        },
+          fullscreenImages.value.map((_: any, dotIdx: number) =>
+            h('div', {
+              key: dotIdx,
+              class: `w-2 h-2 rounded-full transition-colors ${dotIdx === fullscreenIndex.value ? 'bg-white' : 'bg-white/40'}`,
+              style: { cursor: 'pointer' },
+              onClick: () => { fullscreenIndex.value = dotIdx; }
+            })
+          )
+        ),
+
+        // Counter text
+        h('div', {
+          class: 'absolute bottom-14 text-white text-sm opacity-70'
+        }, `${fullscreenIndex.value + 1} / ${fullscreenImages.value.length}`)
+      ])
     ]);
   }
 });

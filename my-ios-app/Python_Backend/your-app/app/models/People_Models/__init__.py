@@ -11,3 +11,7 @@ from .PasswordUpdater import PasswordUpdater
 from .Skill import Skill
 from .FlaggedUser import FlaggedUser
 from .BlockedUser import BlockedUser
+from .UserPhoto import UserPhoto
+from .PhotoLike import PhotoLike
+from .PhotoReaction import PhotoReaction
+from .PhotoComment import PhotoComment

@@ -85,6 +85,10 @@ def create_app():
     from app.models.ValueMetric_Models import Goal, GoalMetric, GoalPreInvite, GoalProgressLog, GoalTeam, GoalType, ReportingIncrement
     from app.models.People_Models import FlaggedUser
     from app.models.People_Models.BlockedUser import BlockedUser
+    from app.models.People_Models.UserPhoto import UserPhoto
+    from app.models.People_Models.PhotoLike import PhotoLike
+    from app.models.People_Models.PhotoReaction import PhotoReaction
+    from app.models.People_Models.PhotoComment import PhotoComment
     from app.models.ValueMetric_Models.Transaction import Transaction  # <-- Add this line
 
     # --- Register API Blueprints ---
@@ -109,6 +113,10 @@ def create_app():
     from app.routes.User_Routes.SearchPeople import search_people_bp
     from app.routes.User_Routes.Payments import payments_bp # <-- ADDED
     from app.routes.User_Routes.TriggerDailySummary import admin_bp as trigger_summary_bp
+    from app.routes.User_Routes.UserPhotos import user_photos_bp
+    from app.routes.User_Routes.PhotoLikes import photo_likes_bp
+    from app.routes.User_Routes.PhotoReactions import photo_reactions_bp
+    from app.routes.User_Routes.PhotoComments import photo_comments_bp
 
     app.register_blueprint(search_people_bp)
     app.register_blueprint(add_to_network_bp, url_prefix='/api/user')
@@ -127,6 +135,10 @@ def create_app():
     app.register_blueprint(get_people_bp)  # already has its own routes
     app.register_blueprint(payments_bp) # <-- ADDED
     app.register_blueprint(trigger_summary_bp, url_prefix='/api/user')
+    app.register_blueprint(user_photos_bp, url_prefix='/api/user')
+    app.register_blueprint(photo_likes_bp, url_prefix='/api/user')
+    app.register_blueprint(photo_reactions_bp, url_prefix='/api/user')
+    app.register_blueprint(photo_comments_bp, url_prefix='/api/user')
 
     # --- Portal Blueprints ---
     from app.routes.Portal_Routes.Get_Portals import portal_bp as portal_list_bp

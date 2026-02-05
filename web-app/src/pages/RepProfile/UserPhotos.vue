@@ -75,6 +75,44 @@
             :key="photo.id"
             class="bg-white mb-3"
           >
+            <!-- Reorder & Delete Controls (owner only) -->
+            <div v-if="isCurrentUser" class="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+              <!-- Reorder buttons -->
+              <div class="flex items-center space-x-1">
+                <button
+                  v-if="index > 0"
+                  @click="movePhotoUp(index)"
+                  class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Move up"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+                <span v-else class="w-8"></span>
+                <button
+                  v-if="index < photos.length - 1"
+                  @click="movePhotoDown(index)"
+                  class="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Move down"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <span v-else class="w-8"></span>
+              </div>
+              <!-- Delete button -->
+              <button
+                @click="confirmDelete(photo)"
+                class="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                title="Delete photo"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
             <!-- Photo Image -->
             <div class="relative cursor-pointer group" @click="openFullscreen(index)">
               <img
@@ -84,20 +122,6 @@
                 style="max-height: 75vh;"
                 @error="handleImageError($event)"
               />
-              <!-- Delete button overlay (owner only) -->
-              <button
-                v-if="isCurrentUser"
-                @click.stop="confirmDelete(photo)"
-                class="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                style="opacity: 0.01;"
-                @mouseenter="($event.target as HTMLElement).style.opacity = '1'"
-                @mouseleave="($event.target as HTMLElement).style.opacity = '0.01'"
-                @touchstart.passive="($event.target as HTMLElement).style.opacity = '1'"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
             </div>
             <!-- Caption + Timestamp -->
             <div v-if="photo.caption || photo.created_at" class="px-4 py-3">
@@ -460,6 +484,48 @@ const uploadPhoto = async () => {
     uploadError.value = (error as any).response?.data?.error || 'Upload failed. Please try again.'
   } finally {
     isUploading.value = false
+  }
+}
+
+// --- Reorder ---
+const movePhotoUp = async (index: number) => {
+  if (index <= 0) return
+
+  // Swap in local array
+  const temp = photos.value[index]
+  photos.value[index] = photos.value[index - 1]
+  photos.value[index - 1] = temp
+
+  // Persist to backend
+  await savePhotoOrder()
+}
+
+const movePhotoDown = async (index: number) => {
+  if (index >= photos.value.length - 1) return
+
+  // Swap in local array
+  const temp = photos.value[index]
+  photos.value[index] = photos.value[index + 1]
+  photos.value[index + 1] = temp
+
+  // Persist to backend
+  await savePhotoOrder()
+}
+
+const savePhotoOrder = async () => {
+  try {
+    const photoOrder = photos.value.map((photo, idx) => ({
+      id: photo.id,
+      position: idx
+    }))
+
+    await api.put('/api/user/photos/reorder', {
+      users_id: userId.value,
+      photo_order: photoOrder
+    })
+  } catch (error) {
+    console.error('Failed to save photo order:', error)
+    // Optionally show an error toast, but don't break the UX
   }
 }
 

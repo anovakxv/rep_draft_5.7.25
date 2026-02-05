@@ -237,7 +237,8 @@ def api_upload_graphic_section_images():
 
             unique_filename = f"{portal_id}_{uuid.uuid4().hex}_{secure_filename(img.filename)}"
             img.seek(0)
-            s3.upload_fileobj(img, S3_BUCKET, unique_filename)
+            file_content = img.read()
+            s3.put_object(Bucket=S3_BUCKET, Key=unique_filename, Body=file_content, ContentType=img.mimetype)
             s3_url = f"{S3_BASE_URL}{unique_filename}"
             gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
 

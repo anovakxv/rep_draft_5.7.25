@@ -54,7 +54,7 @@
             </div>
 
             <!-- Conditional Content -->
-            <div class="px-4 pt-4 pb-24 xl:pb-4">
+            <div class="px-4 pt-4 pb-36 xl:pb-4">
               <PortalResultsSection
                 v-if="selectedSection === 0"
                 :goals="portalGoals"

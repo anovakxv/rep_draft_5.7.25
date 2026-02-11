@@ -166,6 +166,8 @@
                     @cancel-edit="cancelEditWrite"
                     @save-write="saveWrite"
                     @delete-write="confirmDeleteWrite"
+                    @move-up="moveWriteUp"
+                    @move-down="moveWriteDown"
                   />
                 </div>
               </div>
@@ -557,7 +559,7 @@ const WriteContentView = defineComponent({
     writeBlocks: Array,
     isCurrentUser: Boolean
   },
-  emits: ['delete-write', 'edit-write', 'new-write'],
+  emits: ['delete-write', 'edit-write', 'new-write', 'move-up', 'move-down'],
   setup(props, { emit }) {
     const router = useRouter()
     const expandedWriteIds = ref<Set<number>>(new Set())
@@ -587,7 +589,7 @@ const WriteContentView = defineComponent({
     return () => h('div', { class: 'space-y-4' }, [
       // Existing write blocks
       props.writeBlocks && props.writeBlocks.length > 0
-        ? h('div', { class: 'space-y-4' }, props.writeBlocks.map((write: any) => {
+        ? h('div', { class: 'space-y-4' }, props.writeBlocks.map((write: any, index: number) => {
             const expanded = isExpanded(write.id)
             const shouldTruncate = write.content.length > 200
             const displayContent = expanded ? write.content : write.content.substring(0, 200)
@@ -607,7 +609,28 @@ const WriteContentView = defineComponent({
                 style: 'color: #8cc65d'
               }, expanded ? 'Read less' : 'Read more'),
               h('div', { class: 'flex items-center justify-between text-sm text-gray-500' }, [
-                h('span', write.status === 'draft' ? 'Draft' : 'Published'),
+                props.isCurrentUser
+                  ? h('div', { class: 'flex items-center space-x-1' }, [
+                      index > 0 && h('button', {
+                        onClick: () => emit('move-up', index),
+                        class: 'p-1 text-gray-400 hover:text-gray-600 rounded transition-colors',
+                        title: 'Move up'
+                      }, [
+                        h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2' }, [
+                          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M5 15l7-7 7 7' })
+                        ])
+                      ]),
+                      index < (props.writeBlocks?.length || 0) - 1 && h('button', {
+                        onClick: () => emit('move-down', index),
+                        class: 'p-1 text-gray-400 hover:text-gray-600 rounded transition-colors',
+                        title: 'Move down'
+                      }, [
+                        h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '2' }, [
+                          h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M19 9l-7 7-7-7' })
+                        ])
+                      ])
+                    ])
+                  : h('span', write.status === 'draft' ? 'Draft' : 'Published'),
                 props.isCurrentUser && h('div', { class: 'flex space-x-3' }, [
                   h('button', {
                     onClick: () => navigateToEdit(write.id),
@@ -964,6 +987,35 @@ const confirmDeleteWrite = async (write: WriteBlock) => {
     } catch {
       alert('Failed to delete content.')
     }
+  }
+}
+
+// --- Write Block Reorder ---
+const moveWriteUp = async (index: number) => {
+  if (index <= 0) return
+  const temp = writeBlocks.value[index]
+  writeBlocks.value[index] = writeBlocks.value[index - 1]
+  writeBlocks.value[index - 1] = temp
+  await saveWriteOrder()
+}
+
+const moveWriteDown = async (index: number) => {
+  if (index >= writeBlocks.value.length - 1) return
+  const temp = writeBlocks.value[index]
+  writeBlocks.value[index] = writeBlocks.value[index + 1]
+  writeBlocks.value[index + 1] = temp
+  await saveWriteOrder()
+}
+
+const saveWriteOrder = async () => {
+  try {
+    await Promise.all(
+      writeBlocks.value.map((write, idx) =>
+        api.put(`/api/user/write/${write.id}`, { order: idx })
+      )
+    )
+  } catch (error) {
+    console.error('Failed to save write order:', error)
   }
 }
 

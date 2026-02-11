@@ -459,6 +459,35 @@ class ProfileViewModel: ObservableObject {
         }.resume()
     }
 
+    // --- Write Block Reorder ---
+
+    func moveWriteUp(at index: Int) {
+        guard index > 0 else { return }
+        writeBlocks.swapAt(index, index - 1)
+        saveWriteOrder()
+    }
+
+    func moveWriteDown(at index: Int) {
+        guard index < writeBlocks.count - 1 else { return }
+        writeBlocks.swapAt(index, index + 1)
+        saveWriteOrder()
+    }
+
+    private func saveWriteOrder() {
+        for (idx, block) in writeBlocks.enumerated() {
+            guard let url = URL(string: "\(APIConfig.baseURL)/api/user/write/\(block.id)") else { continue }
+            var request = URLRequest(url: url)
+            request.httpMethod = "PUT"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if !jwtToken.isEmpty {
+                request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+            }
+            let body: [String: Any] = ["order": idx]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
+        }
+    }
+
     // --- Block/Unblock logic ---
     func fetchBlockStatus() {
         guard let url = URL(string: "\(APIConfig.baseURL)/api/user/is_blocked?users_id=\(viewedUserId)") else { return }
@@ -1420,7 +1449,7 @@ struct WriteContentView: View {
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
             } else {
-                ForEach(viewModel.writeBlocks) { write in
+                ForEach(Array(viewModel.writeBlocks.enumerated()), id: \.element.id) { index, write in
                     VStack(alignment: .leading, spacing: 4) {
                         if let title = write.title, !title.isEmpty {
                             Text(title)
@@ -1432,13 +1461,28 @@ struct WriteContentView: View {
                         Text(write.content)
                             .font(.title3)
                         if isCurrentUser {
-                            HStack {
+                            HStack(spacing: 16) {
+                                // Reorder buttons
+                                HStack(spacing: 4) {
+                                    if index > 0 {
+                                        Button(action: { viewModel.moveWriteUp(at: index) }) {
+                                            Image(systemName: "chevron.up")
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
+                                    if index < viewModel.writeBlocks.count - 1 {
+                                        Button(action: { viewModel.moveWriteDown(at: index) }) {
+                                            Image(systemName: "chevron.down")
+                                                .foregroundColor(.gray)
+                                        }
+                                    }
+                                }
+                                Spacer()
                                 Button("Edit") {
                                     editingWrite = write
                                 }
                                 .font(.title3)
                                 .foregroundColor(.blue)
-                                Spacer()
                                 Button("Delete") {
                                     blockToDelete = write
                                     showDeleteAlert = true

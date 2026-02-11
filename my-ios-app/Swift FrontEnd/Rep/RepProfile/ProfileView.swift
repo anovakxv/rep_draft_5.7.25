@@ -1124,25 +1124,11 @@ struct ProfileMainContent: View {
             ProfileInfoView(
                 photoURL: viewModel.user.profilePictureURL,
                 city: viewModel.user.city,
-                skills: mappedSkillTitles
+                skills: mappedSkillTitles,
+                userId: viewModel.viewedUserId,
+                isCurrentUser: viewModel.isCurrentUser
             )
             ProfileBroadcastView(broadcast: viewModel.user.broadcast)
-            // Photos link
-            NavigationLink(destination: UserPhotosView(userId: viewModel.viewedUserId, isCurrentUser: viewModel.isCurrentUser)) {
-                HStack(spacing: 8) {
-                    Image(systemName: "photo.on.rectangle")
-                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
-                    Text("Photos")
-                        .font(.system(size: 17))
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray)
-                }
-                .padding(.horizontal, 15)
-                .padding(.vertical, 10)
-            }
             Section(header: stickyHeader()) {
                 ProfileTabContent(
                     selectedTab: selectedTab,
@@ -1384,19 +1370,23 @@ struct ProfileInfoView: View {
     let photoURL: URL?
     let city: String?
     let skills: [String]
+    let userId: Int
+    let isCurrentUser: Bool
 
     var body: some View {
         HStack(alignment: .top, spacing: 11) {
-            if let url = photoURL {
-                KFImage(url)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 108, height: 108)
-                    .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 108, height: 108)
+            NavigationLink(destination: UserPhotosView(userId: userId, isCurrentUser: isCurrentUser)) {
+                if let url = photoURL {
+                    KFImage(url)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 108, height: 108)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 108, height: 108)
+                }
             }
 
             VStack(alignment: .leading, spacing: 7) {

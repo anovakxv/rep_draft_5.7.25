@@ -1098,6 +1098,22 @@ struct ProfileMainContent: View {
                 skills: mappedSkillTitles
             )
             ProfileBroadcastView(broadcast: viewModel.user.broadcast)
+            // Photos link
+            NavigationLink(destination: UserPhotosView(userId: viewModel.viewedUserId, isCurrentUser: viewModel.isCurrentUser)) {
+                HStack(spacing: 8) {
+                    Image(systemName: "photo.on.rectangle")
+                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                    Text("Photos")
+                        .font(.system(size: 17))
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14))
+                        .foregroundColor(.gray)
+                }
+                .padding(.horizontal, 15)
+                .padding(.vertical, 10)
+            }
             Section(header: stickyHeader()) {
                 ProfileTabContent(
                     selectedTab: selectedTab,

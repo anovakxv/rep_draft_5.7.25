@@ -7,7 +7,7 @@
 -->
 
 <template>
-  <div class="flex flex-col h-screen bg-gray-50">
+  <div class="flex flex-col h-screen bg-white">
     <!-- Loading State -->
     <div v-if="!isLoaded" class="flex-1 flex items-center justify-center">
       <div class="text-center">
@@ -37,11 +37,16 @@
         </button>
         <h1 class="flex-1 text-center font-semibold text-lg text-gray-900">{{ pageTitle }}</h1>
         <!-- Upload button (own profile only) -->
-        <button v-if="isCurrentUser" @click="triggerFileInput" class="w-10 h-10 flex items-center justify-center -mr-2" style="color: #8cc65d">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
+        <div v-if="isCurrentUser" class="flex items-center gap-3 -mr-2">
+          <button @click="isEditing = !isEditing" class="text-sm font-medium" style="color: #8cc65d">
+            {{ isEditing ? 'Done' : 'Edit' }}
+          </button>
+          <button @click="triggerFileInput" class="w-10 h-10 flex items-center justify-center" style="color: #8cc65d">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+        </div>
         <div v-else class="w-10"></div>
       </header>
 
@@ -73,10 +78,10 @@
           <div
             v-for="(photo, index) in photos"
             :key="photo.id"
-            class="bg-white mb-3"
+            class="bg-white"
           >
             <!-- Reorder & Delete Controls (owner only) -->
-            <div v-if="isCurrentUser" class="flex items-center justify-between px-3 py-2 border-b border-gray-100">
+            <div v-if="isEditing" class="flex items-center justify-between px-3 py-2 border-b border-gray-100">
               <!-- Reorder buttons -->
               <div class="flex items-center space-x-1">
                 <button
@@ -339,6 +344,7 @@ const userName = ref('')
 const photos = ref<Photo[]>([])
 const isLoaded = ref(false)
 const errorMessage = ref<string | null>(null)
+const isEditing = ref(false)
 
 const pageTitle = computed(() => {
   if (!userName.value) return 'Photos'

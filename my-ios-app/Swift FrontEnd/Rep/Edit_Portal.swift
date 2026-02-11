@@ -96,14 +96,14 @@ class EditPortalViewModel: ObservableObject {
         self.about = portal.about ?? ""
         self.offeringText = portal.about ?? ""
         self.goals = (portal.aGoals ?? []).map { EditableGoal(goal: $0) }
-        // Only load story blocks (section == "story")
-        self.storyBlocks = (portal.aTexts?.enumerated().compactMap { idx, text in
-            if text.section == "story" {
-                return PortalWriteBlock(title: text.title ?? "", content: text.text ?? "", order: idx)
-            } else {
-                return nil
-            }
-        } ?? [])
+        // Only load story blocks (section == "story"), sorted by position
+        self.storyBlocks = (portal.aTexts?
+            .filter { $0.section == "story" }
+            .sorted { ($0.position ?? 0) < ($1.position ?? 0) }
+            .enumerated()
+            .map { idx, text in
+                PortalWriteBlock(title: text.title ?? "", content: text.text ?? "", order: idx)
+            } ?? [])
         // Optionally prefill selectedLeads from portal.aUsers if needed
     }
 
@@ -158,6 +158,22 @@ class EditPortalViewModel: ObservableObject {
         storyBlocks.removeAll { $0.id == block.id }
     }
 
+    func moveStoryBlockUp(at index: Int) {
+        guard index > 0 else { return }
+        storyBlocks.swapAt(index, index - 1)
+        for i in storyBlocks.indices {
+            storyBlocks[i].order = i
+        }
+    }
+
+    func moveStoryBlockDown(at index: Int) {
+        guard index < storyBlocks.count - 1 else { return }
+        storyBlocks.swapAt(index, index + 1)
+        for i in storyBlocks.indices {
+            storyBlocks[i].order = i
+        }
+    }
+
     func save(completion: @escaping () -> Void) {
         let boundary = UUID().uuidString
         let isNew = portalId == 0
@@ -185,12 +201,13 @@ class EditPortalViewModel: ObservableObject {
         appendFormField("subtitle", subtitle)
         appendFormField("about", about)
 
-        // Save story blocks as aTexts
-        let texts: [[String: String]] = storyBlocks.map { block in
+        // Save story blocks as aTexts (with position for ordering)
+        let texts: [[String: String]] = storyBlocks.enumerated().map { idx, block in
             [
                 "title": block.title ?? "",
                 "text": block.content,
-                "section": "story"
+                "section": "story",
+                "position": "\(idx)"
             ]
         }
         if let textsData = try? JSONSerialization.data(withJSONObject: texts) {
@@ -296,7 +313,7 @@ struct PortalStoryBlocksEditorView: View {
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
             } else {
-                ForEach(viewModel.storyBlocks) { block in
+                ForEach(Array(viewModel.storyBlocks.enumerated()), id: \.element.id) { index, block in
                     VStack(alignment: .leading, spacing: 4) {
                         if let title = block.title, !title.isEmpty {
                             Text(title)
@@ -307,13 +324,28 @@ struct PortalStoryBlocksEditorView: View {
                         // Display content as plain text
                         Text(block.content)
                             .font(.title3)
-                        HStack {
+                        HStack(spacing: 16) {
+                            // Reorder buttons
+                            HStack(spacing: 4) {
+                                if index > 0 {
+                                    Button(action: { viewModel.moveStoryBlockUp(at: index) }) {
+                                        Image(systemName: "chevron.up")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                                if index < viewModel.storyBlocks.count - 1 {
+                                    Button(action: { viewModel.moveStoryBlockDown(at: index) }) {
+                                        Image(systemName: "chevron.down")
+                                            .foregroundColor(.gray)
+                                    }
+                                }
+                            }
+                            Spacer()
                             Button("Edit") {
                                 editingBlock = block
                             }
                             .font(.title3)
                             .foregroundColor(.blue)
-                            Spacer()
                             Button("Delete") {
                                 blockToDelete = block
                                 showDeleteAlert = true

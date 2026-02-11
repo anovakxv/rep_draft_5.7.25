@@ -1218,8 +1218,12 @@ struct PortalStorySection: View {
                 preloadLeadImages()
             }
             Divider()
-            // Story Text Blocks with clickable links
-            ForEach((portal.aTexts ?? []).filter { ($0.section ?? "") == "story" }, id: \.id) { block in
+            // Story Text Blocks with clickable links (sorted by position)
+            ForEach((portal.aTexts ?? [])
+                .filter { ($0.section ?? "") == "story" }
+                .sorted { ($0.position ?? 0) < ($1.position ?? 0) },
+                id: \.id
+            ) { block in
                 VStack(alignment: .leading, spacing: 4) {
                     if let title = block.title, !title.isEmpty {
                         Text(title)
@@ -1231,6 +1235,32 @@ struct PortalStorySection: View {
                     }
                 }
                 .padding(.vertical, 4)
+            }
+
+            // Gallery Sections (non-Main Section images)
+            let gallerySections = (portal.aSections ?? [])
+                .filter { $0.title != "Main Section" && !$0.aFiles.isEmpty }
+            ForEach(gallerySections) { section in
+                VStack(alignment: .leading, spacing: 8) {
+                    Divider()
+                        .padding(.top, 4)
+                    Text(section.title)
+                        .font(.headline)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(section.aFiles) { file in
+                                if let urlString = file.url, let url = URL(string: urlString) {
+                                    KFImage(url)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 213, height: 120)
+                                        .clipped()
+                                        .cornerRadius(8)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -1293,6 +1323,7 @@ struct PortalText: Identifiable, Codable {
     let title: String?
     let text: String?
     let section: String?
+    let position: Int?
     let created_at: String?
     let updated_at: String?
 }

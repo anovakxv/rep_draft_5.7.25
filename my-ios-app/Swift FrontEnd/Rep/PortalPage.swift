@@ -1188,11 +1188,15 @@ struct PortalSegmentedPicker: View {
 
 // MARK: - Content Sections
 
+struct GalleryFullscreenItem: Identifiable {
+    let id = UUID()
+    let sectionId: Int
+    let startIndex: Int
+}
+
 struct PortalStorySection: View {
     let portal: PortalDetail
-    @State private var showFullscreenGallery = false
-    @State private var fullscreenGallerySectionId: Int = 0
-    @State private var fullscreenGalleryIndex = 0
+    @State private var galleryFullscreen: GalleryFullscreenItem? = nil
 
     // Preload lead images immediately when view is created
     private func preloadLeadImages() {
@@ -1274,9 +1278,7 @@ struct PortalStorySection: View {
                                         .cornerRadius(8)
                                         .contentShape(Rectangle())
                                         .onTapGesture {
-                                            fullscreenGallerySectionId = section.id
-                                            fullscreenGalleryIndex = idx
-                                            showFullscreenGallery = true
+                                            galleryFullscreen = GalleryFullscreenItem(sectionId: section.id, startIndex: idx)
                                         }
                                 }
                             }
@@ -1289,13 +1291,13 @@ struct PortalStorySection: View {
             Spacer()
                 .frame(height: 130)
         }
-        .fullScreenCover(isPresented: $showFullscreenGallery) {
+        .fullScreenCover(item: $galleryFullscreen) { data in
             let sectionImages = (portal.aSections ?? [])
-                .first(where: { $0.id == fullscreenGallerySectionId })?.aFiles ?? []
+                .first(where: { $0.id == data.sectionId })?.aFiles ?? []
             FullscreenImageViewer(
                 images: sectionImages,
-                startIndex: fullscreenGalleryIndex,
-                onDismiss: { showFullscreenGallery = false }
+                startIndex: data.startIndex,
+                onDismiss: { galleryFullscreen = nil }
             )
             .ignoresSafeArea()
         }

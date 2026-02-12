@@ -869,37 +869,50 @@ struct PortalPageContent: View {
             )
         }
         .overlay(alignment: .bottom) {
-            VStack(spacing: 8) {
-                // Floating Join Supporters Button (only show if Supporters goal exists and no Attendees goal)
+            VStack(spacing: 0) {
+                // Join Supporters Button (only show if Supporters goal exists and no Attendees goal)
                 if supportersGoal != nil && attendeesGoal == nil {
-                    Button(action: onJoinSupporters) {
-                        Text("Join Supporters")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                            .cornerRadius(6)
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    VStack(spacing: 0) {
+                        Rectangle()
+                            .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
+                            .frame(height: 1)
+                        Button(action: onJoinSupporters) {
+                            Text("Join Supporters")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                                .cornerRadius(6)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                     }
+                    .background(Color.white)
                 }
 
-                // Floating Register Button (only show if Attendees goal exists)
+                // Register Button (only show if Attendees goal exists)
                 if attendeesGoal != nil {
-                    Button(action: onRSVP) {
-                        Text("Register for Event")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
-                            .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
-                            .cornerRadius(6)
-                            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                    VStack(spacing: 0) {
+                        Rectangle()
+                            .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
+                            .frame(height: 1)
+                        Button(action: onRSVP) {
+                            Text("Register for Event")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(Color(UIColor(red: 0.482, green: 0.749, blue: 0.294, alpha: 1.0)))
+                                .cornerRadius(6)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
                     }
+                    .background(Color.white)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 64)
+            .padding(.bottom, 56)
         }
         .background(Color.white.edgesIgnoringSafeArea(.all))
         .navigationBarHidden(true)
@@ -1262,6 +1275,10 @@ struct PortalStorySection: View {
                     }
                 }
             }
+
+            // Extra bottom padding to allow scrolling past bottom buttons
+            Spacer()
+                .frame(height: 130)
         }
     }
 }

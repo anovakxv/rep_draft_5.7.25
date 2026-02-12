@@ -68,28 +68,28 @@
           </div>
         </div>
 
-        <!-- Floating RSVP Button (only show if Attendees goal exists) -->
+        <!-- Register for Event Button (only show if Attendees goal exists) -->
         <div
           v-if="attendeesGoal"
-          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center px-4 xl:sticky xl:bottom-20"
+          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
         >
           <button
             @click="handleRSVP"
-            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl shadow-lg transition-transform hover:scale-105 active:scale-95"
+            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95"
             style="background-color: #8cc65d; color: white;"
           >
             Register for Event
           </button>
         </div>
 
-        <!-- Floating Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
+        <!-- Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
         <div
           v-if="supportersGoal && !attendeesGoal"
-          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center px-4 xl:sticky xl:bottom-20"
+          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
         >
           <button
             @click="handleJoinSupporters"
-            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl shadow-lg transition-transform hover:scale-105 active:scale-95"
+            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95"
             style="background-color: #8cc65d; color: white;"
           >
             Join Supporters

@@ -1190,6 +1190,9 @@ struct PortalSegmentedPicker: View {
 
 struct PortalStorySection: View {
     let portal: PortalDetail
+    @State private var showFullscreenGallery = false
+    @State private var fullscreenGallerySectionId: Int = 0
+    @State private var fullscreenGalleryIndex = 0
 
     // Preload lead images immediately when view is created
     private func preloadLeadImages() {
@@ -1261,7 +1264,7 @@ struct PortalStorySection: View {
                         .font(.headline)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(section.aFiles) { file in
+                            ForEach(Array(section.aFiles.enumerated()), id: \.element.id) { idx, file in
                                 if let urlString = file.url, let url = URL(string: urlString) {
                                     KFImage(url)
                                         .resizable()
@@ -1269,6 +1272,12 @@ struct PortalStorySection: View {
                                         .frame(width: 213, height: 120)
                                         .clipped()
                                         .cornerRadius(8)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            fullscreenGallerySectionId = section.id
+                                            fullscreenGalleryIndex = idx
+                                            showFullscreenGallery = true
+                                        }
                                 }
                             }
                         }
@@ -1279,6 +1288,16 @@ struct PortalStorySection: View {
             // Extra bottom padding to allow scrolling past bottom buttons
             Spacer()
                 .frame(height: 130)
+        }
+        .fullScreenCover(isPresented: $showFullscreenGallery) {
+            let sectionImages = (portal.aSections ?? [])
+                .first(where: { $0.id == fullscreenGallerySectionId })?.aFiles ?? []
+            FullscreenImageViewer(
+                images: sectionImages,
+                startIndex: fullscreenGalleryIndex,
+                onDismiss: { showFullscreenGallery = false }
+            )
+            .ignoresSafeArea()
         }
     }
 }

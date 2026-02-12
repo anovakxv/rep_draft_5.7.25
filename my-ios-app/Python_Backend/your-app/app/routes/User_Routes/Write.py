@@ -139,7 +139,7 @@ def add_user_write():
 
     # Get content format (user-specified or auto-detected)
     content_format = data.get('content_format', '').lower()
-    if content_format not in ['plain', 'html']:
+    if content_format not in ['plain', 'html', 'markdown']:
         content_format = detect_format(content)
 
     if not users_id or not content:
@@ -199,7 +199,7 @@ def edit_user_write(write_id):
         # Get or detect format
         if 'content_format' in data:
             content_format = data.get('content_format', '').lower()
-            if content_format not in ['plain', 'html']:
+            if content_format not in ['plain', 'html', 'markdown']:
                 content_format = detect_format(content)
         else:
             # If format not specified, keep existing or auto-detect

@@ -167,6 +167,10 @@ import api from '@/pages/utils/api'
 import WritingToolbar from '@/components/WritingToolbar.vue'
 import WriteStats from '@/components/WriteStats.vue'
 import { BREAKPOINTS } from '@/constants/breakpoints'
+import TurndownService from 'turndown'
+import { marked } from 'marked'
+
+const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' })
 
 // Props & Router
 const router = useRouter()
@@ -396,17 +400,10 @@ async function handleSave() {
   errorMessage.value = ''
 
   try {
-    // Strip HTML tags to ensure backwards compatibility with old iOS clients
-    const stripHtml = (html: string): string => {
-      const div = document.createElement('div')
-      div.innerHTML = html
-      return div.textContent || div.innerText || ''
-    }
-
     const payload = {
       title: title.value.trim(),
-      content: stripHtml(content.value).trim(),  // Strip HTML for backwards compatibility
-      content_format: 'plain',  // Always use plain text for now
+      content: turndown.turndown(content.value),
+      content_format: 'markdown',
       status: isDraft.value ? 'draft' : 'published'
     }
 
@@ -446,7 +443,11 @@ async function loadExistingWrite() {
       isDraft.value = existingWrite.status === 'draft'
 
       if (editor.value) {
-        editor.value.innerHTML = content.value
+        if (existingWrite.content_format === 'markdown') {
+          editor.value.innerHTML = marked.parse(content.value) as string
+        } else {
+          editor.value.innerHTML = content.value.replace(/\n/g, '<br>')
+        }
       }
     }
   } catch (err) {

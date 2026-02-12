@@ -253,6 +253,7 @@
 import api from '@/pages/utils/api'
 import { ref, onMounted, computed, watch, defineComponent, h } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
+import { marked } from 'marked'
 
 // Components using h() render functions
 const NavigationHeaderView = defineComponent({
@@ -592,7 +593,9 @@ const WriteContentView = defineComponent({
         ? h('div', { class: 'space-y-4' }, props.writeBlocks.map((write: any, index: number) => {
             const expanded = isExpanded(write.id)
             const shouldTruncate = write.content.length > 200
-            const displayContent = expanded ? write.content : write.content.substring(0, 200)
+            const rawContent = expanded ? write.content : write.content.substring(0, 200)
+            const isMarkdown = write.content_format === 'markdown'
+            const displayContent = isMarkdown ? marked.parse(rawContent) as string : rawContent
 
             return h('div', {
               key: write.id,
@@ -601,6 +604,7 @@ const WriteContentView = defineComponent({
               write.title && h('h3', { class: 'font-bold text-lg mb-2' }, write.title),
               h('div', {
                 class: 'text-black prose prose-sm max-w-none mb-3',
+                style: isMarkdown ? '' : 'white-space: pre-wrap',
                 innerHTML: displayContent + (!expanded && shouldTruncate ? '...' : '')
               }),
               shouldTruncate && h('button', {

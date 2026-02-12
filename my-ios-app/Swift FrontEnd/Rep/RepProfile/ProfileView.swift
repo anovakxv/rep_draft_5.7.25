@@ -1447,9 +1447,15 @@ struct WriteContentView: View {
                                 .fontWeight(.medium)
                         }
 
-                        // Display content as plain text
-                        Text(write.content)
-                            .font(.title3)
+                        // Display content (markdown or plain text)
+                        if write.contentFormat == "markdown",
+                           let attributed = try? AttributedString(markdown: write.content) {
+                            Text(attributed)
+                                .font(.title3)
+                        } else {
+                            Text(write.content)
+                                .font(.title3)
+                        }
                         if isCurrentUser {
                             HStack(spacing: 16) {
                                 // Reorder buttons

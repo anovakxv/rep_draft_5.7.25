@@ -1190,9 +1190,6 @@ struct PortalSegmentedPicker: View {
 
 struct PortalStorySection: View {
     let portal: PortalDetail
-    @State private var showFullscreenGallery = false
-    @State private var fullscreenGalleryImages: [PortalFile] = []
-    @State private var fullscreenGalleryIndex = 0
 
     // Preload lead images immediately when view is created
     private func preloadLeadImages() {
@@ -1264,7 +1261,7 @@ struct PortalStorySection: View {
                         .font(.headline)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(Array(section.aFiles.enumerated()), id: \.element.id) { idx, file in
+                            ForEach(section.aFiles) { file in
                                 if let urlString = file.url, let url = URL(string: urlString) {
                                     KFImage(url)
                                         .resizable()
@@ -1272,12 +1269,6 @@ struct PortalStorySection: View {
                                         .frame(width: 213, height: 120)
                                         .clipped()
                                         .cornerRadius(8)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            fullscreenGalleryImages = section.aFiles
-                                            fullscreenGalleryIndex = idx
-                                            showFullscreenGallery = true
-                                        }
                                 }
                             }
                         }
@@ -1288,14 +1279,6 @@ struct PortalStorySection: View {
             // Extra bottom padding to allow scrolling past bottom buttons
             Spacer()
                 .frame(height: 130)
-        }
-        .fullScreenCover(isPresented: $showFullscreenGallery) {
-            FullscreenImageViewer(
-                images: fullscreenGalleryImages,
-                startIndex: fullscreenGalleryIndex,
-                onDismiss: { showFullscreenGallery = false }
-            )
-            .ignoresSafeArea()
         }
     }
 }

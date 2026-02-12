@@ -809,8 +809,8 @@ struct PortalPageContent: View {
                 LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                     GeometryReader { geometry in
                         let width = geometry.size.width
-                        let images = (portal.aSections ?? []).flatMap { $0.aFiles }
-                        ImageTabView(sections: portal.aSections ?? [])
+                        let mainSections = (portal.aSections ?? []).filter { $0.title == "Main Section" }
+                        ImageTabView(sections: mainSections)
                             .frame(width: width, height: imageTabHeight)
                             .clipped()
                             .contentShape(Rectangle())
@@ -821,9 +821,9 @@ struct PortalPageContent: View {
                     }
                     .frame(height: imageTabHeight)
                     .fullScreenCover(isPresented: $showFullscreen) {
-                        let images = (portal.aSections ?? []).flatMap { $0.aFiles }
+                        let mainImages = (portal.aSections ?? []).filter { $0.title == "Main Section" }.flatMap { $0.aFiles }
                         FullscreenImageViewer(
-                            images: images,
+                            images: mainImages,
                             startIndex: fullscreenIndex,
                             onDismiss: { showFullscreen = false }
                         )
@@ -1284,18 +1284,18 @@ struct PortalStorySection: View {
                     }
                 }
             }
-            .fullScreenCover(isPresented: $showFullscreenGallery) {
-                FullscreenImageViewer(
-                    images: fullscreenGalleryImages,
-                    startIndex: fullscreenGalleryIndex,
-                    onDismiss: { showFullscreenGallery = false }
-                )
-                .ignoresSafeArea()
-            }
 
             // Extra bottom padding to allow scrolling past bottom buttons
             Spacer()
                 .frame(height: 130)
+        }
+        .fullScreenCover(isPresented: $showFullscreenGallery) {
+            FullscreenImageViewer(
+                images: fullscreenGalleryImages,
+                startIndex: fullscreenGalleryIndex,
+                onDismiss: { showFullscreenGallery = false }
+            )
+            .ignoresSafeArea()
         }
     }
 }

@@ -23,7 +23,7 @@
         <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
         <div class="hidden xl:flex xl:w-[70%] xl:h-[calc(100vh-3.5rem)] xl:sticky xl:top-[3.5rem] xl:flex-col xl:bg-black" style="border: 12px solid black;">
           <ImageTabView
-            :sections="portalDetail.aSections || []"
+            :sections="(portalDetail.aSections || []).filter(s => s.title === 'Main Section')"
             @image-tap="openFullscreen"
             :desktop-mode="true"
           />
@@ -38,7 +38,7 @@
             <!-- MOBILE ONLY: Image Gallery -->
             <div class="xl:hidden">
               <ImageTabView
-                :sections="portalDetail.aSections || []"
+                :sections="(portalDetail.aSections || []).filter(s => s.title === 'Main Section')"
                 @image-tap="openFullscreen"
               />
             </div>
@@ -159,7 +159,7 @@
     <transition name="fade">
       <FullscreenImageViewer
         v-if="isFullscreenOpen"
-        :images="(portalDetail?.aSections || []).flatMap(s => s.aFiles)"
+        :images="(portalDetail?.aSections || []).filter(s => s.title === 'Main Section').flatMap(s => s.aFiles)"
         :start-index="fullscreenStartIndex"
         @close="isFullscreenOpen = false"
       />

@@ -343,7 +343,7 @@ struct UserPhotosView: View {
             } else {
                 // Photo Feed
                 ScrollView {
-                    LazyVStack(spacing: 0) {
+                    LazyVStack(spacing: 8) {
                         ForEach(Array(viewModel.photos.enumerated()), id: \.element.id) { index, photo in
                             VStack(spacing: 0) {
                                 // Reorder & Delete Controls (owner only)
@@ -456,23 +456,32 @@ struct UserPhotosView: View {
     // MARK: - Date Formatting
 
     private func formatDate(_ dateStr: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: dateStr) ?? ISO8601DateFormatter().date(from: dateStr) else {
-            return dateStr
+        let outputFormatter = DateFormatter()
+        outputFormatter.dateFormat = "MM-dd-yyyy h:mma zzz"
+
+        // Try format: "2025-12-07T22:04:30.052298" (with microseconds, no timezone)
+        let microsecondFormatter = DateFormatter()
+        microsecondFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
+        microsecondFormatter.timeZone = TimeZone(identifier: "UTC")
+        if let date = microsecondFormatter.date(from: dateStr) {
+            return outputFormatter.string(from: date)
         }
-        let now = Date()
-        let diff = now.timeIntervalSince(date)
-        if diff < 60 { return "Just now" }
-        if diff < 3600 { return "\(Int(diff / 60))m ago" }
-        if diff < 86400 { return "\(Int(diff / 3600))h ago" }
-        if diff < 604800 { return "\(Int(diff / 86400))d ago" }
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateFormat = "MMM d"
-        if !Calendar.current.isDate(date, equalTo: now, toGranularity: .year) {
-            displayFormatter.dateFormat = "MMM d, yyyy"
+
+        // Try ISO8601 format with timezone (e.g., "2025-12-07T22:04:30Z")
+        let isoFormatter = ISO8601DateFormatter()
+        if let date = isoFormatter.date(from: dateStr) {
+            return outputFormatter.string(from: date)
         }
-        return displayFormatter.string(from: date)
+
+        // Try fallback format: "yyyy-MM-dd HH:mm:ss"
+        let fallbackFormatter = DateFormatter()
+        fallbackFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        fallbackFormatter.timeZone = TimeZone(identifier: "UTC")
+        if let date = fallbackFormatter.date(from: dateStr) {
+            return outputFormatter.string(from: date)
+        }
+
+        return dateStr
     }
 }
 

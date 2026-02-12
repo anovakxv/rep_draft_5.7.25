@@ -58,7 +58,22 @@ struct EditGoalPage: View {
                 Section(header: Text(isEdit ? "Edit Goal" : "Add Goal")) {
                     TextField("Title", text: $title)
                     TextField("Subtitle", text: $subtitle)
-                    TextField("Description", text: $description)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Description")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        TextEditor(text: $description)
+                            .frame(minHeight: 80, maxHeight: 160)
+                            .onChange(of: description) { newValue in
+                                if newValue.count > 1000 {
+                                    description = String(newValue.prefix(1000))
+                                }
+                            }
+                        Text("\(description.count)/1000")
+                            .font(.caption2)
+                            .foregroundColor(description.count > 900 ? .red : .secondary)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
                     Picker("Goal Type", selection: $goalType) {
                         ForEach(goalTypes, id: \.self) { type in
                             Text(type)

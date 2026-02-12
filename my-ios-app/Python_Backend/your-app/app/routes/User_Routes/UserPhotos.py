@@ -25,6 +25,8 @@ s3 = boto3.client(
 )
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_PHOTOS_PER_USER = 50
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -93,6 +95,11 @@ def api_upload_user_photo():
     # Only allow users to upload photos to their own profile
     if current_user_id != int(target_user_id):
         return jsonify({'error': 'Permission denied'}), 403
+
+    # Check photo count limit
+    current_count = UserPhoto.query.filter_by(users_id=target_user_id).count()
+    if current_count >= MAX_PHOTOS_PER_USER:
+        return jsonify({'error': f'Maximum of {MAX_PHOTOS_PER_USER} photos allowed'}), 400
 
     try:
         # Handle single photo upload
@@ -258,6 +265,18 @@ def api_upload_user_photo_file():
 
     if not allowed_file(file.filename):
         return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
+
+    # Check file size
+    file.seek(0, 2)  # Seek to end
+    file_size = file.tell()
+    file.seek(0)  # Reset to beginning
+    if file_size > MAX_FILE_SIZE_BYTES:
+        return jsonify({'error': 'File too large. Maximum size is 10 MB'}), 400
+
+    # Check photo count limit
+    current_count = UserPhoto.query.filter_by(users_id=current_user_id).count()
+    if current_count >= MAX_PHOTOS_PER_USER:
+        return jsonify({'error': f'Maximum of {MAX_PHOTOS_PER_USER} photos allowed'}), 400
 
     caption = request.form.get('caption', '').strip()
     if len(caption) > 500:

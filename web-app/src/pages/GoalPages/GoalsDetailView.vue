@@ -107,8 +107,13 @@
                 <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-sm mt-2 pt-2 border-t border-gray-200">
                   {{ goal.subtitle }}
                 </div>
-                <div v-if="goal.description && goal.description.trim()" class="text-secondary text-sm">
-                  {{ goal.description }}
+                <div v-if="goal.description && goal.description.trim()">
+                  <div class="text-black text-sm" :style="{ whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: descriptionExpanded ? 'unset' : '2', WebkitBoxOrient: 'vertical', overflow: descriptionExpanded ? 'visible' : 'hidden' }">
+                    {{ goal.description }}
+                  </div>
+                  <button v-if="goal.description.length > 80 || goal.description.includes('\n')" @click="descriptionExpanded = !descriptionExpanded" class="text-sm font-medium mt-1" style="color: #8cc65d;">
+                    {{ descriptionExpanded ? 'Read less' : 'Read more' }}
+                  </button>
                 </div>
               </div>
             </div>
@@ -183,8 +188,13 @@
               <div v-if="goal.subtitle && goal.subtitle.trim()" class="text-secondary text-base mt-1">
                 {{ goal.subtitle }}
               </div>
-              <div v-if="goal.description && goal.description.trim()" class="text-secondary text-base">
-                {{ goal.description }}
+              <div v-if="goal.description && goal.description.trim()">
+                <div class="text-black text-base" :style="{ whiteSpace: 'pre-wrap', display: '-webkit-box', WebkitLineClamp: descriptionExpanded ? 'unset' : '2', WebkitBoxOrient: 'vertical', overflow: descriptionExpanded ? 'visible' : 'hidden' }">
+                  {{ goal.description }}
+                </div>
+                <button v-if="goal.description.length > 80 || goal.description.includes('\n')" @click="descriptionExpanded = !descriptionExpanded" class="text-base font-medium mt-1" style="color: #8cc65d;">
+                  {{ descriptionExpanded ? 'Read less' : 'Read more' }}
+                </button>
               </div>
             </div>
           </div>
@@ -617,6 +627,7 @@ const feed = ref<Feed[]>([]);
 const latestProgressLogs = ref<APIGoalProgressLog[]>([]);
 const reportingIncrements = ref<ReportingIncrement[]>([]);
 const selectedSegment = ref(0);
+const descriptionExpanded = ref(false);
 const activeSheet = ref<string | null>(null);
 const showDeleteAlert = ref(false);
 const chatCreationError = ref<string | null>(null);

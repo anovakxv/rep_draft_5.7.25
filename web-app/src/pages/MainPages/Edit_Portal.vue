@@ -567,16 +567,22 @@
           </div>
 
           <!-- Add images button -->
-          <label class="inline-block text-sm font-medium text-green-600 cursor-pointer hover:text-green-700">
-            + Add Images
-            <input
-              type="file"
-              multiple
-              accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
-              class="hidden"
-              @change="handleSectionImageSelection"
-            />
-          </label>
+          <div class="flex items-center gap-2">
+            <label
+              v-if="sectionImageCount < maxImages"
+              class="inline-block text-sm font-medium text-green-600 cursor-pointer hover:text-green-700"
+            >
+              + Add Images
+              <input
+                type="file"
+                multiple
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                class="hidden"
+                @change="handleSectionImageSelection"
+              />
+            </label>
+            <p class="text-xs text-gray-500">({{ sectionImageCount }}/{{ maxImages }} images)</p>
+          </div>
         </div>
       </div>
     </div>
@@ -610,7 +616,7 @@
 
 <script setup lang="ts">
 import api from '@/pages/utils/api';
-import { ref, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { v4 as uuidv4 } from 'uuid'; // You'll need to add this package
 
@@ -991,11 +997,15 @@ const closeImageSectionModal = () => {
   imgSectionRemovedHashes.value = [];
 };
 
+const sectionImageCount = computed(() => imgSectionExisting.value.length + imgSectionNewFiles.value.length);
+
 const handleSectionImageSelection = (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (!input.files) return;
   const files = Array.from(input.files);
-  for (const file of files) {
+  const availableSlots = maxImages - sectionImageCount.value;
+  const filesToAdd = files.slice(0, availableSlots);
+  for (const file of filesToAdd) {
     imgSectionNewFiles.value.push({ file, url: URL.createObjectURL(file) });
   }
   input.value = '';

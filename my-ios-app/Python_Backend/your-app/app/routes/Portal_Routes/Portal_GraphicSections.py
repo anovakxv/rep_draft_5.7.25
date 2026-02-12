@@ -25,6 +25,8 @@ s3 = boto3.client(
 )
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_IMAGES_PER_SECTION = 10
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -109,6 +111,9 @@ def api_add_update_portal_graphic_sections():
         PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=pgs.id).delete(synchronize_session=False)
 
         file_indexes = [i.strip() for i in indexes.split(',') if i.strip()]
+        if len(file_indexes) > MAX_IMAGES_PER_SECTION:
+            aLog.append({'error': f'Maximum of {MAX_IMAGES_PER_SECTION} images per section', 'index': idx})
+            continue
         files_log = []
         for gr_hash in file_indexes:
             s3_file = S3Content.query.filter_by(gr_hash=gr_hash, tbl_index=6).first()
@@ -205,6 +210,14 @@ def api_upload_graphic_section_images():
     if not images or not images[0].filename:
         return jsonify({'error': 'At least one image file is required'}), 400
 
+    # Check file sizes before processing
+    for img in images:
+        if img and img.filename:
+            img.seek(0, 2)
+            if img.tell() > MAX_FILE_SIZE_BYTES:
+                return jsonify({'error': f'File "{img.filename}" exceeds 10 MB limit'}), 400
+            img.seek(0)
+
     try:
         # Find or create section
         if section_id:
@@ -229,6 +242,14 @@ def api_upload_graphic_section_images():
             )
             db.session.add(section)
             db.session.flush()
+
+        # Check image count limit for this section
+        current_count = S3Content.query.filter(
+            S3Content.tbl_index == 6, S3Content.tbl_id == section.id
+        ).count()
+        valid_images = [img for img in images if img.filename and allowed_file(img.filename)]
+        if current_count + len(valid_images) > MAX_IMAGES_PER_SECTION:
+            return jsonify({'error': f'Maximum of {MAX_IMAGES_PER_SECTION} images per section. Currently {current_count}.'}), 400
 
         # Upload each image
         for img in images:

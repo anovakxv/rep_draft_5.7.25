@@ -13,6 +13,7 @@ struct GoalsDetailView: View {
     let initialGoal: Goal
     @StateObject private var viewModel = GoalsDetailViewModel()
     @State private var selectedSegment = 0
+    @State private var descriptionExpanded = false
 
     // --- Profile Navigation ---
     @State private var selectedProfileUserId: Int? = nil
@@ -134,9 +135,21 @@ struct GoalsDetailView: View {
                             .foregroundColor(.secondary)
                     }
                     if !viewModel.goal.description.isEmpty {
-                        Text(viewModel.goal.description)
-                            .font(.body)
-                            .foregroundColor(.secondary)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(viewModel.goal.description)
+                                .font(.body)
+                                .foregroundColor(.primary)
+                                .lineLimit(descriptionExpanded ? nil : 2)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if viewModel.goal.description.count > 80 || viewModel.goal.description.contains("\n") {
+                                Button(action: { descriptionExpanded.toggle() }) {
+                                    Text(descriptionExpanded ? "Read less" : "Read more")
+                                        .font(.subheadline)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(Color(UIColor(red: 0.549, green: 0.78, blue: 0.365, alpha: 1.0)))
+                                }
+                            }
+                        }
                     }
                 }
                 .padding()

@@ -172,6 +172,14 @@ import { marked } from 'marked'
 
 const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' })
 
+// Treat <div> as paragraph breaks (contenteditable uses <div> not <p> for Enter key)
+turndown.addRule('divParagraph', {
+  filter: 'div',
+  replacement: function (content: string) {
+    return '\n\n' + content.trim() + '\n\n'
+  }
+})
+
 // Props & Router
 const router = useRouter()
 const route = useRoute()

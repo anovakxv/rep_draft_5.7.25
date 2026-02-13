@@ -452,10 +452,13 @@ async function loadExistingWrite() {
 
       if (editor.value) {
         if (existingWrite.content_format === 'markdown') {
-          editor.value.innerHTML = marked.parse(content.value) as string
+          editor.value.innerHTML = marked.parse(content.value, { breaks: true }) as string
         } else {
           editor.value.innerHTML = content.value.replace(/\n/g, '<br>')
         }
+        // Sync content.value with the actual editor HTML so Turndown
+        // always receives HTML (not raw markdown) on save
+        content.value = editor.value.innerHTML
       }
     }
   } catch (err) {

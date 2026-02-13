@@ -595,7 +595,7 @@ const WriteContentView = defineComponent({
             const shouldTruncate = write.content.length > 200
             const rawContent = expanded ? write.content : write.content.substring(0, 200)
             const isMarkdown = write.content_format === 'markdown'
-            const displayContent = isMarkdown ? marked.parse(rawContent) as string : rawContent
+            const displayContent = isMarkdown ? marked.parse(rawContent, { breaks: true }) as string : rawContent
 
             return h('div', {
               key: write.id,

@@ -204,7 +204,7 @@ const focusedEditor = ref(false)
 const isMobile = ref(window.innerWidth < BREAKPOINTS.DESKTOP)
 const activeFormats = ref<string[]>([])
 const saveStatus = ref<'idle' | 'saving' | 'saved' | 'error'>('idle')
-const autoSaveTimer = ref<NodeJS.Timeout | null>(null)
+const autoSaveTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 // Refs
 const editor = ref<HTMLDivElement | null>(null)

@@ -64,7 +64,8 @@
       "Bash(xcodebuild:*)",
       "Bash(swiftc:*)",
       "Bash(grep:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(npx vue-tsc:*)"
     ],
     "deny": [],
     "ask": []

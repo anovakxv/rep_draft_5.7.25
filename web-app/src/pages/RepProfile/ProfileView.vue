@@ -255,6 +255,9 @@ import { ref, onMounted, computed, watch, defineComponent, h } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { marked } from 'marked'
 
+// Enable breaks: single \n renders as <br> (matches user expectation from Enter key)
+marked.use({ breaks: true })
+
 // Components using h() render functions
 const NavigationHeaderView = defineComponent({
   props: {
@@ -595,7 +598,7 @@ const WriteContentView = defineComponent({
             const shouldTruncate = write.content.length > 200
             const rawContent = expanded ? write.content : write.content.substring(0, 200)
             const isMarkdown = write.content_format === 'markdown'
-            const displayContent = isMarkdown ? marked.parse(rawContent, { breaks: true }) as string : rawContent
+            const displayContent = isMarkdown ? marked.parse(rawContent) as string : rawContent
 
             return h('div', {
               key: write.id,

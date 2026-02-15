@@ -170,6 +170,9 @@ import { BREAKPOINTS } from '@/constants/breakpoints'
 import TurndownService from 'turndown'
 import { marked } from 'marked'
 
+// Enable breaks: single \n renders as <br> (matches user expectation from Enter key)
+marked.use({ breaks: true })
+
 const turndown = new TurndownService({ headingStyle: 'atx', bulletListMarker: '-' })
 
 // Treat <div> as paragraph breaks (contenteditable uses <div> not <p> for Enter key)
@@ -398,6 +401,12 @@ function handleCancel() {
 }
 
 async function handleSave() {
+  // Always read the editor's current HTML directly before saving
+  // (don't rely on @input having synced content.value)
+  if (editor.value) {
+    content.value = editor.value.innerHTML
+  }
+
   if (!canSave.value) {
     errorMessage.value = 'Please add a title and content'
     return
@@ -408,9 +417,10 @@ async function handleSave() {
   errorMessage.value = ''
 
   try {
+    const editorHtml = editor.value ? editor.value.innerHTML : content.value
     const payload = {
       title: title.value.trim(),
-      content: turndown.turndown(content.value),
+      content: turndown.turndown(editorHtml),
       content_format: 'markdown',
       status: isDraft.value ? 'draft' : 'published'
     }
@@ -452,7 +462,7 @@ async function loadExistingWrite() {
 
       if (editor.value) {
         if (existingWrite.content_format === 'markdown') {
-          editor.value.innerHTML = marked.parse(content.value, { breaks: true }) as string
+          editor.value.innerHTML = marked.parse(content.value) as string
         } else {
           editor.value.innerHTML = content.value.replace(/\n/g, '<br>')
         }

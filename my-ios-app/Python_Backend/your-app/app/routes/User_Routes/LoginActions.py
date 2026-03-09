@@ -16,9 +16,10 @@ import time
 
 # Optional: welcome DM helper (best-effort, idempotent)
 try:
-    from app.utils.welcome_dm import send_welcome_dm_once
+    from app.utils.welcome_dm import send_welcome_dm_once, send_founder_dm_once
 except Exception:
     send_welcome_dm_once = None  # type: ignore
+    send_founder_dm_once = None  # type: ignore
 
 user_bp = Blueprint('login_user', __name__)
 
@@ -67,12 +68,19 @@ def api_login_user():
     resp.set_cookie('uid', str(user.id), max_age=60*60*24*30, path='/')
     resp.set_cookie('upd', str(datetime.datetime.utcnow().timestamp()), max_age=60*60*24*30, path='/')
 
-    # Fire-and-forget Welcome DM (idempotent). Safe if helper/env not configured.
+    # Fire-and-forget Welcome DMs (idempotent). Safe if helper/env not configured.
     if send_welcome_dm_once:
         try:
             send_welcome_dm_once(db, socketio, recipient_id=user.id)
         except Exception as e:
-            print(f"[WelcomeDM][login] send failed: {e}")
+            print(f"[WelcomeDM][login] admin send failed: {e}")
+
+    # Send founder welcome message
+    if send_founder_dm_once:
+        try:
+            send_founder_dm_once(db, socketio, recipient_id=user.id)
+        except Exception as e:
+            print(f"[WelcomeDM][login] founder send failed: {e}")
 
     return resp
 

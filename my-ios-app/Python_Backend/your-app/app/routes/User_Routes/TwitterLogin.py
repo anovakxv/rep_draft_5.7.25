@@ -3,13 +3,20 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, make_response
-from app import db
+from app import db, socketio
 from app.models.People_Models.user import User
 from app.utils.user_utils import manage_user_row
 import hashlib
 import os
 import jwt
 import datetime
+
+# Optional: welcome DM helpers (best-effort, idempotent)
+try:
+    from app.utils.welcome_dm import send_welcome_dm_once, send_founder_dm_once
+except Exception:
+    send_welcome_dm_once = None  # type: ignore
+    send_founder_dm_once = None  # type: ignore
 
 user_bp = Blueprint('twitter_login', __name__)
 
@@ -26,6 +33,7 @@ def api_twitter_login():
         return jsonify({'error': 'twitter_id required!'}), 400
 
     user = User.query.filter_by(twitter_id=twitter_id).first()
+    is_new_user = False
 
     if not user:
         # Register new user with Twitter ID
@@ -39,6 +47,21 @@ def api_twitter_login():
         )
         db.session.add(user)
         db.session.commit()
+        is_new_user = True
+
+    # Send welcome messages to new users (idempotent)
+    if is_new_user:
+        if send_welcome_dm_once:
+            try:
+                send_welcome_dm_once(db, socketio, recipient_id=user.id)
+            except Exception as e:
+                print(f"[WelcomeDM][twitter] admin send failed: {e}")
+
+        if send_founder_dm_once:
+            try:
+                send_founder_dm_once(db, socketio, recipient_id=user.id)
+            except Exception as e:
+                print(f"[WelcomeDM][twitter] founder send failed: {e}")
 
     # Generate JWT token
     jwt_secret = os.environ.get('JWT_SECRET', 'changeme')

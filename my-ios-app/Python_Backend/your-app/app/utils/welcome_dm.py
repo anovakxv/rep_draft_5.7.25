@@ -76,3 +76,74 @@ def send_welcome_dm_once(db, socketio, recipient_id: int, text: str = "Welcome t
         pass
 
     return True
+
+
+def send_founder_dm_once(db, socketio, recipient_id: int):
+    """
+    Sends a personal welcome message from the founder (user 45).
+    Users can reply to message the founder directly with questions/thoughts.
+    Returns True if a new message was created, False otherwise.
+    """
+    try:
+        from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
+        from app.models.People_Models.user import User
+    except Exception:
+        return False
+
+    founder_id = 45  # Adam (founder)
+    if founder_id == recipient_id:
+        return False  # Don't send to yourself
+
+    # Idempotency: if any prior DM exists from founder -> recipient, skip
+    try:
+        prior = (DirectMessage.query
+                 .filter(DirectMessage.sender_id == founder_id,
+                         DirectMessage.recipient_id == recipient_id)
+                 .first())
+        if prior:
+            return False
+    except Exception:
+        return False
+
+    # Founder welcome message
+    text = (
+        "Hi! I'm Adam, founder of Rep. Welcome!\n\n"
+        "Rep helps communities make progress on their top priorities. "
+        "Think of it as an intelligent rolodex working in the background to help you and your causes—not keeping you scrolling on screens.\n\n"
+        "I'd love to hear your thoughts and feedback as you explore. "
+        "Please message me directly with any questions or ideas!"
+    )
+
+    # Create message
+    msg = DirectMessage(
+        sender_id=founder_id,
+        recipient_id=recipient_id,
+        text=text,
+        created_at=datetime.utcnow()
+    )
+    db.session.add(msg)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return False
+
+    # Emit socket notification (best-effort)
+    try:
+        sender = User.query.filter_by(id=founder_id).first()
+        payload = {
+            "type": "direct_message",
+            "id": msg.id,
+            "message_id": msg.id,
+            "sender_id": founder_id,
+            "sender_name": (f"{sender.fname or ''} {sender.lname or ''}").strip() if sender else "",
+            "recipient_id": recipient_id,
+            "text": msg.text,
+            "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "read": "0"
+        }
+        socketio.emit("direct_message_notification", payload, room=f"user_{recipient_id}")
+    except Exception:
+        pass
+
+    return True

@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.Purpose_Models.Portal import Portal
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.Purpose_Models.PortalUser import PortalUser
@@ -149,6 +149,7 @@ def api_portal_details():
 # POST: Create portal (with optional images)
 @portal_bp.route('/', methods=['POST'])
 @jwt_required
+@limiter.limit("10 per day")
 def api_create_portal():
     import traceback
 
@@ -574,5 +575,42 @@ def api_get_portal_nearest_rep():
 #         return jsonify({'error': 'Portal not found'}), 404
 #     portal.status = 'active' if action == 'approve' else 'rejected'
 #     db.session.commit()
-#     # Optional: notify creator via DM here
+#
+#     # Notify creator via DM (best-effort)
+#     try:
+#         from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
+#         from app import socketio
+#         admin_id = g.current_user.id
+#         if action == 'approve':
+#             dm_text = (
+#                 f"Your Portal \"{portal.name}\" has been approved! "
+#                 f"It's now live and visible to the Rep community."
+#             )
+#         else:
+#             dm_text = (
+#                 f"Your Portal \"{portal.name}\" was not approved at this time. "
+#                 f"Please message us if you have any questions."
+#             )
+#         msg = DirectMessage(
+#             sender_id=admin_id,
+#             recipient_id=portal.users_id,
+#             text=dm_text,
+#             created_at=datetime.utcnow()
+#         )
+#         db.session.add(msg)
+#         db.session.commit()
+#         payload = {
+#             "type": "direct_message",
+#             "id": msg.id,
+#             "message_id": msg.id,
+#             "sender_id": admin_id,
+#             "recipient_id": portal.users_id,
+#             "text": msg.text,
+#             "timestamp": msg.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+#             "read": "0"
+#         }
+#         socketio.emit("direct_message_notification", payload, room=f"user_{portal.users_id}")
+#     except Exception as e:
+#         print(f"[PortalApproval] DM notify failed: {e}")
+#
 #     return jsonify({'result': 'ok', 'portal_id': portal_id, 'status': portal.status})

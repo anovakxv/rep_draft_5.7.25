@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, url_for, current_app
-from app import db, socketio  # CHANGED: include socketio
+from app import db, socketio, limiter  # CHANGED: include socketio
 from app.models.People_Models.user import User
 from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
@@ -40,6 +40,7 @@ def patch_profile_picture_url(user_row):
     return user_row
 
 @user_bp.route('/register', methods=['POST'])
+@limiter.limit("10 per hour")
 def api_register_user():
     data = request.form.to_dict()
     files = request.files

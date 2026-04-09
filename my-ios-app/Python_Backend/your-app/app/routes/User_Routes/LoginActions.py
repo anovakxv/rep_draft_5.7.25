@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, session, make_response
-from app import db, socketio  # CHANGED: include socketio for realtime emit
+from app import db, socketio, limiter  # CHANGED: include socketio for realtime emit
 from app.models.People_Models.user import User
 from app.models.People_Models.PasswordUpdater import PasswordUpdater
 from app.utils.user_utils import manage_user_row, mark_all_activities_as_read
@@ -24,6 +24,7 @@ except Exception:
 user_bp = Blueprint('login_user', __name__)
 
 @user_bp.route('/login', methods=['POST'])
+@limiter.limit("20 per minute")
 def api_login_user():
     data = request.get_json()
     email = data.get('email', '').strip()

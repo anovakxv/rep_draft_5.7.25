@@ -10,16 +10,22 @@ if "APNS_CERT_PEM" in os.environ:
     with open(pem_path, "w") as f:
         f.write(os.environ["APNS_CERT_PEM"])
 
-from flask import Flask
+from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
 from flask_socketio import SocketIO
 from config import Config
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_limiter import Limiter
 from app.scheduler import init_scheduler
 
 db = SQLAlchemy()
+
+def get_real_ip():
+    return request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()
+
+limiter = Limiter(key_func=get_real_ip, default_limits=[])
 
 # Use Redis message queue if REDIS_URL provided (safe if None)
 socketio = SocketIO(
@@ -63,6 +69,7 @@ def create_app():
     socketio.init_app(app)
     Migrate(app, db)
     JWTManager(app)
+    limiter.init_app(app)
 
     # --- Import all models so Flask-Migrate can detect them ---
     # People_Models

@@ -51,7 +51,12 @@ def api_public_get_portals():
     # Start with all visible portals
     query = Portal.query.options(
         subqueryload(Portal.graphic_sections)
-    ).filter(Portal.visible == True)
+    ).filter(
+        Portal.visible == True,
+        # --- PORTAL APPROVAL WORKFLOW (not yet active) ---
+        # Uncomment to exclude pending/rejected portals from the public listing:
+        # Portal.status == 'active',
+    )
 
     # Filter out flagged portals by default (safe mode)
     if safe_only:

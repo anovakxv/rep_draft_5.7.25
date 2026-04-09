@@ -10,7 +10,7 @@ boto3
 gunicorn
 PyJWT
 Flask-Cors
-sendgrid
+resend
 flask_jwt_extended
 requests
 google-auth

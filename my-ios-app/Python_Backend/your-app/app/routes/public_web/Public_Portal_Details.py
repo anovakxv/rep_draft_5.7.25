@@ -119,6 +119,11 @@ def api_public_portal_details(portal_id):
     if not portal.visible:
         return jsonify({'error': "Portal not found"}), 404
 
+    # --- PORTAL APPROVAL WORKFLOW (not yet active) ---
+    # Uncomment to block public access to pending/rejected portals:
+    # if portal.status != 'active':
+    #     return jsonify({'error': "Portal not found"}), 404
+
     # Batch fetch S3 files for all graphic sections
     sections = portal.graphic_sections
     section_ids = [section.id for section in sections]

@@ -3,23 +3,21 @@
 # Created by Adam Novak: June 2025
 
 import os
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import resend
 
 def send_mail(to, subject, body, from_email='contact@repsomething.com'):
     """
-    Send an email using SendGrid.
+    Send an email using Resend.
     """
-    message = Mail(
-        from_email=from_email,
-        to_emails=to,
-        subject=subject,
-        html_content=body
-    )
+    resend.api_key = os.environ.get('RESEND_API_KEY')
     try:
-        sg = SendGridAPIClient(os.environ['SENDGRID_API_KEY'])
-        response = sg.send(message)
-        return response.status_code == 202
+        resend.Emails.send({
+            "from": from_email,
+            "to": [to] if isinstance(to, str) else to,
+            "subject": subject,
+            "html": body
+        })
+        return True
     except Exception as e:
-        print(f"SendGrid error: {e}")
+        print(f"Resend error: {e}")
         return False

@@ -180,6 +180,10 @@ def api_create_portal():
             categories_id=data.get('categories_id'),
             cities_id=data.get('cities_id'),
             visible=data.get('visible', True),
+            # --- PORTAL APPROVAL WORKFLOW ---
+            # To enable approval: change 'active' to 'pending' below.
+            # New portals will be hidden from public until approved by admin.
+            # status='pending',
             status='active',
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
@@ -534,3 +538,41 @@ def api_get_portal_nearest_rep():
         })
 
     return jsonify({'result': result})
+
+
+# =============================================================================
+# PORTAL APPROVAL WORKFLOW — Not yet active. Uncomment to enable.
+# Requires: status='pending' on portal creation (see api_create_portal above)
+#           + status filters in Get_Portals.py, SearchPortals.py, Public_Portals.py
+# =============================================================================
+
+# ADMIN_USER_IDS = [45]  # Add more admin user IDs as needed, or load from env:
+# ADMIN_USER_IDS = [int(x) for x in os.environ.get('ADMIN_USER_IDS', '45').split(',')]
+
+# @portal_bp.route('/admin/pending', methods=['GET'])
+# @jwt_required
+# def api_admin_pending_portals():
+#     """Admin-only: list all portals awaiting approval."""
+#     if g.current_user.id not in ADMIN_USER_IDS:
+#         return jsonify({'error': 'Unauthorized'}), 403
+#     portals = Portal.query.filter_by(status='pending').order_by(Portal.created_at.asc()).all()
+#     return jsonify({'result': [p.as_card_dict() for p in portals]})
+
+# @portal_bp.route('/admin/approve', methods=['POST'])
+# @jwt_required
+# def api_admin_approve_portal():
+#     """Admin-only: approve or reject a pending portal."""
+#     if g.current_user.id not in ADMIN_USER_IDS:
+#         return jsonify({'error': 'Unauthorized'}), 403
+#     data = request.get_json()
+#     portal_id = data.get('portal_id')
+#     action = data.get('action')  # 'approve' or 'reject'
+#     if not portal_id or action not in ('approve', 'reject'):
+#         return jsonify({'error': "portal_id and action ('approve' or 'reject') required"}), 400
+#     portal = Portal.query.filter_by(id=portal_id).first()
+#     if not portal:
+#         return jsonify({'error': 'Portal not found'}), 404
+#     portal.status = 'active' if action == 'approve' else 'rejected'
+#     db.session.commit()
+#     # Optional: notify creator via DM here
+#     return jsonify({'result': 'ok', 'portal_id': portal_id, 'status': portal.status})

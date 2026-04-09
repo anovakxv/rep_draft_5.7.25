@@ -30,6 +30,9 @@ def search_portals():
         db.session.query(Portal)
         .filter(
             Portal.visible == True,
+            # --- PORTAL APPROVAL WORKFLOW (not yet active) ---
+            # Uncomment to exclude pending/rejected portals from search results:
+            # Portal.status == 'active',
             or_(
                 Portal.name.ilike(search),
                 Portal.subtitle.ilike(search)

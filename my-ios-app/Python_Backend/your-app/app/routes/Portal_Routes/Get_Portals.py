@@ -121,6 +121,13 @@ def api_get_portals():
         else:
             query = query.filter(~Portal.users_id.in_(network_user_ids), ~Portal.id.in_(shared_portal_ids))
 
+    # --- PORTAL APPROVAL WORKFLOW (not yet active) ---
+    # Uncomment to hide pending/rejected portals from listings (except the creator's own).
+    # Also requires: status='pending' on creation + admin approve route in Portal_Details.py
+    # query = query.filter(
+    #     db.or_(Portal.status == 'active', Portal.users_id == user_id)
+    # )
+
     # Order and paginate
     if shared == "1":
         query = query.order_by(PortalsUsersShare.id.desc())
@@ -204,6 +211,12 @@ def filter_network_portals():
         query = query.filter(Portal.cities_id == cities_id)
     if portals_id:
         query = query.filter(Portal.id == portals_id)
+
+    # --- PORTAL APPROVAL WORKFLOW (not yet active) ---
+    # Uncomment to hide pending/rejected portals from the "open/ntwk/all" tabs (except the creator's own).
+    # query = query.filter(
+    #     db.or_(Portal.status == 'active', Portal.users_id == user_id)
+    # )
 
     query = query.order_by(Portal.lead_user_count.desc())
     portals = query.offset(offset).limit(limit).all()

@@ -1129,23 +1129,48 @@ struct PortalSectionContent: View {
 struct ImageTabView: View {
     let sections: [PortalSection]
 
+    @State private var currentIndex: Int = 0
+
+    private var images: [PortalFile] {
+        sections.flatMap { $0.aFiles }
+    }
+
     var body: some View {
-        TabView {
-            ForEach(sections.flatMap { $0.aFiles }) { file in
-                if let urlString = file.url, let url = URL(string: urlString) {
-                    KFImage(url)
-                        .resizable()
-                        .scaledToFill()
-                        .clipped()
-                } else {
-                    Rectangle()
-                        .fill(Color.gray.opacity(0.2))
-                        .overlay(Text("No Image").foregroundColor(.secondary))
+        TabView(selection: $currentIndex) {
+            ForEach(Array(images.enumerated()), id: \.offset) { index, file in
+                Group {
+                    if let urlString = file.url, let url = URL(string: urlString) {
+                        KFImage(url)
+                            .resizable()
+                            .scaledToFill()
+                            .clipped()
+                    } else {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.2))
+                            .overlay(Text("No Image").foregroundColor(.secondary))
+                    }
                 }
+                .tag(index)
             }
         }
         .tabViewStyle(PageTabViewStyle())
         .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
+        .task {
+            await runIntroSlideshow()
+        }
+    }
+
+    @MainActor
+    private func runIntroSlideshow() async {
+        guard images.count > 1 else { return }
+        for i in 1..<images.count {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.none) { currentIndex = i }
+        }
+        try? await Task.sleep(nanoseconds: 250_000_000)
+        guard !Task.isCancelled else { return }
+        withAnimation(.none) { currentIndex = 0 }
     }
 }
 

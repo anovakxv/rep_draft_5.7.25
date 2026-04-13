@@ -750,6 +750,32 @@ const ImageTabView = defineComponent({
   setup(props, { emit }) {
     const images = computed(() => props.sections?.flatMap(s => s.aFiles) || []);
     const currentImageIndex = ref(0);
+    let slideshowTimer: ReturnType<typeof setInterval> | null = null;
+
+    // On mount: flash through all images at 250ms each, then settle on image 0
+    onMounted(() => {
+      if (images.value.length > 1) {
+        let step = 1;
+        const total = images.value.length;
+        slideshowTimer = setInterval(() => {
+          if (step < total) {
+            currentImageIndex.value = step;
+            step++;
+          } else {
+            currentImageIndex.value = 0;
+            clearInterval(slideshowTimer!);
+            slideshowTimer = null;
+          }
+        }, 250);
+      }
+    });
+
+    onBeforeUnmount(() => {
+      if (slideshowTimer) {
+        clearInterval(slideshowTimer);
+        slideshowTimer = null;
+      }
+    });
 
     const nextImage = () => {
       if (images.value.length > 0) {

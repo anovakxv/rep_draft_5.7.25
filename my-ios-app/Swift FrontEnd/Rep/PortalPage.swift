@@ -1163,6 +1163,16 @@ struct ImageTabView: View {
     @MainActor
     private func runIntroSlideshow() async {
         guard images.count > 1 else { return }
+
+        // Preload first 4 images into Kingfisher cache before starting (skips any already cached)
+        let urls = images.prefix(4).compactMap { URL(string: $0.url ?? "") }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            ImagePrefetcher(urls: urls) { _, _, _ in
+                continuation.resume()
+            }.start()
+        }
+        guard !Task.isCancelled else { return }
+
         for i in 1..<images.count {
             try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled else { return }

@@ -752,21 +752,33 @@ const ImageTabView = defineComponent({
     const currentImageIndex = ref(0);
     let slideshowTimer: ReturnType<typeof setInterval> | null = null;
 
-    // On mount: flash through all images at 250ms each, then settle on image 0
+    // On mount: preload all images first, then flash through at 250ms each, settle on image 0
     onMounted(() => {
       if (images.value.length > 1) {
-        let step = 1;
-        const total = images.value.length;
-        slideshowTimer = setInterval(() => {
-          if (step < total) {
-            currentImageIndex.value = step;
-            step++;
-          } else {
-            currentImageIndex.value = 0;
-            clearInterval(slideshowTimer!);
-            slideshowTimer = null;
-          }
-        }, 250);
+        const preloads = images.value.slice(0, 4).map(img => new Promise<void>(resolve => {
+          let done = false;
+          const finish = () => { if (!done) { done = true; resolve(); } };
+          const el = new window.Image();
+          el.onload = finish;
+          el.onerror = finish; // don't hang on broken images
+          el.src = img.url || '';
+          if (el.complete) finish(); // already in browser cache
+        }));
+
+        Promise.all(preloads).then(() => {
+          let step = 1;
+          const total = images.value.length;
+          slideshowTimer = setInterval(() => {
+            if (step < total) {
+              currentImageIndex.value = step;
+              step++;
+            } else {
+              currentImageIndex.value = 0;
+              clearInterval(slideshowTimer!);
+              slideshowTimer = null;
+            }
+          }, 250);
+        });
       }
     });
 

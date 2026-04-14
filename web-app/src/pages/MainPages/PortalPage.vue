@@ -777,7 +777,7 @@ const ImageTabView = defineComponent({
               clearInterval(slideshowTimer!);
               slideshowTimer = null;
             }
-          }, 250);
+          }, 400);
         });
       }
     });

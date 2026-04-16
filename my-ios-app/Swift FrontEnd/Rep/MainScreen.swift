@@ -1793,7 +1793,11 @@ struct MainScreenContent: View {
                         aTexts: [],
                         aSections: [],
                         aUsers: [],
-                        aLeads: []
+                        aLeads: [],
+                        portal_type: nil,
+                        event_datetime: nil,
+                        event_location: nil,
+                        event_timezone: nil
                     ),
                     userId: userId
                 )

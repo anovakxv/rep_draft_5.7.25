@@ -68,9 +68,9 @@
           </div>
         </div>
 
-        <!-- Register for Event Button (only show if Attendees goal exists) -->
+        <!-- Register for Event Button (only show if Attendees goal exists and not yet registered) -->
         <div
-          v-if="attendeesGoal"
+          v-if="attendeesGoal && !isEventRegistered"
           class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
         >
           <button
@@ -80,6 +80,26 @@
           >
             Register for Event
           </button>
+        </div>
+
+        <!-- Add to Calendar buttons (only show after user registers) -->
+        <div
+          v-if="isEventRegistered && portalDetail?.event_datetime"
+          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
+        >
+          <a
+            v-if="buildGoogleCalUrlFromPortal()"
+            :href="buildGoogleCalUrlFromPortal()"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="w-full max-w-md flex items-center justify-center gap-2 h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95 text-white"
+            style="background-color: #006600;"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Add to Calendar
+          </a>
         </div>
 
         <!-- Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
@@ -488,6 +508,29 @@ const joinGoalTeam = async (goalId: number) => {
   }
 };
 
+const isEventRegistered = ref(false);
+
+// Build Google Calendar URL from top-level portalDetail (for floating button)
+const buildGoogleCalUrlFromPortal = (): string => {
+  const portal = portalDetail.value;
+  if (!portal?.event_datetime) return '';
+  try {
+    const dt = new Date(portal.event_datetime);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    const end = new Date(dt.getTime() + 60 * 60 * 1000);
+    const parts = [
+      `action=TEMPLATE`,
+      `text=${encodeURIComponent(portal.name)}`,
+      `dates=${fmt(dt)}/${fmt(end)}`,
+    ];
+    if (portal.event_location) parts.push(`location=${encodeURIComponent(portal.event_location)}`);
+    if (portal.about) parts.push(`details=${encodeURIComponent(portal.about.slice(0, 200))}`);
+    return `https://calendar.google.com/calendar/render?${parts.join('&')}`;
+  } catch { return ''; }
+};
+
 // RSVP button handler
 const handleRSVP = async () => {
   if (!attendeesGoal.value) return;
@@ -496,6 +539,7 @@ const handleRSVP = async () => {
     // User is logged in - join immediately
     try {
       await joinGoalTeam(attendeesGoal.value.id);
+      isEventRegistered.value = true;
       alert('✓ You\'re registered for this event!');
     } catch (err) {
       console.error('RSVP failed:', err);
@@ -653,6 +697,7 @@ onMounted(async () => {
           if (goalTitle.includes('supporter')) {
             alert('✓ You\'ve joined the Supporters team!');
           } else {
+            isEventRegistered.value = true;
             alert('✓ You\'re Registered!');
           }
         } else {
@@ -1015,6 +1060,54 @@ const PortalResultsSection = defineComponent({
 const PortalStorySection = defineComponent({
   props: { portal: Object as () => PortalDetail | null },
   setup(props) {
+    const buildGoogleCalUrl = (portal: PortalDetail): string => {
+      if (!portal.event_datetime) return '';
+      try {
+        const dt = new Date(portal.event_datetime);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        const fmt = (d: Date) =>
+          `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+        const end = new Date(dt.getTime() + 60 * 60 * 1000);
+        const parts = [
+          `action=TEMPLATE`,
+          `text=${encodeURIComponent(portal.name)}`,
+          `dates=${fmt(dt)}/${fmt(end)}`,
+        ];
+        if (portal.event_location) parts.push(`location=${encodeURIComponent(portal.event_location)}`);
+        if (portal.about) parts.push(`details=${encodeURIComponent(portal.about.slice(0, 200))}`);
+        return `https://calendar.google.com/calendar/render?${parts.join('&')}`;
+      } catch {
+        return '';
+      }
+    };
+
+    const formatEventDatetime = (dtString: string, timezone?: string): string => {
+      try {
+        const date = new Date(dtString);
+        const options: Intl.DateTimeFormatOptions = {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        };
+        if (timezone) {
+          try {
+            // Validate timezone is recognized before using it
+            Intl.DateTimeFormat('en-US', { timeZone: timezone });
+            options.timeZone = timezone;
+          } catch {
+            // Invalid timezone — fall back to local
+          }
+        }
+        return new Intl.DateTimeFormat('en-US', options).format(date);
+      } catch {
+        return dtString;
+      }
+    };
+
     const storyTexts = computed(() =>
       (props.portal?.aTexts || [])
         .filter(t => (t.section || '') === 'story')
@@ -1193,6 +1286,47 @@ const PortalStorySection = defineComponent({
           ])
         ])
       ),
+
+      // Event Details (only for event-type portals)
+      props.portal?.portal_type === 'event' && (props.portal?.event_datetime || props.portal?.event_location) && h('div', {
+        class: 'border-t border-gray-200 pt-4 mt-2 space-y-3'
+      }, [
+        h('h3', { class: 'font-semibold text-lg mb-2' }, 'Event Details'),
+        props.portal?.event_datetime && h('div', { class: 'flex items-start gap-3' }, [
+          h('svg', {
+            xmlns: 'http://www.w3.org/2000/svg',
+            class: 'h-5 w-5 text-gray-500 mt-0.5 shrink-0',
+            fill: 'none',
+            viewBox: '0 0 24 24',
+            stroke: 'currentColor',
+            'stroke-width': '1.5'
+          }, [
+            h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' })
+          ]),
+          h('div', {}, [
+            h('p', { class: 'text-[17px] text-black' },
+              formatEventDatetime(props.portal.event_datetime, props.portal?.event_timezone)
+            ),
+            props.portal?.event_timezone && h('p', { class: 'text-sm text-gray-500 mt-0.5' }, props.portal.event_timezone)
+          ])
+        ]),
+        props.portal?.event_location && h('div', { class: 'flex items-start gap-3' }, [
+          h('svg', {
+            xmlns: 'http://www.w3.org/2000/svg',
+            class: 'h-5 w-5 text-gray-500 mt-0.5 shrink-0',
+            fill: 'none',
+            viewBox: '0 0 24 24',
+            stroke: 'currentColor',
+            'stroke-width': '1.5'
+          }, [
+            h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' }),
+            h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', d: 'M15 11a3 3 0 11-6 0 3 3 0 016 0z' })
+          ]),
+          h('p', { class: 'text-[17px] text-black' }, props.portal.event_location)
+        ]),
+
+        // (Calendar buttons moved to floating area)
+      ]),
 
       // Fullscreen image viewer overlay
       showFullscreen.value && h('div', {

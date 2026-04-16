@@ -561,6 +561,71 @@ def api_get_portal_nearest_rep():
     return jsonify({'result': result})
 
 
+@portal_bp.route('/<int:portal_id>/calendar.ics', methods=['GET'])
+def api_portal_calendar_ics(portal_id):
+    """Return an .ics calendar file for an event portal. No auth required."""
+    from flask import make_response
+    from datetime import timedelta
+
+    portal = Portal.query.get(portal_id)
+    if not portal or portal.portal_type != 'event':
+        return jsonify({'error': 'Not an event portal'}), 404
+
+    dt = portal.event_datetime
+    if not dt:
+        return jsonify({'error': 'No event date set'}), 404
+
+    # Build .ics content
+    uid = f"portal-{portal_id}@repsomething.com"
+    start = dt.strftime('%Y%m%dT%H%M%S')
+    end = (dt + timedelta(hours=1)).strftime('%Y%m%dT%H%M%S')
+    now_utc = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+    summary = portal.name.replace('\n', ' ').replace('\r', '')
+    description = (portal.about or '').replace('\n', '\\n').replace('\r', '')[:500]
+    location = (portal.event_location or '').replace('\n', ' ').replace('\r', '')
+    url = f"https://www.repsomething.com/portal/{portal_id}"
+
+    # Use TZID if timezone is set, otherwise floating time
+    tz = portal.event_timezone or ''
+    if tz:
+        dtstart_line = f"DTSTART;TZID={tz}:{start}"
+        dtend_line = f"DTEND;TZID={tz}:{end}"
+    else:
+        dtstart_line = f"DTSTART:{start}"
+        dtend_line = f"DTEND:{end}"
+
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Rep//Rep App//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        f"UID:{uid}",
+        f"DTSTAMP:{now_utc}",
+        dtstart_line,
+        dtend_line,
+        f"SUMMARY:{summary}",
+    ]
+    if description:
+        lines.append(f"DESCRIPTION:{description}")
+    if location:
+        lines.append(f"LOCATION:{location}")
+    lines += [
+        f"URL:{url}",
+        "END:VEVENT",
+        "END:VCALENDAR",
+    ]
+
+    ics_content = "\r\n".join(lines) + "\r\n"
+    safe_name = "".join(c if c.isalnum() or c in ('-', '_') else '_' for c in portal.name)[:40]
+
+    response = make_response(ics_content)
+    response.headers['Content-Type'] = 'text/calendar; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{safe_name}.ics"'
+    return response
+
+
 # =============================================================================
 # PORTAL APPROVAL WORKFLOW — Not yet active. Uncomment to enable.
 # Requires: status='pending' on portal creation (see api_create_portal above)

@@ -190,6 +190,7 @@ struct PortalPage: View {
     @State private var rsvpResultMessage: String? = nil
     @State private var showRSVPResultAlert = false
     @State private var attendeesGoal: Goal? = nil
+    @State private var isEventRegistered = false
 
     // Join Supporters state
     @State private var joinSupportersResultMessage: String? = nil
@@ -308,6 +309,7 @@ struct PortalPage: View {
 
         joinGoalTeam(goalId: goal.id) { success, errorMessage in
             if success {
+                isEventRegistered = true
                 rsvpResultMessage = "✓ You're registered for this event!"
                 showRSVPResultAlert = true
             } else {
@@ -482,6 +484,7 @@ struct PortalPage: View {
                         print("No lead user found for portal!")
                     }
                 },
+                isEventRegistered: isEventRegistered,
                 onRSVP: handleRSVP,
                 onJoinSupporters: handleJoinSupporters
             )
@@ -772,6 +775,7 @@ struct PortalPageContent: View {
     let isCurrentUserLead: Bool
     let attendeesGoal: Goal?
     let supportersGoal: Goal?
+    let isEventRegistered: Bool
     let onAdd: () -> Void
     let onMessage: () -> Void
     let onRSVP: () -> Void
@@ -783,6 +787,43 @@ struct PortalPageContent: View {
 
     private var imageTabHeight: CGFloat {
         UIScreen.main.bounds.width * 9 / 16
+    }
+
+    private func calendarGoogleUrl() -> URL? {
+        guard let dt = portal.event_datetime else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        var parsed = formatter.date(from: dt)
+        if parsed == nil {
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+            parsed = formatter.date(from: dt)
+        }
+        guard let start = parsed else { return nil }
+        let end = start.addingTimeInterval(3600)
+        let fmt = { (d: Date) -> String in
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyyMMdd'T'HHmmss"
+            return f.string(from: d)
+        }
+        var parts = [
+            "action=TEMPLATE",
+            "text=\(portal.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")",
+            "dates=\(fmt(start))/\(fmt(end))",
+        ]
+        if let loc = portal.event_location, !loc.isEmpty {
+            parts.append("location=\(loc.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")
+        }
+        if let about = portal.about, !about.isEmpty {
+            let snippet = String(about.prefix(200))
+            parts.append("details=\(snippet.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")
+        }
+        return URL(string: "https://calendar.google.com/calendar/render?" + parts.joined(separator: "&"))
+    }
+
+    private func calendarIcsUrl() -> URL? {
+        URL(string: "https://rep-june2025.onrender.com/api/portal/\(portal.id)/calendar.ics")
     }
 
     // Sticky header as a computed property to help the compiler
@@ -891,8 +932,35 @@ struct PortalPageContent: View {
                     .background(Color.white)
                 }
 
-                // Register Button (only show if Attendees goal exists)
-                if attendeesGoal != nil {
+                // Add to Calendar buttons (only after user registers for event)
+                if isEventRegistered && portal.event_datetime != nil {
+                    VStack(spacing: 0) {
+                        Rectangle()
+                            .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
+                            .frame(height: 1)
+                        if let gcUrl = calendarGoogleUrl() {
+                            Link(destination: gcUrl) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "calendar.badge.plus")
+                                    Text("Add to Calendar")
+                                        .fontWeight(.bold)
+                                }
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
+                                .cornerRadius(6)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    .background(Color.white)
+                }
+
+                // Register Button (only show if Attendees goal exists and not yet registered)
+                if attendeesGoal != nil && !isEventRegistered {
                     VStack(spacing: 0) {
                         Rectangle()
                             .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
@@ -1233,6 +1301,53 @@ struct PortalStorySection: View {
     let portal: PortalDetail
     @State private var galleryFullscreen: GalleryFullscreenItem? = nil
 
+    private func googleCalUrl() -> URL? {
+        guard let dt = portal.event_datetime,
+              let parsed = parsedEventDate(dt) else { return nil }
+        let end = parsed.addingTimeInterval(3600)
+        let fmt = { (d: Date) -> String in
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyyMMdd'T'HHmmss"
+            return f.string(from: d)
+        }
+        var parts = [
+            "action=TEMPLATE",
+            "text=\(portal.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")",
+            "dates=\(fmt(parsed))/\(fmt(end))",
+        ]
+        if let loc = portal.event_location, !loc.isEmpty {
+            parts.append("location=\(loc.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")
+        }
+        if let about = portal.about, !about.isEmpty {
+            let snippet = String(about.prefix(200))
+            parts.append("details=\(snippet.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")
+        }
+        let urlString = "https://calendar.google.com/calendar/render?" + parts.joined(separator: "&")
+        return URL(string: urlString)
+    }
+
+    private func icsUrl() -> URL? {
+        URL(string: "https://rep-june2025.onrender.com/api/portal/\(portal.id)/calendar.ics")
+    }
+
+    private func parsedEventDate(_ dtString: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        if let d = formatter.date(from: dtString) { return d }
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+        return formatter.date(from: dtString)
+    }
+
+    private func formattedEventDate(_ dtString: String) -> String {
+        guard let date = parsedEventDate(dtString) else { return dtString }
+        let display = DateFormatter()
+        display.dateStyle = .full
+        display.timeStyle = .short
+        return display.string(from: date)
+    }
+
     // Preload lead images immediately when view is created
     private func preloadLeadImages() {
         let imagePrefetcher = ImagePrefetcher(urls: (portal.aLeads ?? []).compactMap { $0.profilePictureURL })
@@ -1320,6 +1435,43 @@ struct PortalStorySection: View {
                         }
                     }
                 }
+            }
+
+            // Event Details (only for event-type portals)
+            if portal.portal_type == "event",
+               portal.event_datetime != nil || portal.event_location != nil {
+                Divider()
+                    .padding(.top, 4)
+                Text("Event Details")
+                    .font(.headline)
+                    .padding(.top, 2)
+                if let dtString = portal.event_datetime {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "calendar")
+                            .foregroundColor(.secondary)
+                            .frame(width: 20)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(formattedEventDate(dtString))
+                                .font(.body)
+                            if let tz = portal.event_timezone, !tz.isEmpty {
+                                Text(tz)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+                if let location = portal.event_location, !location.isEmpty {
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .foregroundColor(.secondary)
+                            .frame(width: 20)
+                        Text(location)
+                            .font(.body)
+                    }
+                }
+
+                // (Calendar buttons moved to floating overlay)
             }
 
             // Extra bottom padding to allow scrolling past bottom buttons

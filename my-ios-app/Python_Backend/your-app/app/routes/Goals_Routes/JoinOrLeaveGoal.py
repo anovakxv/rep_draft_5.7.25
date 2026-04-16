@@ -26,6 +26,9 @@ def api_join_leave_goal():
 
     results = {}
 
+    # Track event portal joins for confirmation email (populated during loop, sent after commit)
+    event_reg_goals = []  # list of Goal objects for event portals successfully joined
+
     # Collect post-commit emits safely (target_id, goal_id, status)
     emits = []
     try:
@@ -42,6 +45,7 @@ def api_join_leave_goal():
         team = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id).first()
 
         if todo == 'join':
+            _joined_ok = False  # flag to track successful join for email
             if team and team.confirmed == 1:
                 results[goal_id] = "Already a member"
             elif team and team.confirmed == 0:
@@ -49,6 +53,7 @@ def api_join_leave_goal():
                 team.confirmed = 1
                 team.read2 = True
                 results[goal_id] = "ok"
+                _joined_ok = True
                 # --- Add progress log for Recruiting goals ---
                 if getattr(goal, "goal_type", None) == "Recruiting":
                     existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=user_id).first()
@@ -74,6 +79,7 @@ def api_join_leave_goal():
                 team.confirmed = 1
                 team.read2 = True
                 results[goal_id] = "ok"
+                _joined_ok = True
                 # --- Add progress log for Recruiting goals ---
                 if getattr(goal, "goal_type", None) == "Recruiting":
                     existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=user_id).first()
@@ -98,6 +104,7 @@ def api_join_leave_goal():
                 new_team = GoalTeam(goals_id=goal_id, users_id1=user_id, users_id2=user_id, confirmed=1)
                 db.session.add(new_team)
                 results[goal_id] = "ok"
+                _joined_ok = True
                 # --- PATCH: Add progress log for Recruiting goals ---
                 if getattr(goal, "goal_type", None) == "Recruiting":
                     existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=user_id).first()
@@ -124,6 +131,10 @@ def api_join_leave_goal():
                     except Exception:
                         pass
 
+            # Collect for event registration email (checked after commit)
+            if _joined_ok and goal.goal_type == 'Recruiting' and goal.portals_id:
+                event_reg_goals.append(goal)
+
         elif todo == 'leave':
             if not team:
                 results[goal_id] = "Not a member"
@@ -145,6 +156,22 @@ def api_join_leave_goal():
                 # Optionally: remove progress log, send notifications, etc.
 
     db.session.commit()
+
+    # --- Send event registration confirmation emails (best-effort, non-blocking) ---
+    if event_reg_goals:
+        try:
+            from app.utils.mail_utils import send_event_registration_email
+            from app.models.Purpose_Models.Portal import Portal
+            user = g.current_user
+            for goal in event_reg_goals:
+                try:
+                    portal = Portal.query.get(goal.portals_id)
+                    if portal and portal.portal_type == 'event':
+                        send_event_registration_email(user, portal)
+                except Exception as e:
+                    print(f"[Event Email] Failed for goal {goal.id}: {e}")
+        except Exception as e:
+            print(f"[Event Email] Import error: {e}")
 
     # --- PATCH: Return updated team size for each goal ---
     team_sizes = {}

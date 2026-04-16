@@ -1788,16 +1788,16 @@ struct MainScreenContent: View {
                         users_id: userId,
                         _c_users_count: nil,
                         mainImageUrl: nil,
+                        portal_type: nil,
+                        event_datetime: nil,
+                        event_location: nil,
+                        event_timezone: nil,
                         aGoals: [],
                         aPortalUsers: [],
                         aTexts: [],
                         aSections: [],
                         aUsers: [],
-                        aLeads: [],
-                        portal_type: nil,
-                        event_datetime: nil,
-                        event_location: nil,
-                        event_timezone: nil
+                        aLeads: []
                     ),
                     userId: userId
                 )

@@ -475,6 +475,7 @@ struct PortalPage: View {
                 isCurrentUserLead: isCurrentUserLead(portal),
                 attendeesGoal: attendeesGoal,
                 supportersGoal: supportersGoal,
+                isEventRegistered: isEventRegistered,
                 onAdd: { activeSheet = .portalActionMenu },
                 onMessage: {
                     if let lead = leadRepUser(from: portal) {
@@ -484,7 +485,6 @@ struct PortalPage: View {
                         print("No lead user found for portal!")
                     }
                 },
-                isEventRegistered: isEventRegistered,
                 onRSVP: handleRSVP,
                 onJoinSupporters: handleJoinSupporters
             )

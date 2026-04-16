@@ -303,6 +303,10 @@ interface PortalDetail {
   aUsers?: User[]; 
   aTexts?: PortalText[];
   aGoals?: Goal[];
+  portal_type?: string;
+  event_datetime?: string;
+  event_location?: string;
+  event_timezone?: string;
 }
 
 interface ReportingIncrement { 

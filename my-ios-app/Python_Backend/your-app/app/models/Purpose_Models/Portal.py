@@ -25,6 +25,10 @@ class Portal(db.Model):
     stripe_account_approved = db.Column(db.Boolean, default=False) 
     stripe_connect_requested = db.Column(db.Boolean, default=False)
     status = db.Column(db.String(32), default='active', index=True)
+    portal_type = db.Column(db.String(50), nullable=True)           # e.g. 'event', 'nonprofit', 'business', etc.
+    event_datetime = db.Column(db.DateTime, nullable=True)          # Only used when portal_type = 'event'
+    event_location = db.Column(db.String(255), nullable=True)       # Only used when portal_type = 'event'
+    event_timezone = db.Column(db.String(50), nullable=True)        # Only used when portal_type = 'event'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -81,8 +85,12 @@ class Portal(db.Model):
             'users_id': self.users_id,
             'visible': self.visible,
             'status': self.status,
+            'portal_type': self.portal_type,
+            'event_datetime': self.event_datetime.isoformat() if self.event_datetime else None,
+            'event_location': self.event_location,
+            'event_timezone': self.event_timezone,
             'mainImageUrl': self.main_image_url,
-            'lead_user_count': self.lead_user_count,  # <-- Expose in API output
+            'lead_user_count': self.lead_user_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

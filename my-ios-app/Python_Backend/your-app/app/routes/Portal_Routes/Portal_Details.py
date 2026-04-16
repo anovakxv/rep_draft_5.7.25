@@ -16,6 +16,15 @@ from sqlalchemy.orm import joinedload, subqueryload
 from sqlalchemy import func
 from datetime import datetime
 from app.utils.auth import jwt_required
+
+def parse_event_datetime(value):
+    """Parse event_datetime from ISO string (e.g. '2026-05-15T14:30' or '2026-05-15T14:30:00')."""
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except (ValueError, TypeError):
+        return None
 from werkzeug.utils import secure_filename
 import uuid
 import boto3
@@ -133,15 +142,19 @@ def api_portal_details():
         'lead_id': portal.lead_id,
         'users_id': portal.users_id,
         '_c_users_count': getattr(portal, '_c_users_count', None),
+        'portal_type': portal.portal_type,
+        'event_datetime': portal.event_datetime.isoformat() if portal.event_datetime else None,
+        'event_location': portal.event_location,
+        'event_timezone': portal.event_timezone,
         'mainImageUrl': main_image_url,
         'aGoals': [g.as_dict() for g in goals],
         'aPortalUsers': [pu.as_dict() for pu in portal_users],
         'aTexts': [t.as_dict() for t in texts],
         'aSections': aSections,
-        'aUsers': [user_as_portal_dict(u) for u in all_users],      # All users (members, leads, etc.)
-        'aLeads': [user_as_portal_dict(u) for u in lead_users],     # Only leads (for "Leads" section)
-        'lead_user_count': len(lead_user_ids),                      # Unique count of leads
-        'user_count': len(all_user_ids),                            # Unique count of all users
+        'aUsers': [user_as_portal_dict(u) for u in all_users],
+        'aLeads': [user_as_portal_dict(u) for u in lead_users],
+        'lead_user_count': len(lead_user_ids),
+        'user_count': len(all_user_ids),
     }
 
     return jsonify({'result': portal_data})
@@ -181,6 +194,10 @@ def api_create_portal():
             categories_id=data.get('categories_id'),
             cities_id=data.get('cities_id'),
             visible=data.get('visible', True),
+            portal_type=data.get('portal_type') or None,
+            event_datetime=parse_event_datetime(data.get('event_datetime')),
+            event_location=data.get('event_location') or None,
+            event_timezone=data.get('event_timezone') or None,
             # --- PORTAL APPROVAL WORKFLOW ---
             # To enable approval: change 'active' to 'pending' below.
             # New portals will be hidden from public until approved by admin.
@@ -267,10 +284,13 @@ def api_edit_portal():
         return jsonify({'error': 'Portal not found'}), 404
 
     # Update main portal fields
-    update_fields = ['name', 'subtitle', 'categories_id', 'cities_id', 'about', 'lead_id', 'visible']
+    update_fields = ['name', 'subtitle', 'categories_id', 'cities_id', 'about', 'lead_id', 'visible',
+                     'portal_type', 'event_location', 'event_timezone']
     for field in update_fields:
         if data.get(field) is not None:
-            setattr(portal, field, data[field])
+            setattr(portal, field, data[field] or None)
+    if 'event_datetime' in data:
+        portal.event_datetime = parse_event_datetime(data.get('event_datetime'))
     portal.updated_at = datetime.utcnow()
 
     # Handle deleting graphic group hashes

@@ -65,7 +65,9 @@
       "Bash(swiftc:*)",
       "Bash(grep:*)",
       "Bash(git config:*)",
-      "Bash(npx vue-tsc:*)"
+      "Bash(npx vue-tsc:*)",
+      "Bash(flask db:*)",
+      "Bash(flask.exe --version)"
     ],
     "deny": [],
     "ask": []

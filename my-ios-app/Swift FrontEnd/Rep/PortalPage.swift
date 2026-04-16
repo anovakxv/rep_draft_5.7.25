@@ -1378,6 +1378,10 @@ struct PortalDetail: Identifiable, Codable {
     let users_id: Int?
     let _c_users_count: Int?
     let mainImageUrl: String?
+    let portal_type: String?
+    let event_datetime: String?
+    let event_location: String?
+    let event_timezone: String?
     let aGoals: [Goal]?
     let aPortalUsers: [PortalUser]?
     let aTexts: [PortalText]?

@@ -145,12 +145,55 @@
           
           <div class="space-y-1">
             <label class="text-sm font-medium">About</label>
-            <input 
-              v-model="about" 
-              type="text" 
+            <input
+              v-model="about"
+              type="text"
               class="w-full p-2 border rounded-md focus:border-green-500 focus:ring-1 focus:ring-green-500"
               placeholder="About"
             />
+          </div>
+
+          <!-- Portal Type -->
+          <div class="space-y-1">
+            <label class="text-sm font-medium">Type <span class="text-gray-400 font-normal">(optional)</span></label>
+            <select
+              v-model="portalType"
+              class="w-full p-2 border rounded-md focus:border-green-500 focus:ring-1 focus:ring-green-500 bg-white"
+            >
+              <option v-for="t in PORTAL_TYPES" :key="t.value" :value="t.value">{{ t.label }}</option>
+            </select>
+          </div>
+
+          <!-- Event Details (only when type = event) -->
+          <div v-if="portalType === 'event'" class="space-y-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <p class="text-sm font-medium text-gray-700">Event Details</p>
+            <div class="space-y-1">
+              <label class="text-xs text-gray-500">Date & Time</label>
+              <input
+                v-model="eventDatetime"
+                type="datetime-local"
+                class="w-full p-2 border rounded-md focus:border-green-500 focus:ring-1 focus:ring-green-500 bg-white"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs text-gray-500">Location <span class="text-gray-400">(address or Zoom link)</span></label>
+              <input
+                v-model="eventLocation"
+                type="text"
+                placeholder="e.g. 123 Main St, Boise ID or zoom.us/j/..."
+                class="w-full p-2 border rounded-md focus:border-green-500 focus:ring-1 focus:ring-green-500"
+              />
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs text-gray-500">Timezone</label>
+              <select
+                v-model="eventTimezone"
+                class="w-full p-2 border rounded-md focus:border-green-500 focus:ring-1 focus:ring-green-500 bg-white"
+              >
+                <option value="">Select timezone...</option>
+                <option v-for="tz in TIMEZONES" :key="tz.value" :value="tz.value">{{ tz.label }}</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -634,6 +677,10 @@ interface PortalDetail {
   name: string;
   subtitle?: string;
   about?: string;
+  portal_type?: string;
+  event_datetime?: string;
+  event_location?: string;
+  event_timezone?: string;
   aTexts?: PortalText[];
   aUsers?: User[];
   aGoals?: EditableGoal[];
@@ -695,11 +742,37 @@ const isSaving = ref(false);
 const errorMessage = ref<string | null>(null);
 const maxImages = 10;
 
+const PORTAL_TYPES = [
+  { value: '', label: 'General' },
+  { value: 'event', label: 'Event' },
+  { value: 'nonprofit', label: 'Nonprofit' },
+  { value: 'business', label: 'Business' },
+  { value: 'initiative', label: 'Initiative' },
+  { value: 'campaign', label: 'Campaign' },
+  { value: 'community', label: 'Community' },
+];
+
+const TIMEZONES = [
+  { value: 'America/New_York', label: 'Eastern (ET)' },
+  { value: 'America/Chicago', label: 'Central (CT)' },
+  { value: 'America/Denver', label: 'Mountain (MT)' },
+  { value: 'America/Los_Angeles', label: 'Pacific (PT)' },
+  { value: 'America/Phoenix', label: 'Arizona (AZ)' },
+  { value: 'Pacific/Honolulu', label: 'Hawaii (HT)' },
+  { value: 'America/Anchorage', label: 'Alaska (AKT)' },
+  { value: 'Europe/London', label: 'London (GMT)' },
+  { value: 'Europe/Paris', label: 'Central Europe (CET)' },
+];
+
 // Portal Fields
 const name = ref('');
 const subtitle = ref('');
 const about = ref('');
 const offeringText = ref('');
+const portalType = ref('');
+const eventDatetime = ref('');
+const eventLocation = ref('');
+const eventTimezone = ref('');
 const selectedImages = ref<ImageFile[]>([]);
 const mainImageIndex = ref(0);
 const portalDetail = ref<PortalDetail | null>(null);
@@ -757,6 +830,10 @@ const fetchPortalData = async () => {
     subtitle.value = portal.subtitle || '';
     about.value = portal.about || '';
     offeringText.value = portal.about || '';
+    portalType.value = portal.portal_type || '';
+    eventDatetime.value = portal.event_datetime ? portal.event_datetime.slice(0, 16) : '';
+    eventLocation.value = portal.event_location || '';
+    eventTimezone.value = portal.event_timezone || '';
     
     // Convert portal texts to story blocks, sorted by position
     storyBlocks.value = (portal.aTexts || [])
@@ -1154,6 +1231,14 @@ const save = async () => {
   formData.append('subtitle', subtitle.value);
   // Backend requires 'about' field - provide default if empty
   formData.append('about', about.value.trim() || ' ');
+
+  // Append portal type + event fields
+  formData.append('portal_type', portalType.value);
+  if (portalType.value === 'event') {
+    formData.append('event_datetime', eventDatetime.value);
+    formData.append('event_location', eventLocation.value);
+    formData.append('event_timezone', eventTimezone.value);
+  }
 
   // Append story blocks (aTexts) with position for ordering
   const texts = storyBlocks.value.map((block, index) => ({

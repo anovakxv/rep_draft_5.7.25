@@ -63,6 +63,52 @@ struct PortalWriteBlock: Identifiable, Codable {
     }
 }
 
+// MARK: - Portal Type + Timezone Constants
+
+let portalTypeOptions: [(value: String, label: String)] = [
+    ("", "General"),
+    ("event", "Event"),
+    ("nonprofit", "Nonprofit"),
+    ("business", "Business"),
+    ("initiative", "Initiative"),
+    ("campaign", "Campaign"),
+    ("community", "Community"),
+]
+
+let eventTimezoneOptions: [String] = [
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Los_Angeles",
+    "America/Anchorage",
+    "Pacific/Honolulu",
+    "America/Phoenix",
+    "America/Toronto",
+    "America/Vancouver",
+    "America/Halifax",
+    "Europe/London",
+    "Europe/Paris",
+    "Europe/Berlin",
+    "Europe/Rome",
+    "Europe/Amsterdam",
+    "Europe/Madrid",
+    "Europe/Stockholm",
+    "Europe/Zurich",
+    "Europe/Warsaw",
+    "Europe/Athens",
+    "Europe/Istanbul",
+    "Asia/Dubai",
+    "Asia/Kolkata",
+    "Asia/Singapore",
+    "Asia/Tokyo",
+    "Asia/Seoul",
+    "Asia/Shanghai",
+    "Australia/Sydney",
+    "Australia/Melbourne",
+    "Pacific/Auckland",
+    "UTC",
+]
+
 // MARK: - EditPortalViewModel
 
 class EditPortalViewModel: ObservableObject {
@@ -74,6 +120,12 @@ class EditPortalViewModel: ObservableObject {
     @Published var selectedImages: [UIImage] = []
     @Published var mainImageIndex: Int = 0
     @Published var portalDetail: PortalDetail? // Added to pass to subviews
+
+    // Portal type + event fields
+    @Published var portalType: String = ""
+    @Published var eventDatetime: Date = Date()
+    @Published var eventLocation: String = ""
+    @Published var eventTimezone: String = ""
 
     // Story blocks
     @Published var storyBlocks: [PortalWriteBlock] = []
@@ -105,6 +157,23 @@ class EditPortalViewModel: ObservableObject {
                 PortalWriteBlock(title: text.title ?? "", content: text.text ?? "", order: idx)
             } ?? [])
         // Optionally prefill selectedLeads from portal.aUsers if needed
+
+        // Portal type + event fields
+        self.portalType = portal.portal_type ?? ""
+        if let dtString = portal.event_datetime {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            if let parsed = formatter.date(from: dtString) {
+                self.eventDatetime = parsed
+            } else {
+                // Try without seconds
+                formatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+                self.eventDatetime = formatter.date(from: dtString) ?? Date()
+            }
+        }
+        self.eventLocation = portal.event_location ?? ""
+        self.eventTimezone = portal.event_timezone ?? ""
     }
 
     func addGoal() {
@@ -200,6 +269,15 @@ class EditPortalViewModel: ObservableObject {
         appendFormField("name", name)
         appendFormField("subtitle", subtitle)
         appendFormField("about", about)
+        appendFormField("portal_type", portalType)
+        if portalType == "event" {
+            let dtFormatter = DateFormatter()
+            dtFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm"
+            dtFormatter.locale = Locale(identifier: "en_US_POSIX")
+            appendFormField("event_datetime", dtFormatter.string(from: eventDatetime))
+            appendFormField("event_location", eventLocation)
+            appendFormField("event_timezone", eventTimezone.isEmpty ? "UTC" : eventTimezone)
+        }
 
         // Save story blocks as aTexts (with position for ordering)
         let texts: [[String: String]] = storyBlocks.enumerated().map { idx, block in
@@ -635,6 +713,89 @@ struct PaymentSettingsSection: View {
     }
 }
 
+// MARK: - PortalTypeSection
+
+struct PortalTypeSection: View {
+    @ObservedObject var viewModel: EditPortalViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Portal Type Picker
+            HStack {
+                Text("Type")
+                    .foregroundColor(.primary)
+                Spacer()
+                Menu {
+                    ForEach(portalTypeOptions, id: \.value) { option in
+                        Button(option.label) {
+                            viewModel.portalType = option.value
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Text(portalTypeOptions.first(where: { $0.value == viewModel.portalType })?.label ?? "General")
+                            .foregroundColor(.primary)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color(UIColor.systemGray6))
+                    .cornerRadius(8)
+                }
+            }
+
+            // Event-only fields
+            if viewModel.portalType == "event" {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Event Details")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                    DatePicker(
+                        "Date & Time",
+                        selection: $viewModel.eventDatetime,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+
+                    TextField("Location", text: $viewModel.eventLocation)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+
+                    HStack {
+                        Text("Timezone")
+                            .foregroundColor(.primary)
+                        Spacer()
+                        Menu {
+                            ForEach(eventTimezoneOptions, id: \.self) { tz in
+                                Button(tz) {
+                                    viewModel.eventTimezone = tz
+                                }
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text(viewModel.eventTimezone.isEmpty ? "Select Timezone" : viewModel.eventTimezone)
+                                    .foregroundColor(viewModel.eventTimezone.isEmpty ? .secondary : .primary)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Image(systemName: "chevron.up.chevron.down")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color(UIColor.systemGray6))
+                            .cornerRadius(8)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(UIColor.systemGray6).opacity(0.5))
+                .cornerRadius(10)
+            }
+        }
+    }
+}
 
 // MARK: - EditPortalView
 
@@ -687,6 +848,7 @@ struct EditPortalView: View {
                 VStack(alignment: .leading, spacing: 16) {
                     PortalImagesSection(viewModel: viewModel, photoPickerItems: $photoPickerItems)
                     PortalInfoSection(viewModel: viewModel)
+                    PortalTypeSection(viewModel: viewModel)
                     PortalLeadsSection(viewModel: viewModel, showAddLeadsSheet: $showAddLeadsSheet, userId: userId)
                     PaymentSettingsSection(
                         portalDetail: viewModel.portalDetail,

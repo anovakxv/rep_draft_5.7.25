@@ -942,7 +942,7 @@ struct PortalPageContent: View {
                             .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
                             .frame(height: 1)
                         if let gcUrl = calendarGoogleUrl() {
-                            Link(destination: gcUrl) {
+                            Button(action: { UIApplication.shared.open(gcUrl) }) {
                                 HStack(spacing: 6) {
                                     Image(systemName: "calendar.badge.plus")
                                     Text("Add to Calendar")

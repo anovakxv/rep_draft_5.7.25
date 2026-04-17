@@ -65,6 +65,7 @@ def get_goals_by_user():
 @goals_bp.route('/portal', methods=['GET'])
 @jwt_required
 def get_goals_by_portal():
+    from app.models.Purpose_Models.Portal import Portal
     portals_id = request.args.get('portals_id', type=int)
     if not portals_id:
         return jsonify({"error": "portals_id required"}), 400
@@ -74,6 +75,20 @@ def get_goals_by_portal():
         .filter_by(portals_id=portals_id)
         .all()
     )
+
+    # Batch-check current user's membership (event portals only)
+    member_goal_ids = set()
+    if goals:
+        portal_type = db.session.query(Portal.portal_type).filter_by(id=portals_id).scalar()
+        if portal_type == 'event':
+            user_id = g.current_user.id
+            goal_ids = [goal.id for goal in goals]
+            memberships = GoalTeam.query.filter(
+                GoalTeam.goals_id.in_(goal_ids),
+                GoalTeam.users_id2 == user_id,
+                GoalTeam.confirmed == 1
+            ).with_entities(GoalTeam.goals_id).all()
+            member_goal_ids = {m.goals_id for m in memberships}
 
     aGoals = []
     for goal in goals:
@@ -132,6 +147,7 @@ def get_goals_by_portal():
 
         result = goal.as_dict(increment=increment, num_periods=4)
         result["chartData"] = chart_data
+        result["is_member"] = goal.id in member_goal_ids
         aGoals.append(result)
 
     return jsonify({"aGoals": aGoals})

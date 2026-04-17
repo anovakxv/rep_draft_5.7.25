@@ -910,13 +910,14 @@ struct Goal: Identifiable, Codable, Equatable {
     var creatorId: Int
     var portalId: Int?
     var portalName: String?
+    var is_member: Bool?
 
     static let placeholder = Goal(
         id: 1, title: "Goal Title", subtitle: "", description: "",
         progress: 0.5, progressPercent: 50, quota: 100, filledQuota: 50,
         metricName: "Sales", typeName: "Recruiting", reportingName: "Weekly",
         quotaString: "100", valueString: "50", chartData: [],
-        creatorId: 0, portalId: nil, portalName: nil
+        creatorId: 0, portalId: nil, portalName: nil, is_member: nil
     )
 }
 extension Goal {

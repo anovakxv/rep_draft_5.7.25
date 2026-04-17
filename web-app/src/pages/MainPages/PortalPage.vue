@@ -283,7 +283,7 @@ interface Goal {
   progressPercent?: number;
   progress?: number;
   creatorId?: number;
-  // Other goal fields would be defined here
+  is_member?: boolean;
 }
 
 interface PortalFile { 
@@ -509,6 +509,13 @@ const joinGoalTeam = async (goalId: number) => {
 };
 
 const isEventRegistered = ref(false);
+
+// Initialize isEventRegistered from backend is_member flag when goals load
+watch(attendeesGoal, (goal) => {
+  if (goal?.is_member && !isEventRegistered.value) {
+    isEventRegistered.value = true;
+  }
+}, { immediate: true });
 
 // Build Google Calendar URL from top-level portalDetail (for floating button)
 const buildGoogleCalUrlFromPortal = (): string => {
@@ -1060,27 +1067,6 @@ const PortalResultsSection = defineComponent({
 const PortalStorySection = defineComponent({
   props: { portal: Object as () => PortalDetail | null },
   setup(props) {
-    const buildGoogleCalUrl = (portal: PortalDetail): string => {
-      if (!portal.event_datetime) return '';
-      try {
-        const dt = new Date(portal.event_datetime);
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const fmt = (d: Date) =>
-          `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-        const end = new Date(dt.getTime() + 60 * 60 * 1000);
-        const parts = [
-          `action=TEMPLATE`,
-          `text=${encodeURIComponent(portal.name)}`,
-          `dates=${fmt(dt)}/${fmt(end)}`,
-        ];
-        if (portal.event_location) parts.push(`location=${encodeURIComponent(portal.event_location)}`);
-        if (portal.about) parts.push(`details=${encodeURIComponent(portal.about.slice(0, 200))}`);
-        return `https://calendar.google.com/calendar/render?${parts.join('&')}`;
-      } catch {
-        return '';
-      }
-    };
-
     const formatEventDatetime = (dtString: string, timezone?: string): string => {
       try {
         const date = new Date(dtString);

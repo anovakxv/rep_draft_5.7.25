@@ -503,6 +503,9 @@ struct PortalPage: View {
                 supportGoal = findSupportableGoal(from: newGoals)
                 attendeesGoal = findAttendeesGoal(from: newGoals)
                 supportersGoal = findSupportersGoal(from: newGoals)
+                if attendeesGoal?.is_member == true {
+                    isEventRegistered = true
+                }
             }
             .onDisappear {
                 // Remove NotificationCenter observer

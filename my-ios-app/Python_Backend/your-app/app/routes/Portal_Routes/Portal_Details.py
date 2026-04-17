@@ -124,6 +124,18 @@ def api_portal_details():
     # Compose goals
     goals = Goal.query.filter_by(portals_id=portal.id).order_by(Goal.id.desc()).all()
 
+    # Batch-check current user's goal membership (event portals only — skipped for all others)
+    member_goal_ids = set()
+    if portal.portal_type == 'event' and goals:
+        from app.models.ValueMetric_Models.GoalTeam import GoalTeam as GT
+        goal_ids = [goal.id for goal in goals]
+        memberships = GT.query.filter(
+            GT.goals_id.in_(goal_ids),
+            GT.users_id2 == user_id,
+            GT.confirmed == 1
+        ).with_entities(GT.goals_id).all()
+        member_goal_ids = {m.goals_id for m in memberships}
+
     # Compose portal texts
     texts = portal.portal_texts
 
@@ -147,7 +159,7 @@ def api_portal_details():
         'event_location': portal.event_location,
         'event_timezone': portal.event_timezone,
         'mainImageUrl': main_image_url,
-        'aGoals': [g.as_dict() for g in goals],
+        'aGoals': [dict(goal.as_dict(), is_member=goal.id in member_goal_ids) for goal in goals],
         'aPortalUsers': [pu.as_dict() for pu in portal_users],
         'aTexts': [t.as_dict() for t in texts],
         'aSections': aSections,

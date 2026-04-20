@@ -786,6 +786,7 @@ struct PortalPageContent: View {
 
     @State private var showFullscreen = false
     @State private var fullscreenIndex = 0
+    @State private var showCalendarPicker = false
     @StateObject private var orientationObserver = OrientationObserver()
 
     private var imageTabHeight: CGFloat {
@@ -828,6 +829,7 @@ struct PortalPageContent: View {
     private func calendarIcsUrl() -> URL? {
         URL(string: "https://rep-june2025.onrender.com/api/portal/\(portal.id)/calendar.ics")
     }
+
 
     // Sticky header as a computed property to help the compiler
     private var stickyHeader: some View {
@@ -941,22 +943,30 @@ struct PortalPageContent: View {
                         Rectangle()
                             .fill(Color(UIColor(red: 0.894, green: 0.894, blue: 0.894, alpha: 1.0)))
                             .frame(height: 1)
-                        if let gcUrl = calendarGoogleUrl() {
-                            Button(action: { UIApplication.shared.open(gcUrl) }) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "calendar.badge.plus")
-                                    Text("Add to Calendar")
-                                        .fontWeight(.bold)
-                                }
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 48)
-                                .background(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
-                                .cornerRadius(6)
+                        Button(action: { showCalendarPicker = true }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "calendar.badge.plus")
+                                Text("Add to Calendar")
+                                    .fontWeight(.bold)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color(UIColor(red: 0.0, green: 0.4, blue: 0.0, alpha: 1.0)))
+                            .cornerRadius(6)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .confirmationDialog("Add to Calendar", isPresented: $showCalendarPicker, titleVisibility: .visible) {
+                            if let gcUrl = calendarGoogleUrl() {
+                                Button("Google Calendar") { UIApplication.shared.open(gcUrl) }
+                            }
+                            if let icsUrl = calendarIcsUrl() {
+                                Button("Apple Calendar") { UIApplication.shared.open(icsUrl) }
+                                Button("Microsoft / Outlook") { UIApplication.shared.open(icsUrl) }
+                            }
+                            Button("Cancel", role: .cancel) { }
                         }
                     }
                     .background(Color.white)

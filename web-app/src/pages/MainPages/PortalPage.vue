@@ -82,24 +82,67 @@
           </button>
         </div>
 
-        <!-- Add to Calendar buttons (only show after user registers) -->
+        <!-- Add to Calendar (only show after user registers) -->
         <div
           v-if="isEventRegistered && portalDetail?.event_datetime"
           class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
         >
-          <a
-            v-if="buildGoogleCalUrlFromPortal()"
-            :href="buildGoogleCalUrlFromPortal()"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="w-full max-w-md flex items-center justify-center gap-2 h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95 text-white"
-            style="background-color: #006600; color: white;"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            Add to Calendar
-          </a>
+          <div class="relative w-full max-w-md">
+            <!-- Calendar picker dropdown -->
+            <div
+              v-if="showCalendarPicker"
+              class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden"
+            >
+              <a
+                v-if="buildGoogleCalUrlFromPortal()"
+                :href="buildGoogleCalUrlFromPortal()"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-50 border-b border-gray-100"
+                style="color: #006600;"
+                @click="showCalendarPicker = false"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Google Calendar
+              </a>
+              <a
+                :href="`https://rep-june2025.onrender.com/api/portal/${portalDetail!.id}/calendar.ics`"
+                class="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-50 border-b border-gray-100"
+                style="color: #006600;"
+                @click="showCalendarPicker = false"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Apple Calendar
+              </a>
+              <a
+                :href="`https://rep-june2025.onrender.com/api/portal/${portalDetail!.id}/calendar.ics`"
+                class="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-50"
+                style="color: #006600;"
+                @click="showCalendarPicker = false"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Microsoft / Outlook
+              </a>
+            </div>
+
+            <!-- Main button -->
+            <button
+              @click="showCalendarPicker = !showCalendarPicker"
+              class="w-full flex items-center justify-center gap-2 h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95"
+              style="background-color: #006600; color: white;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Add to Calendar
+            </button>
+          </div>
         </div>
 
         <!-- Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
@@ -509,6 +552,8 @@ const joinGoalTeam = async (goalId: number) => {
 };
 
 const isEventRegistered = ref(false);
+const showCalendarPicker = ref(false);
+
 
 // Initialize isEventRegistered from backend is_member flag when goals load
 watch(attendeesGoal, (goal) => {
@@ -680,6 +725,9 @@ onMounted(async () => {
 
   // Fetch portal data
   await fetchPortalDetail();
+  if (portalDetail.value?.portal_type === 'event') {
+    selectedSection.value = 1; // Default to Story tab for event portals
+  }
   await fetchPortalGoals();
 
   // Only fetch reporting increments if authenticated (needed for creating goals)

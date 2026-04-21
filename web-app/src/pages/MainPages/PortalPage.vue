@@ -71,7 +71,7 @@
         <!-- Register for Event Button (only show if Attendees goal exists and not yet registered) -->
         <div
           v-if="attendeesGoal && !isEventRegistered"
-          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
         >
           <button
             @click="handleRSVP"

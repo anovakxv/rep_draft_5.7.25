@@ -194,6 +194,23 @@
                 <option v-for="tz in TIMEZONES" :key="tz.value" :value="tz.value">{{ tz.label }}</option>
               </select>
             </div>
+            <div class="space-y-1">
+              <label class="text-xs text-gray-500">Duration (minutes)</label>
+              <select
+                v-model.number="eventDurationMinutes"
+                class="w-full p-2 border rounded-md focus:border-green-500 focus:ring-1 focus:ring-green-500 bg-white"
+              >
+                <option :value="30">30 min</option>
+                <option :value="45">45 min</option>
+                <option :value="60">1 hr</option>
+                <option :value="75">1 hr 15 min</option>
+                <option :value="90">1 hr 30 min</option>
+                <option :value="105">1 hr 45 min</option>
+                <option :value="120">2 hr</option>
+                <option :value="150">2 hr 30 min</option>
+                <option :value="180">3 hr</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -681,6 +698,7 @@ interface PortalDetail {
   event_datetime?: string;
   event_location?: string;
   event_timezone?: string;
+  event_duration_minutes?: number;
   aTexts?: PortalText[];
   aUsers?: User[];
   aGoals?: EditableGoal[];
@@ -773,6 +791,7 @@ const portalType = ref('');
 const eventDatetime = ref('');
 const eventLocation = ref('');
 const eventTimezone = ref('');
+const eventDurationMinutes = ref<number>(90);
 const selectedImages = ref<ImageFile[]>([]);
 const mainImageIndex = ref(0);
 const portalDetail = ref<PortalDetail | null>(null);
@@ -834,6 +853,7 @@ const fetchPortalData = async () => {
     eventDatetime.value = portal.event_datetime ? portal.event_datetime.slice(0, 16) : '';
     eventLocation.value = portal.event_location || '';
     eventTimezone.value = portal.event_timezone || '';
+    eventDurationMinutes.value = portal.event_duration_minutes ?? 90;
     
     // Convert portal texts to story blocks, sorted by position
     storyBlocks.value = (portal.aTexts || [])
@@ -1238,6 +1258,7 @@ const save = async () => {
     formData.append('event_datetime', eventDatetime.value);
     formData.append('event_location', eventLocation.value);
     formData.append('event_timezone', eventTimezone.value);
+    formData.append('event_duration_minutes', String(eventDurationMinutes.value));
   }
 
   // Append story blocks (aTexts) with position for ordering

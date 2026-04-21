@@ -126,6 +126,7 @@ class EditPortalViewModel: ObservableObject {
     @Published var eventDatetime: Date = Date()
     @Published var eventLocation: String = ""
     @Published var eventTimezone: String = ""
+    @Published var eventDurationMinutes: Int = 90
 
     // Story blocks
     @Published var storyBlocks: [PortalWriteBlock] = []
@@ -174,6 +175,7 @@ class EditPortalViewModel: ObservableObject {
         }
         self.eventLocation = portal.event_location ?? ""
         self.eventTimezone = portal.event_timezone ?? ""
+        self.eventDurationMinutes = portal.event_duration_minutes ?? 90
     }
 
     func addGoal() {
@@ -277,6 +279,7 @@ class EditPortalViewModel: ObservableObject {
             appendFormField("event_datetime", dtFormatter.string(from: eventDatetime))
             appendFormField("event_location", eventLocation)
             appendFormField("event_timezone", eventTimezone.isEmpty ? "UTC" : eventTimezone)
+            appendFormField("event_duration_minutes", "\(eventDurationMinutes)")
         }
 
         // Save story blocks as aTexts (with position for ordering)
@@ -788,6 +791,13 @@ struct PortalTypeSection: View {
                             .cornerRadius(8)
                         }
                     }
+
+                    Stepper(
+                        "Duration: \(viewModel.eventDurationMinutes) min",
+                        value: $viewModel.eventDurationMinutes,
+                        in: 15...480,
+                        step: 15
+                    )
                 }
                 .padding()
                 .background(Color(UIColor.systemGray6).opacity(0.5))

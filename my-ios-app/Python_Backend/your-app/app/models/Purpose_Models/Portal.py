@@ -29,6 +29,7 @@ class Portal(db.Model):
     event_datetime = db.Column(db.DateTime, nullable=True)          # Only used when portal_type = 'event'
     event_location = db.Column(db.String(255), nullable=True)       # Only used when portal_type = 'event'
     event_timezone = db.Column(db.String(50), nullable=True)        # Only used when portal_type = 'event'
+    event_duration_minutes = db.Column(db.Integer, nullable=True)   # Only used when portal_type = 'event'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -89,6 +90,7 @@ class Portal(db.Model):
             'event_datetime': self.event_datetime.isoformat() if self.event_datetime else None,
             'event_location': self.event_location,
             'event_timezone': self.event_timezone,
+            'event_duration_minutes': self.event_duration_minutes,
             'mainImageUrl': self.main_image_url,
             'lead_user_count': self.lead_user_count,
             'created_at': self.created_at.isoformat() if self.created_at else None,

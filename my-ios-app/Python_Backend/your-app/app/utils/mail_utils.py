@@ -61,7 +61,8 @@ def send_event_registration_email(user, portal):
 
         # Google Calendar URL (floating time — displays in recipient's local timezone)
         start_str = event_datetime.strftime('%Y%m%dT%H%M%S')
-        end_str = (event_datetime + timedelta(hours=1)).strftime('%Y%m%dT%H%M%S')
+        duration_minutes = getattr(portal, 'event_duration_minutes', None) or 90
+        end_str = (event_datetime + timedelta(minutes=duration_minutes)).strftime('%Y%m%dT%H%M%S')
         gc_parts = [
             f"action=TEMPLATE",
             f"text={quote(portal_name)}",

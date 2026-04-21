@@ -67,7 +67,9 @@
       "Bash(git config:*)",
       "Bash(npx vue-tsc:*)",
       "Bash(flask db:*)",
-      "Bash(flask.exe --version)"
+      "Bash(flask.exe --version)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(set FLASK_APP=migrate_run.py)"
     ],
     "deny": [],
     "ask": []

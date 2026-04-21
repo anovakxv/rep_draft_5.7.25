@@ -1792,6 +1792,7 @@ struct MainScreenContent: View {
                         event_datetime: nil,
                         event_location: nil,
                         event_timezone: nil,
+                        event_duration_minutes: nil,
                         aGoals: [],
                         aPortalUsers: [],
                         aTexts: [],

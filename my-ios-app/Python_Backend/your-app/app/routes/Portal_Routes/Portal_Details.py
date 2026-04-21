@@ -158,6 +158,7 @@ def api_portal_details():
         'event_datetime': portal.event_datetime.isoformat() if portal.event_datetime else None,
         'event_location': portal.event_location,
         'event_timezone': portal.event_timezone,
+        'event_duration_minutes': portal.event_duration_minutes,
         'mainImageUrl': main_image_url,
         'aGoals': [dict(goal.as_dict(), is_member=goal.id in member_goal_ids) for goal in goals],
         'aPortalUsers': [pu.as_dict() for pu in portal_users],
@@ -210,6 +211,7 @@ def api_create_portal():
             event_datetime=parse_event_datetime(data.get('event_datetime')),
             event_location=data.get('event_location') or None,
             event_timezone=data.get('event_timezone') or None,
+            event_duration_minutes=int(data['event_duration_minutes']) if data.get('event_duration_minutes') else None,
             # --- PORTAL APPROVAL WORKFLOW ---
             # To enable approval: change 'active' to 'pending' below.
             # New portals will be hidden from public until approved by admin.
@@ -297,7 +299,7 @@ def api_edit_portal():
 
     # Update main portal fields
     update_fields = ['name', 'subtitle', 'categories_id', 'cities_id', 'about', 'lead_id', 'visible',
-                     'portal_type', 'event_location', 'event_timezone']
+                     'portal_type', 'event_location', 'event_timezone', 'event_duration_minutes']
     for field in update_fields:
         if data.get(field) is not None:
             setattr(portal, field, data[field] or None)
@@ -590,7 +592,8 @@ def api_portal_calendar_ics(portal_id):
     # Build .ics content
     uid = f"portal-{portal_id}@repsomething.com"
     start = dt.strftime('%Y%m%dT%H%M%S')
-    end = (dt + timedelta(hours=1)).strftime('%Y%m%dT%H%M%S')
+    duration_minutes = portal.event_duration_minutes or 90
+    end = (dt + timedelta(minutes=duration_minutes)).strftime('%Y%m%dT%H%M%S')
     now_utc = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
     summary = portal.name.replace('\n', ' ').replace('\r', '')
     description = (portal.about or '').replace('\n', '\\n').replace('\r', '')[:500]

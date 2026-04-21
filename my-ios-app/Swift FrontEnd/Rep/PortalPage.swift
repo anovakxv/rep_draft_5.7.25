@@ -804,7 +804,8 @@ struct PortalPageContent: View {
             parsed = formatter.date(from: dt)
         }
         guard let start = parsed else { return nil }
-        let end = start.addingTimeInterval(3600)
+        let durationSeconds = Double(portal.event_duration_minutes ?? 90) * 60
+        let end = start.addingTimeInterval(durationSeconds)
         let fmt = { (d: Date) -> String in
             let f = DateFormatter()
             f.locale = Locale(identifier: "en_US_POSIX")
@@ -1317,7 +1318,8 @@ struct PortalStorySection: View {
     private func googleCalUrl() -> URL? {
         guard let dt = portal.event_datetime,
               let parsed = parsedEventDate(dt) else { return nil }
-        let end = parsed.addingTimeInterval(3600)
+        let durationSeconds = Double(portal.event_duration_minutes ?? 90) * 60
+        let end = parsed.addingTimeInterval(durationSeconds)
         let fmt = { (d: Date) -> String in
             let f = DateFormatter()
             f.locale = Locale(identifier: "en_US_POSIX")
@@ -1547,6 +1549,7 @@ struct PortalDetail: Identifiable, Codable {
     let event_datetime: String?
     let event_location: String?
     let event_timezone: String?
+    let event_duration_minutes: Int?
     let aGoals: [Goal]?
     let aPortalUsers: [PortalUser]?
     let aTexts: [PortalText]?

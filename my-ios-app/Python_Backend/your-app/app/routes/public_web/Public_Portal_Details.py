@@ -201,6 +201,7 @@ def api_public_portal_details(portal_id):
         'event_datetime': portal.event_datetime.isoformat() if portal.event_datetime else None,
         'event_location': portal.event_location,
         'event_timezone': portal.event_timezone,
+        'event_duration_minutes': portal.event_duration_minutes,
         'mainImageUrl': main_image_url,
         'aGoals': aGoals,
         'aPortalUsers': [pu.as_dict() for pu in portal_users],

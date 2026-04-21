@@ -85,7 +85,7 @@
         <!-- Add to Calendar (only show after user registers) -->
         <div
           v-if="isEventRegistered && portalDetail?.event_datetime"
-          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
         >
           <div class="relative w-full max-w-md">
             <!-- Calendar picker dropdown -->
@@ -370,6 +370,7 @@ interface PortalDetail {
   event_datetime?: string;
   event_location?: string;
   event_timezone?: string;
+  event_duration_minutes?: number;
 }
 
 interface ReportingIncrement { 
@@ -571,7 +572,8 @@ const buildGoogleCalUrlFromPortal = (): string => {
     const pad = (n: number) => String(n).padStart(2, '0');
     const fmt = (d: Date) =>
       `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-    const end = new Date(dt.getTime() + 60 * 60 * 1000);
+    const durationMs = (portal.event_duration_minutes ?? 90) * 60 * 1000;
+    const end = new Date(dt.getTime() + durationMs);
     const parts = [
       `action=TEMPLATE`,
       `text=${encodeURIComponent(portal.name)}`,

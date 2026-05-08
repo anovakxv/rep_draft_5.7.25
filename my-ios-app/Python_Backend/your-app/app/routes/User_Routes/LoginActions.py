@@ -52,7 +52,7 @@ def api_login_user():
 
     session['user_id'] = user.id
 
-    jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
+    jwt_secret = os.environ.get('JWT_SECRET', '')
     token = jwt.encode({
         'user_id': user.id,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
@@ -66,8 +66,8 @@ def api_login_user():
     mark_all_activities_as_read(user.id)
 
     resp = make_response(jsonify({'result': user_row, 'token': token}))
-    resp.set_cookie('uid', str(user.id), max_age=60*60*24*30, path='/')
-    resp.set_cookie('upd', str(datetime.datetime.utcnow().timestamp()), max_age=60*60*24*30, path='/')
+    resp.set_cookie('uid', str(user.id), max_age=60*60*24*30, path='/', httponly=True, secure=True, samesite='Lax')
+    resp.set_cookie('upd', str(datetime.datetime.utcnow().timestamp()), max_age=60*60*24*30, path='/', httponly=True, secure=True, samesite='Lax')
 
     # Fire-and-forget Welcome DMs (idempotent). Safe if helper/env not configured.
     if send_welcome_dm_once:
@@ -109,7 +109,8 @@ def api_forgot_password():
     if email and not hash_val:
         user = User.query.filter_by(email=email).first()
         if not user:
-            return jsonify({'error': "That user doesn't exist!"}), 404
+            # Return success regardless to prevent email enumeration
+            return jsonify({'result': 'sent'}), 200
 
         # Remove any old hashes for this user
         PasswordUpdater.query.filter_by(users_id=user.id).delete()

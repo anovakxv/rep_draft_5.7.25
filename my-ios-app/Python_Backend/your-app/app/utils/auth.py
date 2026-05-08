@@ -1,8 +1,11 @@
 import os
 import jwt
+import logging
 from functools import wraps
 from flask import request, jsonify, g
 from app.models.People_Models.user import User
+
+logger = logging.getLogger(__name__)
 
 def jwt_required(f):
     @wraps(f)
@@ -14,14 +17,17 @@ def jwt_required(f):
         if not token:
             return jsonify({'error': 'Authorization token required'}), 401
         try:
-            jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
+            jwt_secret = os.environ.get('JWT_SECRET', '')
             payload = jwt.decode(token, jwt_secret, algorithms=['HS256'])
             user_id = payload.get('user_id')
             user = User.query.get(user_id)
             if not user:
                 return jsonify({'error': 'User not found'}), 404
             g.current_user = user
-        except Exception:
+        except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
             return jsonify({'error': 'Invalid or expired token'}), 401
+        except Exception:
+            logger.exception("Unexpected error in jwt_required")
+            return jsonify({'error': 'Authentication error'}), 500
         return f(*args, **kwargs)
     return decorated_function

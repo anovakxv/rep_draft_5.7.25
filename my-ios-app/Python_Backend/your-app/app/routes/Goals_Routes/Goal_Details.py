@@ -137,7 +137,7 @@ def api_goal_details():
         for u in users
     ]
 
-    logs = GoalProgressLog.query.filter_by(goals_id=goal.id).order_by(GoalProgressLog.timestamp.desc()).limit(20).all()
+    # Reuse logs already fetched above (avoids duplicate query)
     a_latest_progress = [log.as_dict() for log in logs]
 
     # --- PATCH: Use correct filled_quota for non-Recruiting goals ---

@@ -37,34 +37,32 @@ def batch_get_users(user_ids):
 #     return {c.id: c for c in chats}
 
 def batch_get_last_direct_messages(user_id, contact_ids):
-    # Get the latest direct message for each contact
-    last_msgs = (
+    if not contact_ids:
+        return {}
+    # Get max message ID per contact in one query, then batch-fetch those messages
+    subq = (
         db.session.query(
             db.case(
                 (DirectMessage.sender_id == user_id, DirectMessage.recipient_id),
                 else_=DirectMessage.sender_id
             ).label('contact_id'),
-            db.func.max(DirectMessage.created_at).label('last_message_time')
+            db.func.max(DirectMessage.id).label('max_id')
         )
         .filter(
-            (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id),
-            db.or_(
-                DirectMessage.sender_id.in_([user_id] + contact_ids),
-                DirectMessage.recipient_id.in_([user_id] + contact_ids)
-            )
+            (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)
         )
         .group_by('contact_id')
+        .subquery()
+    )
+    messages = (
+        db.session.query(DirectMessage)
+        .join(subq, DirectMessage.id == subq.c.max_id)
         .all()
     )
-    # Now fetch the actual last message for each contact
     last_msg_map = {}
-    for row in last_msgs:
-        last_msg = DirectMessage.query.filter(
-            ((DirectMessage.sender_id == user_id) & (DirectMessage.recipient_id == row.contact_id)) |
-            ((DirectMessage.recipient_id == user_id) & (DirectMessage.sender_id == row.contact_id))
-        ).order_by(DirectMessage.created_at.desc()).first()
-        if last_msg:
-            last_msg_map[row.contact_id] = last_msg
+    for msg in messages:
+        contact_id = msg.recipient_id if msg.sender_id == user_id else msg.sender_id
+        last_msg_map[contact_id] = msg
     return last_msg_map
 
 # def batch_get_last_group_messages(chat_ids):
@@ -130,14 +128,38 @@ def api_active_chat_list():
     )
     chat_ids = [row.chat_id for row in group_chats]
     chats_map = {c.id: c for c in Chats.query.filter(Chats.id.in_(chat_ids)).all()} if chat_ids else {}
-    last_group_msgs = {}
-    for row in group_chats:
-        last_msg = GroupMessage.query.filter_by(chat_id=row.chat_id).order_by(GroupMessage.created_at.desc()).first()
-        if last_msg:
-            last_group_msgs[row.chat_id] = last_msg
 
-    # --- Get all read message IDs for this user ---
-    read_ids = set(r.messages_id for r in MessagesRead.query.filter_by(users_id=user_id).all())
+    # Batch-fetch last group message per chat (2 queries instead of N)
+    if chat_ids:
+        group_subq = (
+            db.session.query(
+                GroupMessage.chat_id,
+                db.func.max(GroupMessage.id).label('max_id')
+            )
+            .filter(GroupMessage.chat_id.in_(chat_ids))
+            .group_by(GroupMessage.chat_id)
+            .subquery()
+        )
+        last_group_messages = (
+            db.session.query(GroupMessage)
+            .join(group_subq, GroupMessage.id == group_subq.c.max_id)
+            .all()
+        )
+        last_group_msgs = {msg.chat_id: msg for msg in last_group_messages}
+    else:
+        last_group_msgs = {}
+
+    # Fetch read status only for the specific messages we care about (not full table)
+    last_direct_msg_ids = [msg.id for msg in last_direct_msgs.values() if msg]
+    if last_direct_msg_ids:
+        read_ids = set(
+            r.messages_id for r in MessagesRead.query.filter(
+                MessagesRead.users_id == user_id,
+                MessagesRead.messages_id.in_(last_direct_msg_ids)
+            ).all()
+        )
+    else:
+        read_ids = set()
 
     # --- Collect all latest chat events (direct + group) ---
     chat_events = []

@@ -115,11 +115,12 @@ def api_portal_details():
     # All users (all roles)
     all_user_ids = set([portal.users_id] + [pu.user_id for pu in portal_users])
     all_users = User.query.filter(User.id.in_(all_user_ids)).all()
+    all_users_by_id = {u.id: u for u in all_users}
 
-    # Only leads (role='lead')
+    # Derive lead_users from all_users (lead_user_ids is a subset — no second query needed)
     portal_leads = [pu for pu in portal_users if pu.role == 'lead']
     lead_user_ids = set([portal.users_id] + [pu.user_id for pu in portal_leads])
-    lead_users = User.query.filter(User.id.in_(lead_user_ids)).all()
+    lead_users = [all_users_by_id[uid] for uid in lead_user_ids if uid in all_users_by_id]
 
     # Compose goals
     goals = Goal.query.filter_by(portals_id=portal.id).order_by(Goal.id.desc()).all()

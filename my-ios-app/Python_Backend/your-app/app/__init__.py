@@ -3,12 +3,14 @@
 # Created by Adam Novak: June 2025
 
 import os
+import stat
 
-# Write the PEM file from the environment variable (if present)
+# Write the PEM file from the environment variable (if present), owner-only permissions
 pem_path = "/tmp/apns_cert.pem"
 if "APNS_CERT_PEM" in os.environ:
     with open(pem_path, "w") as f:
         f.write(os.environ["APNS_CERT_PEM"])
+    os.chmod(pem_path, stat.S_IRUSR | stat.S_IWUSR)  # 0o600
 
 from flask import Flask, request
 from flask_sqlalchemy import SQLAlchemy
@@ -28,15 +30,18 @@ def get_real_ip():
 limiter = Limiter(key_func=get_real_ip, default_limits=[])
 
 # Use Redis message queue if REDIS_URL provided (safe if None)
+_socket_localhost = os.getenv("FLASK_ENV") == "development" or bool(os.getenv("CORS_ALLOW_LOCALHOST"))
+_socket_origins = [
+    "https://repnetwork.app",
+    "https://www.repnetwork.app",
+    "https://repsomething.com",
+    "https://www.repsomething.com",
+]
+if _socket_localhost:
+    _socket_origins += ["http://localhost:5173", "http://localhost:5174"]
+
 socketio = SocketIO(
-    cors_allowed_origins=[
-        "https://repnetwork.app",
-        "https://www.repnetwork.app",
-        "https://repsomething.com",
-        "https://www.repsomething.com",
-        "http://localhost:5173",
-        "http://localhost:5174"
-    ],
+    cors_allowed_origins=_socket_origins,
     message_queue=os.getenv("REDIS_URL"),
     async_mode="eventlet"
 )
@@ -45,20 +50,25 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    # Fallback secret key (avoid crashes if missing)
-    if not app.config.get("SECRET_KEY"):
-        app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "change-me")
+    # Fail fast if critical secrets are missing
+    for _required in ('SECRET_KEY', 'JWT_SECRET', 'PASS_SALT'):
+        if not os.environ.get(_required):
+            raise RuntimeError(f"{_required} env var is not set — cannot start")
 
-    # CORS configuration - use environment variable for additional origins
+    # CORS configuration - localhost origins only allowed in development
+    _allow_localhost = os.getenv("FLASK_ENV") == "development" or bool(os.getenv("CORS_ALLOW_LOCALHOST"))
     cors_origins = [
         "https://networkedcapital.co",
         "https://repsomething.com",
         "https://www.repsomething.com",
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:5176"
     ]
+    if _allow_localhost:
+        cors_origins += [
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "http://localhost:5175",
+            "http://localhost:5176",
+        ]
     # Add production web app origin if specified
     if os.getenv("WEB_APP_ORIGIN"):
         cors_origins.append(os.getenv("WEB_APP_ORIGIN"))
@@ -113,7 +123,8 @@ def create_app():
     from app.routes.User_Routes.GetUsers import user_bp as get_users_bp
     from app.routes.User_Routes.LoginActions import user_bp as login_actions_bp
     from app.routes.User_Routes.RegisterUser import user_bp as register_user_bp
-    from app.routes.User_Routes.TwitterLogin import user_bp as twitter_login_bp
+    # TwitterLogin disabled — no OAuth server-side verification (SEC-H1)
+    # from app.routes.User_Routes.TwitterLogin import user_bp as twitter_login_bp
     from app.routes.User_Routes.Write import user_bp as write_bp
     from app.routes.User_Routes.Get_People import people_bp as get_people_bp
     from app.routes.User_Routes.DeviceToken import user_bp as device_token_bp
@@ -136,7 +147,7 @@ def create_app():
     app.register_blueprint(get_users_bp, url_prefix='/api/user')
     app.register_blueprint(login_actions_bp, url_prefix='/api/user')
     app.register_blueprint(register_user_bp, url_prefix='/api/user')
-    app.register_blueprint(twitter_login_bp, url_prefix='/api/user')
+    # app.register_blueprint(twitter_login_bp, url_prefix='/api/user')  # disabled
     app.register_blueprint(write_bp, url_prefix='/api/user')
     app.register_blueprint(device_token_bp, url_prefix='/api/user')
     app.register_blueprint(get_people_bp)  # already has its own routes

@@ -33,6 +33,11 @@ def api_group_chat():
     if not chat:
         return jsonify({'error': 'Chat not found!'}), 404
 
+    # Verify requesting user is a member of this chat
+    membership = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).first()
+    if not membership:
+        return jsonify({'error': 'Access denied'}), 403
+
     users = db.session.query(User).join(
         ChatsUsers, ChatsUsers.users_id == User.id
     ).filter(ChatsUsers.chats_id == chats_id).all()

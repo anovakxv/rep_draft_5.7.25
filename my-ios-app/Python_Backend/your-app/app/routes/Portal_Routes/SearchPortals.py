@@ -3,13 +3,16 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify
-from app import db
+from app import db, limiter
 from app.models.Purpose_Models.Portal import Portal
+from app.utils.auth import jwt_required
 from sqlalchemy import or_
 
 search_portals_bp = Blueprint('search_portals', __name__)
 
 @search_portals_bp.route('/api/search_portals', methods=['GET'])
+@jwt_required
+@limiter.limit("60 per minute")
 def search_portals():
     """
     Search portals by name or subtitle.

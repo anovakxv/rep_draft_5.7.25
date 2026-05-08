@@ -105,7 +105,7 @@ def api_register_user():
     if profile_pic_url:
         user_row['profile_picture_url'] = profile_pic_url
 
-    jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
+    jwt_secret = os.environ.get('JWT_SECRET', '')
     token = jwt.encode({
         'user_id': user.id,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
@@ -143,7 +143,7 @@ def api_verify_email():
     user.email_verification_token = None
     db.session.commit()
 
-    jwt_secret = os.environ.get('JWT_SECRET', 'changeme')
+    jwt_secret = os.environ.get('JWT_SECRET', '')
     token = jwt.encode({
         'user_id': user.id,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)

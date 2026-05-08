@@ -159,11 +159,12 @@ def api_public_portal_details(portal_id):
     portal_users = portal.portal_users
     all_user_ids = set([portal.users_id] + [pu.user_id for pu in portal_users])
     all_users = User.query.filter(User.id.in_(all_user_ids)).all()
+    all_users_by_id = {u.id: u for u in all_users}
 
-    # Get only leads
+    # Derive lead_users from all_users (no second DB query needed)
     portal_leads = [pu for pu in portal_users if pu.role == 'lead']
     lead_user_ids = set([portal.users_id] + [pu.user_id for pu in portal_leads])
-    lead_users = User.query.filter(User.id.in_(lead_user_ids)).all()
+    lead_users = [all_users_by_id[uid] for uid in lead_user_ids if uid in all_users_by_id]
 
     # Get goals for this portal with proper chart data
     goals = Goal.query.options(joinedload(Goal.reporting_increment)).filter_by(portals_id=portal.id).order_by(Goal.id.desc()).all()

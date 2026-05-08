@@ -8,7 +8,6 @@ from app import db
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.Message_Attachments import MessageAttachment
 from app.utils.auth import jwt_required
-import boto3
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -23,29 +22,17 @@ def upload_to_s3(file, user_id):
     Uses existing S3 configuration from environment variables.
     """
     try:
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.environ.get('AWS_REGION', 'us-east-1')
-        )
-
-        bucket_name = os.environ.get('S3_BUCKET_NAME')
-        if not bucket_name:
-            raise ValueError("S3_BUCKET_NAME not configured")
+        from app.utils.s3 import s3
+        bucket_name = os.environ.get('S3_BUCKET_NAME', 'rep-app-dbbucket')
 
         # Generate unique filename
         filename = secure_filename(file.filename)
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         s3_key = f"message_attachments/user_{user_id}/{timestamp}_{filename}"
 
-        # Upload file
-        s3_client.upload_fileobj(
-            file,
-            bucket_name,
-            s3_key,
-            ExtraArgs={'ContentType': file.content_type} if file.content_type else {}
-        )
+        # Upload using put_object (upload_fileobj breaks with eventlet)
+        extra = {'ContentType': file.content_type} if file.content_type else {}
+        s3.put_object(Body=file.read(), Bucket=bucket_name, Key=s3_key, **extra)
 
         # Generate URL
         file_url = f"https://{bucket_name}.s3.amazonaws.com/{s3_key}"
@@ -121,10 +108,14 @@ def get_message_attachments(message_id):
     Returns:
     - result: List of attachment objects
     """
+    user_id = g.current_user.id
     message = DirectMessage.query.get(message_id)
 
     if not message:
         return jsonify({'error': 'Message not found'}), 404
+
+    if message.sender_id != user_id and message.recipient_id != user_id:
+        return jsonify({'error': 'Access denied'}), 403
 
     attachments = MessageAttachment.query.filter_by(message_id=message_id).all()
 
@@ -175,9 +166,14 @@ def get_attachment_info(attachment_id):
     Returns:
     - result: Attachment object with URL, filename, size, etc.
     """
+    user_id = g.current_user.id
     attachment = MessageAttachment.query.get(attachment_id)
 
     if not attachment:
         return jsonify({'error': 'Attachment not found'}), 404
+
+    message = DirectMessage.query.get(attachment.message_id)
+    if not message or (message.sender_id != user_id and message.recipient_id != user_id):
+        return jsonify({'error': 'Access denied'}), 403
 
     return jsonify({'result': attachment.as_dict()})

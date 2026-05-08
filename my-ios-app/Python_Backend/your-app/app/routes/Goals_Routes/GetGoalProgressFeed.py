@@ -32,15 +32,15 @@ def api_get_goals_progress_feed():
         .order_by(GoalProgressLog.timestamp.asc())\
         .offset(offset).limit(limit).all()
 
-    users_dict = {}
+    # Batch-fetch all users referenced in these logs (single query)
+    user_ids = {log.users_id for log in logs if log.users_id}
+    users_dict = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
     result = []
     previous_value = 0
 
     for log in logs:
         user = users_dict.get(log.users_id)
-        if not user and log.users_id:  # Check users_id is not NULL before querying
-            user = User.query.get(log.users_id)
-            users_dict[log.users_id] = user
 
         percent = round((log.value / goal.quota), 2) if goal.quota else 0
         percent = min(max(percent, 0), 1)
@@ -67,7 +67,6 @@ def api_get_goals_progress_feed():
             'username': getattr(u, 'username', None),
             'fname': getattr(u, 'fname', None),
             'lname': getattr(u, 'lname', None),
-            'email': getattr(u, 'email', None)
         }
         for u in users_dict.values() if u
     ]

@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.user import User
 from app.utils.auth import jwt_required
+from sqlalchemy import text
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
@@ -57,11 +58,11 @@ def api_get_users():
             if restrict_by_distance == '1':
                 if distance < 1:
                     return jsonify({'error': 'distance < 1'}), 400
-                # Haversine formula for miles (raw SQL for filtering)
+                # Haversine formula for miles (parameterized to prevent SQL injection)
                 query = query.filter(
-                    db.text(
-                        f"((ACOS( SIN(lat * PI() /180 ) * SIN({lat} * PI()/180 ) + COS(lat * PI()/180 ) * COS({lat} * PI()/180 ) * COS( ((lng+0.000001) - ({lng}) ) * PI()/180 ) ) *180 / PI() ) * 60 * 1.1515) <= {distance}"
-                    )
+                    text(
+                        "((ACOS( SIN(lat * PI() /180 ) * SIN(:lat * PI()/180 ) + COS(lat * PI()/180 ) * COS(:lat * PI()/180 ) * COS( ((lng+0.000001) - (:lng) ) * PI()/180 ) ) *180 / PI() ) * 60 * 1.1515) <= :distance"
+                    ).bindparams(lat=lat, lng=lng, distance=distance)
                 )
             query = query.filter(User.lat != 0, User.lng != 0)
         except Exception:

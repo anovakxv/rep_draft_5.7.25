@@ -11,22 +11,15 @@ from app.models.People_Models.UserFollower import UserFollower
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.utils.user_utils import check_new_email, check_new_username, manage_user_row
 from app.utils.auth import jwt_required
+from app.utils.s3 import s3
 import hashlib
 import os
 import uuid
 from werkzeug.utils import secure_filename
-import boto3
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
 S3_BUCKET = "rep-app-dbbucket"
-
-s3 = boto3.client(
-    's3',
-    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-    region_name=os.environ.get('AWS_DEFAULT_REGION')
-)
 
 def patch_profile_picture_url(user_row):
     url = user_row.get('profile_picture_url')
@@ -50,11 +43,24 @@ def get_user_response(user, session_user_id=None):
     user_skills = Skill.query.join(UserSkill, Skill.id == UserSkill.skills_id).filter(UserSkill.users_id == user.id).all()
     user_row['skills'] = [skill.title for skill in user_skills]    # Add relationships if session user
     if session_user_id:
+        # Combine 4 count queries into 2 batch queries
+        follower_rows = UserFollower.query.filter(
+            db.or_(
+                db.and_(UserFollower.users_id1 == session_user_id, UserFollower.users_id2 == user.id),
+                db.and_(UserFollower.users_id2 == session_user_id, UserFollower.users_id1 == user.id)
+            )
+        ).all()
+        network_rows = UserNetwork.query.filter(
+            db.or_(
+                db.and_(UserNetwork.users_id1 == session_user_id, UserNetwork.users_id2 == user.id),
+                db.and_(UserNetwork.users_id2 == session_user_id, UserNetwork.users_id1 == user.id)
+            )
+        ).all()
         user_row['relationships'] = {
-            "i_follow": UserFollower.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_followed_by": UserFollower.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
-            "in_my_network": UserNetwork.query.filter_by(users_id1=session_user_id, users_id2=user.id).count() > 0,
-            "i_am_in_their_network": UserNetwork.query.filter_by(users_id2=session_user_id, users_id1=user.id).count() > 0,
+            "i_follow": any(r.users_id1 == session_user_id and r.users_id2 == user.id for r in follower_rows),
+            "i_am_followed_by": any(r.users_id2 == session_user_id and r.users_id1 == user.id for r in follower_rows),
+            "in_my_network": any(r.users_id1 == session_user_id and r.users_id2 == user.id for r in network_rows),
+            "i_am_in_their_network": any(r.users_id2 == session_user_id and r.users_id1 == user.id for r in network_rows),
         }
     # Patch profile picture URL to be full S3 URL if needed
     user_row = patch_profile_picture_url(user_row)
@@ -109,7 +115,7 @@ def api_edit_user():
         if file and allowed_file(file.filename):
             filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
             file.seek(0)
-            s3.upload_fileobj(file, S3_BUCKET, filename)
+            s3.put_object(Body=file.read(), Bucket=S3_BUCKET, Key=filename)
             user.profile_picture_url = filename
 
     db.session.commit()
@@ -136,7 +142,7 @@ def api_delete_user():
 
     # SECURITY LAYER 1: Protect specific Master Admin user IDs (hardcoded failsafe)
     # These accounts can NEVER be deleted via the app, regardless of user type
-    PROTECTED_USER_IDS = [45]  # Master Admin: anovakxv@gmail.com
+    PROTECTED_USER_IDS = [45]
     if user_id in PROTECTED_USER_IDS:
         return jsonify({'error': 'This account is protected and cannot be deleted.'}), 403
 
@@ -195,7 +201,9 @@ def update_notification_settings():
         # you'll need to add it via migration
         return jsonify({'message': 'Notification settings will be added in a future update'}), 200
 
-    user.notification_settings = data
+    ALLOWED_KEYS = {'pushNotificationsEnabled', 'emailNotificationsEnabled', 'smsNotificationsEnabled'}
+    sanitized = {k: v for k, v in data.items() if k in ALLOWED_KEYS and isinstance(v, bool)}
+    user.notification_settings = sanitized
     db.session.commit()
     
     return jsonify({'message': 'Notification settings updated successfully'})

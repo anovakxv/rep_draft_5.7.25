@@ -7,7 +7,6 @@ from app import db, socketio  # socketio imported for realtime emit
 from app.models.People_Models.user import User
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.Purpose_Models.Portal import Portal
-from app.utils.user_utils import does_user_block, register_new_activity
 from app.utils.auth import jwt_required
 from app.models.People_Models.BlockedUser import BlockedUser
 from datetime import datetime
@@ -61,12 +60,6 @@ def api_send_message():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Failed to save message: {str(e)}'}), 500
-
-    # Activity log (non-fatal)
-    try:
-        register_new_activity(user_id, to_user_id, "new_direct_message", 1, msg.id, "messages")
-    except Exception as e:
-        print(f"Activity log error: {e}")
 
     # Fetch sender and recipient once (reuse for FCM + socket + response)
     sender = User.query.filter_by(id=user_id).first()

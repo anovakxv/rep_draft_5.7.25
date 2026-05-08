@@ -43,7 +43,7 @@ if _socket_localhost:
 socketio = SocketIO(
     cors_allowed_origins=_socket_origins,
     message_queue=os.getenv("REDIS_URL"),
-    async_mode="eventlet"
+    async_mode="gevent"
 )
 
 def create_app():

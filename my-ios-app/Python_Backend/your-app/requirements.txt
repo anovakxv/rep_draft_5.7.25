@@ -5,7 +5,8 @@ Flask-SocketIO
 Flask-Login
 psycopg2-binary
 python-dotenv
-eventlet
+gevent
+gevent-websocket
 boto3
 gunicorn
 PyJWT

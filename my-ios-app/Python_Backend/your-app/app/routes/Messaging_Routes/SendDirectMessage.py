@@ -31,6 +31,8 @@ def api_send_message():
         return jsonify({'error': 'users_id is empty!'}), 400
     if not message_text:
         return jsonify({'error': 'message required!'}), 400
+    if len(message_text) > 10000:
+        return jsonify({'error': 'message too long (max 10000 characters)'}), 400
 
     # Coerce to int defensively
     try:

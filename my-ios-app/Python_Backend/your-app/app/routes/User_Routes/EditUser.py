@@ -110,9 +110,10 @@ def api_edit_user():
             setattr(user, col, data[col])
 
     # Profile picture update
+    ALLOWED_IMAGE_MIMES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
     if 'profile_picture' in files:
         file = files['profile_picture']
-        if file and allowed_file(file.filename):
+        if file and allowed_file(file.filename) and file.content_type in ALLOWED_IMAGE_MIMES:
             filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
             file.seek(0)
             s3.put_object(Body=file.read(), Bucket=S3_BUCKET, Key=filename)

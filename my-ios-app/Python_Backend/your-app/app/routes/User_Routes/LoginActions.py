@@ -10,6 +10,7 @@ from app.utils.user_utils import manage_user_row, mark_all_activities_as_read
 from app.utils.mail_utils import send_mail
 import hashlib
 import os
+import secrets
 import jwt
 import datetime
 import time
@@ -24,7 +25,7 @@ except Exception:
 user_bp = Blueprint('login_user', __name__)
 
 @user_bp.route('/login', methods=['POST'])
-@limiter.limit("20 per minute")
+@limiter.limit("5 per minute")
 def api_login_user():
     data = request.get_json()
     email = data.get('email', '').strip()
@@ -94,6 +95,7 @@ def api_logout_user():
     return resp
 
 @user_bp.route('/forgot_password', methods=['POST'])
+@limiter.limit("3 per hour")
 def api_forgot_password():
     import time
     from datetime import datetime, timedelta
@@ -116,7 +118,7 @@ def api_forgot_password():
         PasswordUpdater.query.filter_by(users_id=user.id).delete()
 
         # Create a new hash with timestamp for expiration
-        hash_str = hashlib.md5(f"{user.id}{user.password}{PASS_SALT}{str(time.time())}".encode()).hexdigest()
+        hash_str = secrets.token_urlsafe(32)
         updater = PasswordUpdater(users_id=user.id, hash=hash_str, timestamp=datetime.utcnow())
         db.session.add(updater)
         db.session.commit()

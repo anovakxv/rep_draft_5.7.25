@@ -69,7 +69,10 @@
       "Bash(flask db:*)",
       "Bash(flask.exe --version)",
       "Bash(echo \"EXIT:$?\")",
-      "Bash(set FLASK_APP=migrate_run.py)"
+      "Bash(set FLASK_APP=migrate_run.py)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\\" -Recurse | Select-Object -ExpandProperty FullName | head -50)",
+      "Bash(cd '/c/Users/Stephanie/Desktop/Git Rep app draft 1/my-ios-app/my-ios-app/Python_Backend/your-app' && find . -type f -name \"*.py\" | head -30)",
+      "Read(//c/c/Users/Stephanie/Desktop/Git Rep app draft 1/my-ios-app/my-ios-app/Python_Backend/**)"
     ],
     "deny": [],
     "ask": []

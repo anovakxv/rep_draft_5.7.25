@@ -8,49 +8,38 @@ from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.Group_Message_Attachments import GroupMessageAttachment
 from app.utils.auth import jwt_required
-import boto3
+from app.utils.s3 import s3
 import os
 from werkzeug.utils import secure_filename
 from datetime import datetime
 
 group_attachments_bp = Blueprint('group_message_attachments', __name__)
 
+MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024  # 50 MB
+
 # --- Helper Functions ---
 
 def upload_to_s3(file, user_id):
-    """
-    Upload file to S3 and return the URL.
-    Uses existing S3 configuration from environment variables.
-    """
     try:
-        s3_client = boto3.client(
-            's3',
-            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
-            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.environ.get('AWS_REGION', 'us-east-1')
-        )
+        bucket_name = os.environ.get('S3_BUCKET_NAME', 'rep-app-dbbucket')
 
-        bucket_name = os.environ.get('S3_BUCKET_NAME')
-        if not bucket_name:
-            raise ValueError("S3_BUCKET_NAME not configured")
+        # Check file size before uploading
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > MAX_ATTACHMENT_SIZE:
+            raise ValueError("File too large. Maximum size is 50MB.")
 
-        # Generate unique filename
         filename = secure_filename(file.filename)
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         s3_key = f"group_message_attachments/user_{user_id}/{timestamp}_{filename}"
 
-        # Upload file
-        s3_client.upload_fileobj(
-            file,
-            bucket_name,
-            s3_key,
-            ExtraArgs={'ContentType': file.content_type} if file.content_type else {}
-        )
+        extra = {'ContentType': file.content_type} if file.content_type else {}
+        s3.put_object(Body=file.read(), Bucket=bucket_name, Key=s3_key, **extra)
 
-        # Generate URL
         file_url = f"https://{bucket_name}.s3.amazonaws.com/{s3_key}"
 
-        return file_url, filename, file.content_type, file.content_length
+        return file_url, filename, file.content_type, file_size
 
     except Exception as e:
         print(f"S3 upload error: {str(e)}")

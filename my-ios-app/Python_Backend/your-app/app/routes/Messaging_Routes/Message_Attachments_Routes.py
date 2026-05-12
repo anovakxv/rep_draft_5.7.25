@@ -16,6 +16,8 @@ attachments_bp = Blueprint('message_attachments', __name__)
 
 # --- Helper Functions ---
 
+MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024  # 50 MB
+
 def upload_to_s3(file, user_id):
     """
     Upload file to S3 and return the URL.
@@ -25,19 +27,24 @@ def upload_to_s3(file, user_id):
         from app.utils.s3 import s3
         bucket_name = os.environ.get('S3_BUCKET_NAME', 'rep-app-dbbucket')
 
+        # Check file size before uploading
+        file.seek(0, 2)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > MAX_ATTACHMENT_SIZE:
+            raise ValueError(f"File too large. Maximum size is 50MB.")
+
         # Generate unique filename
         filename = secure_filename(file.filename)
         timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
         s3_key = f"message_attachments/user_{user_id}/{timestamp}_{filename}"
 
-        # Upload using put_object (upload_fileobj breaks with eventlet)
         extra = {'ContentType': file.content_type} if file.content_type else {}
         s3.put_object(Body=file.read(), Bucket=bucket_name, Key=s3_key, **extra)
 
-        # Generate URL
         file_url = f"https://{bucket_name}.s3.amazonaws.com/{s3_key}"
 
-        return file_url, filename, file.content_type, file.content_length
+        return file_url, filename, file.content_type, file_size
 
     except Exception as e:
         print(f"S3 upload error: {str(e)}")

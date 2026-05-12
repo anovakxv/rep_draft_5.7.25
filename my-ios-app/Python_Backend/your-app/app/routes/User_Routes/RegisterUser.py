@@ -90,9 +90,10 @@ def api_register_user():
 
     # Handle profile picture upload
     profile_pic_url = None
+    ALLOWED_IMAGE_MIMES = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
     if 'profile_picture' in files:
         file = files['profile_picture']
-        if file and allowed_file(file.filename):
+        if file and allowed_file(file.filename) and file.content_type in ALLOWED_IMAGE_MIMES:
             filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
             # In production, you would upload to S3 here and set the S3 URL
             # For now, just use the filename as the key

@@ -4,7 +4,7 @@
 # PUBLIC WEB ROUTES - Public Stripe payments without authentication
 
 from flask import Blueprint, request, jsonify
-from app import db
+from app import db, limiter
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.Purpose_Models.Portal import Portal
 from app.models.ValueMetric_Models.Transaction import Transaction
@@ -34,6 +34,7 @@ def get_or_create_guest_customer(email):
     return customer
 
 @public_payments_bp.route('/create_checkout_session', methods=['POST'])
+@limiter.limit("20 per hour")
 def create_public_checkout_session():
     """
     PUBLIC API: Creates a Stripe Checkout Session for unauthenticated users.
@@ -73,6 +74,13 @@ def create_public_checkout_session():
     # Validation
     if not amount and not price_id:
         return jsonify({'error': 'amount or price_id is required'}), 400
+    if amount is not None:
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'amount must be an integer (cents)'}), 400
+        if amount < 50 or amount > 99999999:
+            return jsonify({'error': 'amount must be between $0.50 and $999,999.99'}), 400
     if not portal_id:
         return jsonify({'error': 'portal_id is required'}), 400
     if not email:

@@ -32,6 +32,8 @@ def api_send_chat_message():
         return jsonify({'error': 'chats_id is empty!'}), 400
     if not message_text:
         return jsonify({'error': 'message required!'}), 400
+    if len(message_text) > 10000:
+        return jsonify({'error': 'message too long (max 10000 characters)'}), 400
 
     # Optional: Check if portal exists
     if portals_id:

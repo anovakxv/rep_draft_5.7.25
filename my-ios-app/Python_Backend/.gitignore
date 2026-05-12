@@ -37,3 +37,6 @@ Thumbs.db
 
 # Log files
 *.log
+
+# Private planning docs
+SECURITY_PERFORMANCE_BACKLOG.md

@@ -135,6 +135,12 @@ def create_payment_intent():
     if not amount:
         print("[PaymentIntent] Missing amount")
         return jsonify({'error': 'amount is required'}), 400
+    try:
+        amount = int(amount)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'amount must be an integer (cents)'}), 400
+    if amount < 50 or amount > 99999999:
+        return jsonify({'error': 'amount must be between $0.50 and $999,999.99'}), 400
     if not portal_id:
         print("[PaymentIntent] Missing portal_id")
         return jsonify({'error': 'portal_id is required'}), 400

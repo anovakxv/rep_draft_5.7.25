@@ -474,8 +474,6 @@ const fetchPortalDetail = async () => {
 
     if (res.data && res.data.result) {
       portalDetail.value = res.data.result;
-      console.log("Portal aLeads:", portalDetail.value?.aLeads?.map(l => l.id) || []);
-
       // For public users, use goals from portal detail response (now includes proper chartData from backend fix)
       if (!authenticated && portalDetail.value.aGoals) {
         portalGoals.value = portalDetail.value.aGoals;
@@ -675,8 +673,6 @@ const openMessageSheet = () => {
   if (leadRepUser.value) {
     // Navigate to chat with the lead user
     router.push(`/chat/user/${leadRepUser.value.id}`);
-  } else {
-    console.log("No lead user found for portal!");
   }
 };
 
@@ -748,7 +744,6 @@ onMounted(async () => {
         if (success) {
           // Clear the intent only on success
           localStorage.removeItem('rsvpIntent');
-          console.log('Auto-joined goal after registration:', rsvpIntent.goalTitle);
           // Show appropriate success message based on goal type
           const goalTitle = (rsvpIntent.goalTitle || '').toLowerCase();
           if (goalTitle.includes('supporter')) {
@@ -805,7 +800,7 @@ watch(showEditPortal, (newVal) => {
 
 // Watch for portalGoals changes - this matches the Swift onChange(of: viewModel.portalGoals) logic
 watch(portalGoals, () => {
-  console.log("Portal goals updated, supportGoal:", supportGoal.value);
+  // supportGoal computed value re-evaluated on portalGoals change
 }, { immediate: true });
 
 // --- Inline Child Components ---

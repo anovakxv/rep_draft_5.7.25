@@ -47,10 +47,11 @@ def api_trigger_daily_summary():
     # Check if user is admin
     current_user = g.current_user
 
-    # Verify user has admin privileges
-    is_admin = False
-    if hasattr(current_user, 'user_type') and current_user.user_type:
-        is_admin = current_user.user_type.title == 'Admin'
+    # Verify user has admin privileges (two independent checks: relationship title + direct type ID)
+    is_admin = (
+        (hasattr(current_user, 'user_type') and current_user.user_type and current_user.user_type.title == 'Admin')
+        or getattr(current_user, 'users_types_id', None) == 3
+    )
 
     if not is_admin:
         return jsonify({

@@ -149,6 +149,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, defineEmits } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '@/pages/utils/api';
 import MessageBubble from '@/components/MessageBubble.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
@@ -168,6 +169,7 @@ const props = defineProps<{
   otherUserPhotoURL?: string;
 }>();
 
+const router = useRouter();
 const emit = defineEmits(['close', 'refresh-chats']);
 
 // --- State ---
@@ -552,6 +554,10 @@ function retryLoadHistory() {
   editHistoryError.value = false;
 }
 
+function handleStorageLogout(e: StorageEvent) {
+  if (e.key === 'jwtToken' && !e.newValue) router.push('/login');
+}
+
 // --- Lifecycle ---
 onMounted(() => {
   // Optionally initialize socket connection if needed
@@ -563,6 +569,9 @@ onMounted(() => {
 
   // Add desktop detection listener
   window.addEventListener('resize', updateDesktopDetection);
+
+  // Redirect to login if JWT is cleared in another tab
+  window.addEventListener('storage', handleStorageLogout);
 });
 
 onUnmounted(() => {
@@ -572,6 +581,7 @@ onUnmounted(() => {
 
   // Remove desktop detection listener
   window.removeEventListener('resize', updateDesktopDetection);
+  window.removeEventListener('storage', handleStorageLogout);
 
   // Refresh MainScreen chat list when leaving - backend marks messages as read during fetch
   emit('refresh-chats');

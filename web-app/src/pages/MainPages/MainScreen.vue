@@ -361,7 +361,6 @@ const usePortals = (userId: Ref<number>, safeOnly: Ref<boolean>, lastFetchTime: 
         if (tab === 'all') {
           try {
             // Clear invalid auth data and retry with public endpoint
-            console.log("Auth failed for ALL tab, falling back to public endpoint");
             localStorage.removeItem('jwtToken');
             localStorage.removeItem('userId');
             userId.value = 0;
@@ -601,7 +600,6 @@ const useInvites = () => {
     try {
       const res = await api.get('/api/goals/pending_invites');
       pendingInvites.value = res.data.invites || [];
-      console.log('[MainScreen] Fetched pending invites:', pendingInvites.value.length, pendingInvites.value);
     } catch (err) {
       pendingInvites.value = [];
       console.error('Failed to fetch invites:', err);
@@ -908,13 +906,11 @@ const scheduleUnreadPollingIfNeeded = () => {
       hasUnreadGroup.value) return;
   
   initialUnreadPollScheduled.value = true;
-  console.log("🕑 Scheduling one-shot unread poll (1s)");
-  
+
   setTimeout(() => {
-    if (page.value === 'portals' && 
-        !hasUnreadDM.value && 
+    if (page.value === 'portals' &&
+        !hasUnreadDM.value &&
         !hasUnreadGroup.value) {
-      console.log("🕑 Executing one-shot unread poll");
       fetchPeople(0);
     }
   }, 1000);
@@ -938,7 +934,6 @@ watch([page, section, showOnlySafePortals], () => {
   // This prevents duplicate fetches when reactivated from cache
   // But allows fetching when user toggles to a new page/section that hasn't been loaded
   if (!isInitialMount.value && !shouldFetchData(cacheKey)) {
-    console.log('[MainScreen] Watcher: Using cached data for', cacheKey);
     return;
   }
 
@@ -1019,7 +1014,6 @@ onMounted(() => {
 
     // PRE-FETCH Network and Purpose tabs for instant switching (NOT Chats - keep it fresh)
     // This mirrors iOS behavior for fast tab switching
-    console.log('[MainScreen] Pre-fetching Network and Purpose tabs for instant switching');
 
     // Pre-fetch Network tab (section 1) for both pages
     fetchPortals(1);  // Network portals
@@ -1068,9 +1062,7 @@ onMounted(() => {
     recalcOpenNeedsAttention();
   });
 
-  unsubscribeInvite = onGoalTeamInvite((data) => {
-    // Instant UI feedback for invites
-    console.log('[MainScreen] Received goal_team_invite socket event:', data);
+  unsubscribeInvite = onGoalTeamInvite((_data) => {
     openNeedsAttention.value = true;
     fetchPendingInvites();
   });
@@ -1084,7 +1076,6 @@ onMounted(() => {
 
   // Add DOM event for refreshing network list when user adds someone to network
   document.addEventListener('refreshNetworkList', () => {
-    console.log('[MainScreen] Network list refresh requested');
     // Invalidate cache for Network tab
     delete lastFetchTime.value['people-1'];
     // Refetch if currently on Network tab
@@ -1111,7 +1102,6 @@ onMounted(() => {
 
 // Called when component is reactivated from keep-alive cache
 onActivated(() => {
-  console.log('[MainScreen] Component activated from cache');
   isInitialMount.value = false;
 
   // Reset action menu state when returning to MainScreen
@@ -1129,7 +1119,6 @@ onActivated(() => {
   // Only fetch data if it's stale (older than CACHE_DURATION)
   const cacheKey = `${page.value}-${section.value}-${showOnlySafePortals.value}`;
   if (shouldFetchData(cacheKey)) {
-    console.log('[MainScreen] Cache is stale, refreshing data');
     if (section.value !== 0) {
       if (page.value === 'portals') {
         fetchPortals(section.value);
@@ -1137,8 +1126,6 @@ onActivated(() => {
         fetchPeople(section.value);
       }
     }
-  } else {
-    console.log('[MainScreen] Using cached data (fresh)');
   }
 
   // Always check for new invites and unread messages (lightweight)
@@ -1346,7 +1333,6 @@ const ActiveChatList = defineComponent({
   },
   setup(props) {
     const renderInvite = () => {
-      console.log('[ActiveChatList] renderInvite called, invites:', props.invites?.length || 0);
       if (!props.invites || props.invites.length === 0) return null;
 
       return h(RouterLink, {

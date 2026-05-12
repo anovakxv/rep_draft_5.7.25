@@ -1274,26 +1274,15 @@ const save = async () => {
   const leadIds = selectedLeads.value.map(lead => lead.id);
   formData.append('aLeadsIDs', JSON.stringify(leadIds));
 
-  // Debug logging (matching Swift implementation)
-  console.log("Selected Leads:", leadIds);
-  console.log("aLeadsIDs JSON:", JSON.stringify(leadIds));
-
   // Append images
   selectedImages.value.forEach((imgFile, index) => {
     formData.append('images', imgFile.file, `portal_image_${index}.jpg`);
   });
 
-  // Debug: Log FormData contents
-  console.log("FormData contents:");
-  for (let [key, value] of formData.entries()) {
-    console.log(`  ${key}:`, value);
-  }
-
   try {
     // Browser will automatically set Content-Type with proper boundary for FormData
     const response = await api.post(endpoint, formData);
 
-    console.log('Portal saved successfully:', response.data);
     dismiss();
   } catch (err) {
     console.error('Failed to save portal:', err);
@@ -1313,7 +1302,6 @@ const deletePortal = async () => {
       user_id: userId
     }, authHeaders);
     
-    console.log('Portal deleted successfully');
     router.push('/main');
   } catch (err) {
     console.error('Failed to delete portal:', err);

@@ -799,13 +799,6 @@ const loadGoalDetails = async () => {
       // Show "Public Supporter" for anonymous/guest contributions (user_id is NULL)
       const userName = log.users_id ? (apiUser?.name || "User") : "Public Supporter";
 
-      // Debug logging for timestamp parsing
-      if (log.id === limitedLogs[0]?.id) {
-        console.log('[GoalsDetailView] First log timestamp:', log.timestamp);
-        console.log('[GoalsDetailView] Parsed date:', parseTimestamp(log.timestamp));
-        console.log('[GoalsDetailView] Formatted:', formatDateString(log.timestamp));
-      }
-
       const formattedDate = formatDateString(log.timestamp);
       // Use generic placeholder for public supporters
       const profilePicUrl = log.users_id ? patchProfilePictureURL(apiUser?.imageName) : "profile_placeholder";
@@ -1070,7 +1063,6 @@ const handlePaymentSuccess = () => {
   showPaymentSheet.value = false;
 
   // Reload goal details to show new payment in feed
-  console.log('[GoalsDetailView] Payment successful, reloading goal details');
   loadGoalDetails();
 };
 
@@ -1081,7 +1073,6 @@ const handleChatClose = () => {
   if (goalTeamChatId.value) {
     // Equivalent to RealtimeSocketManager.shared.leave(chatId:)
     // and NotificationCenter.default.post cleanup
-    console.log(`Cleaning up chat ${goalTeamChatId.value}`);
   }
 };
 

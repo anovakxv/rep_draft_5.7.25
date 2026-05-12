@@ -384,8 +384,6 @@ async function handleSave() {
     // If we had a profile picture and got a 500 error, try again without the image
     // (This handles S3 upload failures gracefully)
     if (selectedImage.value && err.response?.status === 500) {
-      console.log('Retrying profile save without image due to 500 error...')
-
       try {
         const retryFormData = new FormData()
 
@@ -424,7 +422,6 @@ async function handleSave() {
         if (retryResponse.data && retryResponse.data.result) {
           // Success without image - clear the selected image and show warning
           selectedImage.value = null
-          console.log('Profile saved successfully without image')
 
           // Show success but warn about image
           alert('Profile saved successfully!\n\nNote: Your profile picture could not be uploaded. You can try uploading it again later from your profile.')

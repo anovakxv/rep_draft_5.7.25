@@ -207,7 +207,6 @@ async function inviteUsers() {
     )
 
     inviteSuccess.value = true
-    console.log('[InviteTeamSheet] Invites sent successfully to users:', Array.from(selectedUsers.value))
   } catch (err: any) {
     console.error('Failed to invite users:', err)
     errorMessage.value = err.response?.data?.error || err.message || 'Failed to send invitations'

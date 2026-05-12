@@ -142,17 +142,14 @@ const accountFullySetup = ref(false);
 const goBack = () => router.back();
 
 const checkConnectionStatus = async () => {
-  console.log('[PortalPaymentSetup] Checking connection status for portal:', portalId);
   isLoading.value = true;
   errorMessage.value = null;
   try {
     const res = await fetch(`${apiBaseUrl}/api/portal/payment_status?portal_id=${portalId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    console.log('[PortalPaymentSetup] Payment status response:', res.status, res.ok);
     if (!res.ok) throw new Error(`Server responded with ${res.status}`);
     const json = await res.json();
-    console.log('[PortalPaymentSetup] Payment status JSON:', json);
 
     // Check for pending approval status (matches iOS logic)
     if (json.stripe_connect_requested) {
@@ -160,19 +157,16 @@ const checkConnectionStatus = async () => {
       isConnected.value = false;
       accountFullySetup.value = false;
       pendingApprovalMessage.value = "Your Stripe Connect request is pending admin approval. You'll be notified when it's approved.";
-      console.log('[PortalPaymentSetup] Request pending approval');
     } else if (json.stripe_account_id && json.stripe_account_id.length > 0) {
       isConnected.value = true;
       accountId.value = json.stripe_account_id;
       accountFullySetup.value = json.account_status || false;
       isRequestPending.value = false;
-      console.log('[PortalPaymentSetup] Connected to Stripe account:', json.stripe_account_id, 'Fully setup:', accountFullySetup.value);
     } else {
       isConnected.value = false;
       accountFullySetup.value = false;
       accountId.value = null;
       isRequestPending.value = false;
-      console.log('[PortalPaymentSetup] Not connected to Stripe');
     }
   } catch (err: any) {
     console.error('[PortalPaymentSetup] Error checking payment status:', err);
@@ -183,29 +177,18 @@ const checkConnectionStatus = async () => {
 };
 
 const createConnectAccount = async () => {
-  console.log('[PortalPaymentSetup] Connect to Stripe button clicked');
-  console.log('[PortalPaymentSetup] Portal ID:', portalId);
-  console.log('[PortalPaymentSetup] API Base URL:', apiBaseUrl);
-  console.log('[PortalPaymentSetup] Has token:', !!token);
-
   isLoading.value = true;
   errorMessage.value = null;
   try {
     // Use production domain for redirect (Stripe requires HTTPS for live mode)
     const redirectURL = `https://rep-june2025.onrender.com/stripe-connect-return?portal_id=${portalId}`;
-    console.log('[PortalPaymentSetup] Redirect URL:', redirectURL);
-
     const requestBody = { portal_id: portalId, redirect_url: redirectURL };
-    console.log('[PortalPaymentSetup] Making POST request to create_connect_account with body:', requestBody);
 
     const res = await fetch(`${apiBaseUrl}/api/create_connect_account`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(requestBody),
     });
-
-    console.log('[PortalPaymentSetup] Response status:', res.status);
-    console.log('[PortalPaymentSetup] Response OK:', res.ok);
 
     if (!res.ok) {
       const errorText = await res.text();
@@ -214,11 +197,9 @@ const createConnectAccount = async () => {
     }
 
     const json = await res.json();
-    console.log('[PortalPaymentSetup] Response JSON:', json);
 
     // Check for pending approval status (matches iOS logic)
     if (json.status === 'pending_approval') {
-      console.log('[PortalPaymentSetup] Request submitted for admin approval');
       errorMessage.value = null;
       isConnected.value = false;
       isRequestPending.value = true;
@@ -232,19 +213,15 @@ const createConnectAccount = async () => {
 
     // Handle legacy/successful account creation flow (admin already approved)
     if (json.url) {
-      console.log('[PortalPaymentSetup] Opening Stripe Connect URL in new tab:', json.url);
       const popup = window.open(json.url, '_blank');
 
       if (!popup || popup.closed || typeof popup.closed === 'undefined') {
         console.error('[PortalPaymentSetup] Popup was blocked by browser');
         errorMessage.value = "Popup blocked! Please allow popups for this site and try again.";
-      } else {
-        console.log('[PortalPaymentSetup] Popup opened successfully');
       }
 
       if (json.account_id) {
         accountId.value = json.account_id;
-        console.log('[PortalPaymentSetup] Account ID set to:', json.account_id);
       }
     } else if (json.error) {
       console.error('[PortalPaymentSetup] Error in response:', json.error);
@@ -258,7 +235,6 @@ const createConnectAccount = async () => {
     errorMessage.value = "Error creating account: " + (err.message || "Unknown error");
   } finally {
     isLoading.value = false;
-    console.log('[PortalPaymentSetup] Loading state set to false');
   }
 };
 
@@ -304,7 +280,6 @@ onMounted(() => {
   channel = new BroadcastChannel('stripe_connect');
   channel.onmessage = (event) => {
     if (event.data === 'completed') {
-      console.log('Stripe connect completed, refreshing status...');
       checkConnectionStatus();
     }
   };

@@ -71,13 +71,13 @@ const joinUserRoom = (userId: number) => {
   // Prefer explicit event; fallback legacy 'join'
   socket.emit("join_user_room", { user_id: userId });
   socket.emit("join", { room: `user_${userId}` }); // Backward compatibility
-  console.log(`➡️ (Realtime) Emitted join_user_room for user_${userId}`);
+  if (import.meta.env.DEV) console.log(`➡️ (Realtime) Emitted join_user_room for user_${userId}`);
 };
 
 const registerEventHandlersIfNeeded = () => {
   if (handlersRegistered || !socket) return;
   handlersRegistered = true;
-  console.log("🧩 (Realtime) Registering event handlers");
+  if (import.meta.env.DEV) console.log("🧩 (Realtime) Registering event handlers");
 
   // Direct message events (multiple possible names)
   const dmEventNames = ["direct_message_notification", "new_direct_message", "direct_message", "dm_notification"];
@@ -101,18 +101,18 @@ const registerLifecycle = () => {
 
   socket.on('connect', () => {
     isConnected.value = true;
-    console.log(`✅ (Realtime) Connected -> ${lastBaseURL || ""}`);
+    if (import.meta.env.DEV) console.log(`✅ (Realtime) Connected -> ${lastBaseURL || ""}`);
     if (pendingUserId) {
       joinUserRoom(pendingUserId);
     } else {
-      console.warn("⚠️ (Realtime) No pending user id at connect");
+      if (import.meta.env.DEV) console.warn("⚠️ (Realtime) No pending user id at connect");
     }
     registerEventHandlersIfNeeded();
   });
 
   socket.on('disconnect', (reason) => {
     isConnected.value = false;
-    console.log(`❌ (Realtime) Disconnected: ${reason}`);
+    if (import.meta.env.DEV) console.log(`❌ (Realtime) Disconnected: ${reason}`);
   });
 
   socket.on('connect_error', (err) => {
@@ -147,7 +147,7 @@ export function useSocketManager() {
 
   const connect = (baseURL: string, token: string, userId: number) => {
     if (!baseURL || !token || userId === 0) {
-      console.warn(`⚠️ (Realtime) Skipping connect - missing params:`, {
+      if (import.meta.env.DEV) console.warn(`⚠️ (Realtime) Skipping connect - missing params:`, {
         hasBaseURL: !!baseURL,
         hasToken: !!token,
         userId
@@ -209,12 +209,12 @@ export function useSocketManager() {
     joinChat: (chatId: number) => {
       socket?.emit("join_group_chat", { chat_id: chatId });
       socket?.emit("join", { chat_id: chatId }); // Legacy
-      console.log(`➡️ (Realtime) join group chat ${chatId}`);
+      if (import.meta.env.DEV) console.log(`➡️ (Realtime) join group chat ${chatId}`);
     },
     leaveChat: (chatId: number) => {
       socket?.emit("leave_group_chat", { chat_id: chatId });
       socket?.emit("leave", { chat_id: chatId }); // Legacy
-      console.log(`⬅️ (Realtime) leave group chat ${chatId}`);
+      if (import.meta.env.DEV) console.log(`⬅️ (Realtime) leave group chat ${chatId}`);
     },
 
     // Listener registration

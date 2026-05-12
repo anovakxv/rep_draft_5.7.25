@@ -700,9 +700,7 @@ async function handleRestoreMessage(messageId: number) {
 
 // --- Edit History Handler ---
 async function handleShowEditHistory(messageId: number) {
-  // For now, just log that this was requested
-  // Can implement a modal similar to DM if needed
-  console.log('Edit history requested for message:', messageId);
+  // TODO: implement edit history modal similar to DM
 }
 
 // --- Lifecycle ---

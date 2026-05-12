@@ -399,8 +399,6 @@ const startPayment = async () => {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    console.log('[PayTransaction] Sending payment request:', { endpoint, body });
-
     const res = await fetch(endpoint, {
       method: 'POST',
       headers,
@@ -408,7 +406,6 @@ const startPayment = async () => {
     });
 
     const json = await res.json();
-    console.log('[PayTransaction] Backend response:', { status: res.status, json });
 
     if (!res.ok) {
       const errorMessage = json.error || `Server responded with ${res.status}`;

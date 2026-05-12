@@ -78,6 +78,18 @@ def api_edit_user():
         data = request.get_json()
         files = {}
 
+    # Input length validation
+    if data.get('email') and len(data['email']) > 255:
+        return jsonify({'error': 'Email too long (max 255 characters)'}), 400
+    if data.get('username') and not (3 <= len(data['username']) <= 50):
+        return jsonify({'error': 'Username must be 3–50 characters'}), 400
+    if data.get('password') and not (8 <= len(data['password']) <= 128):
+        return jsonify({'error': 'Password must be 8–128 characters'}), 400
+    if data.get('about') and len(data['about']) > 5000:
+        return jsonify({'error': 'About too long (max 5000 characters)'}), 400
+    if data.get('broadcast') and len(data['broadcast']) > 5000:
+        return jsonify({'error': 'Broadcast too long (max 5000 characters)'}), 400
+
     user = g.current_user
     user_id = user.id
 

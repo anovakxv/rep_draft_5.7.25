@@ -101,9 +101,6 @@ async function login() {
     localStorage.setItem('jwtToken', token)
     localStorage.setItem('isRegistered', 'true')
     localStorage.setItem('onboardingComplete', 'true')
-    // Store admin flag (matches Swift iOS app behavior)
-    localStorage.setItem('isAdmin', result.user_type === 'Admin' ? 'true' : 'false')
-
     // Redirect to returnTo URL if provided, otherwise go to /main
     // Using replace() instead of push() to remove login page from browser history
     const returnTo = route.query.returnTo as string

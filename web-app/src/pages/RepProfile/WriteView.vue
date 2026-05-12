@@ -169,6 +169,7 @@ import WriteStats from '@/components/WriteStats.vue'
 import { BREAKPOINTS } from '@/constants/breakpoints'
 import TurndownService from 'turndown'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 // Enable breaks: single \n renders as <br> (matches user expectation from Enter key)
 marked.use({ breaks: true })
@@ -462,9 +463,9 @@ async function loadExistingWrite() {
 
       if (editor.value) {
         if (existingWrite.content_format === 'markdown') {
-          editor.value.innerHTML = marked.parse(content.value) as string
+          editor.value.innerHTML = DOMPurify.sanitize(marked.parse(content.value) as string)
         } else {
-          editor.value.innerHTML = content.value.replace(/\n/g, '<br>')
+          editor.value.innerHTML = DOMPurify.sanitize(content.value.replace(/\n/g, '<br>'))
         }
         // Sync content.value with the actual editor HTML so Turndown
         // always receives HTML (not raw markdown) on save

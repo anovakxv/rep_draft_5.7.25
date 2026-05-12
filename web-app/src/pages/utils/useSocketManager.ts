@@ -159,25 +159,7 @@ export function useSocketManager() {
     // Normalize URL: strip trailing "/api"
     const normalizedURL = baseURL.endsWith("/api") ? baseURL.slice(0, -4) : baseURL;
 
-    // Decode and log JWT payload for debugging
     const tokenPayload = decodeJWT(token);
-    console.log(`🔌 (Realtime) Attempting connect to ${normalizedURL} for user ${userId}`);
-    console.log(`🔑 (Realtime) Token (first 20 chars): ${token.substring(0, 20)}...`);
-    console.log(`📋 (Realtime) Decoded JWT payload:`, tokenPayload);
-
-    // Check if payload has required fields
-    if (tokenPayload) {
-      const hasUserId = tokenPayload.user_id || tokenPayload.sub;
-      const tokenUserId = tokenPayload.user_id || tokenPayload.sub;
-      console.log(`👤 (Realtime) Payload has user_id/sub: ${!!hasUserId}, value: ${tokenUserId}`);
-
-      // Check expiration
-      if (tokenPayload.exp) {
-        const now = Math.floor(Date.now() / 1000);
-        const isExpired = tokenPayload.exp < now;
-        console.log(`⏰ (Realtime) Token expiration: ${new Date(tokenPayload.exp * 1000).toISOString()}, expired: ${isExpired}`);
-      }
-    }
 
     // If already connected with same config, just ensure room join
     if (socket && isConnected.value && lastBaseURL === normalizedURL && lastToken === token) {

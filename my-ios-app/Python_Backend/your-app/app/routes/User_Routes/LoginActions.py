@@ -9,6 +9,7 @@ from app.models.People_Models.PasswordUpdater import PasswordUpdater
 from app.utils.user_utils import manage_user_row, mark_all_activities_as_read
 from app.utils.mail_utils import send_mail
 import hashlib
+import bcrypt
 import os
 import secrets
 import jwt
@@ -44,9 +45,18 @@ def api_login_user():
     if not user or not user.password:
         return jsonify({'error': 'Invalid email/username or password'}), 401
 
-    expected_hash = hashlib.md5((os.environ['PASS_SALT'] + password).encode()).hexdigest()
-    if user.password != expected_hash:
-        return jsonify({'error': 'Invalid email/username or password'}), 401
+    # Verify password — bcrypt for new hashes, MD5 fallback for legacy accounts
+    if user.password.startswith('$2b$') or user.password.startswith('$2a$'):
+        if not bcrypt.checkpw(password.encode('utf-8'), user.password.encode('utf-8')):
+            return jsonify({'error': 'Invalid email/username or password'}), 401
+    else:
+        # Legacy MD5 check
+        expected_hash = hashlib.md5((os.environ['PASS_SALT'] + password).encode()).hexdigest()
+        if user.password != expected_hash:
+            return jsonify({'error': 'Invalid email/username or password'}), 401
+        # Silently upgrade to bcrypt on successful MD5 login
+        user.password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
+        db.session.commit()
 
     if hasattr(user, 'confirmed') and not user.confirmed:
         return jsonify({'error': 'Please verify your email before logging in.'}), 403
@@ -220,7 +230,7 @@ def api_forgot_password():
             db.session.commit()
             return jsonify({'error': "User not found"}), 404
 
-        user.password = hashlib.md5((PASS_SALT + new_password).encode()).hexdigest()
+        user.password = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
         db.session.delete(updater)
         db.session.commit()
         return jsonify({'result': 'ok'})

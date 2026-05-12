@@ -9,6 +9,7 @@ from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
 from app.utils.user_utils import check_user_data, check_new_email, manage_user_row
 import hashlib
+import bcrypt
 import os
 import uuid
 import jwt
@@ -55,7 +56,7 @@ def api_register_user():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
-    password_hash = hashlib.md5((os.environ['PASS_SALT'] + data['password']).encode()).hexdigest()
+    password_hash = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
 
     user = User(
         email=data['email'],

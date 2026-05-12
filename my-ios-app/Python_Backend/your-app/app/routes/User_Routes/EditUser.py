@@ -13,6 +13,7 @@ from app.utils.user_utils import check_new_email, check_new_username, manage_use
 from app.utils.auth import jwt_required
 from app.utils.s3 import s3
 import hashlib
+import bcrypt
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -98,7 +99,7 @@ def api_edit_user():
 
     # Password update
     if data.get('password'):
-        user.password = hashlib.md5((os.environ['PASS_SALT'] + data['password']).encode()).hexdigest()
+        user.password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
 
     # Auto-update columns
     auto_update_columns = [

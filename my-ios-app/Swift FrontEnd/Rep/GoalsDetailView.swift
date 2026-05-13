@@ -453,6 +453,12 @@ struct GoalsDetailView: View {
     private func openGoalTeamChat() {
         guard !isCreatingTeamChat else { return }
 
+        // Sync from goal data if goalTeamChatId wasn't set during page load
+        if goalTeamChatId == nil {
+            goalTeamChatId = viewModel.goal.chatsId
+        }
+
+        // If we know the canonical chat ID, open it directly — no API call needed
         if let _ = goalTeamChatId {
             showChatSheet = true
             return
@@ -463,6 +469,7 @@ struct GoalsDetailView: View {
             return
         }
 
+        // No chat exists yet (legacy goal) — create one and link it permanently
         isCreatingTeamChat = true
         chatCreationError = nil
 
@@ -477,27 +484,7 @@ struct GoalsDetailView: View {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
 
-        if let existingChatId = viewModel.goal.chatsId {
-            // Goal has a canonical chat — ensure current user is a member then open it
-            let body: [String: Any] = [
-                "chats_id": existingChatId,
-                "aAddIDs": [viewModel.currentUserId]
-            ]
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-            URLSession.shared.dataTask(with: request) { _, _, error in
-                DispatchQueue.main.async {
-                    self.isCreatingTeamChat = false
-                    if let error = error {
-                        self.chatCreationError = error.localizedDescription
-                        return
-                    }
-                    self.goalTeamChatId = existingChatId
-                    self.showChatSheet = true
-                }
-            }.resume()
-        } else {
-            // Legacy goal with no chat yet — create one and link it permanently
-            let memberIds = viewModel.team
+        let memberIds = viewModel.team
                 .map { $0.id }
                 .filter { $0 != viewModel.currentUserId }
 
@@ -531,7 +518,6 @@ struct GoalsDetailView: View {
                     self.linkChatToGoal(goalId: self.viewModel.goal.id, chatsId: chatsId)
                 }
             }.resume()
-        }
     }
 
     private func linkChatToGoal(goalId: Int, chatsId: Int) {

@@ -921,6 +921,12 @@ const openGoalTeamChat = async () => {
 
   if (isCreatingTeamChat.value) return;
 
+  // Sync from goal data if goalTeamChatId wasn't set during page load
+  if (!goalTeamChatId.value && goal.value?.chatsId) {
+    goalTeamChatId.value = goal.value.chatsId;
+  }
+
+  // If we know the canonical chat ID, open it directly — no API call needed
   if (goalTeamChatId.value) {
     showChatSheet.value = true;
     return;
@@ -931,43 +937,32 @@ const openGoalTeamChat = async () => {
     return;
   }
 
+  // No chat exists yet (legacy goal) — create one and link it permanently
   isCreatingTeamChat.value = true;
   chatCreationError.value = null;
 
   try {
-    const goalChatsId = goal.value?.chatsId;
+    const memberIds = team.value
+      .map(u => u.id)
+      .filter(id => id !== currentUserId);
 
-    if (goalChatsId) {
-      // Goal already has a canonical chat — ensure current user is a member then open it
-      await api.post('/api/message/manage_chat', {
-        chats_id: goalChatsId,
-        aAddIDs: [currentUserId]
-      });
-      goalTeamChatId.value = goalChatsId;
-    } else {
-      // Legacy goal with no chat yet — create one and save it permanently
-      const memberIds = team.value
-        .map(u => u.id)
-        .filter(id => id !== currentUserId);
+    const chatTitle = goal.value?.portalName
+      ? `${goal.value.portalName}: ${goal.value.title}`
+      : goal.value?.title || 'Goal Team';
 
-      const chatTitle = goal.value?.portalName
-        ? `${goal.value.portalName}: ${goal.value.title}`
-        : goal.value?.title || 'Goal Team';
+    const res = await api.post('/api/message/manage_chat', {
+      title: chatTitle,
+      aAddIDs: memberIds
+    });
 
-      const res = await api.post('/api/message/manage_chat', {
-        title: chatTitle,
-        aAddIDs: memberIds
-      });
+    if (!res.data.chats_id) throw new Error("Failed to get chat ID from server.");
+    goalTeamChatId.value = res.data.chats_id;
 
-      if (!res.data.chats_id) throw new Error("Failed to get chat ID from server.");
-      goalTeamChatId.value = res.data.chats_id;
-
-      // Save chats_id permanently on the goal (best-effort — don't block on failure)
-      api.post('/api/goals/link_chat', {
-        goals_id: initialGoalId,
-        chats_id: res.data.chats_id
-      }).catch(() => {});
-    }
+    // Save chats_id permanently on the goal (best-effort)
+    api.post('/api/goals/link_chat', {
+      goals_id: initialGoalId,
+      chats_id: res.data.chats_id
+    }).catch(() => {});
 
     showChatSheet.value = true;
   } catch (error: any) {

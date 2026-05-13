@@ -8,6 +8,7 @@ from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.utils.auth import jwt_required
 from app.utils.notifications import send_notification
 import time
@@ -134,6 +135,13 @@ def update_goal_team(goal_id):
             team.read2 = True
             results[u_id] = "accepted"
             goal = Goal.query.get(goal_id)
+            # Auto-add accepted member to the goal's canonical group chat
+            if goal and goal.chats_id:
+                already_member = ChatsUsers.query.filter_by(
+                    chats_id=goal.chats_id, users_id=u_id
+                ).first()
+                if not already_member:
+                    db.session.add(ChatsUsers(users_id=u_id, chats_id=goal.chats_id))
             if goal and goal.goal_type == "Recruiting":
                 existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=u_id).first()
                 if not existing_log:

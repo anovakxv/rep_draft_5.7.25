@@ -10,6 +10,9 @@ from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.ValueMetric_Models.ReportingIncrement import ReportingIncrement
 from app.models.People_Models.user import User
 from app.models.Purpose_Models.Portal import Portal
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.utils.auth import jwt_required
 import logging
 
@@ -237,6 +240,25 @@ def api_create_goal():
         )
         db.session.add(progress_log)
         db.session.commit()
+
+    # Auto-create the canonical group chat for this goal
+    try:
+        chat_name = f"{portal.name}: {goal.title}" if portals_id else goal.title
+        chat = Chats(name=chat_name, created_by=user_id)
+        db.session.add(chat)
+        db.session.flush()  # Populate chat.id before linking
+        db.session.add(ChatsUsers(users_id=user_id, chats_id=chat.id))
+        welcome_text = (
+            f"Welcome to the {goal.title} team chat! "
+            f"This Goal Team is: {goal.description}"
+        )
+        db.session.add(GroupMessage(chat_id=chat.id, sender_id=user_id, text=welcome_text))
+        goal.chats_id = chat.id
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        print(f"[GoalCreate] Non-critical: could not create group chat: {e}")
+
     return jsonify({'result': goal.as_dict()})
 
 @goals_bp.route('/reporting_increments', methods=['GET'])
@@ -309,3 +331,30 @@ def api_delete_goal():
     db.session.delete(goal)
     db.session.commit()
     return jsonify({'result': 'ok'})
+
+
+# --- POST: Link an existing chat to a goal (first-write-wins, for legacy goals) ---
+@goals_bp.route('/link_chat', methods=['POST'])
+@jwt_required
+def api_link_goal_chat():
+    data = request.json
+    user_id = g.current_user.id
+    goal_id = data.get('goals_id')
+    chats_id = data.get('chats_id')
+
+    if not goal_id or not chats_id:
+        return jsonify({'error': 'goals_id and chats_id required'}), 400
+
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+    if not check_permission(goal, user_id):
+        return jsonify({'error': 'Permission denied'}), 403
+
+    # First-write-wins: if already linked, return the existing chat ID
+    if goal.chats_id:
+        return jsonify({'result': 'ok', 'chats_id': goal.chats_id})
+
+    goal.chats_id = chats_id
+    db.session.commit()
+    return jsonify({'result': 'ok', 'chats_id': chats_id})

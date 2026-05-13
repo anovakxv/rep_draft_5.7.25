@@ -454,7 +454,6 @@ struct GoalsDetailView: View {
         guard !isCreatingTeamChat else { return }
 
         if let _ = goalTeamChatId {
-            // Show sheet instead of using NavigationLink
             showChatSheet = true
             return
         }
@@ -467,10 +466,6 @@ struct GoalsDetailView: View {
         isCreatingTeamChat = true
         chatCreationError = nil
 
-        let memberIds = viewModel.team
-            .map { $0.id }
-            .filter { $0 != viewModel.currentUserId }
-
         guard let url = URL(string: "\(APIConfig.baseURL)/api/message/manage_chat") else {
             isCreatingTeamChat = false
             chatCreationError = "Bad URL."
@@ -482,44 +477,72 @@ struct GoalsDetailView: View {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
 
-        // Create chat title: "{Portal Name}: {Goal Name}" if portal exists, otherwise just goal name
-        let chatTitle: String
-        if let portalName = viewModel.goal.portalName, !portalName.isEmpty {
-            chatTitle = "\(portalName): \(viewModel.goal.title)"
+        if let existingChatId = viewModel.goal.chatsId {
+            // Goal has a canonical chat — ensure current user is a member then open it
+            let body: [String: Any] = [
+                "chats_id": existingChatId,
+                "aAddIDs": [viewModel.currentUserId]
+            ]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+            URLSession.shared.dataTask(with: request) { _, _, error in
+                DispatchQueue.main.async {
+                    self.isCreatingTeamChat = false
+                    if let error = error {
+                        self.chatCreationError = error.localizedDescription
+                        return
+                    }
+                    self.goalTeamChatId = existingChatId
+                    self.showChatSheet = true
+                }
+            }.resume()
         } else {
-            chatTitle = viewModel.goal.title
-        }
+            // Legacy goal with no chat yet — create one and link it permanently
+            let memberIds = viewModel.team
+                .map { $0.id }
+                .filter { $0 != viewModel.currentUserId }
 
-        let body: [String: Any] = [
-            "title": chatTitle,
-            "aAddIDs": memberIds
-        ]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                self.isCreatingTeamChat = false
-                
-                if let error = error {
-                    self.chatCreationError = error.localizedDescription
-                    return
-                }
-                
-                guard
-                    let data = data,
-                    let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                    let chatsId = json["chats_id"] as? Int
-                else {
-                    self.chatCreationError = "Failed to create chat."
-                    return
-                }
-                
-                self.goalTeamChatId = chatsId
-                
-                // Show sheet instead of navigation
-                self.showChatSheet = true
+            let chatTitle: String
+            if let portalName = viewModel.goal.portalName, !portalName.isEmpty {
+                chatTitle = "\(portalName): \(viewModel.goal.title)"
+            } else {
+                chatTitle = viewModel.goal.title
             }
-        }.resume()
+
+            let body: [String: Any] = ["title": chatTitle, "aAddIDs": memberIds]
+            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+            URLSession.shared.dataTask(with: request) { data, _, error in
+                DispatchQueue.main.async {
+                    self.isCreatingTeamChat = false
+                    if let error = error {
+                        self.chatCreationError = error.localizedDescription
+                        return
+                    }
+                    guard
+                        let data = data,
+                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                        let chatsId = json["chats_id"] as? Int
+                    else {
+                        self.chatCreationError = "Failed to create chat."
+                        return
+                    }
+                    self.goalTeamChatId = chatsId
+                    self.showChatSheet = true
+                    self.linkChatToGoal(goalId: self.viewModel.goal.id, chatsId: chatsId)
+                }
+            }.resume()
+        }
+    }
+
+    private func linkChatToGoal(goalId: Int, chatsId: Int) {
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/link_chat") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
+        let body: [String: Any] = ["goals_id": goalId, "chats_id": chatsId]
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
     }
 
     // --- Delete Goal Function ---
@@ -671,7 +694,8 @@ class GoalsDetailViewModel: ObservableObject {
                         chartData: apiGoal.chartData ?? [],
                         creatorId: apiGoal.creatorId ?? 0,
                         portalId: apiGoal.portalId,
-                        portalName: apiGoal.portalName ?? "Organization" // Fallback value
+                        portalName: apiGoal.portalName ?? "Organization",
+                        chatsId: apiGoal.chats_id
                     )
 
                     let teamDict = Dictionary(uniqueKeysWithValues: (apiGoal.team ?? []).map { ($0.id, $0) })
@@ -864,6 +888,7 @@ struct APIGoalDetail: Codable {
     let creatorId: Int?
     let portalId: Int?
     let portalName: String?
+    let chats_id: Int?
 }
 
 struct APIGoalProgressLog: Codable, Identifiable {
@@ -910,6 +935,7 @@ struct Goal: Identifiable, Codable, Equatable {
     var creatorId: Int
     var portalId: Int?
     var portalName: String?
+    var chatsId: Int?
     var is_member: Bool?
 
     static let placeholder = Goal(

@@ -33,23 +33,6 @@ const goalTeamInviteUpdateObservers = ref<Observer[]>([]);
 
 // --- Private Functions ---
 
-// Decode JWT to inspect payload (for debugging)
-const decodeJWT = (token: string): any => {
-  try {
-    const parts = token.split('.');
-    if (parts.length !== 3) {
-      console.error('⚠️ (Realtime) Invalid JWT format - not 3 parts');
-      return null;
-    }
-    const payload = parts[1];
-    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-    return decoded;
-  } catch (error) {
-    console.error('⚠️ (Realtime) Failed to decode JWT:', error);
-    return null;
-  }
-};
-
 const notify = (observers: Observer[], payload: any) => {
   // Handle fragmented payloads by merging if necessary
   let finalPayload = {};
@@ -158,8 +141,6 @@ export function useSocketManager() {
 
     // Normalize URL: strip trailing "/api"
     const normalizedURL = baseURL.endsWith("/api") ? baseURL.slice(0, -4) : baseURL;
-
-    const tokenPayload = decodeJWT(token);
 
     // If already connected with same config, just ensure room join
     if (socket && isConnected.value && lastBaseURL === normalizedURL && lastToken === token) {

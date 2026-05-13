@@ -9,8 +9,8 @@ class GroupMessage(db.Model):
     __tablename__ = 'group_messages'
 
     id = db.Column(db.Integer, primary_key=True)
-    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete="CASCADE"), nullable=False)
-    sender_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+    chat_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete="CASCADE"), nullable=False, index=True)
+    sender_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     text = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     edited_at = db.Column(db.DateTime, nullable=True)  # NEW: Timestamp of last edit (NULL if never edited)

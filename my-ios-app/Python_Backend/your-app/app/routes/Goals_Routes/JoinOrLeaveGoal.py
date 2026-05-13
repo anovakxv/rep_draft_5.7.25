@@ -7,6 +7,7 @@ from app import db
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('join_leave_goal', __name__)
@@ -130,6 +131,14 @@ def api_join_leave_goal():
                             emits.append((int(inviter_id), int(goal_id), "accepted"))
                     except Exception:
                         pass
+
+            # Auto-add new member to the goal's canonical group chat
+            if _joined_ok and goal.chats_id:
+                already_member = ChatsUsers.query.filter_by(
+                    chats_id=goal.chats_id, users_id=user_id
+                ).first()
+                if not already_member:
+                    db.session.add(ChatsUsers(users_id=user_id, chats_id=goal.chats_id))
 
             # Collect for event registration email (checked after commit)
             if _joined_ok and goal.goal_type == 'Recruiting' and goal.portals_id:

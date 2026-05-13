@@ -18,6 +18,7 @@ class Goal(db.Model):
     users_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"), nullable=False, index=True)
     portals_id = db.Column(db.Integer, db.ForeignKey('portals.id', ondelete="CASCADE"), nullable=True, index=True)  # Portal/group, now optional
     lead_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete="CASCADE"))
+    chats_id = db.Column(db.Integer, db.ForeignKey('chats.id', ondelete='SET NULL'), nullable=True)
     description = db.Column(db.Text, nullable=False)  # Goal description
     quota = db.Column(db.Float, default=100)  # Target value (float for decimals)
     filled_quota = db.Column(db.Float, default=0)  # Current progress (float for decimals)
@@ -171,6 +172,7 @@ class Goal(db.Model):
             "id": self.id,
             "creatorId": self.users_id,
             "portalId": self.portals_id,
+            "chats_id": self.chats_id,
             "title": self.title,
             "subtitle": self.subtitle or "",
             "description": self.description or "",

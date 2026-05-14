@@ -4,6 +4,7 @@
 
 from flask import Blueprint, request, jsonify, current_app, g
 from app import db
+from sqlalchemy import text
 from app.models.People_Models.user import User
 from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
@@ -213,12 +214,14 @@ def api_delete_user():
             ChatsUsers.query.filter_by(chats_id=chat.id).delete()
             db.session.delete(chat)
 
-    # Explicitly remove all group chat memberships for this user before deletion.
-    # Without this, SQLAlchemy tries to SET NULL on chats_users.users_id (NOT NULL)
-    # because the ORM relationship lacks passive_deletes=True.
+    # Explicitly remove all group chat memberships — ChatsUsers.users_id is NOT NULL
+    # with no passive_deletes on the ORM relationship, so bulk delete avoids the issue.
     ChatsUsers.query.filter_by(users_id=user_id).delete()
 
-    db.session.delete(user)
+    # Use raw SQL to delete the user, bypassing SQLAlchemy's ORM cascade which
+    # incorrectly tries to SET NULL on NOT NULL columns (sender_id, users_id1/2, etc.)
+    # PostgreSQL's DB-level CASCADE deletes handle all remaining related rows correctly.
+    db.session.execute(text("DELETE FROM users WHERE id = :uid"), {"uid": user_id})
     db.session.commit()
     return jsonify({'result': 'ok'})
 

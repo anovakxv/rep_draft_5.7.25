@@ -9,6 +9,7 @@ from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.utils.auth import jwt_required
 from app.utils.notifications import send_notification
 import time
@@ -142,6 +143,15 @@ def update_goal_team(goal_id):
                 ).first()
                 if not already_member:
                     db.session.add(ChatsUsers(users_id=u_id, chats_id=goal.chats_id))
+                    joining_user = User.query.get(u_id)
+                    full_name = getattr(joining_user, 'full_name', None) or \
+                        f"{getattr(joining_user, 'fname', '') or ''} {getattr(joining_user, 'lname', '') or ''}".strip() or \
+                        "A new member" if joining_user else "A new member"
+                    db.session.add(GroupMessage(
+                        chat_id=goal.chats_id,
+                        sender_id=u_id,
+                        text=f"{full_name} has joined the Team."
+                    ))
             if goal and goal.goal_type == "Recruiting":
                 existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=u_id).first()
                 if not existing_log:

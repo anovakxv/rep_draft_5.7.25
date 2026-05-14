@@ -8,6 +8,7 @@ from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('join_leave_goal', __name__)
@@ -139,6 +140,15 @@ def api_join_leave_goal():
                 ).first()
                 if not already_member:
                     db.session.add(ChatsUsers(users_id=user_id, chats_id=goal.chats_id))
+                    user_obj = g.current_user
+                    full_name = getattr(user_obj, 'full_name', None) or \
+                        f"{getattr(user_obj, 'fname', '') or ''} {getattr(user_obj, 'lname', '') or ''}".strip() or \
+                        "A new member"
+                    db.session.add(GroupMessage(
+                        chat_id=goal.chats_id,
+                        sender_id=user_id,
+                        text=f"{full_name} has joined the Team."
+                    ))
 
             # Collect for event registration email (checked after commit)
             if _joined_ok and goal.goal_type == 'Recruiting' and goal.portals_id:

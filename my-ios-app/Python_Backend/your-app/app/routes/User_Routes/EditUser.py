@@ -193,7 +193,25 @@ def api_delete_user():
     from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
     GoalProgressLog.query.filter_by(users_id=user_id).delete()
 
-    # Add any other related deletes here as needed
+    # Handle chats this user created — Chats.created_by has no ondelete clause,
+    # so PostgreSQL RESTRICT would block deletion without this step.
+    from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats as ChatsModel
+    from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
+    from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage as GroupMsg
+
+    for chat in ChatsModel.query.filter_by(created_by=user_id).all():
+        other_member = ChatsUsers.query.filter(
+            ChatsUsers.chats_id == chat.id,
+            ChatsUsers.users_id != user_id
+        ).first()
+        if other_member:
+            # Transfer ownership to another member
+            chat.created_by = other_member.users_id
+        else:
+            # No other members — delete the chat entirely
+            GroupMsg.query.filter_by(chat_id=chat.id).delete()
+            ChatsUsers.query.filter_by(chats_id=chat.id).delete()
+            db.session.delete(chat)
 
     db.session.delete(user)
     db.session.commit()

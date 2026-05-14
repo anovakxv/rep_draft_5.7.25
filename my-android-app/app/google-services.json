@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "773961578300",
+    "project_id": "networkcapital-e1c17",
+    "storage_bucket": "networkcapital-e1c17.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773961578300:android:9f5415f24847512f841039",
+        "android_client_info": {
+          "package_name": "com.networkedcapital.rep"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3pHkNf_y_1OECAgOjksPZL6V4uvM0p8M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,55 @@
+# ⚠️  DO NOT commit generated build outputs, caches, or local config
+
+# Gradle build outputs and caches
+.gradle/
+**/build/
+build/
+
+# Keep the Gradle wrapper scripts/config but not the downloaded distribution (145MB)
+gradle/wrapper/dists/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Local machine config (SDK path — differs per machine)
+local.properties
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and generated output
+*.log
+*.lock
+
+# NDK / CMake
+.cxx/
+captures/
+.externalNativeBuild/
+obj/
+gen/
+out/
+
+# APKs and binaries
+*.apk
+*.ap_
+*.dex
+*.class
+
+# Keystore files (never commit these)
+*.jks
+*.keystore
+
+# Claude Code local settings
+.claude/
+
+# Python artifacts (not part of this project)
+__pycache__/
+*.py[cod]
+venv/
+.venv/

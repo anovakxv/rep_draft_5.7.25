@@ -5,8 +5,11 @@
 **/build/
 build/
 
-# Keep the Gradle wrapper scripts/config but not the downloaded distribution (145MB)
+# Keep only the wrapper scripts/config — ignore everything else inside gradle/
 gradle/wrapper/dists/
+gradle/daemon/
+gradle/native/
+gradle/caches/
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
 

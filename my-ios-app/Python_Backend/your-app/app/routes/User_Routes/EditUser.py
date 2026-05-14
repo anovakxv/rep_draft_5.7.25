@@ -213,6 +213,11 @@ def api_delete_user():
             ChatsUsers.query.filter_by(chats_id=chat.id).delete()
             db.session.delete(chat)
 
+    # Explicitly remove all group chat memberships for this user before deletion.
+    # Without this, SQLAlchemy tries to SET NULL on chats_users.users_id (NOT NULL)
+    # because the ORM relationship lacks passive_deletes=True.
+    ChatsUsers.query.filter_by(users_id=user_id).delete()
+
     db.session.delete(user)
     db.session.commit()
     return jsonify({'result': 'ok'})

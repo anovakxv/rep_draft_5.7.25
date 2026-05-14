@@ -8,6 +8,7 @@ from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
+from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.utils.auth import jwt_required
@@ -136,22 +137,37 @@ def update_goal_team(goal_id):
             team.read2 = True
             results[u_id] = "accepted"
             goal = Goal.query.get(goal_id)
-            # Auto-add accepted member to the goal's canonical group chat
-            if goal and goal.chats_id:
-                already_member = ChatsUsers.query.filter_by(
-                    chats_id=goal.chats_id, users_id=u_id
-                ).first()
-                if not already_member:
-                    db.session.add(ChatsUsers(users_id=u_id, chats_id=goal.chats_id))
-                    joining_user = User.query.get(u_id)
-                    full_name = getattr(joining_user, 'full_name', None) or \
-                        f"{getattr(joining_user, 'fname', '') or ''} {getattr(joining_user, 'lname', '') or ''}".strip() or \
-                        "A new member" if joining_user else "A new member"
+            # Add accepted member to the goal's group chat (create it first if legacy goal)
+            if goal:
+                if not goal.chats_id:
+                    # Lazy creation for goals that pre-date the auto-chat feature
+                    portal_name = goal.portal.name if goal.portal else None
+                    chat_name = f"{portal_name}: {goal.title}" if portal_name else goal.title
+                    chat = Chats(name=chat_name, created_by=u_id)
+                    db.session.add(chat)
+                    db.session.flush()  # Populate chat.id
+                    # Add all existing confirmed members so everyone gets the chat
+                    for tm in GoalTeam.query.filter_by(goals_id=goal_id, confirmed=1).all():
+                        db.session.add(ChatsUsers(users_id=tm.users_id2, chats_id=chat.id))
                     db.session.add(GroupMessage(
-                        chat_id=goal.chats_id,
-                        sender_id=u_id,
-                        text=f"{full_name} has joined the Team."
+                        chat_id=chat.id, sender_id=u_id,
+                        text=f"Welcome to the {goal.title} team chat! This Goal Team is: {goal.description}"
                     ))
+                    goal.chats_id = chat.id
+                else:
+                    already_member = ChatsUsers.query.filter_by(
+                        chats_id=goal.chats_id, users_id=u_id
+                    ).first()
+                    if not already_member:
+                        db.session.add(ChatsUsers(users_id=u_id, chats_id=goal.chats_id))
+                        joining_user = User.query.get(u_id)
+                        full_name = getattr(joining_user, 'full_name', None) or \
+                            f"{getattr(joining_user, 'fname', '') or ''} {getattr(joining_user, 'lname', '') or ''}".strip() or \
+                            "A new member" if joining_user else "A new member"
+                        db.session.add(GroupMessage(
+                            chat_id=goal.chats_id, sender_id=u_id,
+                            text=f"{full_name} has joined the Team."
+                        ))
             if goal and goal.goal_type == "Recruiting":
                 existing_log = GoalProgressLog.query.filter_by(goals_id=goal_id, users_id=u_id).first()
                 if not existing_log:
@@ -241,6 +257,22 @@ def remove_goal_team(goal_id, user_id):
 
     inviter_id = team.users_id1
     invitee_id = team.users_id2
+
+    # Remove from goal's group chat and post leave message
+    goal = Goal.query.get(goal_id)
+    if goal and goal.chats_id:
+        ChatsUsers.query.filter_by(
+            chats_id=goal.chats_id, users_id=invitee_id
+        ).delete()
+        leaving_user = User.query.get(invitee_id)
+        if leaving_user:
+            full_name = getattr(leaving_user, 'full_name', None) or \
+                f"{getattr(leaving_user, 'fname', '') or ''} {getattr(leaving_user, 'lname', '') or ''}".strip() or \
+                "A member"
+            db.session.add(GroupMessage(
+                chat_id=goal.chats_id, sender_id=invitee_id,
+                text=f"{full_name} has left the Team."
+            ))
 
     db.session.delete(team)
     db.session.commit()

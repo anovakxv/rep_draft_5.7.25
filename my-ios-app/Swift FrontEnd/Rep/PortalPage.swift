@@ -70,6 +70,10 @@ class PortalViewModel: ObservableObject {
                 let response = try JSONDecoder().decode(PortalDetailResponse.self, from: data)
                 DispatchQueue.main.async {
                     self.portalDetail = response.result
+                    // Default to Story tab for event portals (matches web app behaviour)
+                    if response.result.portal_type == "event" {
+                        self.section = 1
+                    }
                 }
             } catch {
                 print("Decode error:", error)
@@ -1246,10 +1250,14 @@ struct ImageTabView: View {
     private func runIntroSlideshow() async {
         guard images.count > 1 else { return }
 
-        // Preload first 4 images into Kingfisher cache before starting (skips any already cached)
-        let urls = images.prefix(4).compactMap { URL(string: $0.url ?? "") }
+        // Start downloading ALL images in the background immediately
+        let allUrls = images.compactMap { URL(string: $0.url ?? "") }
+        ImagePrefetcher(urls: allUrls).start()
+
+        // Wait for first 7 to be ready before starting animation (Kingfisher deduplicates in-flight downloads)
+        let initialUrls = Array(allUrls.prefix(7))
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            ImagePrefetcher(urls: urls) { _, _, _ in
+            ImagePrefetcher(urls: initialUrls) { _, _, _ in
                 continuation.resume()
             }.start()
         }

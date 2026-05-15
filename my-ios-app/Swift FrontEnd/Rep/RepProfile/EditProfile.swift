@@ -475,7 +475,7 @@ class ProfileInfoViewModel: ObservableObject {
     }
 
     func fetchAvailableSkills() {
-        print("DEBUG: Fetching skills with JWT:", jwtToken)
+        print("DEBUG: Fetching skills, token present: \(!jwtToken.isEmpty)")
         fetchSkills(jwtToken: jwtToken) { [weak self] skills in
             DispatchQueue.main.async {
                 print("DEBUG: Skills loaded:", skills)

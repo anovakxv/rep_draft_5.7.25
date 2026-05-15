@@ -309,7 +309,7 @@ struct RegisterNewProfileView: View {
                 isRegistered = true // <-- This triggers onboarding flow in RootAppView
                 onboardingComplete = false
 
-                print("DEBUG: isRegistered=\(isRegistered), pendingUserId=\(pendingUserId), jwtToken=\(jwtToken), onboardingComplete=\(UserDefaults.standard.bool(forKey: "onboardingComplete"))")
+                print("DEBUG: isRegistered=\(isRegistered), pendingUserId=\(pendingUserId), tokenPresent=\(!jwtToken.isEmpty), onboardingComplete=\(UserDefaults.standard.bool(forKey: "onboardingComplete"))")
 
                 // Update the onboardingProfileVM with the new user's info
                 onboardingProfileVM.profileInfo.firstName = firstName

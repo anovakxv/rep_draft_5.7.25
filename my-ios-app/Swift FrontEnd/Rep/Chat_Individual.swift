@@ -624,8 +624,15 @@ struct MessageView: View {
                     }
                     .background(Color.white)
                     .onAppear {
-                        // Use async to ensure scroll happens after initial layout completes
+                        // First pass: immediate scroll for normal cases
                         DispatchQueue.main.async {
+                            withAnimation(nil) {
+                                proxy.scrollTo("bottomSpacer", anchor: .bottom)
+                            }
+                        }
+                        // Second pass: corrects position when tall messages push bottomSpacer
+                        // off-screen before LazyVStack has finished estimating heights
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                             withAnimation(nil) {
                                 proxy.scrollTo("bottomSpacer", anchor: .bottom)
                             }

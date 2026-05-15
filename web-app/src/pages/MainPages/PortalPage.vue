@@ -856,7 +856,16 @@ const ImageTabView = defineComponent({
     // On mount: preload all images first, then flash through at 250ms each, settle on image 0
     onMounted(() => {
       if (images.value.length > 1) {
-        const preloads = images.value.slice(0, 4).map(img => new Promise<void>(resolve => {
+        // Start downloading ALL images in the background immediately
+        images.value.forEach(img => {
+          if (img.url) {
+            const el = new window.Image();
+            el.src = img.url; // browser deduplicates in-flight requests
+          }
+        });
+
+        // Wait for first 7 to be ready before starting animation
+        const preloads = images.value.slice(0, 7).map(img => new Promise<void>(resolve => {
           let done = false;
           const finish = () => { if (!done) { done = true; resolve(); } };
           const el = new window.Image();

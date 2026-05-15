@@ -2,6 +2,9 @@ package com.networkedcapital.rep.presentation.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.networkedcapital.rep.data.api.EditMessageRequest
+import com.networkedcapital.rep.data.api.MessagingApiService
+import com.networkedcapital.rep.data.api.ToggleReactionRequest
 import com.networkedcapital.rep.data.repository.MessageRepository
 import com.networkedcapital.rep.domain.model.MessageModel
 import com.networkedcapital.rep.utils.SocketManager
@@ -38,7 +41,8 @@ data class IndividualChatUiState(
 @HiltViewModel
 class IndividualChatViewModel @Inject constructor(
     private val messageRepository: MessageRepository,
-    private val authRepository: com.networkedcapital.rep.data.repository.AuthRepository
+    private val authRepository: com.networkedcapital.rep.data.repository.AuthRepository,
+    private val messagingApiService: MessagingApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(IndividualChatUiState())
@@ -412,6 +416,66 @@ class IndividualChatViewModel @Inject constructor(
 
     fun acknowledgeError() {
         clearError()
+    }
+
+    // Toggle emoji reaction on a message (matches iOS toggleReaction)
+    fun toggleReaction(messageId: Int, emoji: String) {
+        viewModelScope.launch {
+            try {
+                val response = messagingApiService.toggleDmReaction(messageId, ToggleReactionRequest(emoji))
+                if (response.isSuccessful) {
+                    val updatedReactions = response.body()?.reactions
+                    if (updatedReactions != null) {
+                        _uiState.update { state ->
+                            val updated = state.messages.map { msg ->
+                                if (msg.id == messageId) {
+                                    MessageModel(
+                                        id = msg.id, sender_id = msg.sender_id,
+                                        senderName = msg.senderName, text = msg.text,
+                                        created_at = msg.created_at, read = msg.read,
+                                        reactions = updatedReactions,
+                                        isEdited = msg.isEdited, editedAt = msg.editedAt
+                                    )
+                                } else msg
+                            }
+                            state.copy(messages = updated)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("IndividualChatVM", "toggleReaction error: ${e.message}")
+            }
+        }
+    }
+
+    // Edit own message (matches iOS editMessage)
+    fun editMessage(messageId: Int, newText: String) {
+        val trimmed = newText.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val response = messagingApiService.editDmMessage(messageId, EditMessageRequest(trimmed))
+                if (response.isSuccessful) {
+                    val editedAt = response.body()?.result?.get("edited_at")
+                    _uiState.update { state ->
+                        val updated = state.messages.map { msg ->
+                            if (msg.id == messageId) {
+                                MessageModel(
+                                    id = msg.id, sender_id = msg.sender_id,
+                                    senderName = msg.senderName, text = trimmed,
+                                    created_at = msg.created_at, read = msg.read,
+                                    reactions = msg.reactions, isEdited = true,
+                                    editedAt = editedAt ?: msg.editedAt
+                                )
+                            } else msg
+                        }
+                        state.copy(messages = updated)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("IndividualChatVM", "editMessage error: ${e.message}")
+            }
+        }
     }
 
     override fun onCleared() {

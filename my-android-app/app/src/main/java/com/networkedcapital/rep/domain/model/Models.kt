@@ -294,16 +294,16 @@ data class ChatModel(
 data class MessageModel(
     val id: Int,
     @SerializedName("sender_id") val sender_id: Int? = null,
+    @SerializedName("sender_name") val senderName: String? = null,
     val text: String? = null,
     @SerializedName("created_at") val created_at: String? = null,
-    val read: String? = null
+    val read: String? = null,
+    val reactions: @RawValue List<MessageReaction>? = null,
+    @SerializedName("is_edited") val isEdited: Boolean? = null,
+    @SerializedName("edited_at") val editedAt: String? = null
 ) : Parcelable {
-    // Legacy compatibility properties
-    val senderId: Int
-        get() = sender_id ?: 0
-
-    val timestamp: String
-        get() = created_at ?: ""
+    val senderId: Int get() = sender_id ?: 0
+    val timestamp: String get() = created_at ?: ""
 }
 
 // Auth models
@@ -562,6 +562,22 @@ data class RespondToInviteRequest(
     val users: List<Int>
 )
 
+// MARK: - Reaction Models
+
+@Parcelize
+data class ReactionUser(
+    @SerializedName("user_id") @Json(name = "user_id") val userId: Int,
+    @SerializedName("user_name") @Json(name = "user_name") val userName: String
+) : Parcelable
+
+@Parcelize
+data class MessageReaction(
+    val emoji: String,
+    val count: Int,
+    @SerializedName("userReacted") @Json(name = "userReacted") val userReacted: Boolean = false,
+    val users: @RawValue List<ReactionUser> = emptyList()
+) : Parcelable
+
 // MARK: - Messaging Models (Group chat specific)
 
 @Parcelize
@@ -572,7 +588,10 @@ data class GroupMessageModel(
     @Json(name = "sender_photo_url") val senderPhotoUrl: String? = null,
     val text: String? = null,
     val timestamp: String? = null,
-    @Json(name = "chat_id") val chatId: Int? = null
+    @Json(name = "chat_id") val chatId: Int? = null,
+    val reactions: @RawValue List<MessageReaction>? = null,
+    @Json(name = "is_edited") val isEdited: Boolean? = null,
+    @Json(name = "edited_at") val editedAt: String? = null
 ) : Parcelable
 
 @Parcelize

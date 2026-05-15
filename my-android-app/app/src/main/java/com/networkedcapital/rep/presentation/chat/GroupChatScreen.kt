@@ -44,9 +44,14 @@ import coil.compose.AsyncImage
 import com.networkedcapital.rep.domain.model.GroupMemberModel
 import com.networkedcapital.rep.domain.model.GroupMessageModel
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.sp
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,9 +65,15 @@ fun GroupChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val shouldScrollToBottom by viewModel.shouldScrollToBottom.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
-    
+
     val editSheetState = rememberModalBottomSheetState()
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+
+    var selectedMessageForReaction by remember { mutableStateOf<com.networkedcapital.rep.domain.model.GroupMessageModel?>(null) }
+    var showGroupReactionPicker by remember { mutableStateOf(false) }
+    var selectedMessageForEdit by remember { mutableStateOf<com.networkedcapital.rep.domain.model.GroupMessageModel?>(null) }
+    var showGroupEditSheet by remember { mutableStateOf(false) }
     
     // Initialize and activate chat
     LaunchedEffect(chatId, currentUserId) {
@@ -104,7 +115,11 @@ fun GroupChatScreen(
                 currentUserId = currentUserId,
                 viewModel = viewModel,
                 shouldScrollToBottom = shouldScrollToBottom,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                onLongPress = { msg ->
+                    selectedMessageForReaction = msg
+                    showGroupReactionPicker = true
+                }
             )
             
             // Growing text input
@@ -186,6 +201,50 @@ fun GroupChatScreen(
             member = member,
             onConfirm = viewModel::confirmRemoveMember,
             onDismiss = viewModel::hideRemoveMemberConfirmation
+        )
+    }
+
+    // Reaction picker overlay
+    if (showGroupReactionPicker && selectedMessageForReaction != null) {
+        val msg = selectedMessageForReaction!!
+        ChatReactionPicker(
+            showEdit = msg.senderId == currentUserId,
+            onSelectEmoji = { emoji ->
+                viewModel.toggleReaction(msg.id, emoji)
+                showGroupReactionPicker = false
+                selectedMessageForReaction = null
+            },
+            onEdit = {
+                selectedMessageForEdit = msg
+                showGroupEditSheet = true
+                showGroupReactionPicker = false
+                selectedMessageForReaction = null
+            },
+            onCopy = {
+                clipboardManager.setText(AnnotatedString(msg.text ?: ""))
+                showGroupReactionPicker = false
+                selectedMessageForReaction = null
+            },
+            onDismiss = {
+                showGroupReactionPicker = false
+                selectedMessageForReaction = null
+            }
+        )
+    }
+
+    // Edit message sheet
+    if (showGroupEditSheet && selectedMessageForEdit != null) {
+        ChatEditMessageSheet(
+            originalText = selectedMessageForEdit!!.text ?: "",
+            onSave = { newText ->
+                viewModel.editGroupMessageText(selectedMessageForEdit!!.id, newText)
+                showGroupEditSheet = false
+                selectedMessageForEdit = null
+            },
+            onCancel = {
+                showGroupEditSheet = false
+                selectedMessageForEdit = null
+            }
         )
     }
 }
@@ -361,7 +420,8 @@ fun MessagesList(
     currentUserId: Int,
     viewModel: GroupChatViewModel,
     shouldScrollToBottom: Boolean,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongPress: (GroupMessageModel) -> Unit = {}
 ) {
     val listState = rememberLazyListState()
     
@@ -390,41 +450,40 @@ fun MessagesList(
         items(messages) { message ->
             val isFromCurrentUser = message.senderId == currentUserId
             val formattedTime = message.timestamp?.let { viewModel.formatTimestamp(it) } ?: ""
-            
+
             MessageBubble(
                 message = message,
                 isFromCurrentUser = isFromCurrentUser,
                 formattedTime = formattedTime,
-                viewModel = viewModel
+                viewModel = viewModel,
+                onLongPress = { onLongPress(message) }
             )
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     message: GroupMessageModel,
     isFromCurrentUser: Boolean,
     formattedTime: String,
     viewModel: GroupChatViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongPress: () -> Unit = {}
 ) {
-    // iOS Design: NO profile pictures in message bubbles, sender name only for incoming messages
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp),
         horizontalArrangement = if (isFromCurrentUser) Arrangement.End else Arrangement.Start
     ) {
-        if (isFromCurrentUser) {
-            Spacer(modifier = Modifier.weight(1f))
-        }
+        if (isFromCurrentUser) Spacer(modifier = Modifier.weight(1f))
 
         Column(
             horizontalAlignment = if (isFromCurrentUser) Alignment.End else Alignment.Start,
             modifier = Modifier.widthIn(max = 260.dp)
         ) {
-            // Sender name ONLY for incoming messages (iOS behavior)
             if (!isFromCurrentUser) {
                 Text(
                     text = message.senderName ?: "Unknown",
@@ -434,10 +493,14 @@ fun MessageBubble(
                 )
             }
 
-            // Message bubble
+            // Bubble with long-press
             Surface(
                 color = if (isFromCurrentUser) Color.Black else Color(0xFFF0F0F0),
-                shape = RoundedCornerShape(8.dp)
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = onLongPress
+                )
             ) {
                 Text(
                     text = message.text ?: "",
@@ -447,7 +510,38 @@ fun MessageBubble(
                 )
             }
 
-            // Timestamp below bubble
+            // Edited indicator
+            if (message.isEdited == true) {
+                Text(
+                    text = "(edited)",
+                    fontSize = 10.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 1.dp, start = 4.dp)
+                )
+            }
+
+            // Reactions row
+            if (!message.reactions.isNullOrEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 3.dp)
+                ) {
+                    items(message.reactions!!) { reaction ->
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (reaction.userReacted) Color(0xFF8CC55D).copy(alpha = 0.2f)
+                                    else Color.Gray.copy(alpha = 0.1f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(text = "${reaction.emoji} ${reaction.count}", fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
             Text(
                 text = formattedTime,
                 style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
@@ -456,9 +550,7 @@ fun MessageBubble(
             )
         }
 
-        if (!isFromCurrentUser) {
-            Spacer(modifier = Modifier.weight(1f))
-        }
+        if (!isFromCurrentUser) Spacer(modifier = Modifier.weight(1f))
     }
 }
 

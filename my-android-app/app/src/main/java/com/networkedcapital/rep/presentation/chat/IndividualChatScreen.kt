@@ -7,8 +7,10 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -16,7 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,13 +27,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.networkedcapital.rep.domain.model.MessageModel
+import com.networkedcapital.rep.domain.model.MessageReaction
 
 @Composable
 fun IndividualChatScreen(
@@ -44,7 +51,13 @@ fun IndividualChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     val shouldScrollToBottom by viewModel.shouldScrollToBottom.collectAsState()
     val isConnected by viewModel.isConnected.collectAsState()
-    
+
+    var selectedMessageForReaction by remember { mutableStateOf<MessageModel?>(null) }
+    var showReactionPicker by remember { mutableStateOf(false) }
+    var selectedMessageForEdit by remember { mutableStateOf<MessageModel?>(null) }
+    var showEditSheet by remember { mutableStateOf(false) }
+    val clipboardManager = LocalClipboardManager.current
+
     LaunchedEffect(chatId) {
         viewModel.initialize(
             otherUserId = chatId,
@@ -52,7 +65,7 @@ fun IndividualChatScreen(
             otherUserPhotoUrl = userPhotoUrl
         )
     }
-    
+
     Box(modifier = Modifier.fillMaxSize()) {
         IndividualChatContent(
             userName = userName,
@@ -69,8 +82,56 @@ fun IndividualChatScreen(
             onSend = viewModel::sendMessage,
             onBack = onNavigateBack,
             onLoadOlder = viewModel::loadOlderIfNeeded,
-            formatTimestamp = viewModel::formatTimestamp
+            formatTimestamp = viewModel::formatTimestamp,
+            onLongPress = { msg ->
+                selectedMessageForReaction = msg
+                showReactionPicker = true
+            }
         )
+
+        // Reaction picker overlay (full-screen, semi-transparent)
+        if (showReactionPicker && selectedMessageForReaction != null) {
+            val msg = selectedMessageForReaction!!
+            ChatReactionPicker(
+                showEdit = msg.senderId == viewModel.currentUserId,
+                onSelectEmoji = { emoji ->
+                    viewModel.toggleReaction(msg.id, emoji)
+                    showReactionPicker = false
+                    selectedMessageForReaction = null
+                },
+                onEdit = {
+                    selectedMessageForEdit = msg
+                    showEditSheet = true
+                    showReactionPicker = false
+                    selectedMessageForReaction = null
+                },
+                onCopy = {
+                    clipboardManager.setText(AnnotatedString(msg.text ?: ""))
+                    showReactionPicker = false
+                    selectedMessageForReaction = null
+                },
+                onDismiss = {
+                    showReactionPicker = false
+                    selectedMessageForReaction = null
+                }
+            )
+        }
+
+        // Edit message sheet
+        if (showEditSheet && selectedMessageForEdit != null) {
+            ChatEditMessageSheet(
+                originalText = selectedMessageForEdit!!.text ?: "",
+                onSave = { newText ->
+                    viewModel.editMessage(selectedMessageForEdit!!.id, newText)
+                    showEditSheet = false
+                    selectedMessageForEdit = null
+                },
+                onCancel = {
+                    showEditSheet = false
+                    selectedMessageForEdit = null
+                }
+            )
+        }
         
         // Connection status indicator
         AnimatedVisibility(
@@ -132,7 +193,8 @@ fun IndividualChatContent(
     onSend: () -> Unit,
     onBack: () -> Unit,
     onLoadOlder: (Int?) -> Unit,
-    formatTimestamp: (String) -> String
+    formatTimestamp: (String) -> String,
+    onLongPress: (MessageModel) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().background(Color.White)) {
         // iOS-style header
@@ -221,7 +283,8 @@ fun IndividualChatContent(
                                 message = message,
                                 isCurrentUser = isCurrentUser,
                                 profilePicURL = if (!isCurrentUser) userPhotoUrl else null,
-                                formattedTime = formatTimestamp(message.timestamp)
+                                formattedTime = formatTimestamp(message.timestamp),
+                                onLongPress = { onLongPress(message) }
                             )
                         }
                     }
@@ -299,12 +362,14 @@ fun NavigationHeaderView(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     message: MessageModel,
     isCurrentUser: Boolean,
     profilePicURL: String?,
-    formattedTime: String
+    formattedTime: String,
+    onLongPress: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -314,7 +379,6 @@ fun MessageBubble(
         verticalAlignment = Alignment.Bottom
     ) {
         if (!isCurrentUser) {
-            // Profile picture for other user
             Box(
                 modifier = Modifier
                     .size(32.dp)
@@ -332,13 +396,18 @@ fun MessageBubble(
             }
             Spacer(modifier = Modifier.width(8.dp))
         }
-        
+
         Column(
             horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
         ) {
+            // Bubble with long-press
             Surface(
                 color = if (isCurrentUser) Color.Black else Color(0xFFF2F2F2),
-                shape = RoundedCornerShape(18.dp)
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.combinedClickable(
+                    onClick = {},
+                    onLongClick = onLongPress
+                )
             ) {
                 Text(
                     text = message.text ?: "",
@@ -346,8 +415,42 @@ fun MessageBubble(
                     modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
                 )
             }
-            
-            // Time below message
+
+            // Edited indicator
+            if (message.isEdited == true) {
+                Text(
+                    text = "(edited)",
+                    fontSize = 10.sp,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 1.dp)
+                )
+            }
+
+            // Reactions row
+            if (!message.reactions.isNullOrEmpty()) {
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 3.dp)
+                ) {
+                    items(message.reactions!!) { reaction ->
+                        Box(
+                            modifier = Modifier
+                                .background(
+                                    if (reaction.userReacted) Color(0xFF8CC55D).copy(alpha = 0.2f)
+                                    else Color.Gray.copy(alpha = 0.1f),
+                                    RoundedCornerShape(12.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "${reaction.emoji} ${reaction.count}",
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+            }
+
             Text(
                 text = formattedTime,
                 style = MaterialTheme.typography.bodySmall.copy(
@@ -357,7 +460,7 @@ fun MessageBubble(
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
-        
+
         if (isCurrentUser) {
             Spacer(modifier = Modifier.width(8.dp))
         }
@@ -405,6 +508,122 @@ fun GrowingTextEditor(
                 }
             }
         )
+    }
+}
+
+// Full-screen reaction picker — matches iOS FullScreenReactionPicker
+@Composable
+fun ChatReactionPicker(
+    showEdit: Boolean,
+    onSelectEmoji: (String) -> Unit,
+    onEdit: () -> Unit,
+    onCopy: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val emojis = listOf("👍", "❤️", "😂", "😮", "👎", "🙏", "🎉")
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .then(Modifier.clickable { onDismiss() }),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier
+                .background(Color.White, RoundedCornerShape(12.dp))
+                .padding(12.dp)
+                .widthIn(max = 320.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Emoji row
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                emojis.forEach { emoji ->
+                    Text(
+                        text = emoji,
+                        fontSize = 28.sp,
+                        modifier = Modifier
+                            .clickable { onSelectEmoji(emoji) }
+                            .padding(4.dp)
+                    )
+                }
+            }
+            // Copy button
+            Row(
+                modifier = Modifier
+                    .background(Color.White, RoundedCornerShape(8.dp))
+                    .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
+                    .clickable { onCopy() }
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
+                Text("Copy", fontSize = 14.sp)
+            }
+            // Edit button (own messages only)
+            if (showEdit) {
+                Row(
+                    modifier = Modifier
+                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
+                        .clickable { onEdit() }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text("Edit Message", fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+// Edit message bottom sheet
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatEditMessageSheet(
+    originalText: String,
+    onSave: (String) -> Unit,
+    onCancel: () -> Unit
+) {
+    var text by remember { mutableStateOf(originalText) }
+    ModalBottomSheet(
+        onDismissRequest = onCancel,
+        containerColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Edit Message", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) {
+                    Text("Cancel")
+                }
+                Button(
+                    onClick = { onSave(text) },
+                    modifier = Modifier.weight(1f),
+                    enabled = text.trim().isNotEmpty() && text.trim() != originalText.trim(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8CC55D))
+                ) {
+                    Text("Save")
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 }
 

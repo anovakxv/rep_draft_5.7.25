@@ -92,7 +92,55 @@ interface MessagingApiService {
     suspend fun getNetworkMembers(
         @Query("not_in_chats_id") chatId: Int
     ): Response<NetworkMembersResponse>
+
+    // MARK: - Reactions (Direct Messages)
+
+    /** Toggle emoji reaction on a DM — POST /api/message/toggle-reaction/{id} */
+    @POST("api/message/toggle-reaction/{messageId}")
+    @Headers("Content-Type: application/json")
+    suspend fun toggleDmReaction(
+        @Path("messageId") messageId: Int,
+        @Body request: ToggleReactionRequest
+    ): Response<ReactionResponse>
+
+    /** Edit a DM — PUT /api/message/{id} */
+    @PUT("api/message/{messageId}")
+    @Headers("Content-Type: application/json")
+    suspend fun editDmMessage(
+        @Path("messageId") messageId: Int,
+        @Body request: EditMessageRequest
+    ): Response<EditMessageResponse>
+
+    // MARK: - Reactions (Group Messages)
+
+    /** Toggle emoji reaction on a group message — POST /api/message/group/toggle-reaction/{id} */
+    @POST("api/message/group/toggle-reaction/{messageId}")
+    @Headers("Content-Type: application/json")
+    suspend fun toggleGroupReaction(
+        @Path("messageId") messageId: Int,
+        @Body request: ToggleReactionRequest
+    ): Response<ReactionResponse>
+
+    /** Edit a group message — PUT /api/message/group/{id} */
+    @PUT("api/message/group/{messageId}")
+    @Headers("Content-Type: application/json")
+    suspend fun editGroupMessage(
+        @Path("messageId") messageId: Int,
+        @Body request: EditMessageRequest
+    ): Response<EditMessageResponse>
 }
+
+data class ToggleReactionRequest(val emoji: String)
+
+data class EditMessageRequest(val text: String)
+
+data class ReactionResponse(
+    val reactions: List<com.networkedcapital.rep.domain.model.MessageReaction>? = null
+)
+
+data class EditMessageResponse(
+    val result: Map<String, String>? = null
+)
 
 // MARK: - Request Models
 

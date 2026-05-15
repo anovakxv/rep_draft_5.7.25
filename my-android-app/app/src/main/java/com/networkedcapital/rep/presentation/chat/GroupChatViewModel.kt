@@ -2,6 +2,9 @@ package com.networkedcapital.rep.presentation.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.networkedcapital.rep.data.api.EditMessageRequest
+import com.networkedcapital.rep.data.api.MessagingApiService
+import com.networkedcapital.rep.data.api.ToggleReactionRequest
 import com.networkedcapital.rep.data.repository.MessageRepository
 import com.networkedcapital.rep.domain.model.GroupMemberModel
 import com.networkedcapital.rep.domain.model.GroupMessageModel
@@ -47,7 +50,8 @@ data class GroupChatUiState(
  */
 @HiltViewModel
 class GroupChatViewModel @Inject constructor(
-    private val messageRepository: MessageRepository
+    private val messageRepository: MessageRepository,
+    private val messagingApiService: MessagingApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(GroupChatUiState())
@@ -590,6 +594,64 @@ class GroupChatViewModel @Inject constructor(
         val member = _uiState.value.memberToRemove ?: return
         removeMembers(listOf(member.id))
         hideRemoveMemberConfirmation()
+    }
+
+    fun toggleReaction(messageId: Int, emoji: String) {
+        viewModelScope.launch {
+            try {
+                val response = messagingApiService.toggleGroupReaction(messageId, ToggleReactionRequest(emoji))
+                if (response.isSuccessful) {
+                    val updatedReactions = response.body()?.reactions
+                    if (updatedReactions != null) {
+                        _uiState.update { state ->
+                            val updated = state.messages.map { msg ->
+                                if (msg.id == messageId) {
+                                    GroupMessageModel(
+                                        id = msg.id, senderId = msg.senderId,
+                                        senderName = msg.senderName, senderPhotoUrl = msg.senderPhotoUrl,
+                                        text = msg.text, timestamp = msg.timestamp, chatId = msg.chatId,
+                                        reactions = updatedReactions,
+                                        isEdited = msg.isEdited, editedAt = msg.editedAt
+                                    )
+                                } else msg
+                            }
+                            state.copy(messages = updated)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GroupChatVM", "toggleReaction error: ${e.message}")
+            }
+        }
+    }
+
+    fun editGroupMessageText(messageId: Int, newText: String) {
+        val trimmed = newText.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            try {
+                val response = messagingApiService.editGroupMessage(messageId, EditMessageRequest(trimmed))
+                if (response.isSuccessful) {
+                    val editedAt = response.body()?.result?.get("edited_at")
+                    _uiState.update { state ->
+                        val updated = state.messages.map { msg ->
+                            if (msg.id == messageId) {
+                                GroupMessageModel(
+                                    id = msg.id, senderId = msg.senderId,
+                                    senderName = msg.senderName, senderPhotoUrl = msg.senderPhotoUrl,
+                                    text = trimmed, timestamp = msg.timestamp, chatId = msg.chatId,
+                                    reactions = msg.reactions, isEdited = true,
+                                    editedAt = editedAt ?: msg.editedAt
+                                )
+                            } else msg
+                        }
+                        state.copy(messages = updated)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GroupChatVM", "editGroupMessage error: ${e.message}")
+            }
+        }
     }
 
     override fun onCleared() {

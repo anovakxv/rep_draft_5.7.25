@@ -532,11 +532,12 @@ fun MainScreen(
             
             Spacer(modifier = Modifier.weight(1f))
 
-            // NEW: Action button (right)
+            // Green plus button (matches iOS top bar)
             IconButton(onClick = { showActionSheet = true }) {
                 Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More Options"
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Actions",
+                    tint = Color(0xFF8CC55D)
                 )
             }
         }

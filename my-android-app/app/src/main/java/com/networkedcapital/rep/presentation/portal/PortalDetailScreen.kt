@@ -76,6 +76,9 @@ fun PortalDetailScreen(
     var showPaymentSheet by remember { mutableStateOf(false) }
     var showMessageSheet by remember { mutableStateOf(false) }
     var selectedLeadUser by remember { mutableStateOf<User?>(null) }
+    var showGoalPickerSheet by remember { mutableStateOf(false) }
+    var showRsvpSuccessAlert by remember { mutableStateOf(false) }
+    var showJoinSupportersSuccessAlert by remember { mutableStateOf(false) }
 
     // Detect device orientation
     val configuration = LocalConfiguration.current
@@ -94,10 +97,20 @@ fun PortalDetailScreen(
         }
     }
 
-    // Find the first goal that can accept support/payment
-    val supportGoal = uiState.portalDetail?.aGoals?.firstOrNull { 
-        it.typeName == "Fund" || it.typeName == "Sales" 
+    // Find special goals (matches iOS logic)
+    val allGoals = uiState.portalDetail?.aGoals ?: emptyList()
+    val supportGoal = allGoals.firstOrNull { it.typeName == "Fund" || it.typeName == "Sales" || it.typeName == "Donations" }
+    val attendeesGoal = allGoals.firstOrNull {
+        it.typeName == "Recruiting" &&
+        (it.title.lowercase() == "attendees" || it.title.lowercase().contains("attendee"))
     }
+    val supportersGoal = allGoals.firstOrNull {
+        it.typeName == "Recruiting" &&
+        (it.title.lowercase() == "supporters" || it.title.lowercase().contains("supporter"))
+    }
+    val recruitingGoals = allGoals.filter { it.typeName == "Recruiting" }
+    // is_member not yet tracked — default false (future: add to Goal model)
+    val isEventRegistered = remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -174,7 +187,8 @@ fun PortalDetailScreen(
                 uiState.portalDetail != null -> {
                     val portal = uiState.portalDetail!!
                     val goals = uiState.portalGoals ?: portal.aGoals ?: emptyList()
-                    var selectedSection by remember { mutableStateOf(0) }
+                    val defaultSection = if (portal.portalType == "event") 1 else 0
+                    var selectedSection by remember { mutableStateOf(defaultSection) }
 
                     // The main content of the screen - single LazyColumn for everything
                     LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -225,9 +239,83 @@ fun PortalDetailScreen(
                             }
                         }
 
-                        // Add bottom padding for content
+                        // RSVP / Join Supporters / Add to Calendar buttons at bottom
                         item {
-                            Spacer(modifier = Modifier.height(24.dp))
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                // "Register for Event" — if Attendees goal exists and not yet registered
+                                if (attendeesGoal != null && !isEventRegistered.value) {
+                                    Button(
+                                        onClick = {
+                                            viewModel.joinGoalTeam(attendeesGoal.id) { success ->
+                                                if (success) isEventRegistered.value = true
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF8CC55D)
+                                        ),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            "Register for Event",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+
+                                // "You're registered!" confirmation
+                                if (isEventRegistered.value) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp)
+                                            .background(Color(0xFF8CC55D).copy(alpha = 0.15f), RoundedCornerShape(6.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "✓ You're registered for this event!",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF006400)
+                                        )
+                                    }
+                                }
+
+                                // "Join Supporters" — if Supporters goal exists and no Attendees goal
+                                if (supportersGoal != null && attendeesGoal == null) {
+                                    Button(
+                                        onClick = {
+                                            viewModel.joinGoalTeam(supportersGoal.id) { success ->
+                                                if (success) viewModel.loadPortalDetail(portalId, userId)
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF8CC55D)
+                                        ),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            "Join Supporters",
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
@@ -271,7 +359,30 @@ fun PortalDetailScreen(
                     showPaymentSheet = true
                 }
             },
+            onJoinTeam = {
+                showActionSheet = false
+                showGoalPickerSheet = true
+            },
             supportGoal = supportGoal
+        )
+    }
+
+    // Goal Picker Sheet — shows Recruiting goals to join (matches iOS GoalPickerSheet)
+    if (showGoalPickerSheet) {
+        GoalPickerSheet(
+            goals = recruitingGoals,
+            userId = userId,
+            onJoin = { goalId ->
+                viewModel.joinGoalTeam(goalId) { success ->
+                    if (success) viewModel.loadPortalDetail(portalId, userId)
+                }
+                showGoalPickerSheet = false
+            },
+            onNavigateToGoal = { goalId ->
+                showGoalPickerSheet = false
+                onNavigateToGoal(goalId)
+            },
+            onDismiss = { showGoalPickerSheet = false }
         )
     }
 
@@ -353,41 +464,20 @@ fun PortalDetailScreen(
         )
     }
 
-    // Message Sheet
+    // Message Sheet — navigate to actual chat
     if (showMessageSheet && selectedLeadUser != null) {
+        LaunchedEffect(selectedLeadUser) {
+            val lead = selectedLeadUser
+            if (lead != null) {
+                onMessage(lead)
+            }
+            showMessageSheet = false
+            selectedLeadUser = null
+        }
         AlertDialog(
             onDismissRequest = { showMessageSheet = false },
-            title = {
-                Text(
-                    "Send Message to ${selectedLeadUser?.displayName ?: "User"}",
-                    fontWeight = FontWeight.Bold
-                ) 
-            },
-            text = { 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Start a conversation with this portal's lead:")
-                    // Navigate to chat screen
-                    Button(
-                        onClick = {
-                            // TODO: Navigate to individual chat with selected lead
-                            showMessageSheet = false
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF8CC55D)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ChatBubble,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Start Chat", fontWeight = FontWeight.Bold)
-                    }
-                }
-            },
+            title = { Text("Opening chat...") },
+            text = {},
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showMessageSheet = false }) {
@@ -464,6 +554,20 @@ fun ImageGallery(
     val configuration = LocalConfiguration.current
     val imageHeight = (configuration.screenWidthDp * 9 / 16).dp
     val pagerState = rememberPagerState(pageCount = { images.size })
+
+    // Auto-slideshow: cycle through all images at 250ms intervals (matches iOS runIntroSlideshow)
+    LaunchedEffect(images.size) {
+        if (images.size > 1) {
+            // Brief initial delay to let images start loading
+            kotlinx.coroutines.delay(800L)
+            for (i in 1 until images.size) {
+                kotlinx.coroutines.delay(250L)
+                pagerState.animateScrollToPage(i)
+            }
+            kotlinx.coroutines.delay(250L)
+            pagerState.animateScrollToPage(0)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -568,6 +672,43 @@ fun StorySection(
         modifier = modifier.padding(top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Event details (shown for event-type portals)
+        if (portal.portalType == "event") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Event Details",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                portal.eventTimezone?.takeIf { it.isNotBlank() }?.let { tz ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Timezone:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(tz, fontSize = 14.sp, color = Color.DarkGray)
+                    }
+                }
+                portal.eventDurationMinutes?.let { mins ->
+                    val hours = mins / 60
+                    val remaining = mins % 60
+                    val display = when {
+                        hours > 0 && remaining > 0 -> "${hours}h ${remaining}m"
+                        hours > 0 -> "${hours}h"
+                        else -> "${mins}m"
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Duration:", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text(display, fontSize = 14.sp, color = Color.DarkGray)
+                    }
+                }
+            }
+            HorizontalDivider(color = Color(0xFFE4E4E4))
+        }
+
         // Leads section
             Text(
                 text = "Leads",
@@ -721,6 +862,7 @@ fun PortalActionSheet(
     onEditPortal: () -> Unit,
     onFlag: () -> Unit,
     onSupport: () -> Unit,
+    onJoinTeam: () -> Unit = {},
     supportGoal: Goal?
 ) {
     val isCurrentUserLead = portal.aLeads?.any { it.id == userId } ?: false
@@ -785,19 +927,22 @@ fun PortalActionSheet(
                 }
             }
 
-            // Select Goal Team option
+            // Join Team option — shows goal picker sheet
             Button(
-                onClick = onDismiss,
+                onClick = {
+                    onDismiss()
+                    onJoinTeam()
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
-                    contentColor = Color(0xFF8CC55D)
+                    contentColor = Color(0xFF006400)
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
                 Text(
-                    text = "Select Goal Team",
+                    text = "Join Team",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -858,6 +1003,122 @@ fun PortalActionSheet(
                     fontWeight = FontWeight.Medium
                 )
             }
+        }
+    }
+}
+
+// Goal Picker Sheet — matches iOS GoalPickerSheet
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun GoalPickerSheet(
+    goals: List<Goal>,
+    userId: Int,
+    onJoin: (Int) -> Unit,
+    onNavigateToGoal: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(),
+        containerColor = Color.White
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Join Team",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Default.Close, contentDescription = "Close")
+                }
+            }
+            HorizontalDivider(color = Color(0xFFE4E4E4))
+
+            if (goals.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No Goal Teams available to join.", color = Color.Gray)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(goals) { goal ->
+                        val isCreator = goal.creatorId == userId
+                        val tagText = if (goal.typeName.lowercase() == "other")
+                            goal.metricName.take(9).ifBlank { goal.typeName }
+                        else goal.typeName
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToGoal(goal.id) }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = goal.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp,
+                                    color = Color(0xFF006400)
+                                )
+                                if (goal.subtitle.isNotBlank()) {
+                                    Text(
+                                        text = goal.subtitle,
+                                        fontSize = 14.sp,
+                                        color = Color.DarkGray
+                                    )
+                                }
+                                Text(
+                                    text = "${goal.progressPercent.toInt()}% [$tagText]",
+                                    fontSize = 13.sp,
+                                    color = Color.Black
+                                )
+                            }
+                            if (!isCreator) {
+                                Button(
+                                    onClick = { onJoin(goal.id) },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF8CC55D)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("Join", fontWeight = FontWeight.SemiBold)
+                                }
+                            } else {
+                                Text(
+                                    text = "Creator",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF8CC55D),
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier
+                                        .background(Color(0xFF8CC55D).copy(alpha = 0.1f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                        HorizontalDivider(color = Color(0xFFE4E4E4))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

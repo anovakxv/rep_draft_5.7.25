@@ -2,6 +2,7 @@ package com.networkedcapital.rep.presentation.goals
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.networkedcapital.rep.data.api.GoalApiService
 import com.networkedcapital.rep.data.repository.GoalRepository
 import com.networkedcapital.rep.domain.model.ReportingIncrement
 import com.networkedcapital.rep.domain.model.Goal
@@ -18,12 +19,14 @@ data class EditGoalUiState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val reportingIncrements: List<ReportingIncrement> = emptyList(),
-    val selectedReportingIncrementId: Int? = null
+    val selectedReportingIncrementId: Int? = null,
+    val loadedGoal: Goal? = null
 )
 
 @HiltViewModel
 class EditGoalViewModel @Inject constructor(
-    private val goalRepository: GoalRepository
+    private val goalRepository: GoalRepository,
+    private val goalApiService: GoalApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(EditGoalUiState())
@@ -171,5 +174,56 @@ class EditGoalViewModel @Inject constructor(
 
     fun clearSuccess() {
         _uiState.value = _uiState.value.copy(successMessage = null)
+    }
+
+    fun loadGoal(goalId: Int) {
+        if (goalId <= 0) return
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            try {
+                val response = goalApiService.getGoalDetails(goalId)
+                if (response.isSuccessful && response.body() != null) {
+                    val data = response.body()!!.result
+                    val goal = Goal(
+                        id = data.id,
+                        title = data.title,
+                        subtitle = data.subtitle ?: "",
+                        description = data.description ?: "",
+                        quota = data.quota ?: 0.0,
+                        progress = data.progress ?: 0.0,
+                        progressPercent = data.progressPercent ?: 0.0,
+                        typeName = data.typeName ?: "Recruiting",
+                        metricName = data.metricName ?: "",
+                        reportingName = data.reportingName ?: "",
+                        quotaString = data.quotaString ?: "",
+                        valueString = data.valueString ?: "",
+                        chartData = data.chartData ?: emptyList(),
+                        portalName = data.portalName,
+                        portalId = data.portalId,
+                        creatorId = data.creatorId ?: 0,
+                        chatsId = data.chatsId
+                    )
+                    // Match the reporting increment by name
+                    val matchingIncrementId = _uiState.value.reportingIncrements.firstOrNull {
+                        it.title.trim().equals(data.reportingName?.trim(), ignoreCase = true)
+                    }?.id
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        loadedGoal = goal,
+                        selectedReportingIncrementId = matchingIncrementId ?: _uiState.value.selectedReportingIncrementId
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Failed to load goal"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message ?: "Failed to load goal"
+                )
+            }
+        }
     }
 }

@@ -75,4 +75,5 @@ object ApiConfig {
     const val PENDING_INVITES = "api/goals/pending_invites"
     const val GOAL_TEAM_RESPOND = "api/goals/{goalId}/team"
     const val MARK_INVITES_READ = "api/goals/pending_invites/mark_read"
+    const val INVITE_TO_GOAL = "api/goals/invite_to_goal"
 }

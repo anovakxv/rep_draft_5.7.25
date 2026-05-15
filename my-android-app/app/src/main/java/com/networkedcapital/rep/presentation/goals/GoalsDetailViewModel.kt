@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.networkedcapital.rep.data.api.GoalApiService
 import com.networkedcapital.rep.data.api.GoalDetailData
+import com.networkedcapital.rep.data.api.InviteToGoalRequest
 import com.networkedcapital.rep.data.api.ProgressLog
 import com.networkedcapital.rep.data.api.MessagingApiService
 import com.networkedcapital.rep.data.api.ManageGroupChatRequest
 import com.networkedcapital.rep.data.api.PaymentApiService
+import com.networkedcapital.rep.data.repository.PortalRepository
 import com.networkedcapital.rep.domain.model.Goal
 import com.networkedcapital.rep.domain.model.CreateCheckoutSessionRequest
 import com.networkedcapital.rep.domain.model.User
@@ -25,7 +27,8 @@ class GoalsDetailViewModel @Inject constructor(
     private val goalApiService: GoalApiService,
     private val authRepository: com.networkedcapital.rep.data.repository.AuthRepository,
     private val messagingApiService: MessagingApiService,
-    private val paymentApiService: PaymentApiService
+    private val paymentApiService: PaymentApiService,
+    private val portalRepository: PortalRepository
 ) : ViewModel() {
 
     private val _goal = MutableStateFlow<Goal?>(null)
@@ -54,6 +57,15 @@ class GoalsDetailViewModel @Inject constructor(
 
     private val _isProcessingPayment = MutableStateFlow(false)
     val isProcessingPayment: StateFlow<Boolean> = _isProcessingPayment
+
+    private val _paymentUrl = MutableStateFlow<String?>(null)
+    val paymentUrl: StateFlow<String?> = _paymentUrl
+
+    private val _networkMembers = MutableStateFlow<List<User>>(emptyList())
+    val networkMembers: StateFlow<List<User>> = _networkMembers
+
+    private val _isInviting = MutableStateFlow(false)
+    val isInviting: StateFlow<Boolean> = _isInviting
 
     init {
         viewModelScope.launch {
@@ -138,7 +150,8 @@ class GoalsDetailViewModel @Inject constructor(
             chartData = data.chartData ?: emptyList(),
             portalName = data.portalName,
             portalId = data.portalId,
-            creatorId = data.creatorId ?: 0
+            creatorId = data.creatorId ?: 0,
+            chatsId = data.chatsId
         )
     }
 
@@ -302,10 +315,8 @@ class GoalsDetailViewModel @Inject constructor(
 
                 if (response.isSuccessful && response.body() != null) {
                     val checkoutUrl = response.body()!!.checkout_url
-                    // Store URL for UI to open in WebView
-                    _error.value = null // Clear any errors
-                    // TODO: Pass this URL to the UI layer to open in WebView
-                    // The UI should listen to a separate paymentUrl StateFlow
+                    _paymentUrl.value = checkoutUrl
+                    _error.value = null
                 } else {
                     _error.value = "Payment failed: ${response.message()}"
                 }
@@ -320,6 +331,64 @@ class GoalsDetailViewModel @Inject constructor(
     // Helper to get current user ID for UI checks
     fun getCurrentUserId(): Int {
         return _currentUserId.value
+    }
+
+    // Load user's network for invite sheet
+    fun loadNetworkMembers() {
+        viewModelScope.launch {
+            try {
+                val members = portalRepository.getFilteredPeople(_currentUserId.value, "ntwk")
+                _networkMembers.value = members.map { user ->
+                    user.copy(profile_picture_url = patchProfilePictureUrl(user.profile_picture_url ?: user.imageName))
+                }
+            } catch (e: Exception) {
+                // Non-critical — invite sheet can still show empty list
+            }
+        }
+    }
+
+    // Send team invites
+    fun inviteUsers(goalId: Int, userIds: List<Int>, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        if (userIds.isEmpty()) return
+        _isInviting.value = true
+        viewModelScope.launch {
+            try {
+                val response = goalApiService.inviteToGoal(InviteToGoalRequest(goal_id = goalId, users_ids = userIds))
+                if (response.isSuccessful) {
+                    onSuccess()
+                } else {
+                    onError("Failed to send invites: ${response.message()}")
+                }
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to send invites")
+            } finally {
+                _isInviting.value = false
+            }
+        }
+    }
+
+    // Delete goal
+    fun deleteGoal(goalId: Int, onSuccess: () -> Unit) {
+        _loading.value = true
+        _error.value = null
+        viewModelScope.launch {
+            try {
+                val response = goalApiService.deleteGoal(goalId.toString())
+                if (response.isSuccessful) {
+                    onSuccess()
+                } else {
+                    _error.value = "Failed to delete goal: ${response.message()}"
+                }
+            } catch (e: Exception) {
+                _error.value = "Failed to delete goal: ${e.message}"
+            } finally {
+                _loading.value = false
+            }
+        }
+    }
+
+    fun clearPaymentUrl() {
+        _paymentUrl.value = null
     }
 
     // Clear error message

@@ -40,6 +40,7 @@ import com.networkedcapital.rep.domain.model.BarChartData
 import com.networkedcapital.rep.domain.model.FeedItem
 import com.networkedcapital.rep.domain.model.Goal
 import com.networkedcapital.rep.domain.model.User
+import com.networkedcapital.rep.presentation.common.WebViewScreen
 import kotlin.math.max
 import kotlin.math.min
 
@@ -50,7 +51,7 @@ fun GoalsDetailScreen(
     onBack: () -> Unit,
     onMessage: (User) -> Unit,
     onEditGoal: () -> Unit,
-    onUpdateGoal: () -> Unit,
+    onUpdateGoal: (quota: Double, metricName: String) -> Unit,
     onNavigateToPortal: (Int) -> Unit = {}, // Added portal navigation
     onNavigateToGroupChat: (Int) -> Unit = {}, // Added group chat navigation
     viewModel: GoalsDetailViewModel = hiltViewModel()
@@ -83,18 +84,33 @@ fun GoalsDetailScreen(
     var isCreatingTeamChat by remember { mutableStateOf(false) }
     var teamChatId by remember { mutableStateOf<Int?>(null) }
     var chatCreationError by remember { mutableStateOf<String?>(null) }
+
+    // Delete goal state
+    var showDeleteGoalDialog by remember { mutableStateOf(false) }
+
+    // Invite to team state
+    var showInviteSheet by remember { mutableStateOf(false) }
+    var selectedInviteUserIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
+    var inviteError by remember { mutableStateOf<String?>(null) }
+    val networkMembers by viewModel.networkMembers.collectAsState()
+    val isInviting by viewModel.isInviting.collectAsState()
+
+    // Payment checkout URL
+    val paymentUrl by viewModel.paymentUrl.collectAsState()
     
-    // Function to open or create team chat
+    // Function to open goal team chat — use canonical chats_id from backend
     fun openGoalTeamChat() {
         if (isCreatingTeamChat) return
 
-        if (teamChatId != null) {
-            // Navigate to existing chat
-            onNavigateToGroupChat(teamChatId!!)
+        // Prefer the canonical chat ID from the goal (set by backend on join/create)
+        val canonicalChatId = goal?.chatsId ?: teamChatId
+        if (canonicalChatId != null) {
+            teamChatId = canonicalChatId
+            onNavigateToGroupChat(canonicalChatId)
             return
         }
 
-        // Create new chat logic
+        // Fallback: create chat for legacy goals that pre-date chats_id
         isCreatingTeamChat = true
         viewModel.createTeamChat(
             goalId = goal?.id ?: 0,
@@ -480,14 +496,16 @@ fun GoalsDetailScreen(
                     if (isOnTeam || isCreator) {
                         Text(
                             text = "Invite to Team",
-                            fontSize = 22.sp, // .title2 equivalent
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF8CC75D),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     showSheet = false
-                                    // TODO: Show invite team sheet
+                                    selectedInviteUserIds = emptySet()
+                                    viewModel.loadNetworkMembers()
+                                    showInviteSheet = true
                                 }
                                 .padding(vertical = 5.dp),
                             textAlign = TextAlign.Center
@@ -498,14 +516,17 @@ fun GoalsDetailScreen(
                     if (goal?.typeName != "Recruiting") {
                         Text(
                             text = "Update Progress",
-                            fontSize = 22.sp, // .title2 equivalent
+                            fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF8CC75D),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     showSheet = false
-                                    onUpdateGoal()
+                                    onUpdateGoal(
+                                        goal?.quota ?: 100.0,
+                                        goal?.metricName?.ifBlank { "Units" } ?: "Units"
+                                    )
                                 }
                                 .padding(vertical = 5.dp),
                             textAlign = TextAlign.Center
@@ -529,14 +550,14 @@ fun GoalsDetailScreen(
 
                     Text(
                         text = "Delete Goal",
-                        fontSize = 16.sp, // .body equivalent
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.Normal,
-                        color = Color.Red, // Destructive role
+                        color = Color.Red,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
                                 showSheet = false
-                                // TODO: Show delete confirmation alert
+                                showDeleteGoalDialog = true
                             }
                             .padding(vertical = 5.dp),
                         textAlign = TextAlign.Center
@@ -553,6 +574,165 @@ fun GoalsDetailScreen(
                             .padding(vertical = 5.dp),
                         textAlign = TextAlign.Center
                     )
+                }
+            }
+        }
+
+        // Delete goal confirmation dialog
+        if (showDeleteGoalDialog) {
+            AlertDialog(
+                onDismissRequest = { showDeleteGoalDialog = false },
+                title = { Text("Delete Goal") },
+                text = { Text("Are you sure you want to delete \"${goal?.title ?: "this goal"}\"? This cannot be undone.") },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDeleteGoalDialog = false
+                            viewModel.deleteGoal(goal?.id ?: 0) { onBack() }
+                        }
+                    ) {
+                        Text("Delete", color = Color.Red)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDeleteGoalDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Invite to Team sheet
+        if (showInviteSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showInviteSheet = false },
+                sheetState = rememberModalBottomSheetState(),
+                containerColor = Color.White
+            ) {
+                Column(
+                    modifier = androidx.compose.ui.Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Invite to Team",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = androidx.compose.ui.Modifier.padding(bottom = 8.dp)
+                    )
+                    if (networkMembers.isEmpty()) {
+                        Box(
+                            modifier = androidx.compose.ui.Modifier.fillMaxWidth().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = androidx.compose.ui.Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 360.dp)
+                        ) {
+                            items(networkMembers) { user ->
+                                val isSelected = selectedInviteUserIds.contains(user.id)
+                                Row(
+                                    modifier = androidx.compose.ui.Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedInviteUserIds = if (isSelected) {
+                                                selectedInviteUserIds - user.id
+                                            } else {
+                                                selectedInviteUserIds + user.id
+                                            }
+                                        }
+                                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    androidx.compose.foundation.layout.Box(
+                                        modifier = androidx.compose.ui.Modifier.size(40.dp)
+                                    ) {
+                                        if (!user.profile_picture_url.isNullOrBlank()) {
+                                            AsyncImage(
+                                                model = user.profile_picture_url,
+                                                contentDescription = null,
+                                                contentScale = ContentScale.Crop,
+                                                modifier = androidx.compose.ui.Modifier
+                                                    .size(40.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(0xFFE0E0E0))
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = androidx.compose.ui.Modifier
+                                                    .size(40.dp)
+                                                    .background(Color(0xFFE0E0E0), CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    (user.displayName).take(1),
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.Black
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Spacer(modifier = androidx.compose.ui.Modifier.width(12.dp))
+                                    Text(
+                                        text = user.displayName,
+                                        modifier = androidx.compose.ui.Modifier.weight(1f),
+                                        fontSize = 15.sp
+                                    )
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = Color(0xFF8CC75D),
+                                            modifier = androidx.compose.ui.Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                HorizontalDivider(color = Color(0xFFE4E4E4))
+                            }
+                        }
+                    }
+                    if (inviteError != null) {
+                        Text(inviteError!!, color = Color.Red, fontSize = 13.sp)
+                    }
+                    Button(
+                        onClick = {
+                            viewModel.inviteUsers(
+                                goalId = goal?.id ?: 0,
+                                userIds = selectedInviteUserIds.toList(),
+                                onSuccess = {
+                                    showInviteSheet = false
+                                    inviteError = null
+                                },
+                                onError = { msg -> inviteError = msg }
+                            )
+                        },
+                        enabled = selectedInviteUserIds.isNotEmpty() && !isInviting,
+                        modifier = androidx.compose.ui.Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 24.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8CC75D)),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        if (isInviting) {
+                            CircularProgressIndicator(
+                                modifier = androidx.compose.ui.Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = Color.White
+                            )
+                        } else {
+                            Text(
+                                "Send Invites (${selectedInviteUserIds.size})",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -719,8 +899,16 @@ fun GoalsDetailScreen(
                 }
             )
         }
+        // Payment checkout WebView overlay
+        if (paymentUrl != null) {
+            WebViewScreen(
+                url = paymentUrl!!,
+                title = "Payment",
+                onDismiss = { viewModel.clearPaymentUrl() }
+            )
+        }
     }
-}    
+}
 
 @Composable
 private fun ActionButton(text: String, onClick: () -> Unit) {

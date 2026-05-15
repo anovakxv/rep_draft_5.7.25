@@ -41,7 +41,7 @@ fun EditGoalScreen(
     val goalTypes = listOf("Recruiting", "Sales", "Fund", "Marketing", "Hours", "Other")
     val scope = rememberCoroutineScope()
 
-    // Set the selected reporting increment to match existing goal
+    // Set the selected reporting increment to match existing goal passed directly
     LaunchedEffect(existingGoal, uiState.reportingIncrements) {
         if (existingGoal != null && uiState.reportingIncrements.isNotEmpty()) {
             val matchingIncrement = uiState.reportingIncrements.firstOrNull {
@@ -50,6 +50,18 @@ fun EditGoalScreen(
             matchingIncrement?.let {
                 viewModel.setSelectedReportingIncrement(it.id)
             }
+        }
+    }
+
+    // When goal is loaded from API (edit flow via navigation), populate local form fields
+    LaunchedEffect(uiState.loadedGoal) {
+        uiState.loadedGoal?.let { loaded ->
+            title = loaded.title
+            subtitle = loaded.subtitle
+            description = loaded.description
+            quota = loaded.quota.toInt().toString()
+            goalType = loaded.typeName.ifBlank { "Recruiting" }
+            metric = loaded.metricName
         }
     }
 
@@ -100,26 +112,32 @@ fun EditGoalScreen(
                 label = { Text("Description") },
                 modifier = Modifier.fillMaxWidth()
             )
+            var goalTypeExpanded by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(
-                expanded = false,
-                onExpandedChange = {}
+                expanded = goalTypeExpanded,
+                onExpandedChange = { goalTypeExpanded = !goalTypeExpanded }
             ) {
                 OutlinedTextField(
                     value = goalType,
-                    onValueChange = { goalType = it },
+                    onValueChange = {},
                     label = { Text("Goal Type") },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(),
                     readOnly = true,
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = false) }
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = goalTypeExpanded) }
                 )
-                DropdownMenu(
-                    expanded = false,
-                    onDismissRequest = {}
+                ExposedDropdownMenu(
+                    expanded = goalTypeExpanded,
+                    onDismissRequest = { goalTypeExpanded = false }
                 ) {
                     goalTypes.forEach { type ->
                         DropdownMenuItem(
                             text = { Text(type) },
-                            onClick = { goalType = type }
+                            onClick = {
+                                goalType = type
+                                goalTypeExpanded = false
+                            }
                         )
                     }
                 }

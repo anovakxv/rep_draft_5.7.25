@@ -40,7 +40,19 @@ interface GoalApiService {
 
     @POST("api/goals/join_leave")
     suspend fun joinOrLeaveGoal(@Body request: JoinLeaveGoalRequest): Response<JoinLeaveGoalResponse>
+
+    @POST(ApiConfig.INVITE_TO_GOAL)
+    suspend fun inviteToGoal(@Body request: InviteToGoalRequest): Response<InviteToGoalResponse>
 }
+
+data class InviteToGoalRequest(
+    val goal_id: Int,
+    val users_ids: List<Int>
+)
+
+data class InviteToGoalResponse(
+    val result: String? = null
+)
 
 // Response for reporting increments - matches iOS structure
 data class ReportingIncrementsResponse(
@@ -126,7 +138,8 @@ data class GoalDetailData(
     val portalId: Int? = null,
     val portalName: String? = null,
     val team: List<User>? = null,
-    val aLatestProgress: List<ProgressLog>? = null
+    val aLatestProgress: List<ProgressLog>? = null,
+    @Json(name = "chats_id") val chatsId: Int? = null
 )
 
 data class ProgressLog(

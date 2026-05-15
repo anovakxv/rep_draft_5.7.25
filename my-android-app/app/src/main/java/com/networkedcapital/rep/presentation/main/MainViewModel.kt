@@ -63,6 +63,9 @@ class MainViewModel @Inject constructor(
 
     private val _openNeedsAttention = MutableStateFlow(false)
     val openNeedsAttention: StateFlow<Boolean> = _openNeedsAttention.asStateFlow()
+
+    private val _pendingInviteCount = MutableStateFlow(0)
+    val pendingInviteCount: StateFlow<Int> = _pendingInviteCount.asStateFlow()
     
     // NEW: Background data caching
     private val backgroundPortalsTab0 = MutableStateFlow<List<Portal>>(emptyList())
@@ -148,19 +151,20 @@ class MainViewModel @Inject constructor(
         onSectionChanged(sectionIndex, userId)
     }
 
-    // NEW: Recalculate attention state (for badges)
+    // Recalculate attention state (for badges) and fetch invite count
     fun recalculateAttentionState() {
         val hasUnread = _hasUnreadDirectMessages.value || _hasUnreadGroupMessages.value
         viewModelScope.launch {
-            val hasPendingInvites = try {
+            val invites = try {
                 inviteRepository.getPendingInvites()
                     .firstOrNull()
                     ?.getOrNull()
-                    ?.isNotEmpty() ?: false
+                    ?: emptyList()
             } catch (e: Exception) {
-                false
+                emptyList()
             }
-            _openNeedsAttention.value = hasUnread || hasPendingInvites
+            _pendingInviteCount.value = invites.size
+            _openNeedsAttention.value = hasUnread || invites.isNotEmpty()
         }
     }
 

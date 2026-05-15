@@ -414,19 +414,19 @@ fun MainScreen(
     onNavigateToChat: (ActiveChat) -> Unit,
     onNavigateToAddPurpose: () -> Unit,
     onNavigateToCreateGroupChat: () -> Unit,
+    onNavigateToInvites: (Int) -> Unit = {},
     onLogout: () -> Unit,
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    
-    // NEW: Track action sheet visibility
+
     var showActionSheet by remember { mutableStateOf(false) }
-    
-    // NEW: Attention state for sections
+
     val hasUnreadMessages by viewModel.hasUnreadDirectMessages.collectAsState()
     val hasUnreadGroupMessages by viewModel.hasUnreadGroupMessages.collectAsState()
     val openNeedsAttention by viewModel.openNeedsAttention.collectAsState()
+    val pendingInviteCount by viewModel.pendingInviteCount.collectAsState()
     val attentionDotIndices = remember(hasUnreadMessages, hasUnreadGroupMessages, openNeedsAttention) {
         buildSet {
             // Show dot on Chats tab (index 0) when there are unread messages OR open needs attention
@@ -615,17 +615,13 @@ fun MainScreen(
             } else {
                 // Section 0 always shows chats (matching iOS behavior)
                 if (uiState.selectedSection == 0) {
-                    if (uiState.activeChats.isNotEmpty()) {
+                    if (uiState.activeChats.isNotEmpty() || pendingInviteCount > 0) {
                         ActiveChatsList(
                             chats = uiState.activeChats,
                             userId = userId,
-                            onChatClick = { chat ->
-                                if (chat is ActiveChat) {
-                                    onNavigateToChat(chat)
-                                } else {
-                                    Log.e("MainScreen", "Invalid chat object")
-                                }
-                            },
+                            onChatClick = { chat -> onNavigateToChat(chat) },
+                            pendingInviteCount = pendingInviteCount,
+                            onViewInvites = { onNavigateToInvites(userId) },
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
@@ -1227,26 +1223,69 @@ fun PortalsList(
     }
 }
 
-// NEW: Active chats list
+// Active chats list with pending invites banner (matches iOS ActiveChatList)
 @Composable
 fun ActiveChatsList(
     chats: List<ActiveChat>,
     userId: Int,
     onChatClick: (ActiveChat) -> Unit,
+    pendingInviteCount: Int = 0,
+    onViewInvites: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(0.dp) // iOS style: no gaps between items
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
+        // Pending invites banner — matches iOS "You have X pending invitations" row
+        if (pendingInviteCount > 0) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onViewInvites() }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .background(Color(0xFF8CC55D), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "You have $pendingInviteCount pending invitation${if (pendingInviteCount > 1) "s" else ""}",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 17.sp,
+                            color = Color.Black
+                        )
+                        Text(
+                            text = "Tap to view and respond",
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
+                    }
+                }
+                HorizontalDivider(color = Color(0xFFE0E0E0), thickness = 0.5.dp)
+            }
+        }
+
         items(chats) { chat ->
             EnhancedActiveChatItem(
                 chat = chat,
                 userId = userId,
                 onClick = { onChatClick(chat) }
             )
-            // Add divider between items
             HorizontalDivider(
                 modifier = Modifier.padding(start = 80.dp),
                 color = Color(0xFFE0E0E0),
@@ -1264,8 +1303,7 @@ fun PeopleList(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(vertical = 8.dp)
     ) {
         items(people) { person ->
             PersonItem(
@@ -1276,54 +1314,64 @@ fun PeopleList(
     }
 }
 
-// Enhance PersonItem to match iOS style
+// PersonItem — iOS-style chat list row with last message when available, bio/city fallback
 @Composable
 fun PersonItem(
     person: User,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val hasLastMessage = !person.lastMessage.isNullOrBlank()
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Use our thumbnail helper
-            UserProfileImageThumbnail(user = person, size = 60.dp)
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Person Info
-            Column(modifier = Modifier.weight(1f)) {
+        UserProfileImageThumbnail(user = person, size = 64.dp)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = person.displayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (hasLastMessage && !person.lastMessageDate.isNullOrBlank()) {
+                    Text(
+                        text = formatTimeAgo(person.lastMessageDate!!),
+                        fontSize = 12.sp,
+                        color = Color.Gray
+                    )
+                }
+            }
+            if (hasLastMessage) {
+                Text(
+                    text = person.lastMessage!!,
+                    fontSize = 17.sp,
+                    color = Color.Gray,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-
-                if (person.about?.isNotBlank() == true) {
-                    Text(
-                        text = person.about,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.DarkGray,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
-                    )
+            } else {
+                val secondary = when {
+                    !person.about.isNullOrBlank() -> person.about
+                    !person.city.isNullOrBlank() -> person.city
+                    else -> null
                 }
-
-                if (person.city?.isNotBlank() == true) {
+                secondary?.let {
                     Text(
-                        text = person.city,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF8CC55D), // iOS green color
+                        text = it,
+                        fontSize = 15.sp,
+                        color = Color.Gray,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1331,6 +1379,11 @@ fun PersonItem(
             }
         }
     }
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 80.dp),
+        color = Color(0xFFE0E0E0),
+        thickness = 0.5.dp
+    )
 }
 
 @Composable

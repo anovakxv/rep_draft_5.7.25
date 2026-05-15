@@ -325,6 +325,34 @@ class EditPortalViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(errorMessage = null)
     }
 
+    fun loadPortalDetail(portalId: Int, userId: Int) {
+        if (portalId <= 0) return
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        viewModelScope.launch {
+            try {
+                portalRepository.getPortalDetail(portalId, userId).collect { result ->
+                    result.fold(
+                        onSuccess = { portalDetail ->
+                            initializeWithPortal(portalDetail)
+                            _uiState.value = _uiState.value.copy(isLoading = false)
+                        },
+                        onFailure = { throwable ->
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                errorMessage = throwable.message ?: "Failed to load portal"
+                            )
+                        }
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message ?: "Failed to load portal"
+                )
+            }
+        }
+    }
+
     fun clearSuccess() {
         _uiState.value = _uiState.value.copy(successMessage = null)
     }

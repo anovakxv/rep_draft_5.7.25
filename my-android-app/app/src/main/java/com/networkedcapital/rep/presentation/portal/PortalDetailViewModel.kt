@@ -2,6 +2,8 @@ package com.networkedcapital.rep.presentation.portal
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.networkedcapital.rep.data.api.GoalApiService
+import com.networkedcapital.rep.data.api.JoinLeaveGoalRequest
 import com.networkedcapital.rep.data.repository.PortalRepository
 import com.networkedcapital.rep.domain.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,7 +13,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PortalDetailViewModel @Inject constructor(
-    private val portalRepository: PortalRepository
+    private val portalRepository: PortalRepository,
+    private val goalApiService: GoalApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PortalDetailUiState())
@@ -135,6 +138,21 @@ class PortalDetailViewModel @Inject constructor(
 
     fun clearFlagResult() {
         _uiState.update { it.copy(flagResult = null) }
+    }
+
+    fun joinGoalTeam(goalId: Int, onComplete: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val response = goalApiService.joinOrLeaveGoal(
+                    JoinLeaveGoalRequest(aGoalsIDs = listOf(goalId), todo = "join")
+                )
+                val result = response.body()?.result?.get(goalId)
+                val success = result == "ok" || result == "Already a member"
+                onComplete(success)
+            } catch (e: Exception) {
+                onComplete(false)
+            }
+        }
     }
 }
 

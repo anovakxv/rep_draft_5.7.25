@@ -121,7 +121,10 @@ data class PortalDetail(
     val aTexts: List<PortalText>? = null,
     val aSections: List<PortalSection>? = null,
     val aUsers: List<User>? = null,
-    val aLeads: List<User>? = null
+    val aLeads: List<User>? = null,
+    @Json(name = "portal_type") val portalType: String? = null,
+    @Json(name = "event_timezone") val eventTimezone: String? = null,
+    @Json(name = "event_duration_minutes") val eventDurationMinutes: Int? = null
 ) : Parcelable
 
 @Parcelize
@@ -182,7 +185,8 @@ data class Goal(
     val chartData: List<BarChartData> = emptyList(),
     val portalName: String? = null,
     val portalId: Int? = null,
-    val creatorId: Int = 0
+    val creatorId: Int = 0,
+    val chatsId: Int? = null
 ) : Parcelable
 
 @Parcelize

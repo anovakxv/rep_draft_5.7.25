@@ -173,6 +173,9 @@ fun RepNavigation(
                 onNavigateToCreateGroupChat = {
                     navController.navigate(Screen.CreateGroupChat.route)
                 },
+                onNavigateToInvites = { userId ->
+                    navController.navigate(Screen.Invites.createRoute(userId))
+                },
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
@@ -331,8 +334,8 @@ fun RepNavigation(
                 onEditGoal = {
                     navController.navigate(Screen.EditGoal.createRoute(goalId))
                 },
-                onUpdateGoal = {
-                    navController.navigate(Screen.UpdateGoal.createRoute(goalId))
+                onUpdateGoal = { quota, metricName ->
+                    navController.navigate(Screen.UpdateGoal.createRoute(goalId, quota, metricName))
                 },
                 onNavigateToPortal = { portalId ->
                     navController.navigate(Screen.PortalDetail.createRoute(portalId, authState.userId))
@@ -539,23 +542,29 @@ fun RepNavigation(
             )
         ) { backStackEntry ->
             val portalId = backStackEntry.arguments?.getInt("portalId") ?: 0
-            // TODO: Load existing portal by portalId via ViewModel
+            val editPortalViewModel: com.networkedcapital.rep.presentation.portal.EditPortalViewModel = hiltViewModel()
+            val editPortalUiState by editPortalViewModel.uiState.collectAsState()
+
+            // Load existing portal data when editing
+            LaunchedEffect(portalId) {
+                if (portalId > 0) editPortalViewModel.loadPortalDetail(portalId, authState.userId)
+            }
+
             EditPortalScreen(
-                portalDetail = null, // Will be loaded via ViewModel when portalId != 0
+                portalDetail = editPortalUiState.portalDetail,
                 userId = authState.userId,
                 onNavigateBack = {
                     navController.popBackStack()
                 },
                 onNavigateToPortalDetail = { createdPortalId ->
-                    // Navigate to the newly created/edited portal detail screen
                     navController.navigate(Screen.PortalDetail.createRoute(createdPortalId, authState.userId)) {
-                        // Remove EditPortal from back stack so back button goes to Main
                         popUpTo(Screen.EditPortal.route) { inclusive = true }
                     }
                 },
-                onNavigateToPaymentSettings = { portalId, portalName ->
-                    navController.navigate(Screen.PortalPaymentSetup.createRoute(portalId, portalName))
-                }
+                onNavigateToPaymentSettings = { pId, portalName ->
+                    navController.navigate(Screen.PortalPaymentSetup.createRoute(pId, portalName))
+                },
+                viewModel = editPortalViewModel
             )
         }
 
@@ -567,16 +576,26 @@ fun RepNavigation(
             )
         ) { backStackEntry ->
             val goalId = backStackEntry.arguments?.getInt("goalId") ?: 0
-            // TODO: Load existing goal by goalId
+            val viewModel: com.networkedcapital.rep.presentation.goals.EditGoalViewModel = hiltViewModel()
+            val uiState by viewModel.uiState.collectAsState()
+
+            // Load existing goal data when editing
+            LaunchedEffect(goalId) {
+                if (goalId > 0) viewModel.loadGoal(goalId)
+            }
+
             EditGoalScreen(
-                existingGoal = null, // Will be loaded via ViewModel in future
-                onSave = { goal ->
-                    // TODO: Save goal via API
+                existingGoal = uiState.loadedGoal,
+                portalId = null,
+                portalName = null,
+                userId = authState.userId,
+                onSave = { _ ->
                     navController.popBackStack()
                 },
                 onCancel = {
                     navController.popBackStack()
-                }
+                },
+                viewModel = viewModel
             )
         }
 
@@ -584,17 +603,22 @@ fun RepNavigation(
         composable(
             route = Screen.UpdateGoal.route,
             arguments = listOf(
-                navArgument("goalId") { type = NavType.IntType }
+                navArgument("goalId") { type = NavType.IntType },
+                navArgument("quota") { type = NavType.StringType },
+                navArgument("metricName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val goalId = backStackEntry.arguments?.getInt("goalId") ?: 0
-            // TODO: Load goal quota and metric by goalId
+            val quota = backStackEntry.arguments?.getString("quota")?.toDoubleOrNull() ?: 100.0
+            val metricName = backStackEntry.arguments?.getString("metricName")?.let {
+                URLDecoder.decode(it, StandardCharsets.UTF_8.toString())
+            } ?: "Units"
+
             UpdateGoalScreen(
                 goalId = goalId,
-                quota = 100.0, // TODO: Load from API
-                metricName = "Units", // TODO: Load from API
-                onSubmit = { addedValue, note ->
-                    // TODO: Submit progress update via API
+                quota = quota,
+                metricName = metricName,
+                onSubmit = { _, _ ->
                     navController.popBackStack()
                 },
                 onCancel = {
@@ -660,7 +684,10 @@ sealed class Screen(val route: String) {
     object EditGoal : Screen("edit_goal/{goalId}") {
         fun createRoute(goalId: Int) = "edit_goal/$goalId"
     }
-    object UpdateGoal : Screen("update_goal/{goalId}") {
-        fun createRoute(goalId: Int) = "update_goal/$goalId"
+    object UpdateGoal : Screen("update_goal/{goalId}/{quota}/{metricName}") {
+        fun createRoute(goalId: Int, quota: Double, metricName: String): String {
+            val encodedMetric = URLEncoder.encode(metricName.ifBlank { "Units" }, StandardCharsets.UTF_8.toString())
+            return "update_goal/$goalId/$quota/$encodedMetric"
+        }
     }
 }

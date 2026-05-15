@@ -51,6 +51,9 @@ out/
 # Claude Code local settings
 .claude/
 
+# Planning docs (local only)
+ANDROID_PARITY_PLAN.md
+
 # Python artifacts (not part of this project)
 __pycache__/
 *.py[cod]

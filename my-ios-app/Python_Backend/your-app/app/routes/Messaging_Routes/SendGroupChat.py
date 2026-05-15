@@ -64,32 +64,34 @@ def api_send_chat_message():
     # Get sender object for notifications and response
     sender = User.query.filter_by(id=user_id).first()
 
+    # Fetch members once and batch-load users (avoids N+1 and double ChatsUsers query)
+    member_ids = [cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=chat_id).all()]
+    members_map = {u.id: u for u in User.query.filter(User.id.in_(member_ids)).all()} if member_ids else {}
+
     # Push notifications to other members
     try:
-        member_ids = [cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=chat_id).all()]
-        if member_ids:
-            chat_name = chat.name
-            for uid in member_ids:
-                if uid == user_id:
-                    continue
-                u = User.query.filter_by(id=uid).first()
-                if not u or not u.device_token:
-                    continue
-                try:
-                    send_notification(
-                        uid,  # The recipient's user ID
-                        "group_message",  # Notification type
-                        title=f"{sender.full_name if sender else 'Someone'} in {chat_name}",
-                        body=message_text,
-                        data={
-                            "type": "group_message",
-                            "chat_id": chat_id,
-                            "message_id": msg.id,
-                            "sender_id": user_id
-                        }
-                    )
-                except Exception as ne:
-                    print(f"[GroupChat Notification] Error sending to user {uid}: {ne}")
+        chat_name = chat.name
+        for uid in member_ids:
+            if uid == user_id:
+                continue
+            u = members_map.get(uid)
+            if not u or not u.device_token:
+                continue
+            try:
+                send_notification(
+                    uid,
+                    "group_message",
+                    title=f"{sender.full_name if sender else 'Someone'} in {chat_name}",
+                    body=message_text,
+                    data={
+                        "type": "group_message",
+                        "chat_id": chat_id,
+                        "message_id": msg.id,
+                        "sender_id": user_id
+                    }
+                )
+            except Exception as ne:
+                print(f"[GroupChat Notification] Error sending to user {uid}: {ne}")
     except Exception as e:
         print(f"[GroupChat FCM] Block error: {e}")
 
@@ -112,11 +114,7 @@ def api_send_chat_message():
             {"chat_id": chat_id, **message_obj},
             room=f"chat_{chat_id}"
         )
-        # NEW: also notify each member's personal room for OPEN dot
-        try:
-            member_ids = [cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=chat_id).all()]
-        except Exception:
-            member_ids = []
+        # Notify each member's personal room for OPEN dot (reuse member_ids fetched above)
         notif_payload = {
             "type": "group_message",
             "chat_id": chat_id,

@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.UserPhoto import UserPhoto
 from app.models.People_Models.PhotoLike import PhotoLike
+from app.models.People_Models.user import User
 from app.utils.auth import jwt_required
 
 photo_likes_bp = Blueprint('photo_likes', __name__)
@@ -63,13 +64,17 @@ def get_photo_likes(photo_id):
         return jsonify({'error': 'Photo not found'}), 404
 
     try:
-        likes = PhotoLike.query.filter_by(photo_id=photo_id).all()
-        like_count = len(likes)
+        likes = PhotoLike.query.filter_by(photo_id=photo_id).limit(200).all()
+        like_count = PhotoLike.query.filter_by(photo_id=photo_id).count()
         user_liked = any(like.user_id == user_id for like in likes)
+
+        # Batch-load users to avoid N+1
+        user_ids = [like.user_id for like in likes]
+        users_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
 
         users = [{
             'user_id': like.user_id,
-            'user_name': f"{like.user.fname or ''} {like.user.lname or ''}".strip() if like.user else ""
+            'user_name': (lambda u: f"{u.fname or ''} {u.lname or ''}".strip() if u else "")(users_map.get(like.user_id))
         } for like in likes]
 
         return jsonify({

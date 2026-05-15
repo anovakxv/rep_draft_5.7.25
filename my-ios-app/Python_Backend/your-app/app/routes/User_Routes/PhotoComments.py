@@ -3,7 +3,7 @@
 # Created by Adam Novak: February 2026
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.People_Models.UserPhoto import UserPhoto
 from app.models.People_Models.PhotoComment import PhotoComment
 from app.utils.auth import jwt_required
@@ -13,6 +13,7 @@ photo_comments_bp = Blueprint('photo_comments', __name__)
 
 @photo_comments_bp.route('/photos/<int:photo_id>/comments', methods=['POST'])
 @jwt_required
+@limiter.limit("30 per minute")
 def add_comment(photo_id):
     """Add a comment to a photo."""
     user_id = g.current_user.id

@@ -5,6 +5,7 @@
 from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.ValueMetric_Models.GoalPreInvite import GoalPreInvite
+from app.models.ValueMetric_Models.Goal import Goal
 from app.utils.auth import jwt_required
 
 goals_bp = Blueprint('goal_invite', __name__)
@@ -15,6 +16,11 @@ goals_bp = Blueprint('goal_invite', __name__)
 def add_goal_invites(goal_id):
     data = request.json
     user_id = g.current_user.id
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+    if goal.users_id != user_id and goal.lead_id != user_id:
+        return jsonify({'error': 'Permission denied'}), 403
     emails = data.get('emails', [])
     phones = data.get('phones', [])
     results = {}
@@ -54,6 +60,11 @@ def add_goal_invites(goal_id):
 def remove_goal_invites(goal_id):
     data = request.json
     user_id = g.current_user.id
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+    if goal.users_id != user_id and goal.lead_id != user_id:
+        return jsonify({'error': 'Permission denied'}), 403
     emails = data.get('emails', [])
     phones = data.get('phones', [])
     results = {}

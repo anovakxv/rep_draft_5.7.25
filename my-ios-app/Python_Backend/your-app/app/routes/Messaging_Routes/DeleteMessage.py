@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.utils.auth import jwt_required
 
@@ -11,6 +11,7 @@ user_bp = Blueprint('delete_message', __name__)
 
 @user_bp.route('/delete_message', methods=['POST'])
 @jwt_required
+@limiter.limit("10 per minute")
 def api_delete_message():
     data = request.get_json()
     user_id = g.current_user.id

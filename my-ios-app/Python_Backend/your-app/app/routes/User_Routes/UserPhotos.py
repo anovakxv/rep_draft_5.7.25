@@ -265,6 +265,10 @@ def api_upload_user_photo_file():
 
     if not allowed_file(file.filename):
         return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
+    # Only reject if content type is explicitly a non-image MIME (allow octet-stream fallback)
+    content_type = file.content_type or ''
+    if content_type and not content_type.startswith('image/'):
+        return jsonify({'error': 'Invalid file type. Allowed: png, jpg, jpeg, gif, webp'}), 400
 
     # Check file size
     file.seek(0, 2)  # Seek to end

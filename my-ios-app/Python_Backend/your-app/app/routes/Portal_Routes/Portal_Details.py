@@ -88,7 +88,7 @@ def api_portal_details():
     section_ids = [section.id for section in sections]
     files_by_section = {}
     if section_ids:
-        files = S3Content.query.filter(S3Content.tbl_index == 6, S3Content.tbl_id.in_(section_ids)).all()
+        files = S3Content.query.filter(S3Content.tbl_index == 6, S3Content.tbl_id.in_(section_ids)).limit(500).all()
         for f in files:
             # Ensure returned url is full S3 URL
             file_url = f.url

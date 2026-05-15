@@ -15,7 +15,11 @@ goals_bp = Blueprint('goal_progress', __name__)
 @goals_bp.route('/<int:goal_id>/progress', methods=['GET'])
 @jwt_required
 def get_goal_progress(goal_id):
-    logs = GoalProgressLog.query.filter_by(goals_id=goal_id).order_by(GoalProgressLog.timestamp.desc()).all()
+    offset = request.args.get('offset', 0, type=int)
+    limit = min(request.args.get('limit', 100, type=int), 500)
+    logs = GoalProgressLog.query.filter_by(goals_id=goal_id)\
+        .order_by(GoalProgressLog.timestamp.desc())\
+        .offset(offset).limit(limit).all()
     result = [log.as_dict() for log in logs]
     return jsonify({"progressLogs": result})
 

@@ -26,6 +26,8 @@ def api_manage_chat():
 
     if aDelIDs and not chats_id:
         return jsonify({'error': 'for aDelIDs chats_id required!'}), 400
+    if len(aAddIDs) > 100 or len(aDelIDs) > 100:
+        return jsonify({'error': 'Too many user IDs in one request (max 100)'}), 400
 
     # Validate chat membership if editing existing chat
     chat = None
@@ -37,9 +39,11 @@ def api_manage_chat():
         if not is_member:
             return jsonify({'error': 'You are not a member of this chat.'}), 403
 
-    # Validate users to add/delete (only add valid users)
-    aAddIDsToDb = [uid for uid in aAddIDs if User.query.filter_by(id=uid).first()]
-    aDelIDsToDb = [uid for uid in aDelIDs if User.query.filter_by(id=uid).first()]
+    # Validate users to add/delete — batch fetch instead of N individual queries
+    all_candidate_ids = list(set(aAddIDs + aDelIDs))
+    valid_ids = {u.id for u in User.query.filter(User.id.in_(all_candidate_ids)).all()} if all_candidate_ids else set()
+    aAddIDsToDb = [uid for uid in aAddIDs if uid in valid_ids]
+    aDelIDsToDb = [uid for uid in aDelIDs if uid in valid_ids]
 
     # Create new chat if chats_id is not provided
     if not chats_id:

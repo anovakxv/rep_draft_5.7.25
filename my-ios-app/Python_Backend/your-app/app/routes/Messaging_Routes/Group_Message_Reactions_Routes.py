@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.Group_Message_Reactions import GroupMessageReaction
+from app.models.People_Models.user import User
 from app.utils.auth import jwt_required
 
 group_reactions_bp = Blueprint('group_message_reactions', __name__)
@@ -108,20 +109,21 @@ def get_group_message_reactions(message_id):
 
     reactions = GroupMessageReaction.query.filter_by(message_id=message_id).all()
 
+    # Batch-load users to avoid N+1
+    user_ids = {r.user_id for r in reactions}
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
     # Group reactions by emoji
     reactions_grouped = {}
     for reaction in reactions:
         emoji = reaction.emoji
         if emoji not in reactions_grouped:
-            reactions_grouped[emoji] = {
-                "emoji": emoji,
-                "count": 0,
-                "users": []
-            }
+            reactions_grouped[emoji] = {"emoji": emoji, "count": 0, "users": []}
         reactions_grouped[emoji]["count"] += 1
+        u = users_map.get(reaction.user_id)
         reactions_grouped[emoji]["users"].append({
             "user_id": reaction.user_id,
-            "user_name": f"{reaction.user.fname or ''} {reaction.user.lname or ''}".strip() if reaction.user else ""
+            "user_name": f"{u.fname or ''} {u.lname or ''}".strip() if u else ""
         })
 
     return jsonify({
@@ -181,24 +183,24 @@ def toggle_group_reaction(message_id):
         db.session.commit()
         action = 'added'
 
-    # Get updated grouped reactions for this message
+    # Get updated grouped reactions — batch-load users to avoid N+1
     reactions = GroupMessageReaction.query.filter_by(message_id=message_id).all()
+    user_ids = {r.user_id for r in reactions}
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
     reactions_grouped = {}
     for reaction in reactions:
         emoji_char = reaction.emoji
         if emoji_char not in reactions_grouped:
             reactions_grouped[emoji_char] = {
-                "emoji": emoji_char,
-                "count": 0,
-                "userReacted": False,
-                "users": []
+                "emoji": emoji_char, "count": 0, "userReacted": False, "users": []
             }
         reactions_grouped[emoji_char]["count"] += 1
         if reaction.user_id == user_id:
             reactions_grouped[emoji_char]["userReacted"] = True
+        u = users_map.get(reaction.user_id)
         reactions_grouped[emoji_char]["users"].append({
             "user_id": reaction.user_id,
-            "user_name": f"{reaction.user.fname or ''} {reaction.user.lname or ''}".strip() if reaction.user else ""
+            "user_name": f"{u.fname or ''} {u.lname or ''}".strip() if u else ""
         })
 
     return jsonify({

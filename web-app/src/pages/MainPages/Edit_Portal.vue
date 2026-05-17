@@ -30,95 +30,85 @@
     <!-- Main Form -->
     <div v-else class="flex-1 overflow-y-auto">
       <div class="p-4 space-y-6">
-        <!-- Images Section -->
-        <div class="space-y-2">
-          <label class="text-sm font-medium text-green-600 cursor-pointer hover:text-green-700">
-            {{ selectedImages.length ? 'Add More Images' : 'Add Images' }}
-            <input 
-              type="file" 
-              multiple 
-              accept="image/*" 
-              class="hidden" 
-              @change="handleImageSelection" 
-              :disabled="selectedImages.length >= maxImages"
-            />
-          </label>
+        <!-- Portal Graphics Section -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-semibold text-gray-800">Portal Graphics</h2>
+            <label
+              v-if="selectedImages.length < maxImages"
+              class="text-sm font-medium text-green-600 cursor-pointer hover:text-green-700"
+            >
+              + Add Images
+              <input
+                type="file"
+                multiple
+                accept="image/*"
+                class="hidden"
+                @change="handleImageSelection"
+              />
+            </label>
+          </div>
 
-          <div v-if="selectedImages.length > 0" class="relative">
-            <div class="w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
-              <!-- Image Carousel -->
-              <div class="relative w-full h-full">
-                <transition-group name="fade">
-                  <div 
-                    v-for="(image, idx) in selectedImages" 
-                    :key="idx"
-                    v-show="idx === mainImageIndex" 
-                    class="absolute inset-0"
-                  >
-                    <img 
-                      :src="image.url" 
-                      class="w-full h-full object-cover"
-                      alt="Portal image"
-                    />
-                    
-                    <!-- Main Icon Badge -->
-                    <div 
-                      v-if="idx === 0" 
-                      class="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded"
-                    >
-                      Main Icon
-                    </div>
-                    
-                    <!-- Delete Button (not for main image) -->
-                    <button 
-                      v-if="idx !== 0"
-                      @click.stop="removeImage(idx)" 
-                      class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </transition-group>
-              </div>
-              
-              <!-- Pagination Dots -->
-              <div class="absolute bottom-2 left-0 right-0 flex justify-center gap-2">
-                <button 
-                  v-for="(_, idx) in selectedImages" 
-                  :key="idx"
-                  @click="mainImageIndex = idx"
-                  class="w-2 h-2 rounded-full transition-colors"
-                  :class="idx === mainImageIndex ? 'bg-white' : 'bg-gray-400'"
-                ></button>
-              </div>
-              
-              <!-- Navigation Arrows (if multiple images) -->
-              <div v-if="selectedImages.length > 1" class="absolute inset-y-0 left-0 right-0 flex justify-between items-center px-2">
-                <button 
-                  @click="prevImage" 
-                  class="bg-black bg-opacity-30 rounded-full p-1 text-white hover:bg-opacity-50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button 
-                  @click="nextImage" 
-                  class="bg-black bg-opacity-30 rounded-full p-1 text-white hover:bg-opacity-50"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
+          <!-- Large preview of selected image -->
+          <div v-if="selectedImages.length > 0" class="relative w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
+            <img :src="selectedImages[mainImageIndex]?.url" class="w-full h-full object-cover" alt="Portal image" />
+            <div class="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+              {{ mainImageIndex === 0 ? 'Main Icon' : `Image ${mainImageIndex + 1} of ${selectedImages.length}` }}
+            </div>
+          </div>
+          <div v-else class="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+            No images yet — tap "+ Add Images" above
+          </div>
+
+          <!-- Thumbnail strip: click to preview, reorder with ← →, delete with × -->
+          <div v-if="selectedImages.length > 0" class="flex gap-2 overflow-x-auto pb-1">
+            <div
+              v-for="(img, idx) in selectedImages"
+              :key="idx"
+              class="relative flex-shrink-0"
+            >
+              <!-- Thumbnail -->
+              <img
+                :src="img.url"
+                @click="mainImageIndex = idx"
+                class="w-16 h-16 object-cover rounded cursor-pointer border-2 transition-colors"
+                :class="idx === mainImageIndex ? 'border-green-500' : 'border-transparent'"
+                alt=""
+              />
+
+              <!-- "Main" badge on first image -->
+              <span
+                v-if="idx === 0"
+                class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-center rounded-b"
+                style="font-size: 9px; padding: 2px 0;"
+              >Main</span>
+
+              <!-- Delete (×) -->
+              <button
+                @click.stop="removeImage(idx)"
+                class="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs font-bold leading-none z-10"
+                title="Remove image"
+              >×</button>
+
+              <!-- Reorder ← → buttons -->
+              <div class="absolute inset-x-0 flex justify-between" style="bottom: 22px;">
+                <button
+                  v-if="idx > 0"
+                  @click.stop="moveImageLeft(idx)"
+                  class="bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded px-1 text-xs leading-tight"
+                  title="Move left"
+                >←</button>
+                <button
+                  v-if="idx < selectedImages.length - 1"
+                  @click.stop="moveImageRight(idx)"
+                  class="bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded px-1 text-xs leading-tight ml-auto"
+                  title="Move right"
+                >→</button>
               </div>
             </div>
           </div>
-          <div v-else class="w-full aspect-video bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-            No Images Selected
-          </div>
-          <p class="text-xs text-gray-500">First image is used as Portal Icon. ({{ selectedImages.length }}/{{ maxImages }} images)</p>
+
+          <p class="text-xs text-gray-400">First image is the Portal Icon. ({{ selectedImages.length }}/{{ maxImages }})</p>
         </div>
 
         <!-- Portal Info Section -->
@@ -721,8 +711,10 @@ interface PortalWriteBlock {
 }
 
 interface ImageFile {
-  file: File;
-  url: string;
+  file?: File;       // Only set for newly selected local files
+  url: string;       // Display URL (blob URL for new, S3 URL for existing)
+  gr_hash?: string;  // Server-side hash — set for images already on the server
+  isExisting: boolean;
 }
 
 interface SectionImage {
@@ -794,6 +786,8 @@ const eventTimezone = ref('');
 const eventDurationMinutes = ref<number>(90);
 const selectedImages = ref<ImageFile[]>([]);
 const mainImageIndex = ref(0);
+const mainSectionId = ref<number | null>(null);     // ID of the "Main Section" graphic section
+const removedMainHashes = ref<string[]>([]);         // gr_hashes of existing images to delete on save
 const portalDetail = ref<PortalDetail | null>(null);
 const goals = ref<EditableGoal[]>([]);
 
@@ -869,10 +863,24 @@ const fetchPortalData = async () => {
     // Set selected leads
     selectedLeads.value = portal.aUsers || [];
     
-    // Load image sections (non-Main)
+    // Load graphic sections (Main Section → portal graphics; others → image sections editor)
     try {
       const sectionsRes = await api.get(`/api/portal/graphic_sections?portal_id=${portalId}`);
-      imageSections.value = (sectionsRes.data.result || [])
+      const allSections: any[] = sectionsRes.data.result || [];
+
+      // Load Main Section into the portal graphics editor
+      const mainSection = allSections.find((s: any) => s.title === 'Main Section');
+      if (mainSection) {
+        mainSectionId.value = mainSection.id;
+        selectedImages.value = (mainSection.aFiles || []).map((f: any) => ({
+          url: f.url,
+          gr_hash: f.gr_hash,
+          isExisting: true,
+        }));
+      }
+
+      // Load non-Main sections into the image sections editor
+      imageSections.value = allSections
         .filter((s: any) => s.title !== 'Main Section')
         .map((s: any) => ({
           id: s.id,
@@ -915,7 +923,7 @@ const handleImageSelection = (event: Event) => {
   // Process files
   for (const file of files) {
     const url = URL.createObjectURL(file);
-    selectedImages.value.push({ file, url });
+    selectedImages.value.push({ file, url, isExisting: false });
   }
   
   // Reset input so the same file can be selected again
@@ -924,25 +932,37 @@ const handleImageSelection = (event: Event) => {
 
 const removeImage = (index: number) => {
   if (index < 0 || index >= selectedImages.value.length) return;
-  
-  const imageToRemove = selectedImages.value[index];
-  URL.revokeObjectURL(imageToRemove.url);
-  
+
+  const img = selectedImages.value[index];
+  if (img.isExisting && img.gr_hash) {
+    removedMainHashes.value.push(img.gr_hash);
+  } else if (!img.isExisting && img.url) {
+    URL.revokeObjectURL(img.url);
+  }
+
   selectedImages.value.splice(index, 1);
-  
+
   if (mainImageIndex.value >= selectedImages.value.length) {
     mainImageIndex.value = Math.max(0, selectedImages.value.length - 1);
   }
 };
 
-const nextImage = () => {
-  if (selectedImages.value.length <= 1) return;
-  mainImageIndex.value = (mainImageIndex.value + 1) % selectedImages.value.length;
+const moveImageLeft = (index: number) => {
+  if (index <= 0) return;
+  const imgs = [...selectedImages.value];
+  [imgs[index - 1], imgs[index]] = [imgs[index], imgs[index - 1]];
+  selectedImages.value = imgs;
+  if (mainImageIndex.value === index) mainImageIndex.value = index - 1;
+  else if (mainImageIndex.value === index - 1) mainImageIndex.value = index;
 };
 
-const prevImage = () => {
-  if (selectedImages.value.length <= 1) return;
-  mainImageIndex.value = (mainImageIndex.value - 1 + selectedImages.value.length) % selectedImages.value.length;
+const moveImageRight = (index: number) => {
+  if (index >= selectedImages.value.length - 1) return;
+  const imgs = [...selectedImages.value];
+  [imgs[index], imgs[index + 1]] = [imgs[index + 1], imgs[index]];
+  selectedImages.value = imgs;
+  if (mainImageIndex.value === index) mainImageIndex.value = index + 1;
+  else if (mainImageIndex.value === index + 1) mainImageIndex.value = index;
 };
 
 // Story block functions
@@ -1231,6 +1251,82 @@ const navigateToPaymentSettings = () => {
   router.push(`/portal/${portalId}/payment-setup`);
 };
 
+// Save Main Section images: delete removed, upload new, then reorder all
+const saveMainSectionImages = async (targetPortalId: number) => {
+  // 1. Delete images the user removed
+  for (const hash of removedMainHashes.value) {
+    try {
+      await api.delete(`/api/portal/graphic_file/${hash}`);
+    } catch (err) {
+      console.error('Failed to delete image:', hash, err);
+    }
+  }
+  removedMainHashes.value = [];
+
+  // 2. Upload new images (those without a gr_hash)
+  const newImages = selectedImages.value.filter(img => !img.isExisting && img.file);
+  const knownHashes = new Set(
+    selectedImages.value.filter(img => img.isExisting && img.gr_hash).map(img => img.gr_hash!)
+  );
+  let newGrHashes: string[] = [];
+
+  if (newImages.length > 0) {
+    const formData = new FormData();
+    formData.append('portal_id', String(targetPortalId));
+    formData.append('title', 'Main Section');
+    if (mainSectionId.value) {
+      formData.append('section_id', String(mainSectionId.value));
+    }
+    for (const img of newImages) {
+      formData.append('images', img.file!);
+    }
+    try {
+      const uploadRes = await api.post('/api/portal/graphic_sections/upload', formData, { timeout: 60000 });
+      const aFiles: any[] = uploadRes.data.result?.aFiles || [];
+      // Capture section ID for first-time uploads
+      if (!mainSectionId.value && uploadRes.data.result?.id) {
+        mainSectionId.value = uploadRes.data.result.id;
+      }
+      // New gr_hashes = those returned by server that we didn't already know about
+      newGrHashes = aFiles
+        .map((f: any) => f.gr_hash as string)
+        .filter(h => !knownHashes.has(h));
+    } catch (err) {
+      console.error('Failed to upload new images:', err);
+      throw err;
+    }
+  }
+
+  // 3. Reorder: build the full ordered list of gr_hashes
+  if (!mainSectionId.value) return;
+  let newHashIdx = 0;
+  const orderedHashes: string[] = [];
+  for (const img of selectedImages.value) {
+    if (img.isExisting && img.gr_hash) {
+      orderedHashes.push(img.gr_hash);
+    } else if (!img.isExisting) {
+      if (newGrHashes[newHashIdx]) {
+        orderedHashes.push(newGrHashes[newHashIdx++]);
+      }
+    }
+  }
+
+  if (orderedHashes.length > 0) {
+    try {
+      await api.post('/api/portal/graphic_sections', {
+        portal_id: targetPortalId,
+        aSections: [{
+          id: mainSectionId.value,
+          title: 'Main Section',
+          indexes: orderedHashes.join(','),
+        }],
+      });
+    } catch (err) {
+      console.error('Failed to reorder images:', err);
+    }
+  }
+};
+
 // Save the portal
 const save = async () => {
   // Basic validation
@@ -1274,14 +1370,23 @@ const save = async () => {
   const leadIds = selectedLeads.value.map(lead => lead.id);
   formData.append('aLeadsIDs', JSON.stringify(leadIds));
 
-  // Append images
-  selectedImages.value.forEach((imgFile, index) => {
-    formData.append('images', imgFile.file, `portal_image_${index}.jpg`);
-  });
+  // For new portals: send images in FormData (backend creates the Main Section)
+  // For existing portals: images are managed separately via saveMainSectionImages()
+  if (isNew) {
+    selectedImages.value.forEach((imgFile, index) => {
+      if (imgFile.file) {
+        formData.append('images', imgFile.file, `portal_image_${index}.jpg`);
+      }
+    });
+  }
 
   try {
-    // Browser will automatically set Content-Type with proper boundary for FormData
     const response = await api.post(endpoint, formData);
+
+    // For existing portals: save images via the per-image management endpoints
+    if (!isNew) {
+      await saveMainSectionImages(portalId);
+    }
 
     dismiss();
   } catch (err) {
@@ -1332,24 +1437,8 @@ watch(showAddLeadsSheet, (newVal) => {
 </script>
 
 <style scoped>
-/* Transitions for image carousel */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.3s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* Fix for textarea resize */
 textarea {
   resize: vertical;
   min-height: 120px;
-}
-
-/* Ensure buttons have consistent styling */
-button {
-  transition: all 0.2s ease;
 }
 </style>

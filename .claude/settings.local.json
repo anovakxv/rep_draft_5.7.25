@@ -78,7 +78,11 @@
       "Bash(Select-Object FullName)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(git gc *)",
-      "Bash(Get-ChildItem \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\migrations\\\\versions\\\\\" | Sort-Object Name | Select-Object -Last 3 | Format-List Name)"
+      "Bash(Get-ChildItem \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\migrations\\\\versions\\\\\" | Sort-Object Name | Select-Object -Last 3 | Format-List Name)",
+      "PowerShell(Get-ChildItem -Recurse \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\app\\\\routes\\\\Portal_Routes\" | ForEach-Object { $_.Name })",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\" -Recurse -Filter \"Portal_GraphicSections.py\" | ForEach-Object { $_.FullName })",
+      "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\app\\\\routes\\\\Portal_Routes\" | ForEach-Object { $_.Name })",
+      "PowerShell(Select-String -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\app\\\\routes\\\\Portal_Routes\\\\Get_Portals.py\" -Pattern \"def api|edit|images|Main Section\" | Select-Object -First 20 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })"
     ],
     "deny": [],
     "ask": []

@@ -962,7 +962,7 @@ const ImageTabView = defineComponent({
           // Thumbnail strip — only shown when there are multiple images
           images.value.length > 1 && h('div', {
             class: 'flex gap-2 px-4 py-2 justify-center overflow-x-auto shrink-0',
-            style: 'background:#111'
+            style: 'background:#000'
           }, images.value.map((img, idx) =>
             h('button', {
               key: idx,

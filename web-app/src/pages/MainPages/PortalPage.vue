@@ -875,20 +875,23 @@ const ImageTabView = defineComponent({
           if (el.complete) finish(); // already in browser cache
         }));
 
-        Promise.all(preloads).then(() => {
-          let step = 1;
-          const total = images.value.length;
-          slideshowTimer = setInterval(() => {
-            if (step < total) {
-              currentImageIndex.value = step;
-              step++;
-            } else {
-              currentImageIndex.value = 0;
-              clearInterval(slideshowTimer!);
-              slideshowTimer = null;
-            }
-          }, 400);
-        });
+        // Skip animation on desktop — user already saw images in the dashboard filmstrip
+        if (!props.desktopMode) {
+          Promise.all(preloads).then(() => {
+            let step = 1;
+            const total = images.value.length;
+            slideshowTimer = setInterval(() => {
+              if (step < total) {
+                currentImageIndex.value = step;
+                step++;
+              } else {
+                currentImageIndex.value = 0;
+                clearInterval(slideshowTimer!);
+                slideshowTimer = null;
+              }
+            }, 400);
+          });
+        }
       }
     });
 

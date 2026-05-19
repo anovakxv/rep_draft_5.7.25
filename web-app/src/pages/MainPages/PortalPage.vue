@@ -21,7 +21,7 @@
       <!-- Two Column Layout (Desktop Only) -->
       <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
         <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
-        <div class="hidden xl:flex xl:w-[70%] xl:h-[calc(100vh-3rem)] xl:sticky xl:top-[3rem] xl:flex-col xl:bg-black">
+        <div class="hidden xl:flex xl:w-[70%] xl:h-[calc(100vh-3rem)] xl:sticky xl:top-[3rem] xl:flex-col xl:bg-black" style="border: 12px solid black;">
           <ImageTabView
             :sections="(portalDetail.aSections || []).filter(s => s.title === 'Main Section')"
             @image-tap="openFullscreen"

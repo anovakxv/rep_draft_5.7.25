@@ -114,9 +114,11 @@ const buildManager = (baseURL: string, token: string) => {
     reconnectionDelayMax: 20000,
     autoConnect: true,
     forceNew: true,
-    transports: ['websocket', 'polling'],
-    auth: { token }, // Use auth option for modern socket.io
-    extraHeaders: { Authorization: `Bearer ${token}` }, // Keep for polling fallback
+    // Start with polling (reliable through Render's proxy/load balancer),
+    // then upgrade to WebSocket. Avoids the repeated wss:// failure loop.
+    transports: ['polling', 'websocket'],
+    auth: { token },
+    extraHeaders: { Authorization: `Bearer ${token}` },
   });
 
   socket = manager.socket('/');

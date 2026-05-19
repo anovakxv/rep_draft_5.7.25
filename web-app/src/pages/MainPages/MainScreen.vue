@@ -980,11 +980,12 @@ watch(page, () => {
 
 // --- Lifecycle & Sockets ---
 let inviteTimer: number | undefined;
-const { connect, onDirectMessageNotification, onGroupMessage, onGroupMessageNotification, onGoalTeamInvite } = useSocketManager();
+const { connect, onDirectMessageNotification, onGroupMessage, onGroupMessageNotification, onGoalTeamInvite, onGoalTeamInviteUpdate } = useSocketManager();
 let unsubscribeDM: (() => void) | null = null;
 let unsubscribeGroupMsg: (() => void) | null = null;
 let unsubscribeGroupNotif: (() => void) | null = null;
 let unsubscribeInvite: (() => void) | null = null;
+let unsubscribeInviteUpdate: (() => void) | null = null;
 
 onMounted(() => {
   // Reload auth values from localStorage first (critical for login/logout flow)
@@ -1097,6 +1098,11 @@ onMounted(() => {
     openNeedsAttention.value = true;
     fetchPendingInvites();
   });
+
+  unsubscribeInviteUpdate = onGoalTeamInviteUpdate((_data) => {
+    openNeedsAttention.value = true;
+    fetchPendingInvites();
+  });
   
   // Add DOM event for refreshing active chats (like NotificationCenter in Swift)
   document.addEventListener('refreshActiveChats', () => {
@@ -1172,6 +1178,7 @@ onUnmounted(() => {
   if (unsubscribeGroupMsg) unsubscribeGroupMsg();
   if (unsubscribeGroupNotif) unsubscribeGroupNotif();
   if (unsubscribeInvite) unsubscribeInvite();
+  if (unsubscribeInviteUpdate) unsubscribeInviteUpdate();
 
   document.removeEventListener('refreshActiveChats', () => {});
   document.removeEventListener('visibilitychange', () => {});

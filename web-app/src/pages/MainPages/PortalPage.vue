@@ -21,7 +21,7 @@
       <!-- Two Column Layout (Desktop Only) -->
       <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
         <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
-        <div class="hidden xl:flex xl:w-[70%] xl:h-[calc(100vh-3.5rem)] xl:sticky xl:top-[3.5rem] xl:flex-col xl:bg-black" style="border: 12px solid black;">
+        <div class="hidden xl:flex xl:w-[70%] xl:h-[calc(100vh-3rem)] xl:sticky xl:top-[3rem] xl:flex-col xl:bg-black">
           <ImageTabView
             :sections="(portalDetail.aSections || []).filter(s => s.title === 'Main Section')"
             @image-tap="openFullscreen"
@@ -810,7 +810,7 @@ const PortalHeader = defineComponent({
   emits: ['back'],
   setup(props, { emit }) {
     return () => h('header', {
-      class: 'flex items-center h-14 px-4 border-b border-gray-200 shrink-0',
+      class: 'flex items-center h-14 xl:h-12 px-4 border-b border-gray-200 shrink-0',
       style: 'background-color: #f7f7f7'
     }, [
       h('button', {
@@ -819,7 +819,7 @@ const PortalHeader = defineComponent({
       }, [
         h('svg', {
           xmlns: 'http://www.w3.org/2000/svg',
-          class: 'h-6 w-6',
+          class: 'h-6 w-6 xl:h-5 xl:w-5',
           fill: 'none',
           viewBox: '0 0 24 24',
           stroke: 'currentColor'
@@ -832,12 +832,12 @@ const PortalHeader = defineComponent({
           })
         ])
       ]),
-      h('h1', { 
-        class: 'flex-1 text-center font-bold text-xl' 
+      h('h1', {
+        class: 'flex-1 text-center font-bold text-xl xl:text-sm xl:font-semibold'
       }, props.portalName),
-      h('div', { 
-        class: 'w-12' 
-      }) // Spacer for symmetry
+      h('div', {
+        class: 'w-12 xl:w-8'
+      })
     ]);
   }
 });
@@ -914,89 +914,116 @@ const ImageTabView = defineComponent({
       }
     };
 
-    // Desktop: full height with black background, Mobile: 16:9 aspect ratio with gray background
-    const containerClass = props.desktopMode
-      ? 'relative w-full h-full bg-black overflow-hidden flex items-center justify-center'
-      : 'relative w-full aspect-[16/9] bg-gray-200 overflow-hidden';
+    const noSelectStyle = {
+      userSelect: 'none',
+      WebkitUserSelect: 'none',
+      MozUserSelect: 'none',
+      msUserSelect: 'none'
+    };
 
-    return () => h('div', {
-      class: containerClass,
-      style: {
-        userSelect: 'none', // Prevent text/content selection
-        WebkitUserSelect: 'none', // Safari
-        MozUserSelect: 'none', // Firefox
-        msUserSelect: 'none' // IE/Edge
+    const arrowSvg = (d: string) => h('svg', {
+      xmlns: 'http://www.w3.org/2000/svg',
+      class: 'h-6 w-6 text-white',
+      fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor'
+    }, [h('path', { 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'stroke-width': '2', d })]);
+
+    return () => {
+      // ── DESKTOP layout: main image + thumbnail strip ──────────────────
+      if (props.desktopMode) {
+        return h('div', { class: 'w-full h-full bg-black flex flex-col overflow-hidden', style: noSelectStyle }, [
+
+          // Main image area (fills remaining height)
+          h('div', { class: 'relative flex-1 overflow-hidden flex items-center justify-center' }, [
+            images.value.length > 0
+              ? h('img', {
+                  src: images.value[currentImageIndex.value]?.url || '/placeholder-image.png',
+                  class: 'max-w-full max-h-full object-contain cursor-pointer',
+                  onClick: () => emit('image-tap', currentImageIndex.value)
+                })
+              : h('div', { class: 'flex items-center justify-center h-full text-gray-500' }, 'No Images'),
+
+            // ← prev arrow
+            images.value.length > 1 && h('button', {
+              key: 'prev',
+              class: 'absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+              onClick: prevImage,
+              onMousedown: (e: MouseEvent) => e.preventDefault()
+            }, [arrowSvg('M15 19l-7-7 7-7')]),
+
+            // → next arrow
+            images.value.length > 1 && h('button', {
+              key: 'next',
+              class: 'absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+              onClick: nextImage,
+              onMousedown: (e: MouseEvent) => e.preventDefault()
+            }, [arrowSvg('M9 5l7 7-7 7')]),
+          ]),
+
+          // Thumbnail strip — only shown when there are multiple images
+          images.value.length > 1 && h('div', {
+            class: 'flex gap-2 px-4 py-2 justify-center overflow-x-auto shrink-0',
+            style: 'background:#111'
+          }, images.value.map((img, idx) =>
+            h('button', {
+              key: idx,
+              class: 'shrink-0 focus:outline-none',
+              onClick: () => { currentImageIndex.value = idx; },
+              onMousedown: (e: MouseEvent) => e.preventDefault()
+            }, [
+              h('img', {
+                src: img.url,
+                class: `object-cover rounded transition-all duration-150 ${
+                  idx === currentImageIndex.value
+                    ? 'ring-2 ring-white opacity-100'
+                    : 'opacity-50 hover:opacity-80'
+                }`,
+                style: 'width:80px; height:45px'
+              })
+            ])
+          ))
+        ]);
       }
-    }, [
-      // Main image display
-      images.value.length > 0
-        ? h('img', {
-            src: images.value[currentImageIndex.value]?.url || '/placeholder-image.png',
-            class: props.desktopMode
-              ? 'w-full h-full object-contain cursor-pointer'
-              : 'w-full h-full object-cover cursor-pointer',
-            onClick: () => emit('image-tap', currentImageIndex.value)
+
+      // ── MOBILE layout: unchanged ──────────────────────────────────────
+      return h('div', {
+        class: 'relative w-full aspect-[16/9] bg-gray-200 overflow-hidden',
+        style: noSelectStyle
+      }, [
+        images.value.length > 0
+          ? h('img', {
+              src: images.value[currentImageIndex.value]?.url || '/placeholder-image.png',
+              class: 'w-full h-full object-cover cursor-pointer',
+              onClick: () => emit('image-tap', currentImageIndex.value)
+            })
+          : h('div', { class: 'flex items-center justify-center h-full text-gray-500' }, 'No Images'),
+
+        // Pagination dots
+        images.value.length > 1 && h('div', {
+          class: 'absolute bottom-2 left-0 right-0 flex justify-center space-x-2'
+        }, images.value.map((_, idx) =>
+          h('div', {
+            key: idx,
+            class: `w-2 h-2 rounded-full ${idx === currentImageIndex.value ? 'bg-white' : 'bg-gray-400'}`
           })
-        : h('div', { 
-            class: 'flex items-center justify-center h-full text-gray-500' 
-          }, 'No Images'),
-      
-      // Pagination dots
-      images.value.length > 1 && h('div', {
-        class: 'absolute bottom-2 left-0 right-0 flex justify-center space-x-2'
-      }, images.value.map((_, idx) => 
-        h('div', { 
-          key: idx,
-          class: `w-2 h-2 rounded-full ${idx === currentImageIndex.value ? 'bg-white' : 'bg-gray-400'}` 
-        })
-      )),
-      
-      // Navigation arrows (if multiple images)
-      images.value.length > 1 && [
-        h('button', {
-          key: 'prev',
-          class: 'absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
-          onClick: prevImage,
-          onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
-        }, [
-          h('svg', {
-            xmlns: 'http://www.w3.org/2000/svg',
-            class: 'h-6 w-6 text-white',
-            fill: 'none',
-            viewBox: '0 0 24 24',
-            stroke: 'currentColor'
-          }, [
-            h('path', {
-              'stroke-linecap': 'round',
-              'stroke-linejoin': 'round',
-              'stroke-width': '2',
-              d: 'M15 19l-7-7 7-7'
-            })
-          ])
-        ]),
-        h('button', {
-          key: 'next',
-          class: 'absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
-          onClick: nextImage,
-          onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
-        }, [
-          h('svg', {
-            xmlns: 'http://www.w3.org/2000/svg',
-            class: 'h-6 w-6 text-white',
-            fill: 'none',
-            viewBox: '0 0 24 24',
-            stroke: 'currentColor'
-          }, [
-            h('path', {
-              'stroke-linecap': 'round',
-              'stroke-linejoin': 'round',
-              'stroke-width': '2',
-              d: 'M9 5l7 7-7 7'
-            })
-          ])
-        ])
-      ]
-    ]);
+        )),
+
+        // Navigation arrows
+        images.value.length > 1 && [
+          h('button', {
+            key: 'prev',
+            class: 'absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+            onClick: prevImage,
+            onMousedown: (e: MouseEvent) => e.preventDefault()
+          }, [arrowSvg('M15 19l-7-7 7-7')]),
+          h('button', {
+            key: 'next',
+            class: 'absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+            onClick: nextImage,
+            onMousedown: (e: MouseEvent) => e.preventDefault()
+          }, [arrowSvg('M9 5l7 7-7 7')])
+        ]
+      ]);
+    };
   }
 });
 

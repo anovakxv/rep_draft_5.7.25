@@ -919,11 +919,22 @@ const openGoalTeamChat = async (goal: any, portalName: string) => {
     return;
   }
 
-  // No chat yet — create one, then link it to the goal
+  // No chat yet — fetch team members first so they're added on creation (mirrors GoalsDetailView)
   goalChatCreating.value = { ...goalChatCreating.value, [key]: true };
   try {
     const chatTitle = portalName ? `${portalName}: ${goal.title}` : goal.title;
-    const res = await api.post('/api/message/manage_chat', { title: chatTitle, aAddIDs: [] });
+
+    // Fetch goal team members so they receive the chat
+    let memberIds: number[] = [];
+    try {
+      const teamRes = await api.get(`/api/goals/details?goals_id=${goal.id}`);
+      const teamMembers: any[] = teamRes.data.result?.team || [];
+      memberIds = teamMembers
+        .map((m: any) => m.id)
+        .filter((id: any) => id && id !== props.userId);
+    } catch { /* silent — create chat without members if fetch fails */ }
+
+    const res = await api.post('/api/message/manage_chat', { title: chatTitle, aAddIDs: memberIds });
     const newChatsId = res.data.chats_id;
     if (!newChatsId) throw new Error('No chats_id returned');
     // Persist the link on the goal (best-effort — will fail silently if user lacks permission)

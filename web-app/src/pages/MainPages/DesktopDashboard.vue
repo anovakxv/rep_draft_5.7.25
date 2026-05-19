@@ -514,23 +514,14 @@
                     :key="goal.id"
                     class="space-y-1"
                   >
-                    <!-- Goal name + message icon -->
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="text-xs font-semibold text-gray-800 leading-tight line-clamp-1 flex-1">{{ goal.title }}</p>
-                      <button
-                        v-if="goal.chats_id"
-                        @click.prevent.stop="openGoalTeamChat(goal.chats_id, goal.title)"
-                        class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity"
-                        style="background:#8cc65d"
-                        title="Message this Goal Team"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                      </button>
-                    </div>
-                    <!-- Progress bar + % -->
-                    <div class="flex items-center gap-2">
+                    <!-- Goal title -->
+                    <p class="text-xs font-semibold text-gray-800 leading-tight line-clamp-1">{{ goal.title }}</p>
+                    <!-- Team membership error -->
+                    <p v-if="goalChatError[goal.id]" class="text-[10px] text-red-500 leading-tight">
+                      {{ goalChatError[goal.id] }}
+                    </p>
+                    <!-- Progress bar + % + message icon -->
+                    <div class="flex items-center gap-1.5">
                       <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
                         <div
                           class="h-full rounded-full transition-all duration-300"
@@ -538,9 +529,24 @@
                           :style="{ width: `${Math.min(100, Math.max(0, (goal.progress ?? 0) * 100))}%` }"
                         ></div>
                       </div>
-                      <span class="text-[11px] text-gray-500 shrink-0 w-8 text-right">
+                      <span class="text-[11px] text-gray-500 shrink-0 w-7 text-right">
                         {{ Math.round((goal.progress ?? 0) * 100) }}%
                       </span>
+                      <button
+                        @click.prevent.stop="openGoalTeamChat(goal, portal.name)"
+                        :disabled="goalChatCreating[goal.id]"
+                        class="shrink-0 w-5 h-5 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity"
+                        style="background:#8cc65d"
+                        :title="goal.chats_id ? 'Message this Goal Team' : 'Start Goal Team chat'"
+                      >
+                        <svg v-if="goalChatCreating[goal.id]" class="h-3 w-3 text-white animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 </template>
@@ -873,18 +879,65 @@ const loadPortalCardData = async (portalId: number) => {
     portalCardImages.value = { ...portalCardImages.value, [portalId]: urls };
     // Top 2 goals by recency (backend returns aGoals ordered by id DESC)
     const goals: any[] = data?.aGoals || [];
-    portalCardGoals.value = { ...portalCardGoals.value, [portalId]: goals.slice(0, 2) };
+    portalCardGoals.value = { ...portalCardGoals.value, [portalId]: goals.slice(0, 3) };
   } catch { /* silent */ }
 };
 
-// Open a Goal Team's chat in the inline pane (left panel)
-const openGoalTeamChat = (chatsId: number, goalTitle: string) => {
-  const syntheticChat: ActiveChat = {
-    id: `group-${chatsId}`,
-    type: 'group',
-    chat: { id: chatsId, name: goalTitle },
-  };
-  loadInlineChat(syntheticChat);
+// Tracks which goal chat buttons are mid-creation to prevent double-clicks
+const goalChatCreating = ref<Record<string, boolean>>({});
+// Per-goal error message (e.g. not a team member)
+const goalChatError = ref<Record<string, string>>({});
+
+const showGoalChatError = (goalId: number, msg: string) => {
+  goalChatError.value = { ...goalChatError.value, [goalId]: msg };
+  setTimeout(() => {
+    const updated = { ...goalChatError.value };
+    delete updated[goalId];
+    goalChatError.value = updated;
+  }, 3500);
+};
+
+// Open or create a Goal Team chat in the inline pane.
+// Only Goal Team members may message the team — mirrors GoalsDetailView behaviour.
+const openGoalTeamChat = async (goal: any, portalName: string) => {
+  if (!isAuthenticated()) {
+    router.push({ path: '/register', query: { returnTo: '/main' } });
+    return;
+  }
+  const key = goal.id;
+  if (goalChatCreating.value[key]) return;
+
+  // If chat already exists, attempt to open it — backend enforces membership (403 if not a member)
+  if (goal.chats_id) {
+    try {
+      loadInlineChat({ id: `group-${goal.chats_id}`, type: 'group', chat: { id: goal.chats_id, name: goal.title } });
+    } catch (err: any) {
+      if (err?.response?.status === 403 || err?.response?.status === 401) {
+        showGoalChatError(key, 'Only Goal Team members can message the Team.');
+      }
+    }
+    return;
+  }
+
+  // No chat yet — create one, then link it to the goal
+  goalChatCreating.value = { ...goalChatCreating.value, [key]: true };
+  try {
+    const chatTitle = portalName ? `${portalName}: ${goal.title}` : goal.title;
+    const res = await api.post('/api/message/manage_chat', { title: chatTitle, aAddIDs: [] });
+    const newChatsId = res.data.chats_id;
+    if (!newChatsId) throw new Error('No chats_id returned');
+    // Persist the link on the goal (best-effort — will fail silently if user lacks permission)
+    api.post('/api/goals/link_chat', { goals_id: goal.id, chats_id: newChatsId }).catch(() => {});
+    goal.chats_id = newChatsId;
+    loadInlineChat({ id: `group-${newChatsId}`, type: 'group', chat: { id: newChatsId, name: chatTitle } });
+  } catch (err: any) {
+    const status = err?.response?.status;
+    if (status === 403 || status === 401) {
+      showGoalChatError(key, 'Only Goal Team members can message the Team.');
+    }
+  } finally {
+    goalChatCreating.value = { ...goalChatCreating.value, [key]: false };
+  }
 };
 
 // --- Inline chat ---
@@ -913,7 +966,14 @@ const scrollInlineChatToBottom = () => {
 };
 
 const loadInlineChat = async (chat: ActiveChat) => {
+  // Leave previous group chat room, join new one
+  if (selectedChat.value?.type === 'group' && selectedChat.value.chat?.id) {
+    leaveChat(selectedChat.value.chat.id);
+  }
   selectedChat.value = chat;
+  if (chat.type === 'group' && chat.chat?.id) {
+    joinChat(chat.chat.id);
+  }
   inlineChatMessages.value = [];
   inlineChatLoading.value = true;
   try {
@@ -1033,31 +1093,50 @@ watch(
 );
 
 // --- Real-time messaging ---
-// Tap into the existing socket connection (established by MainScreen.vue).
-// useSocketManager is a shared singleton — registering here adds a second subscriber
-// alongside MainScreen's own handlers without creating a duplicate connection.
-const { onDirectMessageNotification, onGroupMessageNotification } = useSocketManager();
+// Mirrors iOS MainScreen: subscribe to all three events, refresh sidebar + append to open chat.
+// useSocketManager is a shared singleton — no duplicate connection created.
+const { onDirectMessageNotification, onGroupMessage, onGroupMessageNotification, joinChat, leaveChat } = useSocketManager();
 
 let unsubDM: (() => void) | null = null;
-let unsubGroup: (() => void) | null = null;
+let unsubGroupMsg: (() => void) | null = null;
+let unsubGroupNotif: (() => void) | null = null;
+
+// Refresh sidebar after a short delay (matches iOS 0.3s pattern — lets backend settle)
+const refreshChatsDelayed = () => setTimeout(() => emit('refresh-chats'), 300);
 
 // --- Lifecycle ---
 onMounted(() => {
   fetchDesktopPortals();
 
-  // DM real-time: append new messages when the sender matches the open chat
+  // 1. DM received — refresh sidebar + append to open DM pane
   unsubDM = onDirectMessageNotification((payload: Record<string, any>) => {
+    const senderId = Number(payload.sender_id ?? payload.senderId ?? -1);
+    if (senderId === props.userId) return; // ignore own messages echoed back
+    refreshChatsDelayed();
     if (!selectedChat.value || selectedChat.value.type !== 'direct') return;
-    const senderId = payload.sender_id ?? payload.senderId;
-    if (selectedChat.value.user?.id !== Number(senderId)) return;
+    if (selectedChat.value.user?.id !== senderId) return;
     appendFromSocketIfNeeded(selectedChat.value);
   });
 
-  // Group real-time: append new messages when the chat_id matches the open group
-  unsubGroup = onGroupMessageNotification((payload: Record<string, any>) => {
+  // 2. Group message (fires when joined the chat room via joinChat)
+  unsubGroupMsg = onGroupMessage((payload: Record<string, any>) => {
+    const senderId = Number(payload.sender_id ?? payload.senderId ?? -1);
+    if (senderId === props.userId) return;
+    refreshChatsDelayed();
+    const incomingChatId = Number(payload.chat_id ?? payload.chatId ?? -1);
     if (!selectedChat.value || selectedChat.value.type !== 'group') return;
-    const incomingChatId = payload.chat_id ?? payload.chatId;
-    if (selectedChat.value.chat?.id !== Number(incomingChatId)) return;
+    if (selectedChat.value.chat?.id !== incomingChatId) return;
+    appendFromSocketIfNeeded(selectedChat.value);
+  });
+
+  // 3. Group notification (user-room broadcast — always fires for group members)
+  unsubGroupNotif = onGroupMessageNotification((payload: Record<string, any>) => {
+    const senderId = Number(payload.sender_id ?? payload.senderId ?? -1);
+    if (senderId === props.userId) return;
+    refreshChatsDelayed();
+    const incomingChatId = Number(payload.chat_id ?? payload.chatId ?? -1);
+    if (!selectedChat.value || selectedChat.value.type !== 'group') return;
+    if (selectedChat.value.chat?.id !== incomingChatId) return;
     appendFromSocketIfNeeded(selectedChat.value);
   });
 });
@@ -1065,7 +1144,12 @@ onMounted(() => {
 onUnmounted(() => {
   portalImageObserver?.disconnect();
   if (unsubDM) { unsubDM(); unsubDM = null; }
-  if (unsubGroup) { unsubGroup(); unsubGroup = null; }
+  if (unsubGroupMsg) { unsubGroupMsg(); unsubGroupMsg = null; }
+  if (unsubGroupNotif) { unsubGroupNotif(); unsubGroupNotif = null; }
+  // Leave any open group chat room
+  if (selectedChat.value?.type === 'group' && selectedChat.value.chat?.id) {
+    leaveChat(selectedChat.value.chat.id);
+  }
 });
 </script>
 

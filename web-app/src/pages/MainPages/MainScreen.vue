@@ -980,9 +980,10 @@ watch(page, () => {
 
 // --- Lifecycle & Sockets ---
 let inviteTimer: number | undefined;
-const { connect, onDirectMessageNotification, onGroupMessageNotification, onGoalTeamInvite } = useSocketManager();
+const { connect, onDirectMessageNotification, onGroupMessage, onGroupMessageNotification, onGoalTeamInvite } = useSocketManager();
 let unsubscribeDM: (() => void) | null = null;
-let unsubscribeGroup: (() => void) | null = null;
+let unsubscribeGroupMsg: (() => void) | null = null;
+let unsubscribeGroupNotif: (() => void) | null = null;
 let unsubscribeInvite: (() => void) | null = null;
 
 onMounted(() => {
@@ -1068,19 +1069,28 @@ onMounted(() => {
   unsubscribeDM = onDirectMessageNotification((payload) => {
     const senderId = toInt(payload.sender_id ?? payload.senderId);
     if (senderId === userId.value) return;
-
-    // Instant UI feedback (rely on socket.io only, like iOS)
     hasUnreadDM.value = true;
     recalcOpenNeedsAttention();
+    // Refresh chat list so new message preview + ordering appear (mirrors iOS fetchPeople 0.3s delay)
+    setTimeout(() => { skipNextAnimation.value = true; fetchPeople(0); }, 300);
   });
 
-  unsubscribeGroup = onGroupMessageNotification((payload) => {
+  // Group message (fires when in the chat room — covers inline chat in desktop)
+  unsubscribeGroupMsg = onGroupMessage((payload) => {
     const senderId = toInt(payload.sender_id ?? payload.senderId);
     if (senderId === userId.value) return;
-
-    // Instant UI feedback (rely on socket.io only, like iOS)
     hasUnreadGroup.value = true;
     recalcOpenNeedsAttention();
+    setTimeout(() => { skipNextAnimation.value = true; fetchPeople(0); }, 300);
+  });
+
+  unsubscribeGroupNotif = onGroupMessageNotification((payload) => {
+    const senderId = toInt(payload.sender_id ?? payload.senderId);
+    if (senderId === userId.value) return;
+    hasUnreadGroup.value = true;
+    recalcOpenNeedsAttention();
+    // Refresh chat list (mirrors iOS fetchPeople 0.3s delay)
+    setTimeout(() => { skipNextAnimation.value = true; fetchPeople(0); }, 300);
   });
 
   unsubscribeInvite = onGoalTeamInvite((_data) => {
@@ -1159,7 +1169,8 @@ onActivated(() => {
 onUnmounted(() => {
   if (inviteTimer) clearInterval(inviteTimer);
   if (unsubscribeDM) unsubscribeDM();
-  if (unsubscribeGroup) unsubscribeGroup();
+  if (unsubscribeGroupMsg) unsubscribeGroupMsg();
+  if (unsubscribeGroupNotif) unsubscribeGroupNotif();
   if (unsubscribeInvite) unsubscribeInvite();
 
   document.removeEventListener('refreshActiveChats', () => {});

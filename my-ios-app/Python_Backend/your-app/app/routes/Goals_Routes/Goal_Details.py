@@ -31,6 +31,17 @@ GOAL_TYPE_METRIC_MAP = {
 def check_permission(goal, user_id):
     return user_id == goal.users_id or user_id == goal.lead_id
 
+def is_goal_team_member(goal, user_id):
+    """Returns True if the user is the goal creator or a confirmed team member.
+    Used to gate chat creation — broader than check_permission which is edit/delete only."""
+    if user_id == goal.users_id:
+        return True
+    return GoalTeam.query.filter_by(
+        goals_id=goal.id,
+        users_id2=user_id,
+        confirmed=1
+    ).first() is not None
+
 def check_portal_permission(portal, user_id):
     """Check if user can create goals for this portal (creator or lead only)"""
     # Check if user is portal creator
@@ -348,8 +359,8 @@ def api_link_goal_chat():
     goal = Goal.query.get(goal_id)
     if not goal:
         return jsonify({'error': 'Goal not found'}), 404
-    if not check_permission(goal, user_id):
-        return jsonify({'error': 'Permission denied'}), 403
+    if not is_goal_team_member(goal, user_id):
+        return jsonify({'error': 'Only Goal Team members can create a team chat'}), 403
 
     # First-write-wins: if already linked, return the existing chat ID
     if goal.chats_id:

@@ -446,51 +446,106 @@
               </p>
             </div>
 
-            <!-- Horizontal image filmstrip -->
-            <div class="relative" style="height:180px">
+            <!-- Card body: image left + goal cards right -->
+            <div class="flex" style="height:180px">
 
-              <!-- Scrollable image row (scrollbar hidden via CSS) -->
-              <div
-                :data-filmstrip="portal.id"
-                @scroll="onFilmstripScroll(portal.id, $event)"
-                class="filmstrip flex gap-2 h-full overflow-x-scroll"
-              >
+              <!-- Single portal image with ← → to cycle pitch deck slides -->
+              <div class="relative flex-shrink-0 bg-gray-200" style="width:320px">
                 <img
-                  v-for="(url, i) in getFilmstripImages(portal)"
-                  :key="i"
-                  :src="url"
+                  v-if="getCardImage(portal)"
+                  :src="getCardImage(portal)"
                   :alt="portal.name"
-                  class="flex-shrink-0 h-full object-cover"
-                  style="width:320px"
+                  class="w-full h-full object-cover"
                 />
-                <!-- Spacer so the last image isn't flush with the arrow -->
-                <div class="flex-shrink-0 w-2 h-full"></div>
+                <!-- ← prev -->
+                <button
+                  v-if="(portalCardImageIndex[portal.id] ?? 0) > 0"
+                  @click.prevent.stop="prevCardImage(portal.id)"
+                  class="absolute left-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <!-- → next -->
+                <button
+                  v-if="(portalCardImageIndex[portal.id] ?? 0) < (portalCardImages[portal.id]?.length ?? 1) - 1"
+                  @click.prevent.stop="nextCardImage(portal.id)"
+                  class="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+                <!-- Pagination dots -->
+                <div
+                  v-if="(portalCardImages[portal.id]?.length ?? 0) > 1"
+                  class="absolute bottom-1.5 left-0 right-0 flex justify-center gap-1 pointer-events-none"
+                >
+                  <div
+                    v-for="(_, i) in portalCardImages[portal.id]" :key="i"
+                    class="w-1.5 h-1.5 rounded-full"
+                    :class="i === (portalCardImageIndex[portal.id] ?? 0) ? 'bg-white' : 'bg-white/40'"
+                  ></div>
+                </div>
               </div>
 
-              <!-- ← left arrow -->
-              <button
-                v-if="filmstripCanScrollLeft(portal.id)"
-                @click.prevent.stop="scrollFilmstripLeft(portal.id)"
-                class="absolute left-0 top-0 h-full w-10 flex items-center justify-center text-white"
-                style="background:linear-gradient(to right, rgba(0,0,0,0.45), transparent)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
+              <!-- Goal cards -->
+              <div class="flex-1 min-w-0 flex flex-col justify-center gap-3 px-3 py-2">
 
-              <!-- → right arrow -->
-              <button
-                v-if="filmstripCanScrollRight(portal.id)"
-                @click.prevent.stop="scrollFilmstripRight(portal.id)"
-                class="absolute right-0 top-0 h-full w-10 flex items-center justify-center text-white"
-                style="background:linear-gradient(to left, rgba(0,0,0,0.45), transparent)"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
+                <!-- Loading state -->
+                <div v-if="!portalCardGoals[portal.id]" class="space-y-3 animate-pulse">
+                  <div v-for="i in 2" :key="i" class="space-y-1.5">
+                    <div class="h-3 bg-gray-200 rounded w-3/4"></div>
+                    <div class="h-2 bg-gray-100 rounded w-full"></div>
+                  </div>
+                </div>
 
+                <!-- No goals -->
+                <p
+                  v-else-if="portalCardGoals[portal.id].length === 0"
+                  class="text-xs text-gray-400 italic"
+                >No active Goal Teams yet</p>
+
+                <!-- Goal rows -->
+                <template v-else>
+                  <div
+                    v-for="goal in portalCardGoals[portal.id]"
+                    :key="goal.id"
+                    class="space-y-1"
+                  >
+                    <!-- Goal name + message icon -->
+                    <div class="flex items-center justify-between gap-2">
+                      <p class="text-xs font-semibold text-gray-800 leading-tight line-clamp-1 flex-1">{{ goal.title }}</p>
+                      <button
+                        v-if="goal.chats_id"
+                        @click.prevent.stop="openGoalTeamChat(goal.chats_id, goal.title)"
+                        class="shrink-0 w-6 h-6 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity"
+                        style="background:#8cc65d"
+                        title="Message this Goal Team"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
+                      </button>
+                    </div>
+                    <!-- Progress bar + % -->
+                    <div class="flex items-center gap-2">
+                      <div class="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          class="h-full rounded-full transition-all duration-300"
+                          style="background:#8cc65d"
+                          :style="{ width: `${Math.min(100, Math.max(0, (goal.progress ?? 0) * 100))}%` }"
+                        ></div>
+                      </div>
+                      <span class="text-[11px] text-gray-500 shrink-0 w-8 text-right">
+                        {{ Math.round((goal.progress ?? 0) * 100) }}%
+                      </span>
+                    </div>
+                  </div>
+                </template>
+
+              </div>
             </div>
             <div class="pb-2"></div>
           </RouterLink>
@@ -712,7 +767,8 @@ const desktopRightTab = ref(isAuthenticated() ? 1 : 2);
 watch(desktopRightTab, () => {
   desktopPortals.value = [];
   portalCardImages.value = {};
-  portalFilmstripScroll.value = {};
+  portalCardImageIndex.value = {};
+  portalCardGoals.value = {};
   fetchDesktopPortals();
 });
 
@@ -753,7 +809,7 @@ const setupPortalImageObserver = () => {
       entries.forEach(entry => {
         if (!entry.isIntersecting) return;
         const portalId = Number((entry.target as HTMLElement).dataset.portalId);
-        if (portalId) loadPortalCardImages(portalId);
+        if (portalId) loadPortalCardData(portalId);
         portalImageObserver?.unobserve(entry.target);
       });
     },
@@ -783,61 +839,52 @@ const scrollPortalListBy = (direction: 1 | -1) => {
   portalListRef.value?.scrollBy({ top: direction * 195, behavior: 'smooth' });
 };
 
-// Per-portal image filmstrips — loaded lazily via IntersectionObserver
+// Per-portal card data — images + top 2 goals, loaded lazily via IntersectionObserver
 const portalCardImages = ref<Record<number, string[]>>({});
-// Tracks each filmstrip's scrollLeft so we know when to show ← / → arrows
-const portalFilmstripScroll = ref<Record<number, number>>({});
+const portalCardImageIndex = ref<Record<number, number>>({});
+const portalCardGoals = ref<Record<number, any[]>>({});
 
-const FILM_CARD_W = 328; // 320px image (16:9 at 180px height) + 8px gap
+const getCardImage = (portal: Portal): string =>
+  portalCardImages.value[portal.id]?.[portalCardImageIndex.value[portal.id] ?? 0]
+  ?? portal.mainImageUrl ?? '';
 
-const getFilmstripImages = (portal: Portal): string[] => {
-  const loaded = portalCardImages.value[portal.id];
-  if (loaded?.length) return loaded;
-  return portal.mainImageUrl ? [portal.mainImageUrl] : [];
+const prevCardImage = (portalId: number) => {
+  const idx = portalCardImageIndex.value[portalId] ?? 0;
+  if (idx > 0) portalCardImageIndex.value = { ...portalCardImageIndex.value, [portalId]: idx - 1 };
 };
 
-const onFilmstripScroll = (portalId: number, e: Event) => {
-  const el = e.target as HTMLElement;
-  portalFilmstripScroll.value = { ...portalFilmstripScroll.value, [portalId]: el.scrollLeft };
+const nextCardImage = (portalId: number) => {
+  const images = portalCardImages.value[portalId] ?? [];
+  const idx = portalCardImageIndex.value[portalId] ?? 0;
+  if (idx < images.length - 1) portalCardImageIndex.value = { ...portalCardImageIndex.value, [portalId]: idx + 1 };
 };
 
-const scrollFilmstripRight = (portalId: number) => {
-  const el = document.querySelector<HTMLElement>(`[data-filmstrip="${portalId}"]`);
-  el?.scrollBy({ left: FILM_CARD_W, behavior: 'smooth' });
-};
-
-const scrollFilmstripLeft = (portalId: number) => {
-  const el = document.querySelector<HTMLElement>(`[data-filmstrip="${portalId}"]`);
-  el?.scrollBy({ left: -FILM_CARD_W, behavior: 'smooth' });
-};
-
-const filmstripCanScrollLeft = (portalId: number) =>
-  (portalFilmstripScroll.value[portalId] ?? 0) > 0;
-
-const filmstripCanScrollRight = (portalId: number) => {
-  const images = getFilmstripImages({ id: portalId, name: '' } as any);
-  const scrollLeft = portalFilmstripScroll.value[portalId] ?? 0;
-  // hide arrow once scrolled to the last image
-  return images.length > 1 && scrollLeft < (images.length - 1) * FILM_CARD_W;
-};
-
-const loadPortalCardImages = async (portalId: number) => {
+// Load images + goals together using the public portal detail endpoint (works for all users,
+// no separate auth-gated graphic_sections call needed)
+const loadPortalCardData = async (portalId: number) => {
   if (portalCardImages.value[portalId]) return;
   try {
-    let sections: any[] = [];
-    if (isAuthenticated()) {
-      // Authenticated: lightweight graphic sections endpoint
-      const res = await api.get(`/api/portal/graphic_sections?portal_id=${portalId}`);
-      sections = res.data.result || [];
-    } else {
-      // Unauthenticated: public portal detail endpoint includes aSections
-      const res = await api.get(`/api/public/portal/${portalId}`);
-      sections = res.data.result?.aSections || [];
-    }
+    const res = await api.get(`/api/public/portal/${portalId}`);
+    const data = res.data.result;
+    // Images
+    const sections: any[] = data?.aSections || [];
     const main = sections.find((s: any) => s.title === 'Main Section');
     const urls = (main?.aFiles || []).map((f: any) => f.url).filter(Boolean);
     portalCardImages.value = { ...portalCardImages.value, [portalId]: urls };
+    // Top 2 goals by recency (backend returns aGoals ordered by id DESC)
+    const goals: any[] = data?.aGoals || [];
+    portalCardGoals.value = { ...portalCardGoals.value, [portalId]: goals.slice(0, 2) };
   } catch { /* silent */ }
+};
+
+// Open a Goal Team's chat in the inline pane (left panel)
+const openGoalTeamChat = (chatsId: number, goalTitle: string) => {
+  const syntheticChat: ActiveChat = {
+    id: `group-${chatsId}`,
+    type: 'group',
+    chat: { id: chatsId, name: goalTitle },
+  };
+  loadInlineChat(syntheticChat);
 };
 
 // --- Inline chat ---
@@ -1023,9 +1070,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* Hide scrollbar on filmstrip rows — navigation is via arrow buttons only */
-.filmstrip::-webkit-scrollbar { display: none; }
-.filmstrip { -ms-overflow-style: none; scrollbar-width: none; }
 
 .slide-up-enter-active,
 .slide-up-leave-active {

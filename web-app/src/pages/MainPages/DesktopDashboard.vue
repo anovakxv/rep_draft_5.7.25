@@ -171,14 +171,16 @@
                 </div>
               </div>
               <div class="flex-1 min-w-0">
-                <div class="flex justify-between items-baseline gap-1">
-                  <p class="text-sm font-semibold truncate">
+                <!-- Row 1+2: name (up to 2 lines) + time aligned to top-right -->
+                <div class="flex justify-between items-start gap-1">
+                  <p class="text-sm font-semibold leading-snug line-clamp-2">
                     {{ chat.type === 'direct' ? chat.user?.full_name : chat.chat?.name }}
                   </p>
-                  <span class="text-xs text-gray-400 shrink-0">{{ timeAgoDisplay(chat.last_message_time) }}</span>
+                  <span class="text-xs text-gray-400 shrink-0 mt-0.5">{{ timeAgoDisplay(chat.last_message_time) }}</span>
                 </div>
+                <!-- Row 3: message preview -->
                 <p
-                  class="text-xs truncate mt-0.5"
+                  class="text-xs truncate mt-1"
                   :class="chat.last_message?.read === '0' && chat.last_message?.sender_id !== userId
                     ? 'font-semibold text-green-600'
                     : 'text-gray-500'"
@@ -323,12 +325,14 @@
             <div class="px-3 py-2 border-t border-gray-200 shrink-0 bg-white">
               <div class="flex items-end gap-2">
                 <textarea
+                  ref="messageInputRef"
                   v-model="inlineChatInput"
                   @keydown.enter.exact.prevent="sendInlineMessage"
+                  @input="growMessageInput"
                   placeholder="Message…"
                   rows="1"
-                  class="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-1 max-h-24"
-                  style="--tw-ring-color: #8cc65d"
+                  class="flex-1 resize-none rounded-2xl border border-gray-200 px-4 py-2 text-sm bg-gray-50 focus:outline-none focus:ring-1"
+                  style="--tw-ring-color: #8cc65d; overflow-y: hidden; max-height: 96px;"
                 ></textarea>
                 <button
                   @click="sendInlineMessage"
@@ -434,59 +438,59 @@
             :to="`/portal/${portal.id}`"
             class="block border-b border-gray-300 bg-white"
           >
-            <!-- Portal title strip -->
-            <div class="px-3 pt-2 pb-1">
-              <p class="text-[13px] font-bold text-gray-900 leading-snug line-clamp-1">{{ portal.name }}</p>
-              <p
-                v-if="portal.subtitle?.trim()"
-                class="text-xs text-gray-400 leading-snug line-clamp-1 mt-0.5"
-              >{{ portal.subtitle }}</p>
+            <!-- Portal title strip — name + subtitle on one line -->
+            <div class="px-3 pt-2 pb-1.5">
+              <p class="text-[13px] leading-snug line-clamp-1 text-gray-900">
+                <span class="font-bold">{{ portal.name }}</span>
+                <span v-if="portal.subtitle?.trim()" class="font-normal text-gray-400"> — {{ portal.subtitle }}</span>
+              </p>
             </div>
 
-            <!-- Full-width portal image -->
-            <div class="relative bg-gray-200" style="height:180px">
-              <img
-                v-if="getCardImage(portal)"
-                :src="getCardImage(portal)"
-                :alt="portal.name"
-                class="w-full h-full object-cover"
-              />
-              <div v-else class="w-full h-full bg-gray-200"></div>
+            <!-- Horizontal image filmstrip -->
+            <div class="relative" style="height:180px">
 
-              <!-- ← prev -->
-              <button
-                v-if="(portalCardImageIndex[portal.id] ?? 0) > 0"
-                @click.prevent.stop="prevCardImage(portal.id)"
-                class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-
-              <!-- → next -->
-              <button
-                v-if="(portalCardImageIndex[portal.id] ?? 0) < (portalCardImages[portal.id]?.length ?? 0) - 1"
-                @click.prevent.stop="nextCardImage(portal.id)"
-                class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 hover:bg-black/70 text-white flex items-center justify-center transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-
-              <!-- Pagination dots -->
+              <!-- Scrollable image row (scrollbar hidden via CSS) -->
               <div
-                v-if="(portalCardImages[portal.id]?.length ?? 0) > 1"
-                class="absolute bottom-2.5 left-0 right-0 flex justify-center gap-1.5 pointer-events-none"
+                :data-filmstrip="portal.id"
+                @scroll="onFilmstripScroll(portal.id, $event)"
+                class="filmstrip flex gap-2 h-full overflow-x-scroll"
               >
-                <div
-                  v-for="(_, i) in portalCardImages[portal.id]"
+                <img
+                  v-for="(url, i) in getFilmstripImages(portal)"
                   :key="i"
-                  class="w-2 h-2 rounded-full"
-                  :class="i === (portalCardImageIndex[portal.id] ?? 0) ? 'bg-white' : 'bg-white/40'"
-                ></div>
+                  :src="url"
+                  :alt="portal.name"
+                  class="flex-shrink-0 h-full object-cover rounded-sm"
+                  style="width:200px"
+                />
+                <!-- Spacer so the last image isn't flush with the arrow -->
+                <div class="flex-shrink-0 w-2 h-full"></div>
               </div>
+
+              <!-- ← left arrow -->
+              <button
+                v-if="filmstripCanScrollLeft(portal.id)"
+                @click.prevent.stop="scrollFilmstripLeft(portal.id)"
+                class="absolute left-0 top-0 h-full w-10 flex items-center justify-center text-white"
+                style="background:linear-gradient(to right, rgba(0,0,0,0.45), transparent)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <!-- → right arrow -->
+              <button
+                v-if="filmstripCanScrollRight(portal.id)"
+                @click.prevent.stop="scrollFilmstripRight(portal.id)"
+                class="absolute right-0 top-0 h-full w-10 flex items-center justify-center text-white"
+                style="background:linear-gradient(to left, rgba(0,0,0,0.45), transparent)"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
             </div>
           </RouterLink>
 
@@ -617,6 +621,8 @@ const props = defineProps<{
   isLoadingPeople: boolean;
 }>();
 
+const emit = defineEmits<{ (e: 'refresh-chats'): void }>();
+
 const router = useRouter();
 
 // Reactive auth check so the template responds to login/logout
@@ -705,7 +711,7 @@ const desktopRightTab = ref(isAuthenticated() ? 1 : 2);
 watch(desktopRightTab, () => {
   desktopPortals.value = [];
   portalCardImages.value = {};
-  portalCardImageIndex.value = {};
+  portalFilmstripScroll.value = {};
   fetchDesktopPortals();
 });
 
@@ -776,13 +782,43 @@ const scrollPortalListBy = (direction: 1 | -1) => {
   portalListRef.value?.scrollBy({ top: direction * 195, behavior: 'smooth' });
 };
 
-// Per-card image carousels — lazy loaded on first arrow tap, keyed by portal id
+// Per-portal image filmstrips — loaded lazily via IntersectionObserver
 const portalCardImages = ref<Record<number, string[]>>({});
-const portalCardImageIndex = ref<Record<number, number>>({});
+// Tracks each filmstrip's scrollLeft so we know when to show ← / → arrows
+const portalFilmstripScroll = ref<Record<number, number>>({});
 
-const getCardImage = (portal: Portal): string =>
-  portalCardImages.value[portal.id]?.[portalCardImageIndex.value[portal.id] ?? 0]
-  ?? portal.mainImageUrl ?? '';
+const FILM_CARD_W = 208; // 200px image + 8px gap
+
+const getFilmstripImages = (portal: Portal): string[] => {
+  const loaded = portalCardImages.value[portal.id];
+  if (loaded?.length) return loaded;
+  return portal.mainImageUrl ? [portal.mainImageUrl] : [];
+};
+
+const onFilmstripScroll = (portalId: number, e: Event) => {
+  const el = e.target as HTMLElement;
+  portalFilmstripScroll.value = { ...portalFilmstripScroll.value, [portalId]: el.scrollLeft };
+};
+
+const scrollFilmstripRight = (portalId: number) => {
+  const el = document.querySelector<HTMLElement>(`[data-filmstrip="${portalId}"]`);
+  el?.scrollBy({ left: FILM_CARD_W, behavior: 'smooth' });
+};
+
+const scrollFilmstripLeft = (portalId: number) => {
+  const el = document.querySelector<HTMLElement>(`[data-filmstrip="${portalId}"]`);
+  el?.scrollBy({ left: -FILM_CARD_W, behavior: 'smooth' });
+};
+
+const filmstripCanScrollLeft = (portalId: number) =>
+  (portalFilmstripScroll.value[portalId] ?? 0) > 0;
+
+const filmstripCanScrollRight = (portalId: number) => {
+  const images = getFilmstripImages({ id: portalId, name: '' } as any);
+  const scrollLeft = portalFilmstripScroll.value[portalId] ?? 0;
+  // hide arrow once scrolled to the last image
+  return images.length > 1 && scrollLeft < (images.length - 1) * FILM_CARD_W;
+};
 
 const loadPortalCardImages = async (portalId: number) => {
   if (portalCardImages.value[portalId]) return;
@@ -803,25 +839,26 @@ const loadPortalCardImages = async (portalId: number) => {
   } catch { /* silent */ }
 };
 
-const prevCardImage = async (portalId: number) => {
-  await loadPortalCardImages(portalId);
-  const idx = portalCardImageIndex.value[portalId] ?? 0;
-  if (idx > 0) portalCardImageIndex.value = { ...portalCardImageIndex.value, [portalId]: idx - 1 };
-};
-
-const nextCardImage = async (portalId: number) => {
-  await loadPortalCardImages(portalId);
-  const images = portalCardImages.value[portalId] ?? [];
-  const idx = portalCardImageIndex.value[portalId] ?? 0;
-  if (idx < images.length - 1) portalCardImageIndex.value = { ...portalCardImageIndex.value, [portalId]: idx + 1 };
-};
-
 // --- Inline chat ---
 const selectedChat = ref<ActiveChat | null>(null);
 const inlineChatMessages = ref<any[]>([]);
 const inlineChatInput = ref('');
 const inlineChatLoading = ref(false);
 const inlineChatScrollRef = ref<HTMLElement | null>(null);
+const messageInputRef = ref<HTMLTextAreaElement | null>(null);
+
+const growMessageInput = () => {
+  const el = messageInputRef.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 96) + 'px'; // cap at 4 lines (~96px)
+};
+
+const resetMessageInput = () => {
+  const el = messageInputRef.value;
+  if (!el) return;
+  el.style.height = 'auto';
+};
 
 const scrollInlineChatToBottom = () => {
   nextTick(() => { const el = inlineChatScrollRef.value; if (el) el.scrollTop = el.scrollHeight; });
@@ -851,17 +888,27 @@ const sendInlineMessage = async () => {
   const text = inlineChatInput.value.trim();
   if (!text || !selectedChat.value) return;
   inlineChatInput.value = '';
+  resetMessageInput();
   try {
     if (selectedChat.value.type === 'direct' && selectedChat.value.user) {
       const res = await api.post('/api/message/send_message', { users_id: selectedChat.value.user.id, message: text });
-      if (res.data.message) { inlineChatMessages.value.push(res.data.message); scrollInlineChatToBottom(); }
+      if (res.data.message) {
+        inlineChatMessages.value.push(res.data.message);
+        scrollInlineChatToBottom();
+        emit('refresh-chats'); // update sidebar order + preview text
+      }
     } else if (selectedChat.value.type === 'group' && selectedChat.value.chat) {
       const res = await api.post('/api/message/send_chat_message', { chats_id: selectedChat.value.chat.id, message: text });
-      if (res.data.message) { inlineChatMessages.value.push(res.data.message); scrollInlineChatToBottom(); }
+      if (res.data.message) {
+        inlineChatMessages.value.push(res.data.message);
+        scrollInlineChatToBottom();
+        emit('refresh-chats'); // update sidebar order + preview text
+      }
     }
   } catch (err) {
     console.error('sendInlineMessage error:', err);
     inlineChatInput.value = text;
+    growMessageInput(); // restore height if send failed
   }
 };
 
@@ -975,6 +1022,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* Hide scrollbar on filmstrip rows — navigation is via arrow buttons only */
+.filmstrip::-webkit-scrollbar { display: none; }
+.filmstrip { -ms-overflow-style: none; scrollbar-width: none; }
+
 .slide-up-enter-active,
 .slide-up-leave-active {
   transition: transform 0.25s ease-out;

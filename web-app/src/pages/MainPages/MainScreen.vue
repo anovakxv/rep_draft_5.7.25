@@ -247,6 +247,7 @@
     :user-id="userId"
     :open-needs-attention="openNeedsAttention"
     :is-loading-people="isLoadingPeople"
+    @refresh-chats="fetchPeople(0)"
   />
 
 </template>

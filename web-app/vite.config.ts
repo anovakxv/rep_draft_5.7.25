@@ -71,4 +71,16 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src')
     },
   },
+  server: {
+    proxy: {
+      // Forward all /api calls to the live Render backend during local dev.
+      // The browser sees requests going to localhost (no CORS), Vite proxies
+      // them server-to-server. Has no effect on production builds.
+      '/api': {
+        target: 'https://rep-june2025.onrender.com',
+        changeOrigin: true,
+        secure: true,
+      }
+    }
+  }
 })

@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   MainScreen.vue
   Rep
 
@@ -7,7 +7,10 @@
 -->
 
 <template>
-  <div class="flex flex-col h-screen bg-white">
+  <!-- ============================================================
+       MOBILE LAYOUT (below lg breakpoint) — untouched
+       ============================================================ -->
+  <div class="lg:hidden flex flex-col h-screen bg-white">
     <!-- Header/Toolbar -->
     <header class="sticky top-0 z-20 border-b border-gray-200 flex items-center justify-between h-14 px-4" style="background-color: #f7f7f7">
       <button @click="handleProfileClick" class="focus:outline-none">
@@ -229,8 +232,24 @@
       <router-view name="portalEditor" />
     </div>
   </div>
-</template>
 
+  <!-- ============================================================
+       DESKTOP LAYOUT — rendered by DesktopDashboard.vue
+       Edit that file to change the desktop UI. This wrapper
+       hides it on mobile via Tailwind's hidden/lg:flex pair.
+       ============================================================ -->
+  <DesktopDashboard
+    class="hidden lg:flex"
+    :active-chats="activeChats"
+    :filtered-active-chats="filteredActiveChats"
+    :pending-invites="pendingInvites"
+    :current-user="currentUser"
+    :user-id="userId"
+    :open-needs-attention="openNeedsAttention"
+    :is-loading-people="isLoadingPeople"
+  />
+
+</template>
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, onActivated, watch, computed, defineComponent, h, nextTick, type Ref } from 'vue';
 import { useRouter, useRoute, RouterLink } from 'vue-router';
@@ -242,6 +261,7 @@ defineOptions({
 import api from '@/pages/utils/api';
 import { useSocketManager } from '../utils/useSocketManager';
 import { isAuthenticated } from '@/utils/auth';
+import DesktopDashboard from './DesktopDashboard.vue';
 import REPLogo from '@/assets/REPLogo.png';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
 import ErrorState from '@/components/ErrorState.vue';
@@ -1464,5 +1484,21 @@ const ActiveChatList = defineComponent({
 .slide-down-leave-from {
   transform: translateY(0);
   opacity: 1;
+}
+
+/* Slide-up transition for action sheet */
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: transform 0.25s ease-out;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  transform: translateY(100%);
+}
+
+.slide-up-enter-to,
+.slide-up-leave-from {
+  transform: translateY(0);
 }
 </style>

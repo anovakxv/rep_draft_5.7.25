@@ -38,4 +38,15 @@ body {
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
   position: relative;
 }
+
+/* On desktop, break out of the mobile max-width cap and fill the full screen */
+@media (min-width: 1024px) {
+  .app-container {
+    justify-content: stretch;
+  }
+  .app-content {
+    max-width: 100%;
+    box-shadow: none;
+  }
+}
 </style>

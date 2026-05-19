@@ -22,7 +22,7 @@
       <div class="flex flex-col overflow-hidden border-r border-gray-200" style="width:50%">
 
         <!-- Left panel header -->
-        <div class="relative flex items-center h-12 px-3 border-b border-gray-200 bg-white shrink-0">
+        <div class="relative flex items-center h-12 px-3 border-b border-gray-200 bg-gray-100 shrink-0">
           <!-- Left: profile pic + search + add -->
           <div class="flex items-center gap-2">
             <button @click="handleProfileClick" class="focus:outline-none">
@@ -230,9 +230,9 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
-            <h2 class="font-bold text-[17px] text-gray-900">Connect with purpose</h2>
+            <h2 class="font-bold text-[17px] text-gray-900">Accelerate prioritized Purpose</h2>
             <p class="text-sm text-gray-400 mt-2 leading-relaxed max-w-[220px]">
-              Message your network, join Goal Teams, and find people working on what matters to you.
+              Build Goal Teams, accelerate your Purpose.
             </p>
             <RouterLink
               to="/register"
@@ -358,7 +358,7 @@
       <div class="flex flex-col overflow-hidden" style="width:50%">
 
         <!-- Right panel header -->
-        <div class="relative flex items-center h-12 px-3 border-b border-gray-200 bg-white shrink-0">
+        <div class="relative flex items-center h-12 px-3 border-b border-gray-200 bg-gray-100 shrink-0">
 
           <!-- Left: Purpose label -->
           <span class="text-sm font-semibold text-gray-500 tracking-wide">Purpose</span>
@@ -439,8 +439,8 @@
             class="block border-b border-gray-300 bg-white"
           >
             <!-- Portal title strip — name + subtitle on one line -->
-            <div class="px-3 pt-2 pb-1.5">
-              <p class="text-[13px] leading-snug line-clamp-1 text-gray-900">
+            <div class="px-3 pt-3 pb-2">
+              <p class="text-[15px] leading-snug line-clamp-1 text-gray-900">
                 <span class="font-bold">{{ portal.name }}</span>
                 <span v-if="portal.subtitle?.trim()" class="font-normal text-gray-400"> — {{ portal.subtitle }}</span>
               </p>
@@ -460,8 +460,8 @@
                   :key="i"
                   :src="url"
                   :alt="portal.name"
-                  class="flex-shrink-0 h-full object-cover rounded-sm"
-                  style="width:200px"
+                  class="flex-shrink-0 h-full object-cover"
+                  style="width:320px"
                 />
                 <!-- Spacer so the last image isn't flush with the arrow -->
                 <div class="flex-shrink-0 w-2 h-full"></div>
@@ -492,6 +492,7 @@
               </button>
 
             </div>
+            <div class="pb-2"></div>
           </RouterLink>
 
           <div
@@ -787,7 +788,7 @@ const portalCardImages = ref<Record<number, string[]>>({});
 // Tracks each filmstrip's scrollLeft so we know when to show ← / → arrows
 const portalFilmstripScroll = ref<Record<number, number>>({});
 
-const FILM_CARD_W = 208; // 200px image + 8px gap
+const FILM_CARD_W = 328; // 320px image (16:9 at 180px height) + 8px gap
 
 const getFilmstripImages = (portal: Portal): string[] => {
   const loaded = portalCardImages.value[portal.id];

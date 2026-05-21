@@ -7,14 +7,14 @@
 <template>
   <div class="flex flex-col h-screen bg-white chat-individual-container">
     <!-- Header - Full Width -->
-    <div class="flex items-center h-14 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+    <div class="flex items-center h-14 xl:h-12 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
       <button @click="emit('close')" style="color: #8cc65d">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 xl:h-5 xl:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      <h1 class="font-bold text-lg flex-1 text-center truncate">{{ otherUserName }}</h1>
-      <div class="w-10"></div>
+      <h1 class="font-bold text-lg xl:text-sm xl:font-semibold flex-1 text-center truncate">{{ otherUserName }}</h1>
+      <div class="w-10 xl:w-8"></div>
     </div>
 
     <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
@@ -30,8 +30,8 @@
               v-model="inputText"
               @input="handleInputChange"
               @keydown="handleKeyDown"
-              rows="12"
-              class="w-full resize-none rounded-lg border border-gray-300 p-4 focus:outline-none focus:ring-2"
+              rows="6"
+              class="w-full resize-none rounded-lg border border-gray-300 p-3 focus:outline-none focus:ring-2"
               style="--tw-ring-color: #8cc65d; border-color: inherit; max-height: 500px;"
               placeholder="Type a message... (Shift+Enter for new line)"
               maxlength="5000"
@@ -40,7 +40,7 @@
             <button
               @click="sendMessage"
               :disabled="inputText.trim() === '' || isSending"
-              class="w-full text-white font-bold px-5 py-4 rounded-lg transition disabled:opacity-60 text-lg"
+              class="w-full text-white font-bold px-5 py-2.5 rounded-lg transition disabled:opacity-60"
               style="background-color: #8cc65d"
             >
               <span v-if="isSending" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full inline-block mr-2"></span>
@@ -378,7 +378,9 @@ function setupRealtimeListener() {
     observerId = window.RealtimeSocketManager.onDirectMessageNotification((payload: any) => {
       const senderId = payload.sender_id ?? payload.senderId;
       const recipientId = payload.recipient_id ?? payload.recipientId;
-      if (senderId === props.otherUserId && recipientId === props.currentUserId) {
+      // Accept if sender is the other user; recipientId check is optional
+      // (server doesn't always include it — requiring it silently drops valid messages)
+      if (senderId === props.otherUserId && (recipientId == null || recipientId === props.currentUserId)) {
         if (payload.message) {
           appendIfNeeded(payload.message);
         } else if (payload.text) {

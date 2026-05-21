@@ -7,12 +7,12 @@
 <template>
   <div class="flex flex-col h-screen bg-white">
     <!-- Header -->
-    <header class="flex items-center justify-between h-15 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+    <header class="flex items-center justify-between h-12 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
       <button @click="dismiss" style="color: #8cc65d">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" /></svg>
       </button>
-      <h1 class="font-bold text-xl">Edit Portal</h1>
-      <button @click="save" class="font-bold" style="color: #8cc65d" :disabled="isSaving">
+      <h1 class="font-semibold text-sm xl:text-base">Edit Portal</h1>
+      <button @click="save" class="font-semibold text-sm" style="color: #8cc65d" :disabled="isSaving">
         {{ isSaving ? 'Saving...' : 'Save' }}
       </button>
     </header>
@@ -28,8 +28,12 @@
     </div>
 
     <!-- Main Form -->
-    <div v-else class="flex-1 overflow-y-auto">
-      <div class="p-4 space-y-6">
+    <div v-else class="flex-1 overflow-y-auto xl:overflow-hidden">
+      <div class="xl:flex xl:h-full xl:overflow-hidden">
+
+      <!-- LEFT COLUMN (desktop): Graphics + Info + Leads + Payment + Delete -->
+      <div class="xl:w-[45%] xl:overflow-y-auto xl:border-r xl:border-gray-200">
+      <div class="p-4 xl:p-6 space-y-6">
         <!-- Portal Graphics Section -->
         <div class="space-y-3">
           <div class="flex items-center justify-between">
@@ -205,8 +209,8 @@
         </div>
 
         <!-- Portal Leads Section -->
-        <button 
-          @click="showAddLeadsSheet = true" 
+        <button
+          @click="showAddLeadsSheet = true"
           class="w-full p-3 bg-gray-100 rounded-lg flex justify-between items-center text-left hover:bg-gray-200"
         >
           <span>Add Leads</span>
@@ -217,6 +221,40 @@
             </svg>
           </span>
         </button>
+
+        <!-- Payment Settings -->
+        <div class="pt-2 pb-2">
+          <div class="border-t border-gray-200 my-4"></div>
+          <button
+            @click="navigateToPaymentSettings"
+            class="w-full p-3 bg-gray-100 rounded-lg flex justify-between items-center text-left hover:bg-gray-200"
+          >
+            <span class="flex items-center">
+              <span class="mr-2 text-xl">💳</span>
+              <span class="font-semibold">Payment Settings</span>
+            </span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Delete Portal Button -->
+        <div class="pt-4 pb-12">
+          <button
+            @click="showDeletePortalAlert = true"
+            class="w-full py-3 text-red-500 font-bold text-lg bg-red-50 rounded-lg hover:bg-red-100"
+          >
+            Delete Portal
+          </button>
+        </div>
+
+      </div><!-- end left column inner -->
+      </div><!-- end left column -->
+
+      <!-- RIGHT COLUMN (desktop): Story + Image Sections -->
+      <div class="xl:w-[55%] xl:overflow-y-auto">
+      <div class="p-4 xl:p-6 space-y-6">
 
         <!-- Story Blocks Editor Section -->
         <div class="space-y-4">
@@ -338,34 +376,11 @@
           </div>
         </div>
 
-        <!-- Payment Settings -->
-        <div class="pt-2 pb-2">
-          <div class="border-t border-gray-200 my-4"></div>
-          <button 
-            @click="navigateToPaymentSettings" 
-            class="w-full p-3 bg-gray-100 rounded-lg flex justify-between items-center text-left hover:bg-gray-200"
-          >
-            <span class="flex items-center">
-              <span class="mr-2 text-xl">💳</span>
-              <span class="font-semibold">Payment Settings</span>
-            </span>
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
+      </div><!-- end right column inner -->
+      </div><!-- end right column -->
 
-        <!-- Delete Portal Button -->
-        <div class="pt-8 pb-12">
-          <button 
-            @click="showDeletePortalAlert = true" 
-            class="w-full py-3 text-red-500 font-bold text-lg bg-red-50 rounded-lg hover:bg-red-100"
-          >
-            Delete Portal
-          </button>
-        </div>
-      </div>
-    </div>
+      </div><!-- end xl:flex wrapper -->
+    </div><!-- end main form -->
 
     <!-- Modals and Alerts -->
     

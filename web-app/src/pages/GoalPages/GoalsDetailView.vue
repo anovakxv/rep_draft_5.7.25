@@ -118,8 +118,6 @@
             </div>
           </div>
 
-        </div>
-
         <!-- Desktop inline action buttons (inside scrollable area, at bottom of left panel content) -->
         <div class="px-4 py-3 border-t border-gray-100 flex items-center gap-2">
           <button

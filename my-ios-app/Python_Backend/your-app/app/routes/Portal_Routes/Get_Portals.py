@@ -13,7 +13,7 @@ from app.models.Purpose_Models.PortalsUsersShare import PortalsUsersShare
 from app.models.Purpose_Models.PortalGraphicSection import PortalGraphicSection
 from app.models.Purpose_Models.FlaggedPortal import FlaggedPortal
 
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from sqlalchemy.orm import subqueryload
 from app.utils.auth import jwt_required
 
@@ -218,7 +218,11 @@ def filter_network_portals():
     #     db.or_(Portal.status == 'active', Portal.users_id == user_id)
     # )
 
-    query = query.order_by(Portal.lead_user_count.desc())
+    # Past events (event_datetime set and in the past) sort to the bottom; all others by popularity
+    query = query.order_by(
+        text("CASE WHEN event_datetime IS NOT NULL AND event_datetime < NOW() THEN 1 ELSE 0 END"),
+        Portal.lead_user_count.desc()
+    )
     portals = query.offset(offset).limit(limit).all()
     result = [patch_main_image_url(portal.as_card_dict()) for portal in portals]
     return jsonify({'result': result})

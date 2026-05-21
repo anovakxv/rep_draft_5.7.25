@@ -8,6 +8,7 @@ from app import db
 from app.models.Purpose_Models.Portal import Portal
 from app.models.Purpose_Models.FlaggedPortal import FlaggedPortal
 from sqlalchemy.orm import subqueryload
+from sqlalchemy import text
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
@@ -67,8 +68,11 @@ def api_public_get_portals():
     if keyword:
         query = query.filter(Portal.name.ilike(f"%{keyword.lower()}%"))
 
-    # Order by popularity (lead_user_count) and paginate
-    query = query.order_by(Portal.lead_user_count.desc())
+    # Past events sort to the bottom; all others by popularity
+    query = query.order_by(
+        text("CASE WHEN event_datetime IS NOT NULL AND event_datetime < NOW() THEN 1 ELSE 0 END"),
+        Portal.lead_user_count.desc()
+    )
     portals = query.offset(offset).limit(limit).all()
 
     # Return portal cards with full S3 URLs

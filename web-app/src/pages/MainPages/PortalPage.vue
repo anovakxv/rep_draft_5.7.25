@@ -148,7 +148,7 @@
         <!-- Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
         <div
           v-if="supportersGoal && !attendeesGoal"
-          class="fixed bottom-16 left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
         >
           <button
             @click="handleJoinSupporters"
@@ -1466,87 +1466,160 @@ const ActionSheetModal = defineComponent({
   setup(props, { emit }) {
     const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
 
-    return () => h('div', {
-      class: 'fixed inset-0 z-40 flex items-end justify-center',
-      onClick: () => emit('close')
-    }, [
-      h('div', {
-        class: 'bg-black bg-opacity-50 w-full',
-        style: {
-          maxWidth: isDesktop.value ? '100vw' : '768px',
-          position: 'absolute',
-          top: '0',
-          bottom: '0',
-          left: '50%',
-          transform: 'translateX(-50%)'
-        }
-      }),
-      h('div', {
-        class: 'bg-white w-full rounded-t-2xl p-6 relative z-10',
-        style: {
-          maxHeight: '80vh',
-          overflowY: 'auto',
-          maxWidth: isDesktop.value ? '100vw' : '768px'
-        },
-        onClick: (e: Event) => e.stopPropagation()
-      }, [
-        h('div', { class: 'flex flex-col items-center space-y-6' }, [
-          // "$ Support" button - dark green with dollar sign (iOS style)
-          props.supportGoal && h('button', {
-            class: 'py-3',
-            onClick: () => emit('support')
+    return () => {
+      if (isDesktop.value) {
+        // Desktop: centered floating card (consistent with dashboard action menu)
+        return h('div', {
+          class: 'fixed inset-0 z-40 flex items-center justify-center',
+          onClick: () => emit('close')
+        }, [
+          h('div', { class: 'absolute inset-0 bg-black bg-opacity-40' }),
+          h('div', {
+            class: 'relative z-10 bg-white rounded-2xl shadow-2xl w-80 overflow-hidden',
+            onClick: (e: Event) => e.stopPropagation()
           }, [
-            h('div', { class: 'flex items-center space-x-2' }, [
-              h('span', {
-                class: 'font-bold text-[28px]',
-                style: { color: '#006600' }
-              }, '$'),
-              h('span', {
-                class: 'font-bold text-[28px]',
-                style: { color: '#006600' }
-              }, 'Support')
-            ])
-          ]),
+            props.supportGoal && h('button', {
+              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
+              onClick: () => emit('support')
+            }, [
+              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(0,102,0,0.1)' } }, [
+                h('span', { class: 'font-bold text-base', style: { color: '#006600' } }, '$')
+              ]),
+              h('span', { class: 'font-medium text-sm', style: { color: '#006600' } }, 'Support')
+            ]),
+            (props.isCurrentUserLead && userId > 0) && h('button', {
+              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
+              onClick: () => emit('add-goal')
+            }, [
+              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(140,198,93,0.1)' } }, [
+                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#8cc65d', strokeWidth: 2 }, [
+                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M12 4v16m8-8H4' })
+                ])
+              ]),
+              h('span', { class: 'font-medium text-sm', style: { color: '#8cc65d' } }, 'Add Goal')
+            ]),
+            h('button', {
+              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
+              onClick: () => emit('join-goal-team')
+            }, [
+              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(0,102,0,0.1)' } }, [
+                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#006600', strokeWidth: 2 }, [
+                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' })
+                ])
+              ]),
+              h('span', { class: 'font-medium text-sm', style: { color: '#006600' } }, 'Join Team')
+            ]),
+            h('button', {
+              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
+              onClick: () => emit('share')
+            }, [
+              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(140,198,93,0.1)' } }, [
+                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#8cc65d', strokeWidth: 2 }, [
+                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' })
+                ])
+              ]),
+              h('span', { class: 'font-medium text-sm', style: { color: '#8cc65d' } }, 'Share')
+            ]),
+            (props.portal?.users_id === userId && userId > 0) && h('button', {
+              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
+              onClick: () => emit('edit-purpose')
+            }, [
+              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(140,198,93,0.1)' } }, [
+                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#8cc65d', strokeWidth: 2 }, [
+                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' })
+                ])
+              ]),
+              h('span', { class: 'font-medium text-sm', style: { color: '#8cc65d' } }, 'Edit Purpose')
+            ]),
+            userId > 0 && h('button', {
+              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
+              onClick: () => emit('flag')
+            }, [
+              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(220,38,38,0.1)' } }, [
+                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#dc2626', strokeWidth: 2 }, [
+                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9' })
+                ])
+              ]),
+              h('span', { class: 'font-medium text-sm text-red-600' }, 'Flag as Inappropriate')
+            ]),
+            h('button', {
+              class: 'flex items-center justify-center w-full py-3 text-sm font-medium text-gray-500 border-t border-gray-100 hover:bg-gray-50 transition-colors',
+              onClick: () => emit('close')
+            }, 'Cancel')
+          ])
+        ]);
+      }
 
-          // Add Goal - light green, large text (only if current user is lead AND authenticated)
-          (props.isCurrentUserLead && userId > 0) && h('button', {
-            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
-            onClick: () => emit('add-goal')
-          }, 'Add Goal'),
-
-          // Join Team - dark green, large text (available for everyone)
-          h('button', {
-            class: 'font-bold text-[28px] py-3',
-            style: { color: '#006600' },
-            onClick: () => emit('join-goal-team')
-          }, 'Join Team'),
-
-          // Share - light green, large text (available for everyone)
-          h('button', {
-            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
-            onClick: () => emit('share')
-          }, 'Share'),
-
-          // Edit Purpose - light green, large text (only if portal owner AND authenticated)
-          (props.portal?.users_id === userId && userId > 0) && h('button', {
-            class: 'text-[#8cc65d] font-bold text-[28px] py-3',
-            onClick: () => emit('edit-purpose')
-          }, 'Edit Purpose'),
-
-          // Flag as Inappropriate - red, smaller text (only if authenticated)
-          userId > 0 && h('button', {
-            class: 'text-red-600 text-[16px] py-3',
-            onClick: () => emit('flag')
-          }, 'Flag as Inappropriate'),
-
-          // Cancel button - gray, smaller text
-          h('button', {
-            class: 'w-full text-center text-gray-500 text-[16px] py-3 mt-4',
-            onClick: () => emit('close')
-          }, 'Cancel')
+      // Mobile: iOS-style bottom sheet
+      return h('div', {
+        class: 'fixed inset-0 z-40 flex items-end justify-center',
+        onClick: () => emit('close')
+      }, [
+        h('div', {
+          class: 'bg-black bg-opacity-50 w-full',
+          style: {
+            maxWidth: '768px',
+            position: 'absolute',
+            top: '0',
+            bottom: '0',
+            left: '50%',
+            transform: 'translateX(-50%)'
+          }
+        }),
+        h('div', {
+          class: 'bg-white w-full rounded-t-2xl p-6 relative z-10',
+          style: {
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            maxWidth: '768px'
+          },
+          onClick: (e: Event) => e.stopPropagation()
+        }, [
+          h('div', { class: 'flex flex-col items-center space-y-6' }, [
+            props.supportGoal && h('button', {
+              class: 'py-3',
+              onClick: () => emit('support')
+            }, [
+              h('div', { class: 'flex items-center space-x-2' }, [
+                h('span', {
+                  class: 'font-bold text-[28px]',
+                  style: { color: '#006600' }
+                }, '$'),
+                h('span', {
+                  class: 'font-bold text-[28px]',
+                  style: { color: '#006600' }
+                }, 'Support')
+              ])
+            ]),
+            (props.isCurrentUserLead && userId > 0) && h('button', {
+              class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+              onClick: () => emit('add-goal')
+            }, 'Add Goal'),
+            h('button', {
+              class: 'font-bold text-[28px] py-3',
+              style: { color: '#006600' },
+              onClick: () => emit('join-goal-team')
+            }, 'Join Team'),
+            h('button', {
+              class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+              onClick: () => emit('share')
+            }, 'Share'),
+            (props.portal?.users_id === userId && userId > 0) && h('button', {
+              class: 'text-[#8cc65d] font-bold text-[28px] py-3',
+              onClick: () => emit('edit-purpose')
+            }, 'Edit Purpose'),
+            userId > 0 && h('button', {
+              class: 'text-red-600 text-[16px] py-3',
+              onClick: () => emit('flag')
+            }, 'Flag as Inappropriate'),
+            h('button', {
+              class: 'w-full text-center text-gray-500 text-[16px] py-3 mt-4',
+              onClick: () => emit('close')
+            }, 'Cancel')
+          ])
         ])
-      ])
-    ]);
+      ]);
+    };
   }
 });
 
@@ -1697,7 +1770,9 @@ const GoalPickerSheet = defineComponent({
         class: 'bg-black bg-opacity-50 absolute inset-0'
       }),
       h('div', {
-        class: 'bg-white w-full max-w-2xl h-[90vh] flex flex-col relative z-10 rounded-t-2xl',
+        class: isDesktop.value
+          ? 'bg-white w-full max-w-2xl max-h-[80vh] flex flex-col relative z-10 rounded-2xl shadow-2xl overflow-hidden'
+          : 'bg-white w-full max-w-2xl h-[90vh] flex flex-col relative z-10 rounded-t-2xl',
         onClick: (e: Event) => e.stopPropagation()
       }, [
         // Header

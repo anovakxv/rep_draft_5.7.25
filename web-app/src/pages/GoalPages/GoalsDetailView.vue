@@ -301,16 +301,21 @@
 
     <!-- Action Sheet - iOS style design -->
     <transition name="fade">
-      <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end justify-center">
-        <div class="bg-black bg-opacity-50 w-full" style="position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
-        <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-height: 80vh; overflow-y: auto;">
-          <div class="flex flex-col items-center space-y-6">
+      <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end xl:items-center justify-center">
+        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div @click.stop class="bg-white w-full rounded-t-2xl xl:rounded-2xl p-6 xl:p-0 relative z-10 max-h-[80vh] overflow-y-auto xl:w-80 xl:max-w-none xl:shadow-2xl">
+          <div class="flex flex-col items-center xl:items-stretch space-y-6 xl:space-y-0">
             <!-- Join Team (only if not on team and not creator, for Recruiting goals) -->
             <button
               v-if="goal && goal.typeName === 'Recruiting' && !isUserOnTeam && goal.creatorId !== currentUserId"
               @click="joinRecruitingGoal"
-              class="text-[#8cc65d] font-bold text-[28px] py-3"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors"
             >
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(0,102,0,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#006600" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </span>
               Join Team
             </button>
 
@@ -318,8 +323,13 @@
             <button
               v-if="goal && (isUserOnTeam || goal.creatorId === currentUserId)"
               @click="handleInviteTeam"
-              class="text-[#8cc65d] font-bold text-[28px] py-3"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors"
             >
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </span>
               Invite to Team
             </button>
 
@@ -327,39 +337,59 @@
             <button
               v-if="goal && goal.typeName !== 'Recruiting'"
               @click="handleUpdateProgress"
-              class="text-[#8cc65d] font-bold text-[28px] py-3"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors"
             >
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              </span>
               Update Progress
             </button>
 
             <!-- Edit Goal (always show) -->
             <button
               @click="handleEditGoal"
-              class="text-[#8cc65d] font-bold text-[28px] py-3"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors"
             >
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </span>
               Edit Goal
             </button>
 
             <!-- Share (available for everyone) -->
             <button
               @click="handleShare"
-              class="text-[#8cc65d] font-bold text-[28px] py-3"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors"
             >
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </span>
               Share
             </button>
 
             <!-- Delete Goal -->
             <button
               @click="confirmDelete"
-              class="text-red-600 text-[16px] py-3"
+              class="text-red-600 text-[16px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:hover:bg-gray-50 xl:transition-colors"
             >
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(220,38,38,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </span>
               Delete Goal
             </button>
 
             <!-- Cancel -->
             <button
               @click="activeSheet = null"
-              class="w-full text-center text-gray-500 text-[16px] py-3 mt-4"
+              class="w-full text-center text-gray-500 text-[16px] py-3 mt-4 xl:border-t xl:border-gray-100 xl:mt-0"
             >
               Cancel
             </button>

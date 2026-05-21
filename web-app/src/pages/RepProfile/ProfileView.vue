@@ -200,24 +200,66 @@
     </div>
 
     <!-- Action Menu Modal -->
-    <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end justify-center">
-      <div class="bg-black bg-opacity-50 w-full max-w-[768px] xl:max-w-full" style="position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
-      <div @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10 max-w-[768px] xl:max-w-full max-h-[80vh] overflow-y-auto">
-        <div class="flex flex-col items-center space-y-6">
+    <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end xl:items-center justify-center">
+      <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+      <div @click.stop class="bg-white w-full rounded-t-2xl xl:rounded-2xl p-6 xl:p-0 relative z-10 max-w-[768px] xl:w-80 xl:max-w-none max-h-[80vh] overflow-y-auto xl:shadow-2xl">
+        <div class="flex flex-col items-center xl:items-stretch space-y-6 xl:space-y-0">
           <!-- Current User Actions -->
           <template v-if="isCurrentUser">
-            <button @click="goToEditProfile" class="text-[#8cc65d] font-bold text-[28px] py-3">Edit Profile</button>
-            <button @click="goToAddPurpose" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Purpose</button>
-            <button @click="goToAddGoal" class="text-[#8cc65d] font-bold text-[28px] py-3">Add Goal</button>
+            <button @click="goToEditProfile" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors">
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </span>
+              Edit Profile
+            </button>
+            <button @click="goToAddPurpose" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors">
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </span>
+              Add Purpose
+            </button>
+            <button @click="goToAddGoal" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors">
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+              </span>
+              Add Goal
+            </button>
           </template>
           <!-- Other User Actions -->
           <template v-else>
-            <button @click="addToNetwork" class="text-[#8cc65d] font-bold text-[28px] py-3">+ to NTWK</button>
-            <button @click="blockUser" class="text-[#8cc65d] font-bold text-[28px] py-3">{{ isBlocked ? 'Unblock User' : 'Block User' }}</button>
-            <button @click="flagUser" class="text-red-600 font-bold text-[28px] py-3">Flag as Inappropriate</button>
+            <button @click="addToNetwork" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors">
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+              </span>
+              + to NTWK
+            </button>
+            <button @click="blockUser" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors">
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(140,198,93,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#8cc65d" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                </svg>
+              </span>
+              {{ isBlocked ? 'Unblock User' : 'Block User' }}
+            </button>
+            <button @click="flagUser" class="text-red-600 font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:text-sm xl:font-medium xl:hover:bg-gray-50 xl:transition-colors">
+              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: rgba(220,38,38,0.1)">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="#dc2626" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
+                </svg>
+              </span>
+              Flag as Inappropriate
+            </button>
           </template>
           <!-- Cancel Button -->
-          <button @click="showActionMenu = false" class="w-full text-center text-gray-500 text-[16px] py-3 mt-4">Cancel</button>
+          <button @click="showActionMenu = false" class="w-full text-center text-gray-500 text-[16px] py-3 mt-4 xl:border-t xl:border-gray-100 xl:mt-0">Cancel</button>
         </div>
       </div>
     </div>

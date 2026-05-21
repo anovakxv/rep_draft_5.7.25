@@ -92,19 +92,16 @@ async function request<T = any>(
       responseData = await response.text();
     }
 
-    // Handle unauthorized errors globally (but NOT for public routes)
-    if (response.status === 401 || response.status === 403) {
-      // Don't redirect for public API routes - let the page handle it
+    // 401 = token missing/expired → clear session and redirect to login
+    // 403 = authenticated but not authorized (permission denied) → let the caller handle it
+    if (response.status === 401) {
       const isPublicRoute = path.startsWith('/api/public');
-
       if (!isPublicRoute) {
         console.error('Unauthorized - clearing session and redirecting to login');
-
         localStorage.removeItem('jwtToken');
         localStorage.removeItem('userId');
         localStorage.removeItem('isRegistered');
         localStorage.removeItem('onboardingComplete');
-
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';
         }

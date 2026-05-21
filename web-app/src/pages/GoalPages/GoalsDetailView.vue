@@ -47,22 +47,21 @@
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
       <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
-        <!-- LEFT COLUMN (Desktop): Dashboard Panel (30% width) -->
-        <div class="hidden xl:flex xl:flex-col xl:w-[30%] xl:border-r xl:border-gray-200">
+        <!-- LEFT COLUMN (Desktop): Dashboard Panel (35% width) -->
+        <div class="hidden xl:flex xl:flex-col xl:w-[35%] xl:border-r xl:border-gray-200">
           <!-- Goal Header -->
-          <div class="flex items-center px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
-            <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <div class="flex items-center h-12 px-3 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7;">
+            <button @click="goBack" class="p-1.5 -ml-1" style="color: #8cc65d">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <div class="flex-1 flex flex-col items-center justify-center py-1">
-              <h1 class="font-bold text-lg truncate max-w-full px-2">{{ goal?.title || 'Goal Details' }}</h1>
-              <!-- Portal Link (only show if goal has associated portal) -->
+            <div class="flex-1 flex flex-col items-center justify-center">
+              <h1 class="font-semibold text-sm truncate max-w-full px-2">{{ goal?.title || 'Goal Details' }}</h1>
               <button
                 v-if="goal?.portalId && goal?.portalName"
                 @click="navigateToPortal(goal.portalId)"
-                class="flex items-center gap-1 mt-0.5"
+                class="flex items-center gap-1"
               >
                 <span class="text-xs truncate max-w-[200px]" style="color: #006600;">{{ goal.portalName }}</span>
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3" style="color: #006600;">
@@ -70,7 +69,7 @@
                 </svg>
               </button>
             </div>
-            <div class="w-10"></div> <!-- Spacer -->
+            <div class="w-8"></div>
           </div>
 
           <!-- Scrollable Content Area -->
@@ -119,52 +118,44 @@
             </div>
           </div>
 
-          <!-- Fixed Bottom Bar (Desktop) -->
-          <div class="shrink-0 bg-white border-t shadow-lg" style="border-color: #e5e7eb;">
-            <div class="flex items-center justify-center gap-3 py-1.5 px-4">
-              <!-- Message Button (only for team members) -->
-              <button
-                v-if="isUserOnTeam"
-                @click="openGoalTeamChat"
-                class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
-                style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-              </button>
-
-              <!-- Add Button -->
-              <button
-                @click="handleAddAction"
-                :class="isUserOnTeam ? 'flex-1' : 'w-full'"
-                class="flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
-                style="background-color: #8cc65d; color: white;"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="5" cy="12" r="2.5"/>
-                  <circle cx="12" cy="12" r="2.5"/>
-                  <circle cx="19" cy="12" r="2.5"/>
-                </svg>
-              </button>
-            </div>
-
-            <!-- Support Button (for Fund/Sales/Donations goals) - Full Width Below -->
-            <div v-if="goal.typeName === 'Fund' || goal.typeName === 'Sales' || goal.typeName === 'Donations'" class="px-4 pb-3">
-              <button
-                @click="showPaymentSheet = true"
-                class="w-full px-5 py-2.5 bg-white border-2 rounded-lg shadow-md flex items-center justify-center gap-2 font-bold transition-transform hover:scale-105 active:scale-95"
-                style="border-color: #006600; color: #006600;"
-              >
-                <span class="text-[22px]">$</span>
-                <span>Support</span>
-              </button>
-            </div>
-          </div>
         </div>
 
-        <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (60% width) -->
-        <div class="flex flex-col flex-1 min-h-0 xl:w-[60%]">
+        <!-- Desktop inline action buttons (inside scrollable area, at bottom of left panel content) -->
+        <div class="px-4 py-3 border-t border-gray-100 flex items-center gap-2">
+          <button
+            v-if="isUserOnTeam"
+            @click="openGoalTeamChat"
+            class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
+            style="border: 1.5px solid #8cc65d; color: #8cc65d; background: white;"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Message Team
+          </button>
+          <button
+            @click="handleAddAction"
+            class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-full text-xs font-semibold text-white hover:opacity-80 transition-opacity"
+            style="background: #8cc65d;"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
+            </svg>
+            More
+          </button>
+          <button
+            v-if="goal.typeName === 'Fund' || goal.typeName === 'Sales' || goal.typeName === 'Donations'"
+            @click="showPaymentSheet = true"
+            class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
+            style="border: 1.5px solid #006600; color: #006600; background: white;"
+          >
+            <span class="text-sm font-bold">$</span> Support
+          </button>
+        </div>
+        </div>
+
+        <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (65% width) -->
+        <div class="flex flex-col flex-1 min-h-0 xl:w-[65%]">
           <!-- Mobile: Progress Bar and Metrics Section -->
           <div class="xl:hidden p-4 border-b border-gray-200">
             <!-- Progress Bar -->

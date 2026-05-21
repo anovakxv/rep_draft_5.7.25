@@ -157,15 +157,20 @@
               class="flex items-center gap-3 px-3 py-3 cursor-pointer border-b border-gray-100 hover:bg-gray-50 transition-colors"
               :class="selectedChat?.id === chat.id ? 'bg-gray-100' : ''"
             >
-              <div class="shrink-0">
+              <div
+                class="shrink-0"
+                @click.stop="chat.type === 'direct' && chat.user?.id ? router.push(`/profile/${chat.user.id}`) : null"
+              >
                 <img
                   v-if="chat.type === 'direct' && chat.user?.profile_picture_url"
                   :src="chat.user.profile_picture_url"
                   class="w-10 h-10 rounded-full object-cover"
+                  :class="chat.type === 'direct' ? 'cursor-pointer hover:opacity-80' : ''"
                 />
                 <div
                   v-else
                   class="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-white text-sm font-semibold"
+                  :class="chat.type === 'direct' ? 'cursor-pointer hover:opacity-80' : ''"
                 >
                   {{ getInitials(chat.type === 'direct' ? (chat.user?.full_name || 'U') : (chat.chat?.name || 'G')) }}
                 </div>
@@ -263,11 +268,14 @@
               <img
                 v-if="inlineChatAvatar"
                 :src="inlineChatAvatar"
-                class="w-8 h-8 rounded-full object-cover"
+                class="w-8 h-8 rounded-full object-cover cursor-pointer hover:opacity-80"
+                @click="selectedChat?.type === 'direct' && selectedChat.user?.id ? router.push(`/profile/${selectedChat.user.id}`) : null"
               />
               <div
                 v-else
                 class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white text-sm font-semibold"
+                :class="selectedChat?.type === 'direct' ? 'cursor-pointer hover:opacity-80' : ''"
+                @click="selectedChat?.type === 'direct' && selectedChat.user?.id ? router.push(`/profile/${selectedChat.user.id}`) : null"
               >
                 {{ getInitials(inlineChatName) }}
               </div>

@@ -39,21 +39,21 @@
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
       <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
-        <!-- LEFT COLUMN (Desktop): Profile Summary Panel (30% width) -->
-        <div class="hidden xl:flex xl:flex-col xl:w-[30%] xl:border-r xl:border-gray-200">
+        <!-- LEFT COLUMN (Desktop): Profile Summary Panel (35% width) -->
+        <div class="hidden xl:flex xl:flex-col xl:w-[35%] xl:border-r xl:border-gray-200">
           <!-- Desktop Header -->
-          <div class="flex items-center px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
-            <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <div class="flex items-center h-12 px-3 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7;">
+            <button @click="goBack" class="p-1.5 -ml-1" style="color: #8cc65d">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <div class="flex-1 flex flex-col items-center justify-center py-1">
-              <h1 class="font-bold text-lg truncate max-w-full px-2">{{ user.displayName }}</h1>
+            <div class="flex-1 flex items-center justify-center">
+              <h1 class="font-semibold text-sm truncate max-w-full px-2">{{ user.displayName }}</h1>
             </div>
-            <div class="w-10 flex items-center justify-center">
+            <div class="w-8 flex items-center justify-center">
               <button v-if="isCurrentUser" @click="goToSettings" style="color: #8cc65d">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
@@ -75,38 +75,33 @@
             <ProfileBroadcastView :broadcast="user.broadcast" />
           </div>
 
-          <!-- Fixed Bottom Bar (Desktop) -->
-          <div class="shrink-0 bg-white border-t shadow-lg" style="border-color: #e5e7eb;">
-            <div class="flex items-center justify-center gap-3 py-1.5 px-4">
-              <!-- Message Button -->
-              <button
-                @click="goToMessages"
-                class="flex-1 flex items-center justify-center h-10 rounded-lg border-2 transition-transform hover:scale-105 active:scale-95"
-                style="border-color: #8cc65d; color: #8cc65d; background-color: white;"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-              </button>
-
-              <!-- Add Button -->
-              <button
-                @click="showActionMenu = true"
-                class="flex-1 flex items-center justify-center h-10 rounded-lg transition-transform hover:scale-105 active:scale-95"
-                style="background-color: #8cc65d; color: white;"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
-                  <circle cx="5" cy="12" r="2.5"/>
-                  <circle cx="12" cy="12" r="2.5"/>
-                  <circle cx="19" cy="12" r="2.5"/>
-                </svg>
-              </button>
-            </div>
+          <!-- Inline action buttons (desktop) -->
+          <div class="px-4 py-3 border-t border-gray-100 flex items-center gap-2">
+            <button
+              @click="goToMessages"
+              class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-full text-xs font-semibold hover:opacity-80 transition-opacity"
+              style="border: 1.5px solid #8cc65d; color: #8cc65d; background: white;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+              Message
+            </button>
+            <button
+              @click="showActionMenu = true"
+              class="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-full text-xs font-semibold text-white hover:opacity-80 transition-opacity"
+              style="background: #8cc65d;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
+              </svg>
+              More
+            </button>
           </div>
         </div>
 
-        <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (70% width) -->
-        <div class="flex flex-col flex-1 min-h-0 xl:w-[70%]">
+        <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (65% width) -->
+        <div class="flex flex-col flex-1 min-h-0 xl:w-[65%]">
           <!-- Scrollable Content -->
           <main class="flex-1 overflow-y-auto pb-20 xl:pb-4">
             <div class="relative">

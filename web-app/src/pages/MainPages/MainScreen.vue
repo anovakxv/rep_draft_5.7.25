@@ -1145,12 +1145,24 @@ onActivated(() => {
   mainActiveSheet.value = null;
 
   // Reload auth values from localStorage (in case user logged in while component was cached)
+  const prevUserId = userId.value;
   token.value = localStorage.getItem('jwtToken') || '';
   userId.value = Number(localStorage.getItem('userId')) || 0;
 
   // Reconnect socket if needed
   if (isAuthenticated()) {
     connect(apiBaseUrl, token.value, userId.value);
+  }
+
+  // User just logged in/registered — fetch all people tabs so the desktop dashboard
+  // left panel and all mobile tabs have fresh data immediately
+  if (userId.value > 0 && prevUserId === 0) {
+    fetchPeople(0);
+    fetchPeople(1);
+    fetchPeople(2);
+    fetchCurrentUser();
+    fetchPendingInvites();
+    return;
   }
 
   // Only fetch data if it's stale (older than CACHE_DURATION)

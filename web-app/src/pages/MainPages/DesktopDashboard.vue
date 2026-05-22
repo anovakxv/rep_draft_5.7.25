@@ -428,9 +428,23 @@
         <div ref="portalListRef" @scroll="onPortalListScroll" class="h-full overflow-y-auto">
 
           <div
-            v-if="!desktopPortals.length"
+            v-if="isLoadingPortals"
             class="p-8 text-center text-gray-400 text-sm"
           >Loading portals…</div>
+          <div
+            v-else-if="!desktopPortals.length"
+            class="p-8 text-center text-gray-400 text-sm leading-relaxed"
+          >
+            <template v-if="desktopRightTab === 0">
+              No Purposes here for you yet.<br>
+              <span class="text-xs">Join a Goal Team on an existing Purpose, or add your own.</span>
+            </template>
+            <template v-else-if="desktopRightTab === 1">
+              No Purposes in your network yet.<br>
+              <span class="text-xs">Connect with others to see their Purposes here.</span>
+            </template>
+            <template v-else>No Purposes found.</template>
+          </div>
 
           <RouterLink
             v-for="portal in desktopFilteredPortals"
@@ -707,8 +721,8 @@ const emit = defineEmits<{ (e: 'refresh-chats'): void }>();
 
 const router = useRouter();
 
-// Reactive auth check so the template responds to login/logout
-const isAuth = computed(() => isAuthenticated());
+// Reactive auth check — derived from props.userId so Vue re-evaluates when parent updates after login
+const isAuth = computed(() => props.userId > 0);
 
 // --- Internal navigation ---
 const handleProfileClick = () => {
@@ -809,7 +823,10 @@ watch(desktopRightTab, () => {
   fetchDesktopPortals();
 });
 
+const isLoadingPortals = ref(false);
+
 const fetchDesktopPortals = async () => {
+  isLoadingPortals.value = true;
   try {
     const tab = ({ 0: 'open', 1: 'ntwk', 2: 'all' } as const)[desktopRightTab.value];
     const res = isAuthenticated()
@@ -821,6 +838,7 @@ const fetchDesktopPortals = async () => {
     if (el) isAtBottom.value = el.scrollHeight > el.clientHeight;
     setupPortalImageObserver();
   } catch { /* silent */ }
+  finally { isLoadingPortals.value = false; }
 };
 
 // Re-observe whenever the filtered list changes (e.g. search input) so newly visible cards get loaded

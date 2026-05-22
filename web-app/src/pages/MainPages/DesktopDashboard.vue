@@ -770,7 +770,7 @@ const desktopFilteredPortals = computed(() => {
 
 // 0 = My portals (open), 1 = Network portals (ntwk), 2 = All portals (all)
 // Default to All (public) when not logged in so public content loads immediately
-const desktopRightTab = ref(isAuthenticated() ? 1 : 2);
+const desktopRightTab = ref(2);
 
 watch(desktopRightTab, () => {
   desktopPortals.value = [];

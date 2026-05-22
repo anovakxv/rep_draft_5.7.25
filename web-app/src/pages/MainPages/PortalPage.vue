@@ -68,10 +68,103 @@
           </div>
         </div>
 
+        <!-- Desktop Inline Action Buttons (matching Profile/Goal page pill pattern) -->
+        <div class="hidden xl:flex xl:flex-col xl:px-4 xl:py-3 xl:border-t xl:border-gray-100 xl:gap-2">
+          <!-- Primary CTA (conditional) -->
+          <button
+            v-if="attendeesGoal && !isEventRegistered"
+            @click="handleRSVP"
+            class="w-full h-10 rounded-xl font-semibold text-sm text-white hover:opacity-90 transition-opacity"
+            style="background-color: #8cc65d;"
+          >
+            Register for Event
+          </button>
+          <div v-else-if="isEventRegistered && portalDetail?.event_datetime" class="relative">
+            <div v-if="showCalendarPicker" class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+              <a
+                v-if="buildGoogleCalUrlFromPortal()"
+                :href="buildGoogleCalUrlFromPortal()"
+                target="_blank" rel="noopener noreferrer"
+                class="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-50 border-b border-gray-100"
+                style="color: #006600;"
+                @click="showCalendarPicker = false"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                Google Calendar
+              </a>
+              <a
+                :href="`https://rep-june2025.onrender.com/api/portal/${portalDetail!.id}/calendar.ics`"
+                class="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-50 border-b border-gray-100"
+                style="color: #006600;"
+                @click="showCalendarPicker = false"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Apple Calendar
+              </a>
+              <a
+                :href="`https://rep-june2025.onrender.com/api/portal/${portalDetail!.id}/calendar.ics`"
+                class="flex items-center gap-3 px-4 py-3 text-sm font-semibold hover:bg-gray-50"
+                style="color: #006600;"
+                @click="showCalendarPicker = false"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Microsoft / Outlook
+              </a>
+            </div>
+            <button
+              @click="showCalendarPicker = !showCalendarPicker"
+              class="w-full h-10 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm text-white hover:opacity-90 transition-opacity"
+              style="background-color: #006600;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Add to Calendar
+            </button>
+          </div>
+          <button
+            v-else-if="supportersGoal && !attendeesGoal"
+            @click="handleJoinSupporters"
+            class="w-full h-10 rounded-xl font-semibold text-sm text-white hover:opacity-90 transition-opacity"
+            style="background-color: #8cc65d;"
+          >
+            Join Supporters
+          </button>
+          <!-- Message + More pills -->
+          <div class="flex items-center gap-2">
+            <button
+              @click="openMessageSheet"
+              class="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full text-sm font-semibold hover:opacity-80 transition-opacity"
+              style="border: 2px solid #006600; color: #006600; background: white;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+              </svg>
+              Message
+            </button>
+            <button
+              @click="handleAddAction"
+              class="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full text-sm font-semibold text-white hover:opacity-80 transition-opacity"
+              style="background: #8cc65d;"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="2.5"/><circle cx="12" cy="12" r="2.5"/><circle cx="19" cy="12" r="2.5"/>
+              </svg>
+              More
+            </button>
+          </div>
+        </div>
+
         <!-- Register for Event Button (only show if Attendees goal exists and not yet registered) -->
         <div
           v-if="attendeesGoal && !isEventRegistered"
-          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:hidden"
         >
           <button
             @click="handleRSVP"
@@ -85,7 +178,7 @@
         <!-- Add to Calendar (only show after user registers) -->
         <div
           v-if="isEventRegistered && portalDetail?.event_datetime"
-          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:hidden"
         >
           <div class="relative w-full max-w-md">
             <!-- Calendar picker dropdown -->
@@ -148,7 +241,7 @@
         <!-- Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
         <div
           v-if="supportersGoal && !attendeesGoal"
-          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:sticky xl:bottom-20"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:hidden"
         >
           <button
             @click="handleJoinSupporters"
@@ -159,8 +252,8 @@
           </button>
         </div>
 
-        <!-- Fixed Bottom Bar (mobile) / Sticky Bottom Bar (desktop) -->
-        <div class="fixed bottom-0 left-0 right-0 z-20 flex justify-center xl:sticky xl:bottom-0 xl:left-auto xl:right-auto xl:mt-auto">
+        <!-- Fixed Bottom Bar (mobile only) -->
+        <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
           <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 xl:py-3" style="max-width: 768px; border-color: #e5e7eb;">
             <!-- Message Button -->
             <button
@@ -1468,84 +1561,106 @@ const ActionSheetModal = defineComponent({
 
     return () => {
       if (isDesktop.value) {
-        // Desktop: centered floating card (consistent with dashboard action menu)
+        // Desktop: centered floating card (matching dashboard style)
         return h('div', {
           class: 'fixed inset-0 z-40 flex items-center justify-center',
           onClick: () => emit('close')
         }, [
-          h('div', { class: 'absolute inset-0 bg-black bg-opacity-40' }),
+          h('div', { class: 'absolute inset-0 bg-black/40' }),
           h('div', {
-            class: 'relative z-10 bg-white rounded-2xl shadow-2xl w-80 overflow-hidden',
+            class: 'relative z-10 bg-white rounded-2xl shadow-2xl w-72 overflow-hidden',
             onClick: (e: Event) => e.stopPropagation()
           }, [
-            props.supportGoal && h('button', {
-              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
-              onClick: () => emit('support')
-            }, [
-              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(0,102,0,0.1)' } }, [
-                h('span', { class: 'font-bold text-base', style: { color: '#006600' } }, '$')
-              ]),
-              h('span', { class: 'font-medium text-sm', style: { color: '#006600' } }, 'Support')
-            ]),
-            (props.isCurrentUserLead && userId > 0) && h('button', {
-              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
-              onClick: () => emit('add-goal')
-            }, [
-              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(140,198,93,0.1)' } }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#8cc65d', strokeWidth: 2 }, [
-                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M12 4v16m8-8H4' })
+            h('div', { class: 'px-2 py-2' }, [
+              props.supportGoal && h('button', {
+                class: 'w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left',
+                onClick: () => emit('support')
+              }, [
+                h('span', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { background: '#006600' } }, [
+                  h('span', { class: 'font-bold text-base text-white' }, '$')
+                ]),
+                h('div', {}, [
+                  h('p', { class: 'font-semibold text-gray-900 text-[15px]' }, 'Support'),
+                  h('p', { class: 'text-xs text-gray-400' }, 'Make a contribution')
                 ])
               ]),
-              h('span', { class: 'font-medium text-sm', style: { color: '#8cc65d' } }, 'Add Goal')
-            ]),
-            h('button', {
-              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
-              onClick: () => emit('join-goal-team')
-            }, [
-              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(0,102,0,0.1)' } }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#006600', strokeWidth: 2 }, [
-                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' })
+              (props.isCurrentUserLead && userId > 0) && h('button', {
+                class: 'w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left',
+                onClick: () => emit('add-goal')
+              }, [
+                h('span', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { background: '#8cc65d' } }, [
+                  h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-5 w-5 text-white', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 2 }, [
+                    h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M12 4v16m8-8H4' })
+                  ])
+                ]),
+                h('div', {}, [
+                  h('p', { class: 'font-semibold text-gray-900 text-[15px]' }, 'Add Goal'),
+                  h('p', { class: 'text-xs text-gray-400' }, 'Create a new goal')
                 ])
               ]),
-              h('span', { class: 'font-medium text-sm', style: { color: '#006600' } }, 'Join Team')
-            ]),
-            h('button', {
-              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
-              onClick: () => emit('share')
-            }, [
-              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(140,198,93,0.1)' } }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#8cc65d', strokeWidth: 2 }, [
-                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' })
+              h('button', {
+                class: 'w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left',
+                onClick: () => emit('join-goal-team')
+              }, [
+                h('span', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { background: '#8cc65d' } }, [
+                  h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-5 w-5 text-white', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 2 }, [
+                    h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' })
+                  ])
+                ]),
+                h('div', {}, [
+                  h('p', { class: 'font-semibold text-gray-900 text-[15px]' }, 'Join Team'),
+                  h('p', { class: 'text-xs text-gray-400' }, 'Join a goal team')
                 ])
               ]),
-              h('span', { class: 'font-medium text-sm', style: { color: '#8cc65d' } }, 'Share')
-            ]),
-            (props.portal?.users_id === userId && userId > 0) && h('button', {
-              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
-              onClick: () => emit('edit-purpose')
-            }, [
-              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(140,198,93,0.1)' } }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#8cc65d', strokeWidth: 2 }, [
-                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' })
+              h('button', {
+                class: 'w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left',
+                onClick: () => emit('share')
+              }, [
+                h('span', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { background: '#8cc65d' } }, [
+                  h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-5 w-5 text-white', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 2 }, [
+                    h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z' })
+                  ])
+                ]),
+                h('div', {}, [
+                  h('p', { class: 'font-semibold text-gray-900 text-[15px]' }, 'Share'),
+                  h('p', { class: 'text-xs text-gray-400' }, 'Share this portal')
                 ])
               ]),
-              h('span', { class: 'font-medium text-sm', style: { color: '#8cc65d' } }, 'Edit Purpose')
-            ]),
-            userId > 0 && h('button', {
-              class: 'flex items-center gap-3 w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors',
-              onClick: () => emit('flag')
-            }, [
-              h('div', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { backgroundColor: 'rgba(220,38,38,0.1)' } }, [
-                h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-4 w-4', fill: 'none', viewBox: '0 0 24 24', stroke: '#dc2626', strokeWidth: 2 }, [
-                  h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9' })
+              (props.portal?.users_id === userId && userId > 0) && h('button', {
+                class: 'w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left',
+                onClick: () => emit('edit-purpose')
+              }, [
+                h('span', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { background: '#8cc65d' } }, [
+                  h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-5 w-5 text-white', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 2 }, [
+                    h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z' })
+                  ])
+                ]),
+                h('div', {}, [
+                  h('p', { class: 'font-semibold text-gray-900 text-[15px]' }, 'Edit Purpose'),
+                  h('p', { class: 'text-xs text-gray-400' }, 'Modify portal settings')
                 ])
               ]),
-              h('span', { class: 'font-medium text-sm text-red-600' }, 'Flag as Inappropriate')
+              userId > 0 && h('button', {
+                class: 'w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 transition-colors text-left',
+                onClick: () => emit('flag')
+              }, [
+                h('span', { class: 'w-9 h-9 rounded-full flex items-center justify-center shrink-0', style: { background: '#dc2626' } }, [
+                  h('svg', { xmlns: 'http://www.w3.org/2000/svg', class: 'h-5 w-5 text-white', fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 2 }, [
+                    h('path', { strokeLinecap: 'round', strokeLinejoin: 'round', d: 'M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9' })
+                  ])
+                ]),
+                h('div', {}, [
+                  h('p', { class: 'font-semibold text-gray-900 text-[15px]' }, 'Flag as Inappropriate'),
+                  h('p', { class: 'text-xs text-gray-400' }, 'Report this portal')
+                ])
+              ])
             ]),
-            h('button', {
-              class: 'flex items-center justify-center w-full py-3 text-sm font-medium text-gray-500 border-t border-gray-100 hover:bg-gray-50 transition-colors',
-              onClick: () => emit('close')
-            }, 'Cancel')
+            h('div', { class: 'border-t border-gray-100 px-2 py-2' }, [
+              h('button', {
+                class: 'w-full px-4 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition-colors text-center',
+                onClick: () => emit('close')
+              }, 'Cancel')
+            ])
           ])
         ]);
       }

@@ -644,6 +644,24 @@
         </div>
       </div>
     </Transition>
+
+    <!-- Toast notification (permission errors etc.) -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      leave-active-class="transition-all duration-200 ease-in"
+      enter-from-class="opacity-0 translate-y-2"
+      leave-to-class="opacity-0 translate-y-2"
+    >
+      <div
+        v-if="showToast"
+        class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-5 py-3 bg-gray-900 text-white text-sm font-medium rounded-full shadow-xl pointer-events-none whitespace-nowrap"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+        {{ toastMessage }}
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -707,6 +725,17 @@ const navigateTo = (path: string) => { showActionSheet.value = false; router.pus
 
 // --- Internal UI state ---
 const showActionSheet = ref(false);
+
+// Toast notification
+const showToast = ref(false);
+const toastMessage = ref('');
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+const triggerToast = (msg: string) => {
+  if (toastTimer) clearTimeout(toastTimer);
+  toastMessage.value = msg;
+  showToast.value = true;
+  toastTimer = setTimeout(() => { showToast.value = false; }, 3000);
+};
 
 // Left panel search (people: chats + network)
 const showLeftSearch = ref(false);
@@ -908,45 +937,46 @@ const openGoalTeamChat = async (goal: any, portalName: string) => {
   }
   const key = goal.id;
   if (goalChatCreating.value[key]) return;
-
-  // If chat already exists, attempt to open it — backend enforces membership (403 if not a member)
-  if (goal.chats_id) {
-    try {
-      loadInlineChat({ id: `group-${goal.chats_id}`, type: 'group', chat: { id: goal.chats_id, name: goal.title } });
-    } catch (err: any) {
-      if (err?.response?.status === 403 || err?.response?.status === 401) {
-        showGoalChatError(key, 'Only Goal Team members can message the Team.');
-      }
-    }
-    return;
-  }
-
-  // No chat yet — fetch team members first so they're added on creation (mirrors GoalsDetailView)
   goalChatCreating.value = { ...goalChatCreating.value, [key]: true };
-  try {
-    const chatTitle = portalName ? `${portalName}: ${goal.title}` : goal.title;
 
-    // Fetch goal team members so they receive the chat
+  try {
+    // Always fetch team details first — check membership before opening or creating any chat
     let memberIds: number[] = [];
+    let isOnTeam = false;
     try {
       const teamRes = await api.get(`/api/goals/details?goals_id=${goal.id}`);
-      const teamMembers: any[] = teamRes.data.result?.team || [];
+      const result = teamRes.data.result;
+      const teamMembers: any[] = result?.team || [];
+      const creatorId = result?.creatorId ?? goal.creatorId;
+      isOnTeam = props.userId === creatorId ||
+        teamMembers.some((m: any) => m.id === props.userId);
       memberIds = teamMembers
         .map((m: any) => m.id)
         .filter((id: any) => id && id !== props.userId);
-    } catch { /* silent — create chat without members if fetch fails */ }
+    } catch { /* if fetch fails, fall through to backend enforcement */ }
 
+    if (!isOnTeam) {
+      triggerToast('Only Goal Team members can message this team.');
+      return;
+    }
+
+    // Member confirmed — open existing chat or create a new one
+    if (goal.chats_id) {
+      loadInlineChat({ id: `group-${goal.chats_id}`, type: 'group', chat: { id: goal.chats_id, name: goal.title } });
+      return;
+    }
+
+    const chatTitle = portalName ? `${portalName}: ${goal.title}` : goal.title;
     const res = await api.post('/api/message/manage_chat', { title: chatTitle, aAddIDs: memberIds });
     const newChatsId = res.data.chats_id;
     if (!newChatsId) throw new Error('No chats_id returned');
-    // Persist the link on the goal (best-effort — will fail silently if user lacks permission)
     api.post('/api/goals/link_chat', { goals_id: goal.id, chats_id: newChatsId }).catch(() => {});
     goal.chats_id = newChatsId;
     loadInlineChat({ id: `group-${newChatsId}`, type: 'group', chat: { id: newChatsId, name: chatTitle } });
   } catch (err: any) {
     const status = err?.response?.status;
     if (status === 403 || status === 401) {
-      showGoalChatError(key, 'Only Goal Team members can message the Team.');
+      triggerToast('Only Goal Team members can message this team.');
     }
   } finally {
     goalChatCreating.value = { ...goalChatCreating.value, [key]: false };

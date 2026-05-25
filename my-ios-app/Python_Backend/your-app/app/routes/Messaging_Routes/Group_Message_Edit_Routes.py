@@ -34,6 +34,8 @@ def edit_group_message(message_id):
 
     if not new_text:
         return jsonify({'error': 'Text required'}), 400
+    if len(new_text) > 10000:
+        return jsonify({'error': 'Message too long (max 10,000 characters)'}), 400
 
     # Get message
     message = GroupMessage.query.get(message_id)

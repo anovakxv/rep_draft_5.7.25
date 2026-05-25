@@ -26,12 +26,8 @@ def api_delete_chat():
     if not chat:
         return jsonify({'error': 'chat not found'}), 404
 
-    # Check if user is a member of the chat
-    is_member = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).count()
-    if not is_member:
-        # Check if user is the chat creator
-        if chat.created_by != user_id:
-            return jsonify({'error': 'Not authorized'}), 403
+    if chat.created_by != user_id:
+        return jsonify({'error': 'Only the chat creator can delete this chat'}), 403
 
     # Delete chat and related data
     ChatsUsers.query.filter_by(chats_id=chats_id).delete()

@@ -102,11 +102,24 @@ def create_public_checkout_session():
     try:
         # Create or get Stripe customer for this email
         customer = get_or_create_guest_customer(email)
-        print(f"[Public Checkout] Stripe customer: {customer.id}")
 
-        # Use URLs from request data (web app) or fall back to iOS deep links
-        success_url = data.get('success_url', f"https://rep-june2025.onrender.com/payment-return?status=success&session_id={{CHECKOUT_SESSION_ID}}")
-        cancel_url = data.get('cancel_url', f"https://rep-june2025.onrender.com/payment-return?status=canceled")
+        # Use URLs from request data (web app) or fall back to default.
+        # Validate that any caller-supplied URL is on an allowed domain (prevents open redirect).
+        ALLOWED_REDIRECT_DOMAINS = (
+            'https://rep-june2025.onrender.com',
+            'https://repsomething.com',
+            'https://www.repsomething.com',
+        )
+        default_success = f"https://rep-june2025.onrender.com/payment-return?status=success&session_id={{CHECKOUT_SESSION_ID}}"
+        default_cancel  = f"https://rep-june2025.onrender.com/payment-return?status=canceled"
+        raw_success = data.get('success_url', default_success)
+        raw_cancel  = data.get('cancel_url',  default_cancel)
+        if not any(raw_success.startswith(d) for d in ALLOWED_REDIRECT_DOMAINS):
+            return jsonify({'error': 'Invalid success_url'}), 400
+        if not any(raw_cancel.startswith(d) for d in ALLOWED_REDIRECT_DOMAINS):
+            return jsonify({'error': 'Invalid cancel_url'}), 400
+        success_url = raw_success
+        cancel_url  = raw_cancel
 
         # Build checkout session params
         session_params = {
@@ -175,9 +188,7 @@ def create_public_checkout_session():
             }
 
         # Create Stripe Checkout Session
-        print(f"[Public Checkout] Creating Stripe session...")
         checkout_session = stripe.checkout.Session.create(**session_params)
-        print(f"[Public Checkout] Created session: {checkout_session.id}, url: {checkout_session.url}")
 
         # Pre-record transaction as pending (will be updated by webhook on success)
         # Note: user_id is NULL for public transactions
@@ -195,7 +206,6 @@ def create_public_checkout_session():
         )
         db.session.add(transaction)
         db.session.commit()
-        print(f"[Public Checkout] Pre-recorded transaction: {transaction.id}")
 
         return jsonify({
             'checkout_url': checkout_session.url,
@@ -209,6 +219,7 @@ def create_public_checkout_session():
         return jsonify({'error': str(e)}), 400
 
 @public_payments_bp.route('/checkout_session_status', methods=['GET'])
+@limiter.limit("60 per minute")
 def public_checkout_session_status():
     """
     PUBLIC API: Check status of a Stripe Checkout Session (no auth required).

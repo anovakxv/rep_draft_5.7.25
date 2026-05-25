@@ -49,8 +49,6 @@ def create_connect_account():
     portal_id = data.get('portal_id')
     redirect_url = data.get('redirect_url')
 
-    print(f"[Connect] Received data: {data}, user_id: {user_id}")
-
     if not portal_id:
         print("[Connect] Missing portal_id")
         return jsonify({'error': 'portal_id is required'}), 400
@@ -121,16 +119,12 @@ def stripe_dashboard_link():
 def create_payment_intent():
     data = request.json or {}
     user_id = g.current_user.id
-    print(f"[PaymentIntent] Received data: {data}, user_id: {user_id}")
-
     amount = data.get('amount')
     portal_id = data.get('portal_id')
     goal_id = data.get('goal_id')
     currency = data.get('currency', 'usd')
     message = data.get('message', '')
     transaction_type = data.get('transaction_type', 'donation')
-
-    print(f"[PaymentIntent] amount: {amount}, portal_id: {portal_id}, goal_id: {goal_id}, currency: {currency}, transaction_type: {transaction_type}")
 
     if not amount:
         print("[PaymentIntent] Missing amount")
@@ -605,8 +599,6 @@ def cancel_subscription():
 def create_checkout_session():
     data = request.json or {}
     user_id = g.current_user.id
-    print(f"[Checkout] Received data: {data}, user_id: {user_id}")
-
     amount = data.get('amount')
     portal_id = data.get('portal_id')
     goal_id = data.get('goal_id')
@@ -615,8 +607,6 @@ def create_checkout_session():
     transaction_type = data.get('transaction_type', 'donation')
     is_subscription = data.get('is_subscription', False)
     price_id = data.get('price_id')
-
-    print(f"[Checkout] amount: {amount}, portal_id: {portal_id}, goal_id: {goal_id}, currency: {currency}, transaction_type: {transaction_type}, is_subscription: {is_subscription}, price_id: {price_id}")
 
     if not amount and not price_id:
         print("[Checkout] Missing amount or price_id")
@@ -706,7 +696,6 @@ def create_checkout_session():
                 }
             }
 
-        print(f"[Checkout] Stripe session params: {session_params}")
         checkout_session = stripe.checkout.Session.create(**session_params)
         print(f"[Checkout] Created session: {checkout_session.id}, url: {checkout_session.url}")
 
@@ -721,10 +710,16 @@ def create_checkout_session():
 @payments_bp.route('/api/checkout_session_status', methods=['GET'])
 @jwt_required
 def checkout_session_status():
+    user_id = g.current_user.id
     session_id = request.args.get('session_id')
     if not session_id:
         return jsonify({'error': 'session_id is required'}), 400
-    
+
+    # Verify the session belongs to the requesting user
+    tx = Transaction.query.filter_by(stripe_payment_intent_id=session_id).first()
+    if not tx or tx.user_id != user_id:
+        return jsonify({'error': 'Not authorized'}), 403
+
     try:
         checkout_session = stripe.checkout.Session.retrieve(session_id)
         return jsonify({
@@ -732,7 +727,7 @@ def checkout_session_status():
             'payment_status': checkout_session.payment_status
         })
     except Exception as e:
-        return jsonify({'error': str(e)}), 400        
+        return jsonify({'error': str(e)}), 400
 
 @payments_bp.route('/stripe-connect-return', methods=['GET'])
 def stripe_connect_return():

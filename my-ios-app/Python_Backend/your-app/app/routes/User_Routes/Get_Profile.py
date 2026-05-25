@@ -11,7 +11,7 @@ from app.models.People_Models.UserFollower import UserFollower
 from app.models.People_Models.UserNetwork import UserNetwork
 from app.utils.user_utils import check_new_email, check_new_username, manage_user_row
 from app.utils.auth import jwt_required
-import hashlib
+import bcrypt
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -102,7 +102,9 @@ def api_user_profile():
 
     # Password update
     if data.get('password'):
-        user.password = hashlib.md5((os.environ['PASS_SALT'] + data['password']).encode()).hexdigest()
+        if not (8 <= len(data['password']) <= 128):
+            return jsonify({'error': 'Password must be 8–128 characters'}), 400
+        user.password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
 
     # Auto-update columns
     auto_update_columns = [

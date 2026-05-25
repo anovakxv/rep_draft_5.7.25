@@ -14,8 +14,9 @@ try:
     import bleach
     HAS_BLEACH = True
 except ImportError:
-    HAS_BLEACH = False
-    print("WARNING: bleach not installed. Using basic HTML sanitization. Install with: pip install bleach")
+    raise RuntimeError(
+        "bleach is required for HTML sanitization. Run: pip install 'bleach>=6.0.0'"
+    )
 
 user_bp = Blueprint('user_writes', __name__)
 
@@ -23,48 +24,28 @@ user_bp = Blueprint('user_writes', __name__)
 
 def sanitize_html(content):
     """
-    Sanitize HTML content to prevent XSS attacks.
-    Uses bleach library if available, otherwise falls back to basic regex.
-
-    Allows only safe HTML tags for formatting.
+    Sanitize HTML content to prevent XSS attacks using bleach.
+    Allows only safe formatting tags.
     """
-    if HAS_BLEACH:
-        # Use bleach for robust HTML sanitization (recommended)
-        allowed_tags = [
-            'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
-            'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-            'ul', 'ol', 'li',
-            'a', 'blockquote', 'pre', 'code',
-            'hr', 'div', 'span'
-        ]
-
-        allowed_attrs = {
-            'a': ['href', 'title', 'target'],
-            'code': ['class'],  # For syntax highlighting classes
-        }
-
-        allowed_protocols = ['http', 'https', 'mailto']
-
-        # Clean HTML with bleach
-        cleaned = bleach.clean(
-            content,
-            tags=allowed_tags,
-            attributes=allowed_attrs,
-            protocols=allowed_protocols,
-            strip=True  # Strip disallowed tags instead of escaping
-        )
-
-        return cleaned
-    else:
-        # Fallback to basic regex sanitization (less secure)
-        # Remove script tags and dangerous attributes
-        content = re.sub(r'<script[^>]*>.*?</script>', '', content, flags=re.IGNORECASE | re.DOTALL)
-        content = re.sub(r'<style[^>]*>.*?</style>', '', content, flags=re.IGNORECASE | re.DOTALL)
-        content = re.sub(r'on\w+="[^"]*"', '', content, flags=re.IGNORECASE)  # Remove event handlers
-        content = re.sub(r'on\w+=\'[^\']*\'', '', content, flags=re.IGNORECASE)  # Single quotes too
-        content = re.sub(r'javascript:', '', content, flags=re.IGNORECASE)
-
-        return content
+    allowed_tags = [
+        'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
+        'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+        'ul', 'ol', 'li',
+        'a', 'blockquote', 'pre', 'code',
+        'hr', 'div', 'span'
+    ]
+    allowed_attrs = {
+        'a': ['href', 'title', 'target'],
+        'code': ['class'],
+    }
+    allowed_protocols = ['http', 'https', 'mailto']
+    return bleach.clean(
+        content,
+        tags=allowed_tags,
+        attributes=allowed_attrs,
+        protocols=allowed_protocols,
+        strip=True
+    )
 
 def detect_format(content):
     """

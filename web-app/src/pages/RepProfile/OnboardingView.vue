@@ -83,6 +83,11 @@ import EditProfileComponent from '@/components/EditProfileComponent.vue'
 import REPLogo from '@/assets/REPLogo.png'
 
 const router = useRouter()
+
+const safeReturnPath = (url: string | null | undefined): string => {
+  if (!url) return '/main'
+  return url.startsWith('/') && !url.startsWith('//') ? url : '/main'
+}
 const step = ref(0)
 const isEventRegistration = ref(false)
 
@@ -201,13 +206,8 @@ function completeOnboarding() {
   // Check for returnTo parameter (from public page redirect)
   // Using replace() instead of push() to remove onboarding from browser history
   const returnTo = localStorage.getItem('returnTo')
-  if (returnTo) {
-    localStorage.removeItem('returnTo')
-    router.replace(returnTo)
-  } else {
-    // Navigate to main app
-    router.replace('/main')
-  }
+  localStorage.removeItem('returnTo')
+  router.replace(safeReturnPath(returnTo))
 }
 </script>
 

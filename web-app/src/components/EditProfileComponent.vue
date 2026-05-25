@@ -368,18 +368,10 @@ async function handleSave() {
       errorMessage.value = 'Failed to update profile. Please try again.'
     }
   } catch (err: any) {
-    console.error('Save error:', err)
-    console.error('Error response:', err.response)
-    console.error('Form data being sent:', {
-      fname: formData.value.firstName,
-      lname: formData.value.lastName,
-      broadcast: formData.value.broadcast,
-      users_types_id: formData.value.repType,
-      manual_city: formData.value.city,
-      other_skill: formData.value.otherSkill,
-      aSkills: selectedSkills.value.map(s => s.id).join(','),
-      has_profile_picture: !!selectedImage.value
-    })
+    if (import.meta.env.DEV) {
+      console.error('Save error:', err)
+      console.error('Error response:', err.response)
+    }
 
     // If we had a profile picture and got a 500 error, try again without the image
     // (This handles S3 upload failures gracefully)

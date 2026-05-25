@@ -971,7 +971,7 @@ const openGoalTeamChat = async (goal: any, portalName: string) => {
       memberIds = teamMembers
         .map((m: any) => m.id)
         .filter((id: any) => id && id !== props.userId);
-    } catch { /* if fetch fails, fall through to backend enforcement */ }
+    } catch { /* if fetch fails, isOnTeam stays false → toast fires (conservative block) */ }
 
     if (!isOnTeam) {
       triggerToast('Only Goal Team members can message this team.');
@@ -1204,6 +1204,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   portalImageObserver?.disconnect();
+  if (toastTimer) clearTimeout(toastTimer);
   if (unsubDM) { unsubDM(); unsubDM = null; }
   if (unsubGroupMsg) { unsubGroupMsg(); unsubGroupMsg = null; }
   if (unsubGroupNotif) { unsubGroupNotif(); unsubGroupNotif = null; }

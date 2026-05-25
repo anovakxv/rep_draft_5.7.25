@@ -79,6 +79,12 @@ import api from '@/pages/utils/api'
 const router = useRouter()
 const route = useRoute()
 const email = ref('')
+
+// Only allow internal paths — prevents open redirect via crafted returnTo
+const safeReturnPath = (url: string | null | undefined): string => {
+  if (!url) return '/main'
+  return url.startsWith('/') && !url.startsWith('//') ? url : '/main'
+}
 const password = ref('')
 const isLoading = ref(false)
 const error = ref('')
@@ -103,8 +109,7 @@ async function login() {
     localStorage.setItem('onboardingComplete', 'true')
     // Redirect to returnTo URL if provided, otherwise go to /main
     // Using replace() instead of push() to remove login page from browser history
-    const returnTo = route.query.returnTo as string
-    router.replace(returnTo || '/main')
+    router.replace(safeReturnPath(route.query.returnTo as string))
   } catch (err: any) {
     error.value =
       err.response?.data?.error ||

@@ -76,6 +76,7 @@
                 v-if="attachment.type === 'image'"
                 :src="attachment.url"
                 :alt="attachment.filename || 'Image'"
+                loading="lazy"
                 class="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
                 @click="openImageLightbox(attachment.url)"
               />
@@ -247,6 +248,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
+import DOMPurify from 'dompurify'
 
 interface MessageAttachment {
   url: string
@@ -299,7 +301,7 @@ const localEditText = ref(props.message.text)
 const editTextarea = ref<HTMLTextAreaElement | null>(null)
 
 // Long press detection
-const longPressTimer = ref<NodeJS.Timeout | null>(null)
+const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const longPressActive = ref(false)
 const showContextMenu = ref(false)
 let touchStartX = 0
@@ -342,7 +344,7 @@ const formattedText = computed(() => {
   const text = props.message.text
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi
 
-  // Escape HTML to prevent XSS
+  // Escape HTML to prevent XSS — textContent/innerHTML escapes <, >, & but not "
   const escapeHtml = (str: string) => {
     const div = document.createElement('div')
     div.textContent = str
@@ -351,11 +353,18 @@ const formattedText = computed(() => {
 
   const escapedText = escapeHtml(text)
 
-  // Replace URLs with clickable links
-  return escapedText.replace(urlRegex, (match) => {
+  // Replace URLs with clickable links; DOMPurify sanitizes the final output as a
+  // second layer so that any " or ' chars in URLs can't break out of the href attribute
+  const withLinks = escapedText.replace(urlRegex, (match) => {
     const href = match.startsWith('www.') ? `https://${match}` : match
     const linkClass = 'text-blue-600 underline hover:text-blue-800'
     return `<a href="${href}" target="_blank" rel="noopener noreferrer" class="${linkClass}">${match}</a>`
+  })
+
+  return DOMPurify.sanitize(withLinks, {
+    ALLOWED_TAGS: ['a'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+    FORCE_BODY: false,
   })
 })
 

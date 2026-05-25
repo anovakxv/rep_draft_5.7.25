@@ -317,6 +317,7 @@ import api from '@/pages/utils/api'
 import { ref, onMounted, computed, watch, defineComponent, h } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { marked } from 'marked'
+import DOMPurify from 'dompurify'
 
 // Enable breaks: single \n renders as <br> (matches user expectation from Enter key)
 marked.use({ breaks: true })
@@ -661,7 +662,13 @@ const WriteContentView = defineComponent({
             const shouldTruncate = write.content.length > 200
             const rawContent = expanded ? write.content : write.content.substring(0, 200)
             const isMarkdown = write.content_format === 'markdown'
-            const displayContent = isMarkdown ? marked.parse(rawContent) as string : rawContent
+            const rawHtml = isMarkdown ? marked.parse(rawContent) as string : rawContent
+            const displayContent = DOMPurify.sanitize(rawHtml, {
+              ALLOWED_TAGS: ['p', 'strong', 'em', 'b', 'i', 'u', 'a', 'br',
+                             'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li',
+                             'blockquote', 'code', 'pre', 'img', 'hr'],
+              ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt'],
+            })
 
             return h('div', {
               key: write.id,

@@ -1162,18 +1162,14 @@ let unsubDM: (() => void) | null = null;
 let unsubGroupMsg: (() => void) | null = null;
 let unsubGroupNotif: (() => void) | null = null;
 
-// Refresh sidebar after a short delay (matches iOS 0.3s pattern — lets backend settle)
-const refreshChatsDelayed = () => setTimeout(() => emit('refresh-chats'), 300);
-
 // --- Lifecycle ---
 onMounted(() => {
   fetchDesktopPortals();
 
-  // 1. DM received — refresh sidebar + append to open DM pane
+  // 1. DM received — append to open DM pane (sidebar updated by MainScreen's own handler)
   unsubDM = onDirectMessageNotification((payload: Record<string, any>) => {
     const senderId = Number(payload.sender_id ?? payload.senderId ?? -1);
     if (senderId === props.userId) return; // ignore own messages echoed back
-    refreshChatsDelayed();
     if (!selectedChat.value || selectedChat.value.type !== 'direct') return;
     if (selectedChat.value.user?.id !== senderId) return;
     appendFromSocketIfNeeded(selectedChat.value);
@@ -1183,7 +1179,6 @@ onMounted(() => {
   unsubGroupMsg = onGroupMessage((payload: Record<string, any>) => {
     const senderId = Number(payload.sender_id ?? payload.senderId ?? -1);
     if (senderId === props.userId) return;
-    refreshChatsDelayed();
     const incomingChatId = Number(payload.chat_id ?? payload.chatId ?? -1);
     if (!selectedChat.value || selectedChat.value.type !== 'group') return;
     if (selectedChat.value.chat?.id !== incomingChatId) return;
@@ -1194,7 +1189,6 @@ onMounted(() => {
   unsubGroupNotif = onGroupMessageNotification((payload: Record<string, any>) => {
     const senderId = Number(payload.sender_id ?? payload.senderId ?? -1);
     if (senderId === props.userId) return;
-    refreshChatsDelayed();
     const incomingChatId = Number(payload.chat_id ?? payload.chatId ?? -1);
     if (!selectedChat.value || selectedChat.value.type !== 'group') return;
     if (selectedChat.value.chat?.id !== incomingChatId) return;

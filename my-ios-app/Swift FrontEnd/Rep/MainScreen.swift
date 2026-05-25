@@ -371,14 +371,42 @@ class PeopleViewModel: ObservableObject {
         activeRefreshTask?.cancel()
     }
 
+    // Immediately move a chat to the top of the list and update its preview.
+    // Called on socket events so the list responds before the background API sync arrives.
+    // If the chat isn't in the list yet (new conversation), the background fetch adds it.
+    func bumpChatToTop(chatId: String, text: String?, senderId: Int, timestamp: String) {
+        guard let idx = activeChats.firstIndex(where: { $0.id == chatId }) else { return }
+        let old = activeChats[idx]
+        let updatedMessage = MessageModel(
+            id: (old.last_message?.id ?? 0) + 1,
+            text: text,
+            created_at: timestamp,
+            read: "0",
+            sender_id: senderId
+        )
+        let updated = ActiveChat(
+            id: old.id,
+            type: old.type,
+            user: old.user,
+            chat: old.chat,
+            last_message: updatedMessage,
+            last_message_time: timestamp
+        )
+        activeChats.remove(at: idx)
+        activeChats.insert(updated, at: 0)
+    }
+
     func fetchPeople(userId: Int, section: Int, force: Bool = false, isTabSwitch: Bool = false) {
         // Cancel any previous refresh task
         activeRefreshTask?.cancel()
 
         // For section 0 (active chats), implement strict refresh control
         if section == 0 {
-            // Set loading state immediately for UI responsiveness
-            isLoading = true
+            // Only show loading skeleton on first load (empty list).
+            // Background refreshes on a populated list are silent to avoid flicker.
+            if activeChats.isEmpty {
+                isLoading = true
+            }
 
             // Reset retry counter for user-initiated fetches (tab switch or forced)
             if isTabSwitch || force {
@@ -591,8 +619,10 @@ class PeopleViewModel: ObservableObject {
             isFetching = false
         }
 
-        // Always set loading state FIRST - even if we return early, the in-progress fetch will clear it
-        isLoading = true
+        // Only show loading skeleton when list is empty (first load or after an error clear).
+        if activeChats.isEmpty {
+            isLoading = true
+        }
         errorMessage = nil
 
         // Prevent concurrent fetches
@@ -1272,9 +1302,17 @@ struct MainScreen: View {
             if recipientId != self.userId && recipientId != -1 { return }
 
             DispatchQueue.main.async {
-                // Instant UI feedback
                 self.peopleVM.hasUnreadDirectMessages = true
-                // Fetch updated chat list immediately for instant updates
+                // Immediately update list in place (Option B: no API call, no flicker)
+                let text = payload["text"] as? String
+                let timestamp = payload["timestamp"] as? String ?? ISO8601DateFormatter().string(from: Date())
+                self.peopleVM.bumpChatToTop(
+                    chatId: "direct-\(senderId)",
+                    text: text,
+                    senderId: senderId,
+                    timestamp: timestamp
+                )
+                // Background sync (silent — skeleton suppressed while list is non-empty)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
@@ -1287,7 +1325,20 @@ struct MainScreen: View {
             if senderId == self.userId { return }
             DispatchQueue.main.async {
                 self.peopleVM.hasUnreadGroupMessages = true
-                // Fetch updated chat list immediately for instant updates
+                // Immediately update list in place (Option B)
+                let chatIdAny = payload["chat_id"] ?? payload["chatId"]
+                let chatId = (chatIdAny as? Int) ?? (chatIdAny as? NSNumber)?.intValue ?? Int((chatIdAny as? String) ?? "") ?? -1
+                let text = payload["text"] as? String
+                let timestamp = payload["timestamp"] as? String ?? ISO8601DateFormatter().string(from: Date())
+                if chatId != -1 {
+                    self.peopleVM.bumpChatToTop(
+                        chatId: "group-\(chatId)",
+                        text: text,
+                        senderId: senderId,
+                        timestamp: timestamp
+                    )
+                }
+                // Background sync (silent — skeleton suppressed while list is non-empty)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }
@@ -1300,7 +1351,20 @@ struct MainScreen: View {
             if senderId == self.userId { return }
             DispatchQueue.main.async {
                 self.peopleVM.hasUnreadGroupMessages = true
-                // Fetch updated chat list immediately for instant updates
+                // Immediately update list in place (Option B)
+                let chatIdAny = payload["chat_id"] ?? payload["chatId"]
+                let chatId = (chatIdAny as? Int) ?? (chatIdAny as? NSNumber)?.intValue ?? Int((chatIdAny as? String) ?? "") ?? -1
+                let text = payload["text"] as? String
+                let timestamp = payload["timestamp"] as? String ?? ISO8601DateFormatter().string(from: Date())
+                if chatId != -1 {
+                    self.peopleVM.bumpChatToTop(
+                        chatId: "group-\(chatId)",
+                        text: text,
+                        senderId: senderId,
+                        timestamp: timestamp
+                    )
+                }
+                // Background sync (silent — skeleton suppressed while list is non-empty)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     self.peopleVM.fetchPeople(userId: self.userId, section: 0, force: true)
                 }

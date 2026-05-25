@@ -471,11 +471,11 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
   const skipNextAnimation = ref(false);
 
   const fetchPeople = async (section: number) => {
-    // Skip loading animation if flag is set (prevents flicker when returning from chat)
-    if (!skipNextAnimation.value) {
+    skipNextAnimation.value = false; // reset flag (kept for any external callers)
+    // Only show loading skeleton on first load (empty list).
+    // Background refreshes on an already-populated chat list are silent to avoid flicker.
+    if (section !== 0 || activeChats.value.length === 0) {
       isLoading.value = true;
-    } else {
-      skipNextAnimation.value = false; // Reset flag after using it
     }
     errorMessage.value = null;
     const cacheKey = `people-${section}`;
@@ -596,6 +596,25 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
     isSearching.value = false;
   };
 
+  // Immediately move a chat to the top of the list and update its preview text.
+  // Called on socket events so the list responds before the background API sync arrives.
+  // If the chat isn't found (new conversation), the background fetchPeople(0) will add it.
+  const bumpChatToTop = (
+    matcher: (c: ActiveChat) => boolean,
+    lastMsg: Partial<MessageModel>,
+    timestamp: string
+  ) => {
+    const idx = activeChats.value.findIndex(matcher);
+    if (idx === -1) return;
+    const updated = [...activeChats.value];
+    const chat = { ...updated[idx] };
+    chat.last_message = { ...(chat.last_message || {}), ...lastMsg } as MessageModel;
+    chat.last_message_time = timestamp;
+    updated.splice(idx, 1);
+    updated.unshift(chat);
+    activeChats.value = updated;
+  };
+
   return {
     users,
     activeChats,
@@ -608,7 +627,8 @@ const usePeople = (userId: Ref<number>, lastFetchTime: Ref<Record<string, number
     skipNextAnimation,
     fetchPeople,
     searchPeople,
-    clearSearch
+    clearSearch,
+    bumpChatToTop
   };
 };
 
@@ -690,7 +710,8 @@ const {
   skipNextAnimation,
   fetchPeople,
   searchPeople,
-  clearSearch: clearPeopleSearch
+  clearSearch: clearPeopleSearch,
+  bumpChatToTop
 } = usePeople(userId, lastFetchTime);
 
 // --- UI State ---
@@ -1072,8 +1093,17 @@ onMounted(() => {
     if (senderId === userId.value) return;
     hasUnreadDM.value = true;
     recalcOpenNeedsAttention();
-    // Refresh chat list so new message preview + ordering appear (mirrors iOS fetchPeople 0.3s delay)
-    setTimeout(() => { skipNextAnimation.value = true; fetchPeople(0); }, 300);
+    // Immediately update list in place (Option B: no API call, no flicker)
+    const ts = payload.timestamp as string | undefined;
+    if (senderId !== null && ts) {
+      bumpChatToTop(
+        c => c.type === 'direct' && c.user?.id === senderId,
+        { text: payload.text, read: '0', sender_id: senderId, created_at: ts },
+        ts
+      );
+    }
+    // Background sync (silent — skeleton suppressed while list is non-empty)
+    setTimeout(() => fetchPeople(0), 300);
   });
 
   // Group message (fires when in the chat room — covers inline chat in desktop)
@@ -1082,7 +1112,16 @@ onMounted(() => {
     if (senderId === userId.value) return;
     hasUnreadGroup.value = true;
     recalcOpenNeedsAttention();
-    setTimeout(() => { skipNextAnimation.value = true; fetchPeople(0); }, 300);
+    const chatId = toInt(payload.chat_id ?? payload.chatId);
+    const ts = payload.timestamp as string | undefined;
+    if (chatId !== null && ts) {
+      bumpChatToTop(
+        c => c.type === 'group' && c.chat?.id === chatId,
+        { text: payload.text, read: '0', sender_id: senderId ?? undefined, created_at: ts },
+        ts
+      );
+    }
+    setTimeout(() => fetchPeople(0), 300);
   });
 
   unsubscribeGroupNotif = onGroupMessageNotification((payload) => {
@@ -1090,8 +1129,17 @@ onMounted(() => {
     if (senderId === userId.value) return;
     hasUnreadGroup.value = true;
     recalcOpenNeedsAttention();
-    // Refresh chat list (mirrors iOS fetchPeople 0.3s delay)
-    setTimeout(() => { skipNextAnimation.value = true; fetchPeople(0); }, 300);
+    const chatId = toInt(payload.chat_id ?? payload.chatId);
+    const ts = payload.timestamp as string | undefined;
+    if (chatId !== null && ts) {
+      bumpChatToTop(
+        c => c.type === 'group' && c.chat?.id === chatId,
+        { text: payload.text, read: '0', sender_id: senderId ?? undefined, created_at: ts },
+        ts
+      );
+    }
+    // Background sync (silent — skeleton suppressed while list is non-empty)
+    setTimeout(() => fetchPeople(0), 300);
   });
 
   unsubscribeInvite = onGoalTeamInvite((_data) => {

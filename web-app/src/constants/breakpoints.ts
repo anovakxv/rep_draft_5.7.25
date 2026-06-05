@@ -2,19 +2,20 @@
  * Responsive breakpoints for the application
  *
  * BREAKPOINT STRATEGY:
- * - Mobile: < 1280px (phones and tablets, including all iPads)
- * - Desktop: >= 1280px (laptops and desktop computers)
+ * - Mobile: < 1024px (phones and small tablets)
+ * - Desktop: >= 1024px (laptops, desktops, and large tablets in landscape)
  *
- * This ensures all tablets (including iPad Pro) get the mobile-optimized
- * layout while preserving the desktop experience for larger screens.
+ * Matches Tailwind's `lg` breakpoint used in MainScreen.vue's hidden/lg:flex
+ * toggle so all pages switch to desktop layout at the same viewport width.
+ * Note: iPad Pro in landscape (1024px) will receive the desktop layout.
  */
 
 export const BREAKPOINTS = {
   /** Desktop breakpoint in pixels */
-  DESKTOP: 1280,
+  DESKTOP: 1024,
 
   /** Desktop breakpoint for CSS media queries */
-  DESKTOP_MEDIA_QUERY: '1280px',
+  DESKTOP_MEDIA_QUERY: '1024px',
 } as const;
 
 /**

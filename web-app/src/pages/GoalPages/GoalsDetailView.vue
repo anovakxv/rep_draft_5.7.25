@@ -22,7 +22,7 @@
     <!-- Main Content -->
     <div v-else-if="goal" class="flex flex-col flex-1 min-h-0">
       <!-- Custom Top Bar (Mobile Only) -->
-      <header class="xl:hidden flex items-center justify-between px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
+      <header class="lg:hidden flex items-center justify-between px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7; min-height: 44px;">
         <button @click="goBack" class="p-2 -ml-2" style="color: #8cc65d">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -46,9 +46,9 @@
       </header>
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
-      <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
+      <div class="flex flex-col flex-1 min-h-0 lg:flex-row">
         <!-- LEFT COLUMN (Desktop): Dashboard Panel (35% width) -->
-        <div class="hidden xl:flex xl:flex-col xl:w-[35%] xl:border-r xl:border-gray-200">
+        <div class="hidden lg:flex lg:flex-col lg:w-[35%] lg:border-r lg:border-gray-200">
           <!-- Goal Header -->
           <div class="flex items-center h-12 px-3 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7;">
             <button @click="goBack" class="p-1.5 -ml-1" style="color: #8cc65d">
@@ -153,9 +153,9 @@
         </div>
 
         <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (65% width) -->
-        <div class="flex flex-col flex-1 min-h-0 xl:w-[65%]">
+        <div class="flex flex-col flex-1 min-h-0 lg:w-[65%]">
           <!-- Mobile: Progress Bar and Metrics Section -->
-          <div class="xl:hidden p-4 border-b border-gray-200">
+          <div class="lg:hidden p-4 border-b border-gray-200">
             <!-- Progress Bar -->
             <div class="relative bg-gray-200 rounded-none h-[34px] overflow-hidden mb-2">
               <div
@@ -197,7 +197,7 @@
           />
 
           <!-- Content List -->
-          <div class="flex-1 overflow-y-auto pb-24 xl:pb-4">
+          <div class="flex-1 overflow-y-auto pb-24 lg:pb-4">
             <!-- Feed Tab -->
             <div v-if="selectedSegment === 0" class="px-4">
               <div v-if="feed.length === 0" class="text-center text-gray-500 py-10">
@@ -242,7 +242,7 @@
       </div>
 
       <!-- Fixed Bottom Bar (Mobile Only) -->
-      <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center" :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }">
+      <div class="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center" :class="{ 'scale-100': !isCreatingTeamChat, 'scale-0': isCreatingTeamChat }">
         <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
           <!-- Message Button (only for team members) -->
           <button
@@ -275,7 +275,7 @@
     <!-- Positioned bottom-right for Fund/Sales/Donations goals (matching iOS .bottomTrailing) -->
     <div
       v-if="goal && (goal.typeName === 'Fund' || goal.typeName === 'Sales' || goal.typeName === 'Donations')"
-      class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
+      class="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center pointer-events-none"
       style="bottom: 70px"
     >
       <div class="w-full relative flex justify-end pr-5" style="max-width: 768px">
@@ -301,23 +301,23 @@
 
     <!-- Action Sheet - iOS style design -->
     <transition name="fade">
-      <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end xl:items-center justify-center">
+      <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end lg:items-center justify-center">
         <div class="absolute inset-0 bg-black bg-opacity-50"></div>
-        <div @click.stop class="bg-white w-full rounded-t-2xl xl:rounded-2xl p-6 xl:p-0 relative z-10 max-h-[80vh] overflow-y-auto xl:overflow-hidden xl:w-72 xl:max-w-none xl:shadow-2xl">
-          <div class="flex flex-col items-center xl:items-stretch space-y-6 xl:space-y-0 xl:px-2 xl:py-2">
+        <div @click.stop class="bg-white w-full rounded-t-2xl lg:rounded-2xl p-6 lg:p-0 relative z-10 max-h-[80vh] overflow-y-auto lg:overflow-hidden lg:w-72 lg:max-w-none lg:shadow-2xl">
+          <div class="flex flex-col items-center lg:items-stretch space-y-6 lg:space-y-0 lg:px-2 lg:py-2">
             <!-- Join Team (only if not on team and not creator, for Recruiting goals) -->
             <button
               v-if="goal && goal.typeName === 'Recruiting' && !isUserOnTeam && goal.creatorId !== currentUserId"
               @click="joinRecruitingGoal"
-              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors"
             >
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </span>
-              <span class="xl:hidden">Join Team</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Join Team</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Join Team</p>
                 <p class="text-xs text-gray-400">Join this goal team</p>
               </div>
@@ -327,15 +327,15 @@
             <button
               v-if="goal && (isUserOnTeam || goal.creatorId === currentUserId)"
               @click="handleInviteTeam"
-              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors"
             >
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
               </span>
-              <span class="xl:hidden">Invite to Team</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Invite to Team</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Invite to Team</p>
                 <p class="text-xs text-gray-400">Add someone to this team</p>
               </div>
@@ -345,15 +345,15 @@
             <button
               v-if="goal && goal.typeName !== 'Recruiting'"
               @click="handleUpdateProgress"
-              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors"
             >
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                 </svg>
               </span>
-              <span class="xl:hidden">Update Progress</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Update Progress</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Update Progress</p>
                 <p class="text-xs text-gray-400">Log your latest progress</p>
               </div>
@@ -362,15 +362,15 @@
             <!-- Edit Goal (always show) -->
             <button
               @click="handleEditGoal"
-              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors"
             >
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </span>
-              <span class="xl:hidden">Edit Goal</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Edit Goal</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Edit Goal</p>
                 <p class="text-xs text-gray-400">Modify goal settings</p>
               </div>
@@ -379,15 +379,15 @@
             <!-- Share (available for everyone) -->
             <button
               @click="handleShare"
-              class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors"
+              class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors"
             >
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
               </span>
-              <span class="xl:hidden">Share</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Share</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Share</p>
                 <p class="text-xs text-gray-400">Share this goal</p>
               </div>
@@ -396,25 +396,25 @@
             <!-- Delete Goal -->
             <button
               @click="confirmDelete"
-              class="text-red-600 text-[16px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors"
+              class="text-red-600 text-[16px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors"
             >
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #dc2626">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #dc2626">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
               </span>
-              <span class="xl:hidden">Delete Goal</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Delete Goal</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Delete Goal</p>
                 <p class="text-xs text-gray-400">Permanently remove this goal</p>
               </div>
             </button>
           </div>
           <!-- Cancel -->
-          <div class="mt-4 xl:mt-0 xl:border-t xl:border-gray-100 xl:px-2 xl:py-2">
+          <div class="mt-4 lg:mt-0 lg:border-t lg:border-gray-100 lg:px-2 lg:py-2">
             <button
               @click="activeSheet = null"
-              class="w-full text-center text-gray-500 text-[16px] py-3 xl:px-4 xl:py-2.5 xl:rounded-xl xl:text-sm xl:hover:bg-gray-50 xl:transition-colors"
+              class="w-full text-center text-gray-500 text-[16px] py-3 lg:px-4 lg:py-2.5 lg:rounded-xl lg:text-sm lg:hover:bg-gray-50 lg:transition-colors"
             >
               Cancel
             </button>
@@ -1321,12 +1321,12 @@ const LargeBarChartView = defineComponent({
   setup(props) {
     return () => h('div', {
       // Responsive container height: mobile 260px -> tablet 340px -> desktop 400px (scaled down)
-      class: 'h-[260px] xl:h-[340px] lg:h-[400px] p-4 xl:p-5 lg:p-6 bg-white'
+      class: 'h-[260px] lg:h-[400px] p-4 lg:p-6 bg-white'
     }, [
       h('div', {
         // Responsive chart area - Mobile optimized, desktop scaled down for better proportions
         // Mobile: 220px, Tablet: 280px, Desktop: 340px (more reasonable on desktop)
-        class: 'h-[220px] xl:h-[280px] lg:h-[340px] flex items-end justify-center space-x-2 xl:space-x-3 lg:space-x-4'
+        class: 'h-[220px] lg:h-[340px] flex items-end justify-center space-x-2 lg:space-x-4'
       }, props.data.map(item => {
         const quotaValue = props.quota > 0 ? props.quota : 1;
         const heightPercent = Math.min(100, Math.max(1, (item.value / quotaValue) * 100));
@@ -1338,11 +1338,11 @@ const LargeBarChartView = defineComponent({
         }, [
           // Responsive value label: mobile xs -> tablet sm -> desktop base (scaled down)
           h('div', {
-            class: 'text-xs xl:text-sm lg:text-base text-center font-medium mb-1'
+            class: 'text-xs lg:text-base text-center font-medium mb-1'
           }, item.valueLabel),
           // Bar element - height as percentage of container, width responsive (narrower on desktop)
           h('div', {
-            class: 'w-10 xl:w-14 lg:w-20 rounded-sm',
+            class: 'w-10 lg:w-20 rounded-sm',
             style: {
               height: `${heightPercent}%`,
               minHeight: '2px',
@@ -1351,7 +1351,7 @@ const LargeBarChartView = defineComponent({
           }),
           // Responsive bottom label: mobile xs -> tablet sm -> desktop base (scaled down)
           h('div', {
-            class: 'text-xs xl:text-sm lg:text-base mt-1 w-10 xl:w-14 lg:w-20 text-center truncate text-gray-600'
+            class: 'text-xs lg:text-base mt-1 w-10 lg:w-20 text-center truncate text-gray-600'
           }, item.bottomLabel)
         ]);
       }))

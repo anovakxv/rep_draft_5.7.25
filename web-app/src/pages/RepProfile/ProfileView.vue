@@ -30,7 +30,7 @@
     <div v-else class="flex flex-col flex-1 min-h-0">
       <!-- Navigation Header (Mobile Only) -->
       <NavigationHeaderView
-        class="xl:hidden"
+        class="lg:hidden"
         :name="user.displayName"
         :show-settings="isCurrentUser"
         @back="goBack"
@@ -38,9 +38,9 @@
       />
 
       <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
-      <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
+      <div class="flex flex-col flex-1 min-h-0 lg:flex-row">
         <!-- LEFT COLUMN (Desktop): Profile Summary Panel (35% width) -->
-        <div class="hidden xl:flex xl:flex-col xl:w-[35%] xl:border-r xl:border-gray-200">
+        <div class="hidden lg:flex lg:flex-col lg:w-[35%] lg:border-r lg:border-gray-200">
           <!-- Desktop Header -->
           <div class="flex items-center h-12 px-3 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7;">
             <button @click="goBack" class="p-1.5 -ml-1" style="color: #8cc65d">
@@ -101,12 +101,12 @@
         </div>
 
         <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Content View (65% width) -->
-        <div class="flex flex-col flex-1 min-h-0 xl:w-[65%]">
+        <div class="flex flex-col flex-1 min-h-0 lg:w-[65%]">
           <!-- Scrollable Content -->
-          <main class="flex-1 overflow-y-auto pb-20 xl:pb-4">
+          <main class="flex-1 overflow-y-auto pb-20 lg:pb-4">
             <div class="relative">
               <!-- Profile Info (Mobile Only) -->
-              <div class="xl:hidden">
+              <div class="lg:hidden">
                 <ProfileInfoView
                   :photo-url="user.profile_picture_url"
                   :city="user.city"
@@ -172,7 +172,7 @@
       </div>
 
       <!-- Fixed Bottom Bar (Mobile Only) -->
-      <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+      <div class="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
         <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4" style="max-width: 768px; border-color: #e5e7eb;">
           <!-- Message Button -->
           <button
@@ -200,44 +200,44 @@
     </div>
 
     <!-- Action Menu Modal -->
-    <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end xl:items-center justify-center">
+    <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end lg:items-center justify-center">
       <div class="absolute inset-0 bg-black bg-opacity-50"></div>
-      <div @click.stop class="bg-white w-full rounded-t-2xl xl:rounded-2xl p-6 xl:p-0 relative z-10 max-w-[768px] xl:w-72 xl:max-w-none max-h-[80vh] overflow-y-auto xl:overflow-hidden xl:shadow-2xl">
-        <div class="flex flex-col items-center xl:items-stretch space-y-6 xl:space-y-0 xl:px-2 xl:py-2">
+      <div @click.stop class="bg-white w-full rounded-t-2xl lg:rounded-2xl p-6 lg:p-0 relative z-10 max-w-[768px] lg:w-72 lg:max-w-none max-h-[80vh] overflow-y-auto lg:overflow-hidden lg:shadow-2xl">
+        <div class="flex flex-col items-center lg:items-stretch space-y-6 lg:space-y-0 lg:px-2 lg:py-2">
           <!-- Current User Actions -->
           <template v-if="isCurrentUser">
-            <button @click="goToEditProfile" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors">
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+            <button @click="goToEditProfile" class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
               </span>
-              <span class="xl:hidden">Edit Profile</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Edit Profile</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Edit Profile</p>
                 <p class="text-xs text-gray-400">Update your info and photo</p>
               </div>
             </button>
-            <button @click="goToAddPurpose" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors">
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+            <button @click="goToAddPurpose" class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                 </svg>
               </span>
-              <span class="xl:hidden">Add Purpose</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Add Purpose</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Add Purpose</p>
                 <p class="text-xs text-gray-400">Create a new portal</p>
               </div>
             </button>
-            <button @click="goToAddGoal" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors">
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+            <button @click="goToAddGoal" class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </span>
-              <span class="xl:hidden">Add Goal</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Add Goal</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Add Goal</p>
                 <p class="text-xs text-gray-400">Set a new goal</p>
               </div>
@@ -245,38 +245,38 @@
           </template>
           <!-- Other User Actions -->
           <template v-else>
-            <button @click="addToNetwork" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors">
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+            <button @click="addToNetwork" class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                 </svg>
               </span>
-              <span class="xl:hidden">+ to NTWK</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">+ to NTWK</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Add to Network</p>
                 <p class="text-xs text-gray-400">Connect with this person</p>
               </div>
             </button>
-            <button @click="blockUser" class="text-[#8cc65d] font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors">
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
+            <button @click="blockUser" class="text-[#8cc65d] font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #8cc65d">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
                 </svg>
               </span>
-              <span class="xl:hidden">{{ isBlocked ? 'Unblock User' : 'Block User' }}</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">{{ isBlocked ? 'Unblock User' : 'Block User' }}</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">{{ isBlocked ? 'Unblock User' : 'Block User' }}</p>
                 <p class="text-xs text-gray-400">{{ isBlocked ? 'Restore access for this user' : 'Restrict this user' }}</p>
               </div>
             </button>
-            <button @click="flagUser" class="text-red-600 font-bold text-[28px] py-3 xl:flex xl:items-center xl:gap-3 xl:w-full xl:text-left xl:px-4 xl:py-3 xl:rounded-xl xl:hover:bg-gray-50 xl:transition-colors">
-              <span class="hidden xl:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #dc2626">
+            <button @click="flagUser" class="text-red-600 font-bold text-[28px] py-3 lg:flex lg:items-center lg:gap-3 lg:w-full lg:text-left lg:px-4 lg:py-3 lg:rounded-xl lg:hover:bg-gray-50 lg:transition-colors">
+              <span class="hidden lg:flex w-9 h-9 rounded-full items-center justify-center shrink-0" style="background-color: #dc2626">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" />
                 </svg>
               </span>
-              <span class="xl:hidden">Flag as Inappropriate</span>
-              <div class="hidden xl:block">
+              <span class="lg:hidden">Flag as Inappropriate</span>
+              <div class="hidden lg:block">
                 <p class="font-semibold text-gray-900 text-[15px]">Flag as Inappropriate</p>
                 <p class="text-xs text-gray-400">Report this profile</p>
               </div>
@@ -284,8 +284,8 @@
           </template>
         </div>
         <!-- Cancel -->
-        <div class="mt-4 xl:mt-0 xl:border-t xl:border-gray-100 xl:px-2 xl:py-2">
-          <button @click="showActionMenu = false" class="w-full text-center text-gray-500 text-[16px] py-3 xl:px-4 xl:py-2.5 xl:rounded-xl xl:text-sm xl:hover:bg-gray-50 xl:transition-colors">Cancel</button>
+        <div class="mt-4 lg:mt-0 lg:border-t lg:border-gray-100 lg:px-2 lg:py-2">
+          <button @click="showActionMenu = false" class="w-full text-center text-gray-500 text-[16px] py-3 lg:px-4 lg:py-2.5 lg:rounded-xl lg:text-sm lg:hover:bg-gray-50 lg:transition-colors">Cancel</button>
         </div>
       </div>
     </div>

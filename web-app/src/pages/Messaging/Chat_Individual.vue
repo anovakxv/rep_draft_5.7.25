@@ -7,20 +7,20 @@
 <template>
   <div class="flex flex-col h-screen bg-white chat-individual-container">
     <!-- Header - Full Width -->
-    <div class="flex items-center h-14 xl:h-12 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
+    <div class="flex items-center h-14 lg:h-12 px-4 border-b border-gray-200 shrink-0" style="background-color: #f7f7f7">
       <button @click="emit('close')" style="color: #8cc65d">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 xl:h-5 xl:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 lg:h-5 lg:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
       </button>
-      <h1 class="font-bold text-lg xl:text-sm xl:font-semibold flex-1 text-center truncate">{{ otherUserName }}</h1>
-      <div class="w-10 xl:w-8"></div>
+      <h1 class="font-bold text-lg lg:text-sm lg:font-semibold flex-1 text-center truncate">{{ otherUserName }}</h1>
+      <div class="w-10 lg:w-8"></div>
     </div>
 
     <!-- Two Column Layout (Desktop) / Single Column (Mobile) -->
-    <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
+    <div class="flex flex-col flex-1 min-h-0 lg:flex-row">
       <!-- LEFT COLUMN (Desktop): Compose Panel (50% width) — email-style -->
-      <div class="hidden xl:flex xl:flex-col xl:w-[50%] xl:border-r xl:border-gray-200" style="background:#f9fafb">
+      <div class="hidden lg:flex lg:flex-col lg:w-[50%] lg:border-r lg:border-gray-200" style="background:#f9fafb">
 
         <!-- Compose header: "To:" recipient -->
         <div class="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
@@ -64,10 +64,10 @@
       </div>
 
       <!-- RIGHT COLUMN (Desktop) / FULL VIEW (Mobile): Messages Feed (50% width) -->
-      <div class="flex flex-col flex-1 min-h-0 xl:w-[50%] bg-white">
+      <div class="flex flex-col flex-1 min-h-0 lg:w-[50%] bg-white">
 
         <!-- Desktop: thread header with avatar + name + count -->
-        <div class="hidden xl:flex items-center gap-3 px-6 py-3 border-b border-gray-100 shrink-0 bg-white">
+        <div class="hidden lg:flex items-center gap-3 px-6 py-3 border-b border-gray-100 shrink-0 bg-white">
           <img v-if="otherUserPhotoURL" :src="otherUserPhotoURL" class="w-9 h-9 rounded-full object-cover shrink-0" />
           <div v-else class="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm font-semibold shrink-0">
             {{ otherUserName?.charAt(0)?.toUpperCase() }}
@@ -79,17 +79,17 @@
         </div>
 
         <!-- Messages List -->
-        <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 xl:px-8 py-3 xl:py-5 pb-32 xl:pb-5" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
+        <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 lg:px-8 py-3 lg:py-5 pb-32 lg:pb-5" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
       <!-- Load older: divider style on desktop, plain link on mobile -->
-      <div v-if="canLoadOlder" class="flex items-center gap-3 py-2 xl:my-3">
-        <div class="hidden xl:block flex-1 h-px bg-gray-200"></div>
+      <div v-if="canLoadOlder" class="flex items-center gap-3 py-2 lg:my-3">
+        <div class="hidden lg:block flex-1 h-px bg-gray-200"></div>
         <button @click="loadOlder" :disabled="isLoadingOlder" class="text-xs text-gray-400 hover:text-gray-600 shrink-0">
           <span v-if="isLoadingOlder" class="animate-spin h-4 w-4 border-2 border-gray-400 border-t-transparent rounded-full inline-block mr-1"></span>
           Load older messages
         </button>
-        <div class="hidden xl:block flex-1 h-px bg-gray-200"></div>
+        <div class="hidden lg:block flex-1 h-px bg-gray-200"></div>
       </div>
-      <div v-for="msg in messages" :key="msg.id" class="mb-3 xl:mb-5">
+      <div v-for="msg in messages" :key="msg.id" class="mb-3 lg:mb-5">
         <MessageBubble
           :message="msg"
           :isCurrentUser="msg.sender_id === currentUserId"
@@ -122,7 +122,7 @@
     </div>
 
     <!-- Input Bar (MOBILE ONLY - hidden on desktop) -->
-    <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+    <div class="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
       <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
         <div class="flex items-center gap-2">
           <textarea

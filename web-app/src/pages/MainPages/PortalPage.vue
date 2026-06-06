@@ -19,9 +19,9 @@
       <PortalHeader :portal-name="portalDetail.name" @back="goBack" />
 
       <!-- Two Column Layout (Desktop Only) -->
-      <div class="flex flex-col flex-1 min-h-0 xl:flex-row">
+      <div class="flex flex-col flex-1 min-h-0 lg:flex-row">
         <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
-        <div class="hidden xl:flex xl:w-[70%] xl:h-[calc(100vh-3rem)] xl:sticky xl:top-[3rem] xl:flex-col xl:bg-black" style="border: 12px solid black;">
+        <div class="hidden lg:flex lg:w-[70%] lg:h-[calc(100vh-3rem)] lg:sticky lg:top-[3rem] lg:flex-col lg:bg-black" style="border: 12px solid black;">
           <ImageTabView
             :sections="(portalDetail.aSections || []).filter(s => s.title === 'Main Section')"
             @image-tap="openFullscreen"
@@ -30,13 +30,13 @@
         </div>
 
         <!-- MOBILE & DESKTOP: Right Column - Content (30% on desktop) -->
-        <div class="flex flex-col flex-1 min-h-0 xl:w-[30%]">
+        <div class="flex flex-col flex-1 min-h-0 lg:w-[30%]">
 
         <!-- 2. Main Scrollable Content -->
-        <div class="flex-1 overflow-y-auto overflow-x-hidden pb-20 xl:pb-0" style="overscroll-behavior-y: contain;">
+        <div class="flex-1 overflow-y-auto overflow-x-hidden pb-20 lg:pb-0" style="overscroll-behavior-y: contain;">
           <div class="relative">
             <!-- MOBILE ONLY: Image Gallery -->
-            <div class="xl:hidden">
+            <div class="lg:hidden">
               <ImageTabView
                 :sections="(portalDetail.aSections || []).filter(s => s.title === 'Main Section')"
                 @image-tap="openFullscreen"
@@ -54,7 +54,7 @@
             </div>
 
             <!-- Conditional Content -->
-            <div class="px-4 pt-4 pb-36 xl:pb-4">
+            <div class="px-4 pt-4 pb-36 lg:pb-4">
               <PortalResultsSection
                 v-if="selectedSection === 0"
                 :goals="portalGoals"
@@ -69,7 +69,7 @@
         </div>
 
         <!-- Desktop Inline Action Buttons (matching Profile/Goal page pill pattern) -->
-        <div class="hidden xl:flex xl:flex-col xl:px-4 xl:py-3 xl:border-t xl:border-gray-100 xl:gap-2">
+        <div class="hidden lg:flex lg:flex-col lg:px-4 lg:py-3 lg:border-t lg:border-gray-100 lg:gap-2">
           <!-- Primary CTA (conditional) -->
           <button
             v-if="attendeesGoal && !isEventRegistered"
@@ -164,11 +164,11 @@
         <!-- Register for Event Button (only show if Attendees goal exists and not yet registered) -->
         <div
           v-if="attendeesGoal && !isEventRegistered"
-          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:hidden"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 lg:hidden"
         >
           <button
             @click="handleRSVP"
-            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95"
+            class="w-full max-w-md h-12 lg:h-14 rounded-xl font-bold text-lg lg:text-xl transition-transform hover:scale-105 active:scale-95"
             style="background-color: #8cc65d; color: white;"
           >
             Register for Event
@@ -178,7 +178,7 @@
         <!-- Add to Calendar (only show after user registers) -->
         <div
           v-if="isEventRegistered && portalDetail?.event_datetime"
-          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:hidden"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 lg:hidden"
         >
           <div class="relative w-full max-w-md">
             <!-- Calendar picker dropdown -->
@@ -227,7 +227,7 @@
             <!-- Main button -->
             <button
               @click="showCalendarPicker = !showCalendarPicker"
-              class="w-full flex items-center justify-center gap-2 h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95"
+              class="w-full flex items-center justify-center gap-2 h-12 lg:h-14 rounded-xl font-bold text-lg lg:text-xl transition-transform hover:scale-105 active:scale-95"
               style="background-color: #006600; color: white;"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -241,11 +241,11 @@
         <!-- Join Supporters Button (only show if Supporters goal exists AND no Attendees goal) -->
         <div
           v-if="supportersGoal && !attendeesGoal"
-          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 xl:hidden"
+          class="fixed bottom-[52px] left-0 right-0 z-10 flex justify-center bg-white border-t border-gray-200 px-4 py-2 lg:hidden"
         >
           <button
             @click="handleJoinSupporters"
-            class="w-full max-w-md h-12 xl:h-14 rounded-xl font-bold text-lg xl:text-xl transition-transform hover:scale-105 active:scale-95"
+            class="w-full max-w-md h-12 lg:h-14 rounded-xl font-bold text-lg lg:text-xl transition-transform hover:scale-105 active:scale-95"
             style="background-color: #8cc65d; color: white;"
           >
             Join Supporters
@@ -253,8 +253,8 @@
         </div>
 
         <!-- Fixed Bottom Bar (mobile only) -->
-        <div class="xl:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
-          <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 xl:py-3" style="max-width: 768px; border-color: #e5e7eb;">
+        <div class="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
+          <div class="w-full bg-white border-t shadow-lg flex items-center justify-center gap-3 py-1.5 px-4 lg:py-3" style="max-width: 768px; border-color: #e5e7eb;">
             <!-- Message Button -->
             <button
               @click="openMessageSheet"
@@ -903,7 +903,7 @@ const PortalHeader = defineComponent({
   emits: ['back'],
   setup(props, { emit }) {
     return () => h('header', {
-      class: 'flex items-center h-14 xl:h-12 px-4 border-b border-gray-200 shrink-0',
+      class: 'flex items-center h-14 lg:h-12 px-4 border-b border-gray-200 shrink-0',
       style: 'background-color: #f7f7f7'
     }, [
       h('button', {
@@ -912,7 +912,7 @@ const PortalHeader = defineComponent({
       }, [
         h('svg', {
           xmlns: 'http://www.w3.org/2000/svg',
-          class: 'h-6 w-6 xl:h-5 xl:w-5',
+          class: 'h-6 w-6 lg:h-5 lg:w-5',
           fill: 'none',
           viewBox: '0 0 24 24',
           stroke: 'currentColor'
@@ -926,10 +926,10 @@ const PortalHeader = defineComponent({
         ])
       ]),
       h('h1', {
-        class: 'flex-1 text-center font-bold text-xl xl:text-sm xl:font-semibold'
+        class: 'flex-1 text-center font-bold text-xl lg:text-sm lg:font-semibold'
       }, props.portalName),
       h('div', {
-        class: 'w-12 xl:w-8'
+        class: 'w-12 lg:w-8'
       })
     ]);
   }

@@ -1,4 +1,5 @@
 {
+  "model": "fable",
   "permissions": {
     "allow": [
       "Bash(tree:*)",

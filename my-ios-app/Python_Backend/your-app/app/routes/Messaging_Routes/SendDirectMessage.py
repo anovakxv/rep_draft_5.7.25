@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db, socketio  # socketio imported for realtime emit
+from app import db, socketio, limiter  # socketio imported for realtime emit
 from app.models.People_Models.user import User
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.Purpose_Models.Portal import Portal
@@ -18,6 +18,7 @@ user_bp = Blueprint('send_message', __name__)
 
 @user_bp.route('/send_message', methods=['POST'])
 @jwt_required
+@limiter.limit("60 per minute")
 def api_send_message():
     data = request.get_json() or {}
     user_id = getattr(g, "current_user", None).id if getattr(g, "current_user", None) else None

@@ -54,7 +54,6 @@ def create_public_checkout_session():
     - price_id: Stripe price ID for subscriptions
     """
     data = request.json or {}
-    print(f"[Public Checkout] Received data: {data}")
 
     # Required fields for public checkout
     amount = data.get('amount')
@@ -68,8 +67,6 @@ def create_public_checkout_session():
     transaction_type = data.get('transaction_type', 'donation')
     is_subscription = data.get('is_subscription', False)
     price_id = data.get('price_id')
-
-    print(f"[Public Checkout] amount: {amount}, portal_id: {portal_id}, goal_id: {goal_id}, email: {email}")
 
     # Validation
     if not amount and not price_id:

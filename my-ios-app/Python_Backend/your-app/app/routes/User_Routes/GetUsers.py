@@ -25,14 +25,14 @@ def patch_profile_picture_url(user_row):
 @jwt_required
 def api_get_users():
     args = request.args
-    offset = int(args.get('offset', 0))
-    limit = int(args.get('limit', 50))
+    offset = args.get('offset', 0, type=int)
+    limit = args.get('limit', 50, type=int)
     users_types_id = args.get('users_types_id')
     keyword = args.get('keyword', '')
     lat = args.get('lat')
     lng = args.get('lng')
     restrict_by_distance = args.get('restrict_by_distance', '0')
-    distance = float(args.get('distance', 10))
+    distance = args.get('distance', 10, type=float)
     user_id = g.current_user.id
 
     if offset < 0:

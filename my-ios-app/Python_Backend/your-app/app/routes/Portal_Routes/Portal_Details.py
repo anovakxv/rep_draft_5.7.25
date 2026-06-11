@@ -41,6 +41,37 @@ s3 = boto3.client(
     region_name=os.environ.get('AWS_DEFAULT_REGION')
 )
 
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+def allowed_image_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+def validate_portal_images(images):
+    """Validate portal image uploads (extension + size). Returns an error message, or None if all valid."""
+    for img in images:
+        if not img.filename or not allowed_image_file(img.filename):
+            return f'Invalid file type for "{img.filename}". Allowed: png, jpg, jpeg, gif, webp'
+        img.seek(0, 2)
+        size = img.tell()
+        img.seek(0)
+        if size > MAX_IMAGE_SIZE_BYTES:
+            return f'File "{img.filename}" exceeds 10 MB limit'
+    return None
+
+def escape_ics_text(value):
+    """Escape special characters in an iCalendar (RFC 5545) TEXT value."""
+    if not value:
+        return value
+    return (
+        value.replace('\\', '\\\\')
+             .replace(';', '\\;')
+             .replace(',', '\\,')
+             .replace('\r\n', '\\n')
+             .replace('\n', '\\n')
+             .replace('\r', '\\n')
+    )
+
 portal_bp = Blueprint('portal', __name__)
 
 def user_as_portal_dict(user):
@@ -206,6 +237,13 @@ def api_create_portal():
     if Portal.query.filter_by(name=data['name'], users_id=user_id).first():
         return jsonify({'error': 'Portal name already exists for this user'}), 400
 
+    # Validate any uploaded images before touching the DB
+    images = request.files.getlist('images')
+    if images:
+        img_error = validate_portal_images(images)
+        if img_error:
+            return jsonify({'error': img_error}), 400
+
     try:
         portal = Portal(
             name=data['name'],
@@ -232,8 +270,7 @@ def api_create_portal():
         db.session.add(portal)
         db.session.flush()  # Get portal.id before commit
 
-        # Handle images (uploaded files)
-        images = request.files.getlist('images')
+        # Handle images (uploaded files; already validated above)
         if images:
             # Find or create the main graphic section for this portal
             main_section = PortalGraphicSection.query.filter_by(portals_id=portal.id, title="Main Section").first()
@@ -250,10 +287,9 @@ def api_create_portal():
             for img in images:
                 unique_filename = f"{portal.id}_{uuid.uuid4().hex}_{secure_filename(img.filename)}"
                 img.seek(0)
-                s3.upload_fileobj(img, S3_BUCKET, unique_filename)
+                s3.put_object(Body=img.read(), Bucket=S3_BUCKET, Key=unique_filename, ContentType=img.mimetype)
                 s3_url = f"{S3_BASE_URL}{unique_filename}"
                 gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
-                # --- FIX: Remove all img.read() and extra seek() ---
                 s3_content = S3Content(
                     gr_hash=gr_hash,
                     tbl_id=main_section.id,
@@ -367,6 +403,11 @@ def api_edit_portal():
     # Handle images (uploaded files)
     images = request.files.getlist('images')
     if images:
+        img_error = validate_portal_images(images)
+        if img_error:
+            db.session.rollback()
+            return jsonify({'error': img_error}), 400
+
         # Find or create the main graphic section
         main_section = PortalGraphicSection.query.filter_by(portals_id=portal_id, title="Main Section").first()
         if not main_section:
@@ -382,7 +423,7 @@ def api_edit_portal():
         for img in images:
             unique_filename = f"{portal_id}_{uuid.uuid4().hex}_{secure_filename(img.filename)}"
             img.seek(0)
-            s3.upload_fileobj(img, S3_BUCKET, unique_filename)
+            s3.put_object(Body=img.read(), Bucket=S3_BUCKET, Key=unique_filename, ContentType=img.mimetype)
             s3_url = f"{S3_BASE_URL}{unique_filename}"
             gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
             s3_content = S3Content(
@@ -494,9 +535,9 @@ def api_get_portal_nearest_rep():
     lat = request.args.get('lat')
     lng = request.args.get('lng')
     restrict_by_distance = request.args.get('restrict_by_distance', '0')
-    distance = float(request.args.get('distance', 10))
-    offset = int(request.args.get('offset', 0))
-    limit = int(request.args.get('limit', 1))
+    distance = request.args.get('distance', 10, type=float)
+    offset = request.args.get('offset', 0, type=int)
+    limit = request.args.get('limit', 1, type=int)
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401
@@ -574,7 +615,6 @@ def api_get_portal_nearest_rep():
             'id': user.id,
             'fname': user.fname,
             'lname': user.lname,
-            'email': user.email,
             'lat': user.lat,
             'lng': user.lng,
             'cities_id': user.cities_id,
@@ -604,9 +644,9 @@ def api_portal_calendar_ics(portal_id):
     duration_minutes = portal.event_duration_minutes or 90
     end = (dt + timedelta(minutes=duration_minutes)).strftime('%Y%m%dT%H%M%S')
     now_utc = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
-    summary = portal.name.replace('\n', ' ').replace('\r', '')
-    description = (portal.about or '').replace('\n', '\\n').replace('\r', '')[:500]
-    location = (portal.event_location or '').replace('\n', ' ').replace('\r', '')
+    summary = escape_ics_text(portal.name.replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' '))
+    description = escape_ics_text((portal.about or '')[:500])
+    location = escape_ics_text(portal.event_location.replace('\r\n', ' ').replace('\n', ' ').replace('\r', ' ')) if portal.event_location else ''
     url = f"https://www.repsomething.com/portal/{portal_id}"
 
     # Use TZID if timezone is set, otherwise floating time

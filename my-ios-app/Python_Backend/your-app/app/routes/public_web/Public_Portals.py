@@ -39,8 +39,8 @@ def api_public_get_portals():
     - safe_only: filter out flagged portals (default: true)
     """
     args = request.args
-    offset = int(args.get('offset', 0))
-    limit = int(args.get('limit', 50))
+    offset = args.get('offset', 0, type=int)
+    limit = args.get('limit', 50, type=int)
     keyword = args.get('keyword', '')
     safe_only = args.get('safe_only', 'true').lower() == 'true'
 

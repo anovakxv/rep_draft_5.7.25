@@ -3,7 +3,7 @@
 # Created by Adam Novak: September 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 import stripe
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
@@ -32,6 +32,7 @@ def get_or_create_stripe_customer(user_id):
 
 @payments_bp.route('/api/create_setup_intent', methods=['POST'])
 @jwt_required
+@limiter.limit("30 per hour")
 def create_setup_intent():
     user_id = g.current_user.id
     customer = get_or_create_stripe_customer(user_id)
@@ -116,6 +117,7 @@ def stripe_dashboard_link():
 
 @payments_bp.route('/api/create_payment_intent', methods=['POST'])
 @jwt_required
+@limiter.limit("30 per hour")
 def create_payment_intent():
     data = request.json or {}
     user_id = g.current_user.id
@@ -465,6 +467,7 @@ def stripe_webhook():
 
 @payments_bp.route('/api/create_subscription', methods=['POST'])
 @jwt_required
+@limiter.limit("30 per hour")
 def create_subscription():
     data = request.json or {}
     user_id = g.current_user.id
@@ -596,6 +599,7 @@ def cancel_subscription():
 
 @payments_bp.route('/api/create_checkout_session', methods=['POST'])
 @jwt_required
+@limiter.limit("30 per hour")
 def create_checkout_session():
     data = request.json or {}
     user_id = g.current_user.id
@@ -625,9 +629,21 @@ def create_checkout_session():
     customer = get_or_create_stripe_customer(user_id)
     print(f"[Checkout] Stripe customer: {customer.id}")
 
-    # Use URLs from request data (web app) or fall back to iOS deep links
-    success_url = data.get('success_url', f"https://rep-june2025.onrender.com/payment-return?status=success&session_id={{CHECKOUT_SESSION_ID}}")
-    cancel_url = data.get('cancel_url', f"https://rep-june2025.onrender.com/payment-return?status=canceled")
+    # Use URLs from request data (web app) or fall back to iOS deep links.
+    # Validate that any caller-supplied URL is on an allowed domain (prevents open redirect).
+    ALLOWED_REDIRECT_DOMAINS = (
+        'https://rep-june2025.onrender.com',
+        'https://repsomething.com',
+        'https://www.repsomething.com',
+    )
+    default_success = f"https://rep-june2025.onrender.com/payment-return?status=success&session_id={{CHECKOUT_SESSION_ID}}"
+    default_cancel = f"https://rep-june2025.onrender.com/payment-return?status=canceled"
+    success_url = data.get('success_url', default_success)
+    cancel_url = data.get('cancel_url', default_cancel)
+    if not any(success_url.startswith(d) for d in ALLOWED_REDIRECT_DOMAINS):
+        return jsonify({'error': 'Invalid success_url'}), 400
+    if not any(cancel_url.startswith(d) for d in ALLOWED_REDIRECT_DOMAINS):
+        return jsonify({'error': 'Invalid cancel_url'}), 400
 
     goal = None
     if goal_id:

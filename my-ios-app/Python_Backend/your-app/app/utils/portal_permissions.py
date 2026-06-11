@@ -18,9 +18,9 @@ def check_portal_editor_permission(user_id, portal_id):
 
     # Check if user is a leader in PortalUser
     leader = PortalUser.query.filter_by(
-        users_id=user_id,
-        portals_id=portal_id,
-        leader=True
+        user_id=user_id,
+        portal_id=portal_id,
+        role='lead'
     ).first()
     if leader:
         return True

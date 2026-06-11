@@ -2,19 +2,14 @@
 # Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 # Created by Adam Novak: June 2025
 
-from flask import Blueprint, request, jsonify, current_app, g
-from app import db
+from flask import Blueprint, request, jsonify, g
 from app.models.People_Models.user import User
 from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
 from app.models.People_Models.UserFollower import UserFollower
 from app.models.People_Models.UserNetwork import UserNetwork
-from app.utils.user_utils import check_new_email, check_new_username, manage_user_row
+from app.utils.user_utils import manage_user_row
 from app.utils.auth import jwt_required
-import bcrypt
-import os
-import uuid
-from werkzeug.utils import secure_filename
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
@@ -28,10 +23,6 @@ def patch_profile_picture_url(user_row):
     return user_row
 
 user_bp = Blueprint('user', __name__)
-
-def allowed_file(filename):
-    allowed_extensions = {'png', 'jpg', 'jpeg', 'gif'}
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in allowed_extensions
 
 def get_user_response(user, session_user_id=None):
     user_row = user.as_dict()
@@ -52,91 +43,21 @@ def get_user_response(user, session_user_id=None):
     user_row = patch_profile_picture_url(user_row)
     return user_row
 
-@user_bp.route('/profile', methods=['GET', 'POST'])
+@user_bp.route('/profile', methods=['GET'])
 @jwt_required
 def api_user_profile():
-    # GET: fetch profile, POST: edit profile (if session user)
-    if request.method == 'GET':
-        users_id = request.args.get('users_id', type=int)
-        session_user_id = g.current_user.id
+    users_id = request.args.get('users_id', type=int)
+    session_user_id = g.current_user.id
 
-        # Prefer session user if users_id is not provided
-        if not users_id and not session_user_id:
-            return jsonify({'error': 'login or users_id required!'}), 401
-        if not users_id:
-            users_id = session_user_id
+    # Prefer session user if users_id is not provided
+    if not users_id and not session_user_id:
+        return jsonify({'error': 'login or users_id required!'}), 401
+    if not users_id:
+        users_id = session_user_id
 
-        user = User.query.filter_by(id=users_id).first()
-        if not user:
-            return jsonify({'error': "That user doesn't exist!"}), 404
+    user = User.query.filter_by(id=users_id).first()
+    if not user:
+        return jsonify({'error': "That user doesn't exist!"}), 404
 
-        user_row = get_user_response(user, session_user_id)
-        return jsonify({'result': user_row})
-
-    # POST: edit profile (must be session user)
-    if request.content_type and request.content_type.startswith('multipart/form-data'):
-        data = request.form.to_dict()
-        files = request.files
-    else:
-        data = request.get_json()
-        files = {}
-
-    user = g.current_user
-    user_id = user.id
-
-    # Email update
-    if data.get('email') and data['email'] != user.email:
-        try:
-            check_new_email(data['email'], user.email)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 400
-        user.email = data['email']
-
-    # Username update
-    if data.get('username') and data['username'] != user.username:
-        try:
-            check_new_username(data['username'], user.username)
-        except Exception as e:
-            return jsonify({'error': str(e)}), 400
-        user.username = data['username']
-
-    # Password update
-    if data.get('password'):
-        if not (8 <= len(data['password']) <= 128):
-            return jsonify({'error': 'Password must be 8–128 characters'}), 400
-        user.password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt(12)).decode('utf-8')
-
-    # Auto-update columns
-    auto_update_columns = [
-        'fname', 'lname', 'users_types_id', 'cities_id', 'broadcast', 'about',
-        'phone', 'device_token', 'lat', 'lng', 'other_skill', 'manual_city'
-    ]
-    for col in auto_update_columns:
-        if col in data and data.get(col) is not None:
-            setattr(user, col, data[col])
-
-    # Profile picture update
-    if 'profile_picture' in files:
-        file = files['profile_picture']
-        if file and allowed_file(file.filename):
-            filename = secure_filename(f"user_{user.id}_{uuid.uuid4().hex}_{file.filename}")
-            # In production, you would upload to S3 here and set the S3 URL
-            # For now, just use the filename as the key
-            user.profile_picture_url = filename
-
-    db.session.commit()
-
-    # Skills update
-    if data.get('aSkills') is not None:
-        UserSkill.query.filter_by(users_id=user.id).delete()
-        skill_ids = data['aSkills']
-        if isinstance(skill_ids, str):
-            skill_ids = [int(sid) for sid in skill_ids.split(',') if sid.strip().isdigit()]
-        valid_skills = Skill.query.filter(Skill.id.in_(skill_ids)).all()
-        for skill in valid_skills:
-            db.session.add(UserSkill(users_id=user.id, skills_id=skill.id))
-        db.session.commit()
-
-    # Return updated user profile with skills and relationships
-    user_row = get_user_response(user, user_id)
+    user_row = get_user_response(user, session_user_id)
     return jsonify({'result': user_row})

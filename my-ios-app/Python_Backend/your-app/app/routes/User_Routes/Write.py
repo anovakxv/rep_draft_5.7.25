@@ -20,6 +20,8 @@ except ImportError:
 
 user_bp = Blueprint('user_writes', __name__)
 
+MAX_WRITE_CONTENT_LENGTH = 50000  # ~8-10k words; write blocks are long-form (articles/essays)
+
 # --- Helper Functions ---
 
 def sanitize_html(content):
@@ -125,6 +127,8 @@ def add_user_write():
 
     if not users_id or not content:
         return jsonify({'error': 'Missing user or content'}), 400
+    if len(content) > MAX_WRITE_CONTENT_LENGTH:
+        return jsonify({'error': f'Content too long (max {MAX_WRITE_CONTENT_LENGTH} characters)'}), 400
 
     # Sanitize HTML content to prevent XSS
     if content_format == 'html':
@@ -176,6 +180,8 @@ def edit_user_write(write_id):
     # Update content
     if 'content' in data:
         content = data.get('content', write.content)
+        if len(content) > MAX_WRITE_CONTENT_LENGTH:
+            return jsonify({'error': f'Content too long (max {MAX_WRITE_CONTENT_LENGTH} characters)'}), 400
 
         # Get or detect format
         if 'content_format' in data:

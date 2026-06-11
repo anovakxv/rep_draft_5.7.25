@@ -68,7 +68,7 @@ def api_public_goal_details(goal_id):
     if not goal_id:
         return jsonify({'error': 'goal_id required'}), 400
 
-    num_periods = int(request.args.get('num_periods', 7))
+    num_periods = request.args.get('num_periods', 7, type=int)
 
     # Fetch goal
     goal = Goal.query.get(goal_id)

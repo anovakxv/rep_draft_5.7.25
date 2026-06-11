@@ -118,28 +118,3 @@ def api_manage_chat():
         'users': users_result
     }
     return jsonify(result)
-
-@user_bp.route('/delete_chat', methods=['POST'])
-@jwt_required
-def api_delete_group_chat():
-    data = request.get_json()
-    user_id = g.current_user.id
-    chats_id = data.get('chats_id')
-
-    if not user_id:
-        return jsonify({'error': 'Login error!'}), 401
-    if not chats_id:
-        return jsonify({'error': 'chats_id is empty!'}), 400
-
-    chat = Chats.query.filter_by(id=chats_id).first()
-    if not chat:
-        return jsonify({'error': "Chat not found"}), 404
-
-    if chat.created_by != user_id:
-        return jsonify({'error': "Only the creator can delete this group chat."}), 403
-
-    # Single delete; DB cascades remove group_messages & chats_users rows
-    db.session.delete(chat)
-    db.session.commit()
-
-    return jsonify({'result': f"Group chat '{chats_id}' deleted."})

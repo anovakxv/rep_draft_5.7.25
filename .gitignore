@@ -2,6 +2,9 @@
 nul
 web-app/src/nul
 
+# Build artifacts
+node_modules/
+
 # Enhanced/Draft files (not ready for production)
 *_Enhanced.vue
 *_ENHANCED.vue
@@ -33,6 +36,7 @@ my-ios-app/Python_Backend/your-app/instance/test.db
 
 # Claude settings
 .claude/settings.local.json
+tmpclaude-*-cwd
 
 # Session summaries
 SESSION_SUMMARY.md

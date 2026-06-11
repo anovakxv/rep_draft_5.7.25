@@ -190,6 +190,14 @@ def api_create_portal():
     if not data or not all(field in data for field in required_fields):
         return jsonify({'error': 'Missing required fields'}), 400
 
+    # Validate field lengths
+    if len(data.get('name', '')) > 255:
+        return jsonify({'error': 'Portal name too long (max 255 characters)'}), 400
+    if len(data.get('about', '')) > 5000:
+        return jsonify({'error': 'About field too long (max 5000 characters)'}), 400
+    if len(data.get('subtitle', '')) > 500:
+        return jsonify({'error': 'Subtitle too long (max 500 characters)'}), 400
+
     user_id = g.current_user.id or data.get('users_id')
     if not user_id:
         return jsonify({'error': 'users_id required'}), 400

@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
@@ -178,6 +178,7 @@ def api_goal_details():
 
 # --- POST: Create Goal ---
 @goals_bp.route('/create', methods=['POST'])
+@limiter.limit("20 per day")
 @jwt_required
 def api_create_goal():
     data = request.json
@@ -189,6 +190,12 @@ def api_create_goal():
     for field in required_fields:
         if not data.get(field):
             return jsonify({'error': f'{field} required!'}), 400
+
+    # Validate field lengths
+    if len(data.get('title', '')) > 255:
+        return jsonify({'error': 'Goal title too long (max 255 characters)'}), 400
+    if len(data.get('description', '')) > 5000:
+        return jsonify({'error': 'Description too long (max 5000 characters)'}), 400
 
     goal_type = data.get('goal_type')
     metric = data.get('metric')
@@ -281,6 +288,7 @@ def get_reporting_increments():
 
 # --- POST: Edit Goal ---
 @goals_bp.route('/edit', methods=['POST'])
+@limiter.limit("20 per day")
 @jwt_required
 def api_edit_goal():
     data = request.json
@@ -323,6 +331,7 @@ def api_edit_goal():
 
 # --- POST: Delete Goal ---
 @goals_bp.route('/delete', methods=['POST'])
+@limiter.limit("20 per day")
 @jwt_required
 def api_delete_goal():
     data = request.json

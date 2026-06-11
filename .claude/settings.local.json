@@ -84,7 +84,12 @@
       "PowerShell(Get-ChildItem -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\app\\\\routes\\\\Portal_Routes\" | ForEach-Object { $_.Name })",
       "PowerShell(Select-String -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\app\\\\routes\\\\Portal_Routes\\\\Get_Portals.py\" -Pattern \"def api|edit|images|Main Section\" | Select-Object -First 20 | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\web-app\\\\src\" -Recurse -Filter \"*.vue\" -o Name)",
-      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\app\\\\routes\" -Recurse -File -Filter \"*.py\")"
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\my-ios-app\\\\Python_Backend\\\\your-app\\\\app\\\\routes\" -Recurse -File -Filter \"*.py\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\web-app\\\\src\\\\pages\" -Recurse -File)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\Stephanie\\\\Desktop\\\\Git Rep app draft 1\\\\my-ios-app\\\\Python_Backend\" -Recurse -Include \"*.py\")",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ],
     "deny": [],
     "ask": []

@@ -16,12 +16,22 @@ from datetime import datetime
 group_attachments_bp = Blueprint('group_message_attachments', __name__)
 
 MAX_ATTACHMENT_SIZE = 50 * 1024 * 1024  # 50 MB
+ALLOWED_MIME_TYPES = {
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'application/pdf', 'text/plain',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+}
 
 # --- Helper Functions ---
 
 def upload_to_s3(file, user_id):
     try:
         bucket_name = os.environ.get('S3_BUCKET_NAME', 'rep-app-dbbucket')
+
+        # Validate MIME type
+        if file.content_type not in ALLOWED_MIME_TYPES:
+            raise ValueError(f"File type {file.content_type} not allowed. Allowed types: images, PDF, plain text, Word documents.")
 
         # Check file size before uploading
         file.seek(0, 2)

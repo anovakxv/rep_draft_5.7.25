@@ -241,4 +241,12 @@ def create_app():
     # Initialize scheduler (only starts if WORKER_MODE=true)
     init_scheduler(app)
 
+    # Add security headers
+    @app.after_request
+    def set_security_headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['X-XSS-Protection'] = '1; mode=block'
+        return response
+
     return app

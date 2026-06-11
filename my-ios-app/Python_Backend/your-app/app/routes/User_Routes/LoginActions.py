@@ -224,6 +224,9 @@ def api_forgot_password():
         if not new_password:
             return jsonify({'error': 'New password required.'}), 400
 
+        if len(new_password) < 8 or len(new_password) > 128:
+            return jsonify({'error': 'Password must be 8–128 characters'}), 400
+
         user = User.query.filter_by(id=updater.users_id).first()
         if not user:
             db.session.delete(updater)

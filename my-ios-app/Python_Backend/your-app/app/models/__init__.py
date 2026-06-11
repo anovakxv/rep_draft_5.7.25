@@ -8,7 +8,7 @@ from flask_socketio import SocketIO
 from config import Config
 
 db = SQLAlchemy()
-socketio = SocketIO(cors_allowed_origins="*")
+socketio = SocketIO()
 
 # --- Force SQLAlchemy to register ---
 from app.models.Purpose_Models.Category import Category

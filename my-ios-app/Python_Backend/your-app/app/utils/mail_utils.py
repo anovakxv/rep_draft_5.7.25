@@ -30,16 +30,25 @@ def send_event_registration_email(user, portal):
     """
     from urllib.parse import quote
     from datetime import timedelta
+    from markupsafe import escape
 
     to_email = getattr(user, 'email', None)
     if not to_email:
         return False
 
+    # Raw values are used for URL building (quote() percent-encodes) and the email subject.
     fname = getattr(user, 'fname', None) or 'there'
     portal_name = portal.name
     event_datetime = portal.event_datetime
     event_location = portal.event_location or ''
     event_timezone = portal.event_timezone or ''
+
+    # HTML-escaped copies for safe interpolation into the email body (prevents HTML injection
+    # via user-controlled name / portal name / location / timezone fields).
+    fname_html = escape(fname)
+    portal_name_html = escape(portal_name)
+    event_location_html = escape(event_location)
+    event_timezone_html = escape(event_timezone)
     portal_url = f"https://www.repsomething.com/portal/{portal.id}"
     ics_url = f"https://rep-june2025.onrender.com/api/portal/{portal.id}/calendar.ics"
 
@@ -57,7 +66,7 @@ def send_event_registration_email(user, portal):
         hour12 = hour % 12 or 12
         formatted_date = f"{weekday}, {month} {day}, {year} at {hour12}:{minute} {ampm}"
         if event_timezone:
-            formatted_date += f" ({event_timezone})"
+            formatted_date += f" ({event_timezone_html})"
 
         # Google Calendar URL (floating time — displays in recipient's local timezone)
         start_str = event_datetime.strftime('%Y%m%dT%H%M%S')
@@ -88,7 +97,7 @@ def send_event_registration_email(user, portal):
     location_row = f"""
         <tr>
           <td style="padding:6px 0;color:#555;font-size:15px;">
-            &#128205; <strong>Location:</strong> {event_location}
+            &#128205; <strong>Location:</strong> {event_location_html}
           </td>
         </tr>""" if event_location else ''
 
@@ -118,8 +127,8 @@ def send_event_registration_email(user, portal):
       </div>
       <div style="padding:28px 32px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;">
         <p style="font-size:17px;color:#111;margin-top:0;">
-          Hi {fname},<br><br>
-          You're confirmed for <strong>{portal_name}</strong>.
+          Hi {fname_html},<br><br>
+          You're confirmed for <strong>{portal_name_html}</strong>.
         </p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0;">
           {date_row}

@@ -196,7 +196,10 @@ def build_email_html(user, dms, group_msgs):
     with open(template_path, 'r', encoding='utf-8') as f:
         template_str = f.read()
 
-    template = Template(template_str)
+    # autoescape=True: user-controlled values (sender names, message previews, chat names)
+    # are HTML-escaped so they can't inject markup into the email. All template variables
+    # are plain text, so this does not affect rendering.
+    template = Template(template_str, autoescape=True)
 
     # Prepare direct messages data (limit to 10 most recent)
     dm_data = []

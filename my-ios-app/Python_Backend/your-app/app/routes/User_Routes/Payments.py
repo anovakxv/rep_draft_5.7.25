@@ -11,13 +11,22 @@ from app.models.Purpose_Models.Portal import Portal
 from app.utils.auth import jwt_required
 from app.models.People_Models.user import User 
 from datetime import datetime
-from app.models.ValueMetric_Models.Transaction import Transaction 
+from app.models.ValueMetric_Models.Transaction import Transaction
 import os
+import re
 
 stripe.api_key = os.environ.get("STRIPE_SECRET_KEY")
 
 # Define the Blueprint
 payments_bp = Blueprint('payments', __name__)
+
+def _safe_token(value, allowed=r'[^A-Za-z0-9_]'):
+    """Strip anything outside the allowed charset so the value is safe to embed in
+    HTML/href/JS contexts. Legit Stripe session IDs are [A-Za-z0-9_]; portal IDs are
+    digits; status is a plain word — so this is a no-op for all legitimate input."""
+    if not value:
+        return ''
+    return re.sub(allowed, '', str(value))
 
 def get_or_create_stripe_customer(user_id):
     user = db.session.query(User).filter_by(id=user_id).first()
@@ -747,9 +756,10 @@ def checkout_session_status():
 
 @payments_bp.route('/stripe-connect-return', methods=['GET'])
 def stripe_connect_return():
-    portal_id = request.args.get('portal_id')
-    status = request.args.get('status')
-    
+    # Sanitize query params before reflecting them into the HTML/JS response (prevents reflected XSS)
+    portal_id = _safe_token(request.args.get('portal_id'), allowed=r'[^0-9]')
+    status = _safe_token(request.args.get('status'))
+
     # Create a redirect to your app using a custom scheme
     redirect_url = f"rep://stripe-connect-return?portal_id={portal_id}&status={status}"
     
@@ -774,8 +784,10 @@ def stripe_connect_return():
 @payments_bp.route('/payment-return', methods=['GET'])
 def payment_return():
     status = request.args.get('status')
-    session_id = request.args.get('session_id', '')
-    
+    # Sanitize before reflecting into the HTML/JS response (prevents reflected XSS).
+    # Stripe checkout session IDs are [A-Za-z0-9_], so this preserves legitimate values.
+    session_id = _safe_token(request.args.get('session_id', ''))
+
     # Create a redirect to your app using a custom scheme
     if status == "success":
         redirect_url = f"rep://payment-success?session_id={session_id}"

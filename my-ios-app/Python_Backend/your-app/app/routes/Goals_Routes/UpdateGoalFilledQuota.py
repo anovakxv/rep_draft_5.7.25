@@ -32,6 +32,9 @@ s3_client = boto3.client(
     region_name=os.environ.get('AWS_DEFAULT_REGION', 'us-west-2')
 )
 
+ALLOWED_GOAL_FILE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
+MAX_GOAL_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB (matches portal images / user photos)
+
 def get_file_extension(filename):
     """Get file extension from filename."""
     return os.path.splitext(filename)[1].lower()
@@ -40,6 +43,18 @@ def is_image_file(filename):
     """Check if file is an image based on extension."""
     image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp']
     return get_file_extension(filename) in image_extensions
+
+def goal_file_is_valid(file):
+    """Validate a goal-progress upload (extension allowlist + size cap).
+    Both iOS and web only ever send images here. Returns True if the file is acceptable."""
+    if not file or not file.filename:
+        return False
+    if get_file_extension(file.filename) not in ALLOWED_GOAL_FILE_EXTENSIONS:
+        return False
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    return size <= MAX_GOAL_FILE_SIZE_BYTES
 
 @goals_bp.route('/update_filled_quota', methods=['POST'])
 @jwt_required
@@ -98,6 +113,10 @@ def api_update_goal_filled_quota():
     if files:
         for idx, file in enumerate(files):
             if file and file.filename:
+                # Skip files that fail validation (wrong type / oversized). Legit clients only
+                # send images, so this never drops a valid upload — it just blocks abuse.
+                if not goal_file_is_valid(file):
+                    continue
                 original_filename = secure_filename(file.filename)
                 unique_id = str(uuid.uuid4())
                 filename = f"{unique_id}_{original_filename}"
@@ -105,7 +124,15 @@ def api_update_goal_filled_quota():
                 is_image = is_image_file(original_filename)
                 try:
                     file_key = f"goal_updates/{goal_id}/{progress_log.id}/{filename}"
-                    s3_client.upload_fileobj(file, S3_BUCKET, file_key)
+                    # put_object (not upload_fileobj) — boto3's ThreadPoolExecutor-based
+                    # upload_fileobj can hang/fail under gevent monkey-patching.
+                    file.seek(0)
+                    s3_client.put_object(
+                        Body=file.read(),
+                        Bucket=S3_BUCKET,
+                        Key=file_key,
+                        ContentType=file.content_type or 'application/octet-stream'
+                    )
                     file_url = f"{S3_BASE_URL}{file_key}"
 
                     # Create database record

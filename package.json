@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@tailwindcss/postcss": "^4.1.14",
+    "@tailwindcss/postcss": "^4.3.1",
     "autoprefixer": "^10.4.21",
     "lodash-es": "^4.17.21",
     "postcss": "^8.5.6",

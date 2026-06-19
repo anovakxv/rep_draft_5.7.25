@@ -194,6 +194,7 @@ def api_active_chat_list():
             user = users_map.get(event['contact_id'])
             last_msg = last_direct_msgs.get(event['contact_id'])
             user_dict = user.as_dict() if user else {}
+            user_dict.pop('username', None)  # don't expose other users' username (== email)
             user_dict = patch_profile_picture_url(user_dict)
             is_read = "1" if last_msg and last_msg.id in read_ids else "0"
 
@@ -284,14 +285,16 @@ def filter_people():
         return jsonify({'error': 'Invalid tab value!'}), 400
 
     if keyword:
+        # Search by name only — NOT username (== email), to prevent email enumeration.
         query = query.filter(
-            (User.fname.ilike(f"%{keyword}%")) | (User.lname.ilike(f"%{keyword}%")) | (User.username.ilike(f"%{keyword}%"))
+            (User.fname.ilike(f"%{keyword}%")) | (User.lname.ilike(f"%{keyword}%"))
         )
 
     users = query.order_by(User.fname, User.lname).offset(offset).limit(limit).all()
     result = []
     for u in users:
         user_dict = u.as_dict()
+        user_dict.pop('username', None)  # don't expose other users' username (== email)
         user_dict = patch_profile_picture_url(user_dict)
         result.append(user_dict)
     return jsonify({'result': result})

@@ -108,7 +108,11 @@ def api_manage_chat():
     chat_users = ChatsUsers.query.filter_by(chats_id=chats_id).all()
     user_ids = [cu.users_id for cu in chat_users]
     users = User.query.filter(User.id.in_(user_ids)).all()
-    users_result = [u.as_dict() for u in users]
+    users_result = []
+    for u in users:
+        u_dict = u.as_dict()
+        u_dict.pop('username', None)  # don't expose other members' username (== email)
+        users_result.append(u_dict)
 
     result = {
         'chats_id': chats_id,

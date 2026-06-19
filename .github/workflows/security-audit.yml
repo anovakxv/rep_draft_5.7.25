@@ -1,0 +1,44 @@
+name: Dependency security audit
+
+# Surfaces vulnerable npm dependencies on every push/PR that touches the web app,
+# plus a weekly scheduled scan (catches newly-disclosed CVEs in unchanged deps).
+# This is informational/advisory CI — it does NOT gate the Vercel deploy. It fails
+# the check on HIGH/CRITICAL advisories so they get attention.
+
+on:
+  push:
+    branches: [master, Adam_July2025]
+    paths:
+      - "web-app/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/security-audit.yml"
+  pull_request:
+    paths:
+      - "web-app/**"
+      - "package.json"
+      - "package-lock.json"
+  schedule:
+    # Mondays 14:00 UTC
+    - cron: "0 14 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  npm-audit:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: ["web-app", "."]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: npm audit (${{ matrix.dir }})
+        working-directory: ${{ matrix.dir }}
+        # Fail on high/critical. Lows/moderates are reported but don't fail the run.
+        run: npm audit --audit-level=high

@@ -28,7 +28,7 @@ def search_people():
     if not q:
         return jsonify({"result": [], "error": "Missing search query"}), 400
 
-    # Simple search: case-insensitive match on fname, lname, or username
+    # Search by name only — NOT username (== email), to prevent email enumeration.
     search = f"%{q}%"
     users = (
         db.session.query(User)
@@ -36,7 +36,6 @@ def search_people():
             or_(
                 User.fname.ilike(search),
                 User.lname.ilike(search),
-                User.username.ilike(search),
                 (User.fname + ' ' + User.lname).ilike(search)
             )
         )
@@ -55,7 +54,7 @@ def search_people():
             'id': u.id,
             'fname': u.fname,
             'lname': u.lname,
-            'username': u.username,
+            # username (== email) intentionally omitted — search results must not leak emails
             'about': u.about,
             'profile_picture_url': url,
         }

@@ -206,7 +206,7 @@ def build_email_html(user, dms, group_msgs):
     for dm in dms[:10]:
         sender_name = f"{dm.sender.fname or ''} {dm.sender.lname or ''}".strip()
         if not sender_name:
-            sender_name = dm.sender.username or "Someone"
+            sender_name = "Someone"  # never fall back to username (== email)
 
         dm_data.append({
             'sender_name': sender_name,
@@ -219,7 +219,7 @@ def build_email_html(user, dms, group_msgs):
     for gm in group_msgs[:15]:
         sender_name = f"{gm.sender.fname or ''} {gm.sender.lname or ''}".strip()
         if not sender_name:
-            sender_name = gm.sender.username or "Someone"
+            sender_name = "Someone"  # never fall back to username (== email)
 
         group_data.append({
             'group_name': gm.chat.name if gm.chat else "Unknown Group",

@@ -145,7 +145,7 @@ def api_goal_details():
     team = [
         {
             "id": u.id,
-            "name": f"{getattr(u, 'fname', '')} {getattr(u, 'lname', '')}".strip() or getattr(u, 'username', ''),
+            "name": f"{getattr(u, 'fname', '')} {getattr(u, 'lname', '')}".strip() or "Rep Member",
             "imageName": getattr(u, 'profile_picture_url', '') or "profile_placeholder"
         }
         for u in users

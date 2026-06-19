@@ -49,7 +49,9 @@ def api_get_goals_progress_feed():
         result.append({
             'id': log.id,
             'users_id': log.users_id,
-            'username': user.username if user else "Guest Supporter",  # Show "Guest Supporter" for NULL users_id
+            # Display label only — use the contributor's NAME, never username (== email).
+            # "Guest Supporter" for NULL users_id (guest/public payments).
+            'username': (f"{user.fname or ''} {user.lname or ''}".strip() or "Rep Member") if user else "Guest Supporter",
             'added_value': log.added_value,
             'note': log.note,
             'value': log.value,
@@ -64,7 +66,7 @@ def api_get_goals_progress_feed():
     users_info = [
         {
             'id': u.id,
-            'username': getattr(u, 'username', None),
+            # username (== email) intentionally omitted — feed displays fname/lname
             'fname': getattr(u, 'fname', None),
             'lname': getattr(u, 'lname', None),
         }

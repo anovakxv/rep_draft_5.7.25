@@ -1,0 +1,56 @@
+# Dependabot — automated dependency vulnerability alerts + version-update PRs.
+# Covers all package manifests in the monorepo. Weekly cadence, capped open-PR
+# counts to limit noise. Security updates are raised immediately regardless of schedule.
+#
+# NOTE: this file enables *version-update* PRs once merged. To also get *security
+# alerts* + automatic security-update PRs, enable them once in the GitHub repo UI:
+#   Settings → Code security & analysis → "Dependabot alerts" + "Dependabot security updates".
+version: 2
+updates:
+  # Web app (Vue 3 / Vite) — security-critical frontend (DOMPurify, marked, axios, etc.)
+  - package-ecosystem: "npm"
+    directory: "/web-app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "web-app"
+
+  # Root build tooling (tailwind / postcss)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+
+  # Python backend (Flask / SQLAlchemy / boto3 / stripe / bleach …)
+  - package-ecosystem: "pip"
+    directory: "/my-ios-app/Python_Backend/your-app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "backend"
+
+  # Android app (Gradle)
+  - package-ecosystem: "gradle"
+    directory: "/my-android-app"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "android"
+
+  # Keep GitHub Actions workflows patched
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"

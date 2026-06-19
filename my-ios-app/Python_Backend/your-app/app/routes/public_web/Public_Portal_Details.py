@@ -85,7 +85,8 @@ def user_as_portal_dict(user):
         "id": user.id,
         "fname": user.fname,
         "lname": user.lname,
-        "username": getattr(user, "username", None),
+        # username (== email) intentionally omitted — this is an UNAUTHENTICATED endpoint;
+        # exposing it let anyone scrape portal members' emails by iterating portal IDs.
         "profile_picture_url": url,
     }
 

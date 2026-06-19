@@ -39,11 +39,11 @@ def api_get_goal_users():
         if user:
             result.append({
                 'id': user.id,
-                'username': getattr(user, 'username', None),
+                # username (== email) + email + phone intentionally omitted — goals are open
+                # to all authenticated users, so exposing contact PII here allowed harvesting
+                # the whole user base.
                 'fname': getattr(user, 'fname', None),
                 'lname': getattr(user, 'lname', None),
-                # email + phone intentionally omitted — goals are open to all authenticated
-                # users, so exposing contact PII here allowed harvesting the whole user base.
                 'about': getattr(user, 'about', None),
                 'cities_id': getattr(user, 'cities_id', None),
                 'users_types_id': getattr(user, 'users_types_id', None),

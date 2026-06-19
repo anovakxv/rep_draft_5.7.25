@@ -41,7 +41,11 @@ def api_group_chat():
     users = db.session.query(User).join(
         ChatsUsers, ChatsUsers.users_id == User.id
     ).filter(ChatsUsers.chats_id == chats_id).all()
-    users_result = [u.as_dict() for u in users]
+    users_result = []
+    for u in users:
+        u_dict = u.as_dict()
+        u_dict.pop('username', None)  # don't expose other members' username (== email)
+        users_result.append(u_dict)
 
     messages = GroupMessage.query.filter_by(chat_id=chats_id)\
         .order_by(GroupMessage.created_at.desc())\

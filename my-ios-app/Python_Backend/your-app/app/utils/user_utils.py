@@ -13,9 +13,13 @@ def manage_user_row(row, user_id=None, level='1'):
     """
     # Example: Add a 'full_name' field
     row['full_name'] = f"{row.get('fname', '')} {row.get('lname', '')}".strip()
-    # Example: Hide email if not self or admin
+    # Hide login credentials from anyone but the user themselves (level '0').
+    # username == email for most accounts, so exposing it to other users leaks PII /
+    # enables email enumeration. Self-views (Get_Me, own profile, login, register, edit)
+    # call this with level='0' and keep it.
     if level != '0':
         row.pop('email', None)
+        row.pop('username', None)
     return row
 
 def check_user_data(data):

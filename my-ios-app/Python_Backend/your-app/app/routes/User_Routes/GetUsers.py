@@ -75,6 +75,7 @@ def api_get_users():
     result = []
     for u in users:
         user_row = u.as_dict()
+        user_row.pop('username', None)  # don't expose other users' username (== email)
         user_row = patch_profile_picture_url(user_row)
         result.append(user_row)
     return jsonify({'result': result})

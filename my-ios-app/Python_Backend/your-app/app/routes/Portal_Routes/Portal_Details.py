@@ -84,7 +84,7 @@ def user_as_portal_dict(user):
         "id": user.id,
         "fname": user.fname,
         "lname": user.lname,
-        "username": getattr(user, "username", None),
+        # username (== email) intentionally omitted — don't expose other users' email
         "profile_picture_url": url,
         # Add more fields as needed
     }

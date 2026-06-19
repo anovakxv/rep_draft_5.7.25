@@ -120,7 +120,7 @@ dependencies {
     // No dependency is needed for basic email validation using android.util.Patterns
 
     // Stripe Android SDK for payment processing
-    implementation 'com.stripe:stripe-android:20.37.2'
+    implementation 'com.stripe:stripe-android:23.10.1'
 
     // Browser for Custom Tabs (required by Stripe for 3D Secure and redirects)
     implementation 'androidx.browser:browser:1.7.0'

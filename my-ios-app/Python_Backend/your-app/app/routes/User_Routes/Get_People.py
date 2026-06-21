@@ -92,8 +92,8 @@ def api_active_chat_list():
     """
     user_id = g.current_user.id
 
-    limit = int(request.args.get('limit', 50))
-    offset = int(request.args.get('offset', 0))
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
 
     if limit > 4096:
         return jsonify({'error': 'limit should be <= 4096'}), 400
@@ -261,8 +261,8 @@ def filter_people():
 
     tab = request.args.get('tab', 'open')  # 'open', 'ntwk', 'all'
     keyword = request.args.get('keyword', '')
-    limit = int(request.args.get('limit', 50))
-    offset = int(request.args.get('offset', 0))
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
 
     if limit > 4096:
         return jsonify({'error': 'limit should be <= 4096'}), 400

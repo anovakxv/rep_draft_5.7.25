@@ -44,9 +44,9 @@ def send_fcm_notification(fcm_token, title, body, data=None):
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json; UTF-8",
         }
-        print(f"FCM payload: {json.dumps(message)}")  # Debug: print payload
+        # Do not log the payload (contains the recipient's device token + message body).
         response = requests.post(url, headers=headers, data=json.dumps(message))
-        print("FCM v1 response:", response.status_code, response.text)
+        print("FCM v1 response:", response.status_code)
     except Exception as e:
         print(f"Error sending FCM notification: {e}")
 

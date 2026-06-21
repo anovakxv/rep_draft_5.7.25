@@ -3,7 +3,7 @@
 # Created by Adam Novak: February 2026
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.People_Models.UserPhoto import UserPhoto
 from app.models.People_Models.PhotoLike import PhotoLike
 from app.models.People_Models.user import User
@@ -14,6 +14,7 @@ photo_likes_bp = Blueprint('photo_likes', __name__)
 
 @photo_likes_bp.route('/photos/<int:photo_id>/like', methods=['POST'])
 @jwt_required
+@limiter.limit("60 per minute")
 def toggle_like(photo_id):
     """Toggle like on a photo. If already liked, unlike it. If not liked, like it."""
     user_id = g.current_user.id

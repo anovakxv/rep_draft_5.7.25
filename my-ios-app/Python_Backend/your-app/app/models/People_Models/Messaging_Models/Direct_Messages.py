@@ -43,6 +43,15 @@ class DirectMessage(db.Model):
                 "user_name": f"{reaction.user.fname or ''} {reaction.user.lname or ''}".strip() if reaction.user else ""
             })
 
+        # Embedded user objects must not leak username (== email) — strip it (frontends
+        # display name/avatar, never username). Self still gets username via /me + profile.
+        sender_dict = self.sender.as_dict() if self.sender else None
+        if sender_dict:
+            sender_dict.pop('username', None)
+        recipient_dict = self.recipient.as_dict() if self.recipient else None
+        if recipient_dict:
+            recipient_dict.pop('username', None)
+
         return {
             "id": self.id,
             "sender_id": self.sender_id,
@@ -54,8 +63,8 @@ class DirectMessage(db.Model):
             "text": self.text,
             "timestamp": ts,
             "created_at": ts,        # <-- added alias for iOS decoder
-            "sender": self.sender.as_dict() if self.sender else None,
-            "recipient": self.recipient.as_dict() if self.recipient else None,
+            "sender": sender_dict,
+            "recipient": recipient_dict,
             "read": read,
             # NEW: Edit and deletion fields
             "edited_at": self.edited_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.edited_at else None,

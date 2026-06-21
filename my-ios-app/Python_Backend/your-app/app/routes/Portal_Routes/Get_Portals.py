@@ -42,8 +42,8 @@ def api_get_portals():
     Used for the 'Rep' tab on the ProfileView page.
     """
     args = request.args
-    offset = int(args.get('offset', 0))
-    limit = int(args.get('limit', 50))
+    offset = args.get('offset', 0, type=int)
+    limit = args.get('limit', 50, type=int)
     users_id = args.get('users_id')
     home = args.get('home')
     my_network = args.get('my_network')
@@ -147,8 +147,8 @@ def filter_network_portals():
     Use ?user_id=...&tab=open|ntwk|all&safe_only=true|false
     """
     args = request.args
-    offset = int(args.get('offset', 0))
-    limit = int(args.get('limit', 50))
+    offset = args.get('offset', 0, type=int)
+    limit = args.get('limit', 50, type=int)
     user_id = args.get('user_id')
     tab = args.get('tab', 'open')  # 'open', 'ntwk', 'all'
     keyword = args.get('keyword', '')

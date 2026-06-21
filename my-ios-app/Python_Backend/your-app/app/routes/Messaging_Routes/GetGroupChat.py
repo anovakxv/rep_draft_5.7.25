@@ -17,8 +17,8 @@ group_chat_bp = Blueprint('group_chat', __name__)
 def api_group_chat():
     user_id = g.current_user.id
     chats_id = request.args.get('chats_id')
-    limit = int(request.args.get('limit', 50))
-    offset = int(request.args.get('offset', 0))
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
 
     if not user_id:
         return jsonify({'error': 'Login error!'}), 401

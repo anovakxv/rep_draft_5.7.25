@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.Group_Message_Attachments import GroupMessageAttachment
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.utils.auth import jwt_required
 from app.utils.s3 import s3
 import os
@@ -120,10 +121,15 @@ def get_group_message_attachments(message_id):
     Returns:
     - result: List of attachment objects
     """
+    user_id = g.current_user.id
     message = GroupMessage.query.get(message_id)
 
     if not message:
         return jsonify({'error': 'Message not found'}), 404
+
+    # Only members of the chat may view its messages' attachments
+    if not ChatsUsers.query.filter_by(chats_id=message.chat_id, users_id=user_id).first():
+        return jsonify({'error': 'Access denied'}), 403
 
     attachments = GroupMessageAttachment.query.filter_by(message_id=message_id).all()
 
@@ -174,9 +180,15 @@ def get_group_attachment_info(attachment_id):
     Returns:
     - result: Attachment object with URL, filename, size, etc.
     """
+    user_id = g.current_user.id
     attachment = GroupMessageAttachment.query.get(attachment_id)
 
     if not attachment:
         return jsonify({'error': 'Attachment not found'}), 404
+
+    # Only members of the chat the attachment belongs to may view it
+    message = GroupMessage.query.get(attachment.message_id)
+    if not message or not ChatsUsers.query.filter_by(chats_id=message.chat_id, users_id=user_id).first():
+        return jsonify({'error': 'Access denied'}), 403
 
     return jsonify({'result': attachment.as_dict()})

@@ -13,14 +13,12 @@ user_bp = Blueprint('device_token', __name__)
 @jwt_required
 def register_device_token():
     data = request.get_json(silent=True) or {}
-    print("Received data:", data)  # Log the raw incoming data
 
     if not data:
-        print("No JSON received or invalid JSON.")
         return jsonify({"error": "Missing JSON body"}), 400
 
     device_token = data.get('device_token')
-    print("Parsed device_token:", device_token)  # Log the parsed device_token
+    # Do not log the device token itself (it's a push credential).
 
     if not device_token:
         print("device_token missing from request.")
@@ -42,6 +40,6 @@ def register_device_token():
 
     u.device_token = device_token
     db.session.commit()
-    print(f"Registered device_token for user_id={u.id}: {device_token}")  # Confirm update
+    print(f"Registered device_token for user_id={u.id}")  # token value not logged
 
     return jsonify({"message": "Device token updated"}), 200

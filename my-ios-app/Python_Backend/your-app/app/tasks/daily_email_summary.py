@@ -275,7 +275,7 @@ def send_daily_summary():
             # Check if should send email to this user
             if not should_send_summary_to_user(user, len(dms), len(group_msgs)):
                 skipped_count += 1
-                print(f"[DailySummary] Skipped user {user.id} ({user.email}) - no messages")
+                print(f"[DailySummary] Skipped user {user.id} - no messages")
                 continue
 
             # Build HTML email
@@ -297,10 +297,10 @@ def send_daily_summary():
 
             if success:
                 sent_count += 1
-                print(f"[DailySummary] ✓ Sent to user {user.id} ({user.email}) - {len(dms)} DMs, {len(group_msgs)} group msgs")
+                print(f"[DailySummary] ✓ Sent to user {user.id} - {len(dms)} DMs, {len(group_msgs)} group msgs")
             else:
                 error_count += 1
-                print(f"[DailySummary] ✗ Failed to send to user {user.id} ({user.email})")
+                print(f"[DailySummary] ✗ Failed to send to user {user.id}")
 
         except Exception as e:
             error_count += 1

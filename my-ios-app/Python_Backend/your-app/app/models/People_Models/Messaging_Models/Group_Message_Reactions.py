@@ -24,11 +24,15 @@ class GroupMessageReaction(db.Model):
     )
 
     def as_dict(self):
+        # Embedded user must not leak username (== email) — strip it (frontend shows name/avatar).
+        user_dict = self.user.as_dict() if self.user else None
+        if user_dict:
+            user_dict.pop('username', None)
         return {
             "id": self.id,
             "message_id": self.message_id,
             "user_id": self.user_id,
             "emoji": self.emoji,
             "created_at": self.created_at.isoformat() + 'Z' if self.created_at else None,
-            "user": self.user.as_dict() if self.user else None
+            "user": user_dict
         }

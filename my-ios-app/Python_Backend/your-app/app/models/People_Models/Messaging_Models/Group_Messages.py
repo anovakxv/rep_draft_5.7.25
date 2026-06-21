@@ -41,13 +41,19 @@ class GroupMessage(db.Model):
                 "user_name": f"{reaction.user.fname or ''} {reaction.user.lname or ''}".strip() if reaction.user else ""
             })
 
+        # Embedded sender must not leak username (== email) — strip it (frontends display
+        # name/avatar, never username). Self still gets username via /me + profile.
+        sender_dict = self.sender.as_dict() if self.sender else None
+        if sender_dict:
+            sender_dict.pop('username', None)
+
         return {
             "id": self.id,
             "chat_id": self.chat_id,
             "sender_id": self.sender_id,
             "text": self.text,
             "created_at": self.created_at.isoformat() + 'Z',
-            "sender": self.sender.as_dict() if self.sender else None,
+            "sender": sender_dict,
             # NEW: Edit and deletion fields
             "edited_at": self.edited_at.strftime("%Y-%m-%dT%H:%M:%SZ") if self.edited_at else None,
             "is_edited": self.edited_at is not None,  # Convenience flag

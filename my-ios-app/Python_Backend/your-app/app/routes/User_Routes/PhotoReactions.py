@@ -3,9 +3,10 @@
 # Created by Adam Novak: February 2026
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.People_Models.UserPhoto import UserPhoto
 from app.models.People_Models.PhotoReaction import PhotoReaction
+from app.models.People_Models.user import User
 from app.utils.auth import jwt_required
 
 photo_reactions_bp = Blueprint('photo_reactions', __name__)
@@ -14,6 +15,10 @@ photo_reactions_bp = Blueprint('photo_reactions', __name__)
 def get_grouped_reactions(photo_id, current_user_id):
     """Helper to build grouped reaction response (matches message reactions pattern)."""
     reactions = PhotoReaction.query.filter_by(photo_id=photo_id).all()
+
+    # Batch-load reacting users in one query to avoid N+1
+    user_ids = {r.user_id for r in reactions}
+    users_map = {u.id: u for u in User.query.filter(User.id.in_(user_ids)).all()} if user_ids else {}
 
     # Group by emoji
     grouped = {}
@@ -27,9 +32,10 @@ def get_grouped_reactions(photo_id, current_user_id):
                 'users': []
             }
         grouped[emoji]['count'] += 1
+        u = users_map.get(reaction.user_id)
         grouped[emoji]['users'].append({
             'user_id': reaction.user_id,
-            'user_name': f"{reaction.user.fname or ''} {reaction.user.lname or ''}".strip() if reaction.user else ""
+            'user_name': f"{u.fname or ''} {u.lname or ''}".strip() if u else ""
         })
         if reaction.user_id == current_user_id:
             grouped[emoji]['userReacted'] = True
@@ -39,6 +45,7 @@ def get_grouped_reactions(photo_id, current_user_id):
 
 @photo_reactions_bp.route('/photos/<int:photo_id>/reaction', methods=['POST'])
 @jwt_required
+@limiter.limit("60 per minute")
 def toggle_reaction(photo_id):
     """Toggle emoji reaction on a photo. If already reacted with this emoji, remove it."""
     user_id = g.current_user.id

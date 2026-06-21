@@ -7,10 +7,15 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.Group_Message_Reactions import GroupMessageReaction
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.models.People_Models.user import User
 from app.utils.auth import jwt_required
 
 group_reactions_bp = Blueprint('group_message_reactions', __name__)
+
+def _is_chat_member(chat_id, user_id):
+    """True if user_id is a member of the group chat (gates access to its messages)."""
+    return ChatsUsers.query.filter_by(chats_id=chat_id, users_id=user_id).first() is not None
 
 # --- 1. Add a reaction to a group message ---
 @group_reactions_bp.route('/group/<int:message_id>/reaction', methods=['POST'])
@@ -37,6 +42,10 @@ def add_group_reaction(message_id):
     message = GroupMessage.query.get(message_id)
     if not message:
         return jsonify({'error': 'Message not found'}), 404
+
+    # Only members of the chat may react to its messages
+    if not _is_chat_member(message.chat_id, user_id):
+        return jsonify({'error': 'Access denied'}), 403
 
     # Check if user already reacted with this emoji
     existing_reaction = GroupMessageReaction.query.filter_by(
@@ -102,10 +111,15 @@ def get_group_message_reactions(message_id):
     - result: List of reactions
     - grouped: Reactions grouped by emoji with counts
     """
+    user_id = g.current_user.id
     message = GroupMessage.query.get(message_id)
 
     if not message:
         return jsonify({'error': 'Message not found'}), 404
+
+    # Only members of the chat may view its messages' reactions
+    if not _is_chat_member(message.chat_id, user_id):
+        return jsonify({'error': 'Access denied'}), 403
 
     reactions = GroupMessageReaction.query.filter_by(message_id=message_id).all()
 
@@ -159,6 +173,10 @@ def toggle_group_reaction(message_id):
     message = GroupMessage.query.get(message_id)
     if not message:
         return jsonify({'error': 'Message not found'}), 404
+
+    # Only members of the chat may react to its messages
+    if not _is_chat_member(message.chat_id, user_id):
+        return jsonify({'error': 'Access denied'}), 403
 
     # Check if user already reacted with this emoji
     existing_reaction = GroupMessageReaction.query.filter_by(

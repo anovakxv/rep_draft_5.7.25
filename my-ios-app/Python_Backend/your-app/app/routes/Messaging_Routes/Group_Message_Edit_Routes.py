@@ -7,6 +7,7 @@ from flask import Blueprint, request, jsonify, g
 from app import db
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.Group_Message_Edit_History import GroupMessageEditHistory
+from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
 from app.utils.auth import jwt_required
 from datetime import datetime
 
@@ -138,9 +139,10 @@ def get_group_edit_history(message_id):
     if not message:
         return jsonify({'error': 'Message not found'}), 404
 
-    # For group messages, we could check if user is a member of the chat
-    # but for simplicity, we'll allow any authenticated user to view
-    # (You could add chat membership check here if needed)
+    # Only members of the chat may view edit history (it exposes pre-edit message text)
+    is_member = ChatsUsers.query.filter_by(chats_id=message.chat_id, users_id=user_id).first()
+    if not is_member:
+        return jsonify({'error': 'Access denied'}), 403
 
     # Get edit history
     edit_history = GroupMessageEditHistory.query.filter_by(

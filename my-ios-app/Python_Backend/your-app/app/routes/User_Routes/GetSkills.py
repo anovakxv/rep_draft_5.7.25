@@ -13,8 +13,8 @@ user_bp = Blueprint('get_skills', __name__)
 @jwt_required
 def api_get_skills():
     args = request.args
-    offset = int(args.get('offset', 0))
-    limit = int(args.get('limit', 50))
+    offset = args.get('offset', 0, type=int)
+    limit = args.get('limit', 50, type=int)
     parent_id = args.get('parent_id')
     skills_id = args.get('skills_id')
     keyword = args.get('keyword', '')

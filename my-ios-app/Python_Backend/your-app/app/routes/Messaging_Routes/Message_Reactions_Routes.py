@@ -38,6 +38,10 @@ def add_reaction(message_id):
     if not message:
         return jsonify({'error': 'Message not found'}), 404
 
+    # Only the DM's participants may react to it (prevents reacting to others' private messages)
+    if message.sender_id != user_id and message.recipient_id != user_id:
+        return jsonify({'error': 'Access denied'}), 403
+
     # Check if user already reacted with this emoji
     existing_reaction = MessageReaction.query.filter_by(
         message_id=message_id,
@@ -102,10 +106,15 @@ def get_message_reactions(message_id):
     - result: List of reactions
     - grouped: Reactions grouped by emoji with counts
     """
+    user_id = g.current_user.id
     message = DirectMessage.query.get(message_id)
 
     if not message:
         return jsonify({'error': 'Message not found'}), 404
+
+    # Only the DM's participants may view its reactions
+    if message.sender_id != user_id and message.recipient_id != user_id:
+        return jsonify({'error': 'Access denied'}), 403
 
     reactions = MessageReaction.query.filter_by(message_id=message_id).all()
 
@@ -159,6 +168,10 @@ def toggle_reaction(message_id):
     message = DirectMessage.query.get(message_id)
     if not message:
         return jsonify({'error': 'Message not found'}), 404
+
+    # Only the DM's participants may react to it
+    if message.sender_id != user_id and message.recipient_id != user_id:
+        return jsonify({'error': 'Access denied'}), 403
 
     # Check if user already reacted with this emoji
     existing_reaction = MessageReaction.query.filter_by(

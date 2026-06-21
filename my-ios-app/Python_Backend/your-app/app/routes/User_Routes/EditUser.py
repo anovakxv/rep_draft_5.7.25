@@ -241,7 +241,13 @@ def update_notification_settings():
         # you'll need to add it via migration
         return jsonify({'message': 'Notification settings will be added in a future update'}), 200
 
-    ALLOWED_KEYS = {'pushNotificationsEnabled', 'emailNotificationsEnabled', 'smsNotificationsEnabled'}
+    # Keys must match what the iOS Settings screen sends AND what
+    # notifications.should_send_notification() reads (per-type toggles were silently dropped before).
+    ALLOWED_KEYS = {
+        'pushNotificationsEnabled',
+        'notifDirectMessages', 'notifGroupMessages', 'notifGoalInvites',
+        'emailNotificationsEnabled', 'smsNotificationsEnabled',  # reserved for future use
+    }
     sanitized = {k: v for k, v in data.items() if k in ALLOWED_KEYS and isinstance(v, bool)}
     user.notification_settings = sanitized
     db.session.commit()

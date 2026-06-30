@@ -676,8 +676,14 @@ struct MessageView: View {
         .onDisappear {
             print("🎨 [CHAT_VIEW] ON_DISAPPEAR")
 
-            // Post notification immediately - backend marks messages as read during the fetch
-            NotificationCenter.default.post(name: Notification.Name("oneTimeRefreshActiveChats"), object: nil)
+            // Post notification immediately - backend marks messages as read during the fetch.
+            // Pass this chat's key so MainScreen can optimistically clear its unread state
+            // without blanking the whole list (avoids the chat-exit reload flicker).
+            NotificationCenter.default.post(
+                name: Notification.Name("oneTimeRefreshActiveChats"),
+                object: nil,
+                userInfo: ["chatKey": "direct-\(viewModel.otherUserId)"]
+            )
         }
         .navigationBarHidden(true)
         .sheet(isPresented: $showEditSheet) {

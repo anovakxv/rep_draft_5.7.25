@@ -932,8 +932,14 @@ struct GroupChatView: View {
             print("📤 GroupChatView onDisappear")
             viewModel.deactivate(reason: "onDisappear")
 
-            // Post notification immediately - backend marks messages as read during the fetch
-            NotificationCenter.default.post(name: .oneTimeRefreshActiveChats, object: nil)
+            // Post notification immediately - backend marks messages as read during the fetch.
+            // Pass this chat's key so MainScreen can optimistically clear its unread state
+            // without blanking the whole list (avoids the chat-exit reload flicker).
+            NotificationCenter.default.post(
+                name: .oneTimeRefreshActiveChats,
+                object: nil,
+                userInfo: ["chatKey": "group-\(viewModel.chatId)"]
+            )
         }
         .sheet(isPresented: $showEditMessageSheet) {
             if let message = selectedMessageForEdit {

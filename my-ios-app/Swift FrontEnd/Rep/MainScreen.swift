@@ -396,6 +396,31 @@ class PeopleViewModel: ObservableObject {
         activeChats.insert(updated, at: 0)
     }
 
+    // Optimistically mark a single chat's last message as read so MainScreen doesn't
+    // briefly show it as unread (green) when returning from that chat, before the
+    // background refetch confirms the read status. No-op if the chat isn't present
+    // (e.g. a brand-new conversation) — the refetch then brings it in.
+    func markChatReadLocally(chatKey: String) {
+        guard let idx = activeChats.firstIndex(where: { $0.id == chatKey }) else { return }
+        let old = activeChats[idx]
+        guard let oldMsg = old.last_message, oldMsg.read != "1" else { return }
+        let readMessage = MessageModel(
+            id: oldMsg.id,
+            text: oldMsg.text,
+            created_at: oldMsg.created_at,
+            read: "1",
+            sender_id: oldMsg.sender_id
+        )
+        activeChats[idx] = ActiveChat(
+            id: old.id,
+            type: old.type,
+            user: old.user,
+            chat: old.chat,
+            last_message: readMessage,
+            last_message_time: old.last_message_time
+        )
+    }
+
     func fetchPeople(userId: Int, section: Int, force: Bool = false, isTabSwitch: Bool = false) {
         // Cancel any previous refresh task
         activeRefreshTask?.cancel()
@@ -1244,13 +1269,17 @@ struct MainScreen: View {
                 peopleVM.fetchPeople(userId: userId, section: 0, force: true)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("oneTimeRefreshActiveChats"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("oneTimeRefreshActiveChats"))) { notification in
             print("🔄 Processing one-time refresh (gentle version)")
 
-            // CRITICAL: Clear cached data immediately to prevent showing stale green indicators
-            // This ensures MainScreen never displays old unread status when returning from a chat
-            peopleVM.activeChats = []
-            peopleVM.isLoading = true
+            // Optimistically mark the just-exited chat as read so its preview doesn't
+            // briefly flash as unread (green) while the silent refetch is in flight.
+            // This replaces the old "clear the whole list + show skeleton" approach,
+            // which caused a full-reload flicker on every chat exit. Mirrors the
+            // in-place "Option B" socket updates used elsewhere on this screen.
+            if let chatKey = notification.userInfo?["chatKey"] as? String {
+                peopleVM.markChatReadLocally(chatKey: chatKey)
+            }
 
             // Block any subsequent refreshes for a short period
             self.lastRefreshTime = Date().timeIntervalSince1970 + 2.0
@@ -1258,7 +1287,8 @@ struct MainScreen: View {
             // Cancel any pending refresh tasks
             peopleVM.cancelPendingRefreshes(section: section)
 
-            // Schedule a single refresh with animation suppression
+            // Schedule a single silent refresh with animation suppression. The list
+            // stays on screen and diffs in place via stable ids — no blank/skeleton flicker.
             peopleVM.skipNextAnimations = true
             peopleVM.fetchPeople(userId: userId, section: 0, force: true)
         }

@@ -5,18 +5,25 @@
 import os
 import resend
 
-def send_mail(to, subject, body, from_email='contact@repsomething.com'):
+def send_mail(to, subject, body, from_email='contact@repsomething.com', reply_to=None):
     """
     Send an email using Resend.
+
+    reply_to (optional): set the Reply-To header so replies go to a different address
+    than `from_email` (e.g. a Contact Us form sender). Existing callers that omit it
+    behave exactly as before — the field is only added to the payload when provided.
     """
     resend.api_key = os.environ.get('RESEND_API_KEY')
     try:
-        resend.Emails.send({
+        payload = {
             "from": from_email,
             "to": [to] if isinstance(to, str) else to,
             "subject": subject,
             "html": body
-        })
+        }
+        if reply_to:
+            payload["reply_to"] = reply_to
+        resend.Emails.send(payload)
         return True
     except Exception as e:
         print(f"Resend error: {e}")

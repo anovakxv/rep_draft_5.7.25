@@ -429,10 +429,10 @@ def api_get_or_create_team_chat(goal_id):
             db.session.flush()  # populate chat.id before linking members
             for uid in member_ids:
                 db.session.add(ChatsUsers(users_id=uid, chats_id=chat.id))
-            db.session.add(GroupMessage(
-                chat_id=chat.id, sender_id=user_id,
-                text=f"Welcome to the {goal.title} team chat! This Goal Team is: {goal.description}"
-            ))
+            # Intentionally NO welcome/intro message here. The chat is created simply by
+            # opening it via "Message Team", so posting a message at open time would notify
+            # the team even if the user backs out without sending. The first real message a
+            # member sends becomes the chat's first message.
             goal.chats_id = chat.id
             db.session.commit()
         else:

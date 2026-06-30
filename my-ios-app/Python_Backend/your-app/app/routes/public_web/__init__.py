@@ -10,6 +10,7 @@ from .Public_Portals import public_portals_bp
 from .Public_Portal_Details import public_portal_details_bp
 from .Public_Goal_Details import public_goal_details_bp
 from .Public_Payments import public_payments_bp
+from .Contact import public_contact_bp
 
 def register_public_routes(app):
     """
@@ -21,6 +22,7 @@ def register_public_routes(app):
     app.register_blueprint(public_portal_details_bp, url_prefix='/api/public')
     app.register_blueprint(public_goal_details_bp, url_prefix='/api/public')
     app.register_blueprint(public_payments_bp, url_prefix='/api/public')
+    app.register_blueprint(public_contact_bp, url_prefix='/api/public')
 
     print("[OK] Public web routes registered:")
     print("  GET /api/public/portals")
@@ -28,3 +30,4 @@ def register_public_routes(app):
     print("  GET /api/public/goal/<goal_id>")
     print("  POST /api/public/create_checkout_session")
     print("  GET /api/public/checkout_session_status")
+    print("  POST /api/public/contact")

@@ -13,6 +13,7 @@ import EditProfile from './pages/RepProfile/EditProfile.vue'
 import UserPhotos from './pages/RepProfile/UserPhotos.vue'
 import WriteView from './pages/RepProfile/WriteView.vue'
 import Terms from './pages/RepProfile/Terms.vue'
+import ContactUs from './pages/RepProfile/ContactUs.vue'
 // Lazy imports for pages with Tailwind issues (Settings, ResetPassword, NewPassword)
 // These are loaded on-demand to prevent blocking app startup
 import ChatWrapper from './pages/Messaging/ChatWrapper.vue'
@@ -30,6 +31,7 @@ const routes = [
   { path: '/login', component: LoginView },
   { path: '/onboarding', component: OnboardingView },
   { path: '/terms', component: Terms },
+  { path: '/contact-us', component: ContactUs }, // Public — App Store Support URL
   { path: '/reset-password', component: () => import('./pages/RepProfile/ResetPassword.vue') },
   { path: '/new-password', component: () => import('./pages/RepProfile/NewPassword.vue') },
 

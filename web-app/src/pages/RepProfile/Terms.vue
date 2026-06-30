@@ -11,7 +11,11 @@
       <div class="overflow-y-auto max-h-[60vh] mb-6 border rounded bg-gray-50 p-4 text-sm whitespace-pre-line">
         {{ termsText }}
       </div>
+      <!-- Accept button only appears in the acceptance flow (linked as /terms?accept=1).
+           A direct visit to /terms (e.g. from Settings or the Contact Us page) is a
+           read-only legal page. -->
       <button
+        v-if="showAccept"
         class="w-full py-3 text-white font-bold rounded-lg"
         style="background-color: #8cc65d;"
         @click="acceptTerms"
@@ -23,8 +27,15 @@
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 const router = useRouter()
+const route = useRoute()
+
+// Show the "Accept Terms of Use" button only when explicitly in an acceptance flow
+// (linked as /terms?accept=1). A direct visit to /terms is a read-only legal page,
+// so links from Settings and the Contact Us page show terms without the accept gate.
+const showAccept = computed(() => route.query.accept === '1')
 
 const termsText = `
 Terms of Use:  

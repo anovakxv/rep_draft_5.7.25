@@ -663,7 +663,6 @@ const route = useRoute();
 const router = useRouter();
 const initialGoalId = Number(route.params.id);
 const currentUserId = Number(localStorage.getItem('userId'));
-const token = localStorage.getItem('jwtToken');
 const s3BaseURL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/";
 
 // --- State (EXACTLY matching Swift ViewModel) ---
@@ -953,7 +952,7 @@ const joinRecruitingGoal = async () => {
   }
 };
 
-// Open Goal Team Chat (EXACTLY matching Swift)
+// Open Goal Team Chat (mirrors the iOS GoalsDetailView flow)
 const openGoalTeamChat = async () => {
   if (!isAuthenticated()) {
     router.push({
@@ -965,52 +964,28 @@ const openGoalTeamChat = async () => {
 
   if (isCreatingTeamChat.value) return;
 
-  // Sync from goal data if goalTeamChatId wasn't set during page load
-  if (!goalTeamChatId.value && goal.value?.chatsId) {
-    goalTeamChatId.value = goal.value.chatsId;
-  }
-
-  // If we know the canonical chat ID, open it directly — no API call needed
-  if (goalTeamChatId.value) {
-    showChatSheet.value = true;
-    return;
-  }
-
-  if (!token) {
-    chatCreationError.value = "Not authenticated.";
-    return;
-  }
-
-  // No chat exists yet (legacy goal) — create one and link it permanently
   isCreatingTeamChat.value = true;
   chatCreationError.value = null;
 
   try {
-    const memberIds = team.value
-      .map(u => u.id)
-      .filter(id => id !== currentUserId);
-
-    const chatTitle = goal.value?.portalName
-      ? `${goal.value.portalName}: ${goal.value.title}`
-      : goal.value?.title || 'Goal Team';
-
-    const res = await api.post('/api/message/manage_chat', {
-      title: chatTitle,
-      aAddIDs: memberIds
-    });
-
+    // Resolve (and self-heal) the goal's single canonical Team Chat server-side. The
+    // backend derives membership from the goal itself (creator + lead + confirmed members),
+    // so the chat is always complete — and nothing is posted on open (no message until a
+    // member actually sends). Replaces the old client-driven manage_chat + link_chat path.
+    const res = await api.post(`/api/goals/${initialGoalId}/team_chat`);
     if (!res.data.chats_id) throw new Error("Failed to get chat ID from server.");
     goalTeamChatId.value = res.data.chats_id;
-
-    // Save chats_id permanently on the goal (best-effort)
-    api.post('/api/goals/link_chat', {
-      goals_id: initialGoalId,
-      chats_id: res.data.chats_id
-    }).catch(() => {});
-
     showChatSheet.value = true;
   } catch (error: any) {
-    chatCreationError.value = error.message || "Failed to create chat.";
+    // Graceful fallback: if the endpoint is unreachable but we already know a chat id,
+    // open it so a transient failure doesn't block an existing chat.
+    const existing = goalTeamChatId.value || goal.value?.chatsId;
+    if (existing) {
+      goalTeamChatId.value = existing;
+      showChatSheet.value = true;
+    } else {
+      chatCreationError.value = error.message || "Couldn't open Team Chat. Please try again.";
+    }
   } finally {
     isCreatingTeamChat.value = false;
   }

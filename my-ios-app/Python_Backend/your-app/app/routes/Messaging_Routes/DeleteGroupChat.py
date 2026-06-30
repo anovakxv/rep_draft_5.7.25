@@ -26,10 +26,23 @@ def api_delete_chat():
     if not chat:
         return jsonify({'error': 'chat not found'}), 404
 
-    if chat.created_by != user_id:
+    # Permission to delete:
+    #  - Goal Team chats: only the Goal's creator (goal.users_id). NOT whoever happened to
+    #    create the chat row — lazy chat creation (on join, or the first "Message Team" tap)
+    #    can make any member the chat's created_by, so created_by is not a reliable owner.
+    #  - Regular group chats: the chat creator, as before.
+    from app.models.ValueMetric_Models.Goal import Goal
+    team_goal = Goal.query.filter_by(chats_id=chats_id).first()
+    if team_goal:
+        if user_id != team_goal.users_id:
+            return jsonify({'error': 'Only the Goal Team creator can delete this chat'}), 403
+    elif chat.created_by != user_id:
         return jsonify({'error': 'Only the chat creator can delete this chat'}), 403
 
-    # Delete chat and related data
+    # Delete chat and related data. Unlink the goal first so it's never left pointing at a
+    # deleted chat (belt-and-suspenders alongside the FK's ON DELETE SET NULL).
+    if team_goal:
+        team_goal.chats_id = None
     ChatsUsers.query.filter_by(chats_id=chats_id).delete()
     db.session.delete(chat)
     db.session.commit()

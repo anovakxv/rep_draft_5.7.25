@@ -371,13 +371,43 @@ def api_link_goal_chat():
     if not is_goal_team_member(goal, user_id):
         return jsonify({'error': 'Only Goal Team members can create a team chat'}), 403
 
-    # First-write-wins: if already linked, return the existing chat ID
-    if goal.chats_id:
-        return jsonify({'result': 'ok', 'chats_id': goal.chats_id})
+    try:
+        # First-write-wins: an already-linked goal keeps its canonical chat.
+        canonical_id = goal.chats_id
+        if not canonical_id:
+            # Establishing the goal's chat. Only accept a chat the caller actually belongs to
+            # (older clients create it via manage_chat, which adds the creator) — this prevents
+            # linking an unrelated chat to the goal.
+            caller_in_chat = ChatsUsers.query.filter_by(chats_id=chats_id, users_id=user_id).first()
+            if not caller_in_chat:
+                return jsonify({'error': 'You are not a member of that chat'}), 403
+            goal.chats_id = chats_id
+            canonical_id = chats_id
 
-    goal.chats_id = chats_id
-    db.session.commit()
-    return jsonify({'result': 'ok', 'chats_id': chats_id})
+        # Self-heal membership: ensure all confirmed team members (creator + lead + confirmed)
+        # are in the canonical chat. ADD-ONLY — never removes anyone. This makes chats created
+        # by older app clients (which build membership from the client's local team list and
+        # could therefore be incomplete) complete, matching the server-side /team_chat path.
+        member_ids = set()
+        if goal.users_id:
+            member_ids.add(goal.users_id)
+        if goal.lead_id:
+            member_ids.add(goal.lead_id)
+        for tm in GoalTeam.query.filter_by(goals_id=goal_id, confirmed=1).all():
+            if tm.users_id2:
+                member_ids.add(tm.users_id2)
+        existing = {cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=canonical_id).all()}
+        for uid in member_ids:
+            if uid not in existing:
+                db.session.add(ChatsUsers(users_id=uid, chats_id=canonical_id))
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"[link_chat] could not link/heal chat for goal {goal_id}: {e}")
+        return jsonify({'error': 'Could not link chat'}), 500
+
+    return jsonify({'result': 'ok', 'chats_id': canonical_id})
 
 @goals_bp.route('/<int:goal_id>/team_chat', methods=['POST'])
 @jwt_required

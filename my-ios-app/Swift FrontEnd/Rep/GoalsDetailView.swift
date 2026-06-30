@@ -449,31 +449,21 @@ struct GoalsDetailView: View {
         }
     }
 
-        // --- Create / Open Goal Team Chat ---
+    // --- Open the goal's single canonical Team Chat ---
     private func openGoalTeamChat() {
         guard !isCreatingTeamChat else { return }
-
-        // Sync from goal data if goalTeamChatId wasn't set during page load
-        if goalTeamChatId == nil {
-            goalTeamChatId = viewModel.goal.chatsId
-        }
-
-        // If we know the canonical chat ID, open it directly — no API call needed
-        if let _ = goalTeamChatId {
-            showChatSheet = true
-            return
-        }
-
         guard !jwtToken.isEmpty else {
             chatCreationError = "Not authenticated."
             return
         }
 
-        // No chat exists yet (legacy goal) — create one and link it permanently
         isCreatingTeamChat = true
         chatCreationError = nil
 
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/message/manage_chat") else {
+        // Resolve (and self-heal) the canonical Team Chat server-side. The backend derives
+        // membership from the goal itself (creator + lead + confirmed members), so the chat
+        // is always complete regardless of this device's local team list. Idempotent.
+        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/\(viewModel.goal.id)/team_chat") else {
             isCreatingTeamChat = false
             chatCreationError = "Bad URL."
             return
@@ -484,51 +474,24 @@ struct GoalsDetailView: View {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
 
-        let memberIds = viewModel.team
-                .map { $0.id }
-                .filter { $0 != viewModel.currentUserId }
-
-            let chatTitle: String
-            if let portalName = viewModel.goal.portalName, !portalName.isEmpty {
-                chatTitle = "\(portalName): \(viewModel.goal.title)"
-            } else {
-                chatTitle = viewModel.goal.title
-            }
-
-            let body: [String: Any] = ["title": chatTitle, "aAddIDs": memberIds]
-            request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-
-            URLSession.shared.dataTask(with: request) { data, _, error in
-                DispatchQueue.main.async {
-                    self.isCreatingTeamChat = false
-                    if let error = error {
-                        self.chatCreationError = error.localizedDescription
-                        return
-                    }
-                    guard
-                        let data = data,
-                        let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                        let chatsId = json["chats_id"] as? Int
-                    else {
-                        self.chatCreationError = "Failed to create chat."
-                        return
-                    }
+        URLSession.shared.dataTask(with: request) { data, _, _ in
+            DispatchQueue.main.async {
+                self.isCreatingTeamChat = false
+                if let data = data,
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let chatsId = json["chats_id"] as? Int {
                     self.goalTeamChatId = chatsId
                     self.showChatSheet = true
-                    self.linkChatToGoal(goalId: self.viewModel.goal.id, chatsId: chatsId)
+                } else if let existing = self.goalTeamChatId ?? self.viewModel.goal.chatsId {
+                    // Graceful fallback: if the endpoint is unreachable but we already know a
+                    // chat id, open it so a transient failure doesn't block an existing chat.
+                    self.goalTeamChatId = existing
+                    self.showChatSheet = true
+                } else {
+                    self.chatCreationError = "Couldn't open Team Chat. Please try again."
                 }
-            }.resume()
-    }
-
-    private func linkChatToGoal(goalId: Int, chatsId: Int) {
-        guard let url = URL(string: "\(APIConfig.baseURL)/api/goals/link_chat") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(jwtToken)", forHTTPHeaderField: "Authorization")
-        let body: [String: Any] = ["goals_id": goalId, "chats_id": chatsId]
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
+            }
+        }.resume()
     }
 
     // --- Delete Goal Function ---

@@ -378,3 +378,74 @@ def api_link_goal_chat():
     goal.chats_id = chats_id
     db.session.commit()
     return jsonify({'result': 'ok', 'chats_id': chats_id})
+
+@goals_bp.route('/<int:goal_id>/team_chat', methods=['POST'])
+@jwt_required
+def api_get_or_create_team_chat(goal_id):
+    """Resolve the single canonical Team Chat for a goal.
+
+    Membership is derived SERVER-SIDE from the goal itself — creator + lead + all
+    confirmed team members — never from the client. This is the robust replacement for
+    the old client-driven "Message Team" path (manage_chat + link_chat), which could
+    create a chat missing members when the tapping device's local team list was incomplete.
+
+    Behavior (idempotent):
+      * goal has a valid chat  -> self-heal: add any confirmed members who are missing, return it.
+      * goal has no chat (legacy/auto-create failed, or a dangling chats_id) -> create the
+        chat with all members + a welcome message, (re)link it on the goal, return it.
+
+    Additive endpoint: does NOT modify /manage_chat or /link_chat, so existing web and
+    already-shipped iOS clients are unaffected. No DB schema change.
+    """
+    user_id = g.current_user.id
+    goal = Goal.query.get(goal_id)
+    if not goal:
+        return jsonify({'error': 'Goal not found'}), 404
+
+    # Canonical membership, server-side: creator + lead + confirmed team members.
+    member_ids = set()
+    if goal.users_id:
+        member_ids.add(goal.users_id)
+    if goal.lead_id:
+        member_ids.add(goal.lead_id)
+    for tm in GoalTeam.query.filter_by(goals_id=goal_id, confirmed=1).all():
+        if tm.users_id2:
+            member_ids.add(tm.users_id2)
+
+    # Caller must belong to the goal's team.
+    if user_id not in member_ids:
+        return jsonify({'error': 'Only Goal Team members can open the team chat'}), 403
+
+    # Resolve the existing chat, if any (and if it still exists).
+    chat = Chats.query.filter_by(id=goal.chats_id).first() if goal.chats_id else None
+
+    try:
+        if not chat:
+            # No usable chat (NULL chats_id, or a dangling reference) -> create + (re)link.
+            portal_name = goal.portal.name if goal.portal else None
+            chat_name = f"{portal_name}: {goal.title}" if portal_name else goal.title
+            chat = Chats(name=chat_name, created_by=user_id)
+            db.session.add(chat)
+            db.session.flush()  # populate chat.id before linking members
+            for uid in member_ids:
+                db.session.add(ChatsUsers(users_id=uid, chats_id=chat.id))
+            db.session.add(GroupMessage(
+                chat_id=chat.id, sender_id=user_id,
+                text=f"Welcome to the {goal.title} team chat! This Goal Team is: {goal.description}"
+            ))
+            goal.chats_id = chat.id
+            db.session.commit()
+        else:
+            # Chat exists -> self-heal: add any confirmed members who aren't in it yet.
+            existing = {cu.users_id for cu in ChatsUsers.query.filter_by(chats_id=chat.id).all()}
+            missing = [uid for uid in member_ids if uid not in existing]
+            if missing:
+                for uid in missing:
+                    db.session.add(ChatsUsers(users_id=uid, chats_id=chat.id))
+                db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"[team_chat] could not resolve chat for goal {goal_id}: {e}")
+        return jsonify({'error': 'Could not open team chat'}), 500
+
+    return jsonify({'result': 'ok', 'chats_id': chat.id})

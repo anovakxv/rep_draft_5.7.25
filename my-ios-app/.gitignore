@@ -51,8 +51,8 @@ playground.xcworkspace
 # SPM Packages
 Package.resolved
 
-# Xcode Preview Content
-Preview Content/
+# NOTE: Do NOT ignore "Preview Content/" — Xcode's DEVELOPMENT_ASSET_PATHS
+# build setting requires Rep/Preview Content to exist, so it must be committed.
 
 # SwiftLint
 .swiftlint.yml

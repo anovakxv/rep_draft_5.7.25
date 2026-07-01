@@ -2,14 +2,19 @@
 # Covers all package manifests in the monorepo. Weekly cadence, capped open-PR
 # counts to limit noise. Security updates are raised immediately regardless of schedule.
 #
+# target-branch: PRs open against "Adam_July2025" — the branch we develop on and deploy
+# from (Render backend + Vercel web), NOT the stale default "master". Keeps Dependabot PRs
+# on the branch that actually ships, so they can be merged directly.
+#
 # NOTE: this file enables *version-update* PRs once merged. To also get *security
 # alerts* + automatic security-update PRs, enable them once in the GitHub repo UI:
 #   Settings → Code security & analysis → "Dependabot alerts" + "Dependabot security updates".
 version: 2
 updates:
-  # Web app (Vue 3 / Vite) — security-critical frontend (DOMPurify, marked, axios, etc.)
+  # Web app (Vue 3 / Vite) — security-critical frontend (DOMPurify, marked, socket.io-client, etc.)
   - package-ecosystem: "npm"
     directory: "/web-app"
+    target-branch: "Adam_July2025"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -20,6 +25,7 @@ updates:
   # Root build tooling (tailwind / postcss)
   - package-ecosystem: "npm"
     directory: "/"
+    target-branch: "Adam_July2025"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -29,6 +35,7 @@ updates:
   # Python backend (Flask / SQLAlchemy / boto3 / stripe / bleach …)
   - package-ecosystem: "pip"
     directory: "/my-ios-app/Python_Backend/your-app"
+    target-branch: "Adam_July2025"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -39,6 +46,7 @@ updates:
   # Android app (Gradle)
   - package-ecosystem: "gradle"
     directory: "/my-android-app"
+    target-branch: "Adam_July2025"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -49,6 +57,7 @@ updates:
   # Keep GitHub Actions workflows patched
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "Adam_July2025"
     schedule:
       interval: "weekly"
     labels:

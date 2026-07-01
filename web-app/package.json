@@ -12,7 +12,7 @@
   "dependencies": {
     "@stripe/stripe-js": "^7.9.0",
     "@types/dompurify": "^3.0.5",
-    "dompurify": "^3.4.2",
+    "dompurify": "^3.4.11",
     "marked": "^17.0.2",
     "pinia": "^3.0.3",
     "socket.io-client": "^4.8.1",

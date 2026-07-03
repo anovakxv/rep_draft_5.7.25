@@ -4,7 +4,7 @@
 
 from operator import ne
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.GroupChatMetaData import Chats
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
@@ -19,6 +19,7 @@ user_bp = Blueprint('send_group_chat', __name__)
 
 @user_bp.route('/send_chat_message', methods=['POST'])
 @jwt_required
+@limiter.limit("60 per minute")
 def api_send_chat_message():
     data = request.get_json()
     user_id = g.current_user.id

@@ -4,7 +4,7 @@
 # ENHANCEMENT: Routes for group message attachments (file uploads)
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.People_Models.Messaging_Models.Group_Messages import GroupMessage
 from app.models.People_Models.Messaging_Models.Group_Message_Attachments import GroupMessageAttachment
 from app.models.People_Models.Messaging_Models.GroupChatUsers import ChatsUsers
@@ -60,6 +60,7 @@ def upload_to_s3(file, user_id):
 # --- 1. Add attachment to a group message ---
 @group_attachments_bp.route('/group/<int:message_id>/attachment', methods=['POST'])
 @jwt_required
+@limiter.limit("20 per hour")
 def add_group_attachment(message_id):
     """
     Add a file attachment to a group message.

@@ -4,7 +4,7 @@
 # ENHANCEMENT: Routes for message attachments (file uploads)
 
 from flask import Blueprint, request, jsonify, g
-from app import db
+from app import db, limiter
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.Message_Attachments import MessageAttachment
 from app.utils.auth import jwt_required
@@ -64,6 +64,7 @@ def upload_to_s3(file, user_id):
 # --- 1. Add attachment to a message ---
 @attachments_bp.route('/<int:message_id>/attachment', methods=['POST'])
 @jwt_required
+@limiter.limit("20 per hour")
 def add_attachment(message_id):
     """
     Add a file attachment to a message.

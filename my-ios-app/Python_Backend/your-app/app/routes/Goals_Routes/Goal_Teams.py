@@ -3,7 +3,7 @@
 # Created by Adam Novak: June 2025
 
 from flask import Blueprint, request, jsonify, g
-from app import db, socketio  # added socketio
+from app import db, socketio, limiter  # added socketio
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
 from app.models.People_Models.user import User
 from app.models.ValueMetric_Models.Goal import Goal
@@ -45,6 +45,7 @@ def get_goal_team(goal_id):
 # --- POST: Invite or add users to the team ---
 @goals_bp.route('/<int:goal_id>/team', methods=['POST'])
 @jwt_required
+@limiter.limit("20 per hour")
 def invite_goal_team(goal_id):
     data = request.json
     user_id = g.current_user.id
@@ -56,6 +57,23 @@ def invite_goal_team(goal_id):
 
     if not goal:
         return jsonify({"error": "Goal not found"}), 404
+
+    # Only goal members (creator, lead, or a confirmed team member) may invite others. This
+    # matches the frontend gating (iOS/web show "Invite to Team" only when isOnTeam || isCreator),
+    # so it can't block a legit invite — it only blocks direct-API notification spam by non-members.
+    caller_is_member = (
+        user_id == goal.users_id
+        or user_id == goal.lead_id
+        or GoalTeam.query.filter_by(goals_id=goal_id, users_id2=user_id, confirmed=1).first() is not None
+    )
+    if not caller_is_member:
+        return jsonify({"error": "Only Goal Team members can invite others"}), 403
+
+    # Cap the recipient list to prevent mass-notification abuse in a single call.
+    if not isinstance(users, list):
+        users = []
+    if len(users) > 50:
+        return jsonify({"error": "Too many invitees (max 50 per request)"}), 400
 
     for u_id in users:
         existing = GoalTeam.query.filter_by(goals_id=goal_id, users_id2=u_id).first()

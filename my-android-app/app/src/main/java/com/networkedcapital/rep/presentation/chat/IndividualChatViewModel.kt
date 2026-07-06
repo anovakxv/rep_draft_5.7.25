@@ -3,6 +3,7 @@ package com.networkedcapital.rep.presentation.chat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.networkedcapital.rep.data.api.EditMessageRequest
+import com.networkedcapital.rep.data.api.MessageHistoryItem
 import com.networkedcapital.rep.data.api.MessagingApiService
 import com.networkedcapital.rep.data.api.ToggleReactionRequest
 import com.networkedcapital.rep.data.repository.MessageRepository
@@ -28,7 +29,9 @@ data class IndividualChatUiState(
     val error: String? = null,
     // New properties
     val otherUserName: String = "",
-    val otherUserPhotoUrl: String? = null
+    val otherUserPhotoUrl: String? = null,
+    val historyItems: List<MessageHistoryItem> = emptyList(),
+    val historyLoading: Boolean = false
 ) {
     // Helper property for empty state
     val isEmpty: Boolean get() = messages.isEmpty() && !isLoading && isInitialized
@@ -474,6 +477,54 @@ class IndividualChatViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("IndividualChatVM", "editMessage error: ${e.message}")
+            }
+        }
+    }
+
+    // Load edit history for a DM
+    fun loadMessageHistory(messageId: Int) {
+        _uiState.update { it.copy(historyLoading = true, historyItems = emptyList()) }
+        viewModelScope.launch {
+            try {
+                val response = messagingApiService.getDmMessageHistory(messageId)
+                if (response.isSuccessful) {
+                    _uiState.update { it.copy(
+                        historyItems = response.body()?.history ?: emptyList(),
+                        historyLoading = false
+                    )}
+                } else {
+                    _uiState.update { it.copy(historyLoading = false) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("IndividualChatVM", "loadMessageHistory error: ${e.message}")
+                _uiState.update { it.copy(historyLoading = false) }
+            }
+        }
+    }
+
+    // Soft-delete own message
+    fun deleteMessage(messageId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = messagingApiService.deleteDmMessage(messageId)
+                if (response.isSuccessful) {
+                    _uiState.update { state ->
+                        val updated = state.messages.map { msg ->
+                            if (msg.id == messageId) {
+                                MessageModel(
+                                    id = msg.id, sender_id = msg.sender_id,
+                                    senderName = msg.senderName, text = "[Message deleted]",
+                                    created_at = msg.created_at, read = msg.read,
+                                    reactions = emptyList(), isEdited = msg.isEdited,
+                                    editedAt = msg.editedAt, isDeleted = true
+                                )
+                            } else msg
+                        }
+                        state.copy(messages = updated)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("IndividualChatVM", "deleteMessage error: ${e.message}")
             }
         }
     }

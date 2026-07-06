@@ -5,6 +5,7 @@
 
 package com.networkedcapital.rep.presentation.portal
 
+import android.content.Intent
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -67,18 +68,20 @@ fun PortalDetailScreen(
     onNavigateToEditGoal: (Int?, Int) -> Unit,
     onNavigateToEditPortal: (Int) -> Unit,
     onMessage: (User) -> Unit = {},
+    onNavigateToProfile: (Int) -> Unit = {},
+    onNavigateToPayTransaction: (portalId: Int, portalName: String, goalId: Int, goalName: String, transactionType: String) -> Unit = { _, _, _, _, _ -> },
     viewModel: PortalDetailViewModel
 ) {
     var showActionSheet by remember { mutableStateOf(false) }
     var showFlagDialog by remember { mutableStateOf(false) }
     var showFullscreenImages by remember { mutableStateOf(false) }
     var fullscreenImageIndex by remember { mutableStateOf(0) }
-    var showPaymentSheet by remember { mutableStateOf(false) }
     var showMessageSheet by remember { mutableStateOf(false) }
     var selectedLeadUser by remember { mutableStateOf<User?>(null) }
     var showGoalPickerSheet by remember { mutableStateOf(false) }
     var showRsvpSuccessAlert by remember { mutableStateOf(false) }
     var showJoinSupportersSuccessAlert by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     // Detect device orientation
     val configuration = LocalConfiguration.current
@@ -109,8 +112,14 @@ fun PortalDetailScreen(
         (it.title.lowercase() == "supporters" || it.title.lowercase().contains("supporter"))
     }
     val recruitingGoals = allGoals.filter { it.typeName == "Recruiting" }
-    // is_member not yet tracked — default false (future: add to Goal model)
     val isEventRegistered = remember { mutableStateOf(false) }
+
+    // Initialize RSVP state from server-side is_member flag when attendeesGoal loads
+    LaunchedEffect(attendeesGoal) {
+        if (attendeesGoal?.isMember == true && !isEventRegistered.value) {
+            isEventRegistered.value = true
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -233,6 +242,7 @@ fun PortalDetailScreen(
                                 item {
                                     StorySection(
                                         portal = portal,
+                                        onNavigateToProfile = onNavigateToProfile,
                                         modifier = Modifier.padding(horizontal = 16.dp)
                                     )
                                 }
@@ -286,6 +296,52 @@ fun PortalDetailScreen(
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF006400)
+                                        )
+                                    }
+                                }
+
+                                // "Add to Calendar" — shown after RSVP for event portals
+                                if (isEventRegistered.value && uiState.portalDetail?.portalType == "event") {
+                                    Button(
+                                        onClick = {
+                                            val detail = uiState.portalDetail
+                                            val calIntent = Intent(Intent.ACTION_INSERT).apply {
+                                                data = android.provider.CalendarContract.Events.CONTENT_URI
+                                                putExtra(android.provider.CalendarContract.Events.TITLE, detail?.name ?: "Event")
+                                                val loc = detail?.eventLocation
+                                                if (!loc.isNullOrBlank()) putExtra(android.provider.CalendarContract.Events.EVENT_LOCATION, loc)
+                                                val dtStr = detail?.eventDatetime
+                                                if (!dtStr.isNullOrBlank()) {
+                                                    try {
+                                                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm", java.util.Locale.US)
+                                                        val tz = detail?.eventTimezone
+                                                        if (!tz.isNullOrBlank()) {
+                                                            try { sdf.timeZone = java.util.TimeZone.getTimeZone(tz) } catch (_: Exception) {}
+                                                        }
+                                                        val beginMs = sdf.parse(dtStr)?.time
+                                                        if (beginMs != null) {
+                                                            val durationMs = ((detail?.eventDurationMinutes ?: 90) * 60 * 1000L)
+                                                            putExtra(android.provider.CalendarContract.EXTRA_EVENT_BEGIN_TIME, beginMs)
+                                                            putExtra(android.provider.CalendarContract.EXTRA_EVENT_END_TIME, beginMs + durationMs)
+                                                        }
+                                                    } catch (_: Exception) {}
+                                                }
+                                            }
+                                            try { context.startActivity(calIntent) } catch (_: Exception) {}
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(48.dp),
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = Color(0xFF006400)
+                                        ),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Text(
+                                            "Add to Calendar",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color.White
                                         )
                                     }
                                 }
@@ -356,7 +412,14 @@ fun PortalDetailScreen(
             onSupport = {
                 if (supportGoal != null) {
                     showActionSheet = false
-                    showPaymentSheet = true
+                    val transactionType = if (supportGoal.typeName == "Sales") "PAYMENT" else "DONATION"
+                    onNavigateToPayTransaction(
+                        portalId,
+                        uiState.portalDetail?.name ?: "",
+                        supportGoal.id,
+                        supportGoal.title,
+                        transactionType
+                    )
                 }
             },
             onJoinTeam = {
@@ -417,50 +480,6 @@ fun PortalDetailScreen(
             images = images,
             startIndex = fullscreenImageIndex,
             onDismiss = { showFullscreenImages = false }
-        )
-    }
-
-    // Payment/Support Sheet
-    if (showPaymentSheet && supportGoal != null) {
-        AlertDialog(
-            onDismissRequest = { showPaymentSheet = false },
-            title = { 
-                Text(
-                    "Support ${uiState.portalDetail?.name ?: "This Portal"}",
-                    fontWeight = FontWeight.Bold
-                ) 
-            },
-            text = { 
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Choose how you'd like to support:")
-                    // Navigate to payment screen or web view
-                    Button(
-                        onClick = { 
-                            /* Navigate to payment flow */
-                            showPaymentSheet = false
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF006400)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AttachMoney,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Make a Payment", fontWeight = FontWeight.Bold)
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showPaymentSheet = false }) {
-                    Text("Cancel")
-                }
-            }
         )
     }
 
@@ -666,6 +685,7 @@ fun PortalSegmentedControl(
 @Composable
 fun StorySection(
     portal: PortalDetail,
+    onNavigateToProfile: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -725,7 +745,9 @@ fun StorySection(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.width(40.dp)
+                        modifier = Modifier
+                            .width(40.dp)
+                            .clickable { onNavigateToProfile(lead.id) }
                     ) {
                         // Image URL already patched by PortalDetailViewModel
                         if (!lead.profile_picture_url.isNullOrBlank()) {
@@ -867,6 +889,7 @@ fun PortalActionSheet(
 ) {
     val isCurrentUserLead = portal.aLeads?.any { it.id == userId } ?: false
     val isPortalOwner = portal.usersId == userId
+    val context = LocalContext.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -966,6 +989,32 @@ fun PortalActionSheet(
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+
+            // Share option
+            Button(
+                onClick = {
+                    onDismiss()
+                    val url = "https://www.repsomething.com/portal/${portal.id}"
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, url)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Portal"))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF8CC55D)
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+            ) {
+                Text(
+                    text = "Share",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             // Flag option

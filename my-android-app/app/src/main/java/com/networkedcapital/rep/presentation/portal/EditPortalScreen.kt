@@ -27,6 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.sp
 import com.networkedcapital.rep.domain.model.PortalDetail
 import com.networkedcapital.rep.domain.model.User
 
@@ -104,6 +108,7 @@ fun EditPortalScreen(
                 PortalImagesSection(
                     selectedImages = uiState.selectedImages,
                     mainImageIndex = uiState.mainImageIndex,
+                    existingImageUrls = uiState.existingImageUrls,
                     onImagesSelected = { uris ->
                         viewModel.addImages(uris, context)
                     },
@@ -125,6 +130,22 @@ fun EditPortalScreen(
                     onNameChange = viewModel::updateName,
                     onSubtitleChange = viewModel::updateSubtitle,
                     onAboutChange = viewModel::updateAbout
+                )
+            }
+
+            // Portal Type & Event Details
+            item {
+                PortalTypeSection(
+                    portalType = uiState.portalType,
+                    eventDatetime = uiState.eventDatetime,
+                    eventLocation = uiState.eventLocation,
+                    eventTimezone = uiState.eventTimezone,
+                    eventDurationMinutes = uiState.eventDurationMinutes,
+                    onTypeChange = viewModel::updatePortalType,
+                    onEventDatetimeChange = viewModel::updateEventDatetime,
+                    onEventLocationChange = viewModel::updateEventLocation,
+                    onEventTimezoneChange = viewModel::updateEventTimezone,
+                    onEventDurationChange = viewModel::updateEventDurationMinutes
                 )
             }
 
@@ -236,6 +257,7 @@ fun EditPortalScreen(
 fun PortalImagesSection(
     selectedImages: List<android.graphics.Bitmap>,
     mainImageIndex: Int,
+    existingImageUrls: List<String> = emptyList(),
     onImagesSelected: (List<Uri>) -> Unit,
     onRemoveImage: (Int) -> Unit,
     onSetMainImage: (Int) -> Unit
@@ -349,6 +371,30 @@ fun PortalImagesSection(
                     "No Images Selected",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        // Show existing server images (read-only preview)
+        if (existingImageUrls.isNotEmpty()) {
+            Text(
+                text = "Current Images (on server)",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(existingImageUrls) { url ->
+                    coil.compose.AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(72.dp)
+                            .background(Color.LightGray, RoundedCornerShape(6.dp))
+                            .clip(RoundedCornerShape(6.dp))
+                    )
+                }
             }
         }
     }
@@ -665,6 +711,101 @@ fun LeadsSelectionSheet(
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PortalTypeSection(
+    portalType: String,
+    eventDatetime: String,
+    eventLocation: String,
+    eventTimezone: String,
+    eventDurationMinutes: String,
+    onTypeChange: (String) -> Unit,
+    onEventDatetimeChange: (String) -> Unit,
+    onEventLocationChange: (String) -> Unit,
+    onEventTimezoneChange: (String) -> Unit,
+    onEventDurationChange: (String) -> Unit
+) {
+    val portalTypes = listOf(
+        "" to "General",
+        "event" to "Event",
+        "nonprofit" to "Nonprofit",
+        "business" to "Business",
+        "initiative" to "Initiative",
+        "campaign" to "Campaign",
+        "community" to "Community"
+    )
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel = portalTypes.firstOrNull { it.first == portalType }?.second ?: "General"
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text("Portal Type", fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Color.Gray)
+
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = selectedLabel,
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Type") },
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                portalTypes.forEach { (value, label) ->
+                    DropdownMenuItem(
+                        text = { Text(label) },
+                        onClick = {
+                            onTypeChange(value)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Event-specific fields — only shown when type is "event"
+        if (portalType == "event") {
+            Text("Event Details", fontWeight = FontWeight.Medium, fontSize = 14.sp, color = Color.Gray)
+            OutlinedTextField(
+                value = eventDatetime,
+                onValueChange = onEventDatetimeChange,
+                label = { Text("Date & Time (YYYY-MM-DDTHH:MM)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = eventLocation,
+                onValueChange = onEventLocationChange,
+                label = { Text("Location") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = eventTimezone,
+                onValueChange = onEventTimezoneChange,
+                label = { Text("Timezone (e.g. America/New_York)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            OutlinedTextField(
+                value = eventDurationMinutes,
+                onValueChange = onEventDurationChange,
+                label = { Text("Duration (minutes)") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
         }
     }
 }

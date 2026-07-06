@@ -3,6 +3,8 @@ package com.networkedcapital.rep.data.api
 import com.google.gson.annotations.SerializedName
 import com.squareup.moshi.Json
 import com.networkedcapital.rep.domain.model.*
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -43,7 +45,35 @@ interface GoalApiService {
 
     @POST(ApiConfig.INVITE_TO_GOAL)
     suspend fun inviteToGoal(@Body request: InviteToGoalRequest): Response<InviteToGoalResponse>
+
+    // Server-side team chat open/create — matches iOS POST /api/goals/{id}/team_chat
+    @POST("api/goals/{goalId}/team_chat")
+    suspend fun openTeamChat(@Path("goalId") goalId: Int): Response<TeamChatResponse>
+
+    // Progress update — JSON (no images)
+    @POST("api/goals/update_filled_quota")
+    suspend fun updateFilledQuota(@Body request: UpdateFilledQuotaRequest): Response<Unit>
+
+    // Progress update — multipart (with images)
+    @Multipart
+    @POST("api/goals/update_filled_quota")
+    suspend fun updateFilledQuotaWithImages(
+        @Part("goals_id") goalsId: RequestBody,
+        @Part("added_value") addedValue: RequestBody,
+        @Part("note") note: RequestBody?,
+        @Part files: List<MultipartBody.Part>
+    ): Response<Unit>
 }
+
+data class TeamChatResponse(
+    @Json(name = "chats_id") val chatsId: Int
+)
+
+data class UpdateFilledQuotaRequest(
+    val goals_id: Int,
+    val added_value: Double,
+    val note: String? = null
+)
 
 data class InviteToGoalRequest(
     val goal_id: Int,

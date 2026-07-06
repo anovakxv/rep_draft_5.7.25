@@ -41,8 +41,15 @@ data class EditPortalUiState(
     val name: String = "",
     val subtitle: String = "",
     val about: String = "",
+    val portalType: String = "",
+    val eventDatetime: String = "",
+    val eventLocation: String = "",
+    val eventTimezone: String = "",
+    val eventDurationMinutes: String = "90",
     val selectedImages: List<Bitmap> = emptyList(),
     val mainImageIndex: Int = 0,
+    // URLs of images already on the server — shown read-only so user knows what's there
+    val existingImageUrls: List<String> = emptyList(),
     val storyBlocks: List<PortalStoryBlock> = emptyList(),
     val selectedLeads: List<User> = emptyList(),
     val portalDetail: PortalDetail? = null,
@@ -66,6 +73,17 @@ class EditPortalViewModel @Inject constructor(
             name = portalDetail.name,
             subtitle = portalDetail.subtitle ?: "",
             about = portalDetail.about ?: "",
+            portalType = portalDetail.portalType ?: "",
+            eventDatetime = portalDetail.eventDatetime?.let { if (it.length >= 16) it.substring(0, 16) else it } ?: "",
+            eventLocation = portalDetail.eventLocation ?: "",
+            eventTimezone = portalDetail.eventTimezone ?: "",
+            eventDurationMinutes = portalDetail.eventDurationMinutes?.toString() ?: "90",
+            existingImageUrls = portalDetail.aSections
+                ?.filter { it.title != "Main Section" }
+                ?.flatMap { it.aFiles }
+                ?.mapNotNull { it.url }
+                ?.map { if (it.startsWith("http")) it else "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/$it" }
+                ?: emptyList(),
             storyBlocks = portalDetail.aTexts?.filter { it.section == "story" }?.mapIndexed { idx, text ->
                 PortalStoryBlock(
                     title = text.title ?: "",
@@ -86,6 +104,26 @@ class EditPortalViewModel @Inject constructor(
 
     fun updateAbout(about: String) {
         _uiState.value = _uiState.value.copy(about = about)
+    }
+
+    fun updatePortalType(type: String) {
+        _uiState.value = _uiState.value.copy(portalType = type)
+    }
+
+    fun updateEventDatetime(value: String) {
+        _uiState.value = _uiState.value.copy(eventDatetime = value)
+    }
+
+    fun updateEventLocation(value: String) {
+        _uiState.value = _uiState.value.copy(eventLocation = value)
+    }
+
+    fun updateEventTimezone(value: String) {
+        _uiState.value = _uiState.value.copy(eventTimezone = value)
+    }
+
+    fun updateEventDurationMinutes(value: String) {
+        _uiState.value = _uiState.value.copy(eventDurationMinutes = value)
     }
 
     fun addImages(uris: List<Uri>, context: Context) {
@@ -206,6 +244,14 @@ class EditPortalViewModel @Inject constructor(
                 parts.add(createFormDataPart("name", _uiState.value.name))
                 parts.add(createFormDataPart("subtitle", _uiState.value.subtitle))
                 parts.add(createFormDataPart("about", _uiState.value.about))
+                parts.add(createFormDataPart("portal_type", _uiState.value.portalType))
+                if (_uiState.value.portalType == "event") {
+                    parts.add(createFormDataPart("event_datetime", _uiState.value.eventDatetime))
+                    parts.add(createFormDataPart("event_location", _uiState.value.eventLocation))
+                    parts.add(createFormDataPart("event_timezone", _uiState.value.eventTimezone))
+                    val durationInt = _uiState.value.eventDurationMinutes.toIntOrNull() ?: 90
+                    parts.add(createFormDataPart("event_duration_minutes", durationInt.toString()))
+                }
 
                 // Add story blocks as aTexts JSON
                 if (_uiState.value.storyBlocks.isNotEmpty()) {

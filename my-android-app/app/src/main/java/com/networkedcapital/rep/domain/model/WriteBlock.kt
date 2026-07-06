@@ -5,6 +5,7 @@ data class WriteBlock(
     val title: String? = null,
     val content: String,
     val order: Int? = null,
+    val content_format: String? = null,
     val created_at: String? = null,
     val updated_at: String? = null
 )

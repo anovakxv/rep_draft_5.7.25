@@ -123,6 +123,8 @@ data class PortalDetail(
     val aUsers: List<User>? = null,
     val aLeads: List<User>? = null,
     @Json(name = "portal_type") val portalType: String? = null,
+    @Json(name = "event_datetime") val eventDatetime: String? = null,
+    @Json(name = "event_location") val eventLocation: String? = null,
     @Json(name = "event_timezone") val eventTimezone: String? = null,
     @Json(name = "event_duration_minutes") val eventDurationMinutes: Int? = null
 ) : Parcelable
@@ -186,7 +188,8 @@ data class Goal(
     val portalName: String? = null,
     val portalId: Int? = null,
     val creatorId: Int = 0,
-    val chatsId: Int? = null
+    val chatsId: Int? = null,
+    @Json(name = "is_member") val isMember: Boolean? = null
 ) : Parcelable
 
 @Parcelize
@@ -300,7 +303,8 @@ data class MessageModel(
     val read: String? = null,
     val reactions: @RawValue List<MessageReaction>? = null,
     @SerializedName("is_edited") val isEdited: Boolean? = null,
-    @SerializedName("edited_at") val editedAt: String? = null
+    @SerializedName("edited_at") val editedAt: String? = null,
+    @SerializedName("is_deleted") val isDeleted: Boolean? = null
 ) : Parcelable {
     val senderId: Int get() = sender_id ?: 0
     val timestamp: String get() = created_at ?: ""
@@ -591,7 +595,8 @@ data class GroupMessageModel(
     @Json(name = "chat_id") val chatId: Int? = null,
     val reactions: @RawValue List<MessageReaction>? = null,
     @Json(name = "is_edited") val isEdited: Boolean? = null,
-    @Json(name = "edited_at") val editedAt: String? = null
+    @Json(name = "edited_at") val editedAt: String? = null,
+    @Json(name = "is_deleted") val isDeleted: Boolean? = null
 ) : Parcelable
 
 @Parcelize

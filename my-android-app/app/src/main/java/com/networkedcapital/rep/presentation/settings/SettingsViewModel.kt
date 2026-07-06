@@ -2,6 +2,8 @@ package com.networkedcapital.rep.presentation.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.networkedcapital.rep.data.api.ChangePasswordRequest
+import com.networkedcapital.rep.data.api.UserApiService
 import com.networkedcapital.rep.data.repository.AuthRepository
 import com.networkedcapital.rep.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,7 +29,8 @@ data class SettingsUiState(
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val userApiService: UserApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SettingsUiState())
@@ -144,6 +147,29 @@ class SettingsViewModel @Inject constructor(
                         }
                     )
                 }
+        }
+    }
+
+    fun changePassword(newPassword: String, onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            try {
+                val response = userApiService.changePassword(ChangePasswordRequest(newPassword))
+                if (response.isSuccessful) {
+                    _uiState.value = _uiState.value.copy(isLoading = false)
+                    onSuccess()
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Failed to change password"
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message ?: "Failed to change password"
+                )
+            }
         }
     }
 

@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.networkedcapital.rep.data.api.MessageHistoryItem
 import com.networkedcapital.rep.domain.model.MessageModel
 import com.networkedcapital.rep.domain.model.MessageReaction
 
@@ -56,6 +57,7 @@ fun IndividualChatScreen(
     var showReactionPicker by remember { mutableStateOf(false) }
     var selectedMessageForEdit by remember { mutableStateOf<MessageModel?>(null) }
     var showEditSheet by remember { mutableStateOf(false) }
+    var showHistorySheet by remember { mutableStateOf(false) }
     val clipboardManager = LocalClipboardManager.current
 
     LaunchedEffect(chatId) {
@@ -93,7 +95,9 @@ fun IndividualChatScreen(
         if (showReactionPicker && selectedMessageForReaction != null) {
             val msg = selectedMessageForReaction!!
             ChatReactionPicker(
-                showEdit = msg.senderId == viewModel.currentUserId,
+                showEdit = msg.senderId == viewModel.currentUserId && msg.isDeleted != true,
+                showDelete = msg.senderId == viewModel.currentUserId && msg.isDeleted != true,
+                showHistory = msg.isEdited == true && msg.isDeleted != true,
                 onSelectEmoji = { emoji ->
                     viewModel.toggleReaction(msg.id, emoji)
                     showReactionPicker = false
@@ -105,8 +109,19 @@ fun IndividualChatScreen(
                     showReactionPicker = false
                     selectedMessageForReaction = null
                 },
+                onDelete = {
+                    viewModel.deleteMessage(msg.id)
+                    showReactionPicker = false
+                    selectedMessageForReaction = null
+                },
                 onCopy = {
                     clipboardManager.setText(AnnotatedString(msg.text ?: ""))
+                    showReactionPicker = false
+                    selectedMessageForReaction = null
+                },
+                onShowHistory = {
+                    viewModel.loadMessageHistory(msg.id)
+                    showHistorySheet = true
                     showReactionPicker = false
                     selectedMessageForReaction = null
                 },
@@ -133,6 +148,16 @@ fun IndividualChatScreen(
             )
         }
         
+        // Edit history sheet
+        if (showHistorySheet) {
+            ChatEditHistorySheet(
+                historyItems = uiState.historyItems,
+                isLoading = uiState.historyLoading,
+                formatTimestamp = viewModel::formatTimestamp,
+                onDismiss = { showHistorySheet = false }
+            )
+        }
+
         // Connection status indicator
         AnimatedVisibility(
             visible = !isConnected,
@@ -294,24 +319,32 @@ fun IndividualChatContent(
             // Message input area with divider
             Column {
                 HorizontalDivider(color = Color(0xFFE5E5E5))
+                Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+                if (inputText.length > 4800) {
+                    Text(
+                        text = "${5000 - inputText.length} remaining",
+                        fontSize = 12.sp,
+                        color = if (inputText.length >= 5000) Color.Red else Color.Gray,
+                        modifier = Modifier.padding(horizontal = 16.dp, top = 4.dp).align(Alignment.End)
+                    )
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White)
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
                     GrowingTextEditor(
                         text = inputText,
-                        onValueChange = onInputTextChange,
+                        onValueChange = { if (it.length <= 5000) onInputTextChange(it) },
                         modifier = Modifier.weight(1f)
                     )
-                    
+
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     Button(
                         onClick = onSend,
-                        enabled = inputText.trim().isNotEmpty(),
+                        enabled = inputText.trim().isNotEmpty() && inputText.length <= 5000,
                         modifier = Modifier.padding(vertical = 4.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF8CC55D),
@@ -400,24 +433,27 @@ fun MessageBubble(
         Column(
             horizontalAlignment = if (isCurrentUser) Alignment.End else Alignment.Start
         ) {
+            val isDeleted = message.isDeleted == true
+
             // Bubble with long-press
             Surface(
-                color = if (isCurrentUser) Color.Black else Color(0xFFF2F2F2),
+                color = if (isDeleted) Color(0xFFF2F2F2) else if (isCurrentUser) Color.Black else Color(0xFFF2F2F2),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.combinedClickable(
                     onClick = {},
-                    onLongClick = onLongPress
+                    onLongClick = if (isDeleted) ({}) else onLongPress
                 )
             ) {
                 Text(
-                    text = message.text ?: "",
-                    color = if (isCurrentUser) Color(0xFF8CC55D) else Color.Black,
+                    text = if (isDeleted) "Message deleted" else (message.text ?: ""),
+                    color = if (isDeleted) Color.Gray else if (isCurrentUser) Color(0xFF8CC55D) else Color.Black,
+                    fontStyle = if (isDeleted) androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal,
                     modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
                 )
             }
 
             // Edited indicator
-            if (message.isEdited == true) {
+            if (!isDeleted && message.isEdited == true) {
                 Text(
                     text = "(edited)",
                     fontSize = 10.sp,
@@ -515,9 +551,13 @@ fun GrowingTextEditor(
 @Composable
 fun ChatReactionPicker(
     showEdit: Boolean,
+    showDelete: Boolean = false,
+    showHistory: Boolean = false,
     onSelectEmoji: (String) -> Unit,
     onEdit: () -> Unit,
+    onDelete: () -> Unit = {},
     onCopy: () -> Unit,
+    onShowHistory: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val emojis = listOf("👍", "❤️", "😂", "😮", "👎", "🙏", "🎉")
@@ -574,6 +614,36 @@ fun ChatReactionPicker(
                 ) {
                     Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
                     Text("Edit Message", fontSize = 14.sp)
+                }
+            }
+            // Delete button (own non-deleted messages only)
+            if (showDelete) {
+                Row(
+                    modifier = Modifier
+                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFFFFCDD2), RoundedCornerShape(8.dp))
+                        .clickable { onDelete() }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Red)
+                    Text("Delete Message", fontSize = 14.sp, color = Color.Red)
+                }
+            }
+            // Edit history button (edited messages only)
+            if (showHistory) {
+                Row(
+                    modifier = Modifier
+                        .background(Color.White, RoundedCornerShape(8.dp))
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(8.dp))
+                        .clickable { onShowHistory() }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Text("Edit History", fontSize = 14.sp)
                 }
             }
         }
@@ -669,6 +739,66 @@ fun LoadingConversation() {
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.Gray
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChatEditHistorySheet(
+    historyItems: List<MessageHistoryItem>,
+    isLoading: Boolean,
+    formatTimestamp: (String) -> String,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Color.White
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Edit History", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color(0xFF8CC55D))
+                }
+            } else if (historyItems.isEmpty()) {
+                Text("No history available.", color = Color.Gray, fontSize = 14.sp)
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    itemsIndexed(historyItems) { index, item ->
+                        val ts = item.edited_at ?: item.timestamp ?: ""
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF7F7F7), RoundedCornerShape(10.dp))
+                                .padding(12.dp)
+                        ) {
+                            Text(
+                                text = if (index == historyItems.lastIndex) "Current" else "Version ${index + 1}",
+                                fontSize = 11.sp,
+                                color = if (index == historyItems.lastIndex) Color(0xFF8CC55D) else Color.Gray,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(item.text, fontSize = 15.sp, color = Color.Black)
+                            if (ts.isNotBlank()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = formatTimestamp(ts),
+                                    fontSize = 11.sp,
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

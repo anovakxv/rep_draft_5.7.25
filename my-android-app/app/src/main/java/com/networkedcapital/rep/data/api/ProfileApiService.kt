@@ -1,6 +1,7 @@
 package com.networkedcapital.rep.data.api
 
 import com.networkedcapital.rep.domain.model.*
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -35,6 +36,29 @@ interface ProfileApiService {
     @DELETE("api/user/write/{id}")
     suspend fun deleteWrite(
         @Path("id") writeId: Int
+    ): Response<Unit>
+
+    // User Photos
+    @GET("api/user/photos")
+    suspend fun getUserPhotos(
+        @Query("users_id") userId: Int
+    ): Response<UserPhotosResponse>
+
+    @Multipart
+    @POST("api/user/photos/upload")
+    suspend fun uploadPhoto(
+        @Part photo: MultipartBody.Part,
+        @Part("caption") caption: okhttp3.RequestBody? = null
+    ): Response<UserPhotoResponse>
+
+    @PUT("api/user/photos/reorder")
+    suspend fun reorderPhotos(
+        @Body body: Map<String, Any>
+    ): Response<Unit>
+
+    @DELETE("api/user/photos/{id}")
+    suspend fun deletePhoto(
+        @Path("id") photoId: Int
     ): Response<Unit>
 
     // Block/Unblock

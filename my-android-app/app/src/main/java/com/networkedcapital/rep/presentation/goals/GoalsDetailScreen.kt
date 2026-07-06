@@ -28,8 +28,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,8 +50,10 @@ fun GoalsDetailScreen(
     onMessage: (User) -> Unit,
     onEditGoal: () -> Unit,
     onUpdateGoal: (quota: Double, metricName: String) -> Unit,
-    onNavigateToPortal: (Int) -> Unit = {}, // Added portal navigation
-    onNavigateToGroupChat: (Int) -> Unit = {}, // Added group chat navigation
+    onNavigateToPortal: (Int) -> Unit = {},
+    onNavigateToGroupChat: (Int) -> Unit = {},
+    onNavigateToPayTransaction: (portalId: Int, portalName: String, goalId: Int, goalName: String, transactionType: String) -> Unit = { _, _, _, _, _ -> },
+    onNavigateToProfile: (Int) -> Unit = {},
     viewModel: GoalsDetailViewModel = hiltViewModel()
 ) {
     val goal by viewModel.goal.collectAsState()
@@ -63,9 +63,10 @@ fun GoalsDetailScreen(
     val error by viewModel.error.collectAsState()
     val currentUserId by viewModel.currentUserId.collectAsState()
     val currentUser by viewModel.currentUser.collectAsState()
+    val isOnTeam = team.any { it.id == currentUserId }
+    val isCreator = goal?.creatorId == currentUserId
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(0) }
-    var selectedProfileUser by remember { mutableStateOf<User?>(null) }
-
     LaunchedEffect(goalId) {
         viewModel.loadGoal(goalId)
     }
@@ -74,12 +75,7 @@ fun GoalsDetailScreen(
     val showActionSheet = remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
     var showSheet by remember { mutableStateOf(false) }
-    var showSupportSheet by remember { mutableStateOf(false) }
-    
-    // Payment sheet state
-    var paymentAmount by remember { mutableStateOf("") }
-    var paymentMessage by remember { mutableStateOf("") }
-    
+
     // Team Chat state
     var isCreatingTeamChat by remember { mutableStateOf(false) }
     var teamChatId by remember { mutableStateOf<Int?>(null) }
@@ -98,24 +94,12 @@ fun GoalsDetailScreen(
     // Payment checkout URL
     val paymentUrl by viewModel.paymentUrl.collectAsState()
     
-    // Function to open goal team chat — use canonical chats_id from backend
+    // Open goal team chat — always delegates to server-side endpoint (matches iOS/web).
+    // Backend handles create-if-missing, self-heals membership, and sets goal.chats_id.
     fun openGoalTeamChat() {
         if (isCreatingTeamChat) return
-
-        // Prefer the canonical chat ID from the goal (set by backend on join/create)
-        val canonicalChatId = goal?.chatsId ?: teamChatId
-        if (canonicalChatId != null) {
-            teamChatId = canonicalChatId
-            onNavigateToGroupChat(canonicalChatId)
-            return
-        }
-
-        // Fallback: create chat for legacy goals that pre-date chats_id
         isCreatingTeamChat = true
-        viewModel.createTeamChat(
-            goalId = goal?.id ?: 0,
-            title = "Goal Team: ${goal?.title}"
-        ) { chatId, error ->
+        viewModel.openTeamChat(goal?.id ?: 0) { chatId, error ->
             isCreatingTeamChat = false
             if (error != null) {
                 chatCreationError = error
@@ -315,7 +299,7 @@ fun GoalsDetailScreen(
                                                 item = item,
                                                 currentUserId = currentUserId,
                                                 currentUser = currentUser,
-                                                onProfileClick = { user -> selectedProfileUser = user }
+                                                onProfileClick = { user -> onNavigateToProfile(user.id) }
                                             )
                                         }
                                     }
@@ -357,7 +341,7 @@ fun GoalsDetailScreen(
                                 } else {
                                     LazyColumn(modifier = Modifier.weight(1f)) {
                                         items(team) { user ->
-                                            EnhancedTeamMemberItem(user, onMessage, onProfileClick = { selectedProfileUser = user })
+                                            EnhancedTeamMemberItem(user, onMessage, onProfileClick = { onNavigateToProfile(user.id) })
                                         }
                                     }
                                 }
@@ -399,22 +383,24 @@ fun GoalsDetailScreen(
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    IconButton(
-                        onClick = { openGoalTeamChat() },
-                        enabled = !isCreatingTeamChat
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Message,
-                            contentDescription = "Team Chat",
-                            tint = Color.Black
-                        )
+                    if (isOnTeam || isCreator) {
+                        IconButton(
+                            onClick = { openGoalTeamChat() },
+                            enabled = !isCreatingTeamChat
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Message,
+                                contentDescription = "Team Chat",
+                                tint = Color.Black
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Enhanced Support Button for Fund/Sales Goals
-        if (goal?.typeName == "Fund" || goal?.typeName == "Sales") {
+        // Enhanced Support Button for Fund/Sales/Donations Goals
+        if (goal?.typeName == "Fund" || goal?.typeName == "Sales" || goal?.typeName == "Donations") {
             Box(
                 modifier = Modifier
                     .padding(bottom = 70.dp)
@@ -422,7 +408,17 @@ fun GoalsDetailScreen(
                     .align(Alignment.BottomEnd)
             ) {
                 Button(
-                    onClick = { showSupportSheet = true },
+                    onClick = {
+                        val g = goal ?: return@Button
+                        val transactionType = if (g.typeName == "Sales") "PAYMENT" else "DONATION"
+                        onNavigateToPayTransaction(
+                            g.portalId ?: 0,
+                            g.portalName ?: "",
+                            g.id,
+                            g.title,
+                            transactionType
+                        )
+                    },
                     modifier = Modifier
                         .shadow(
                             elevation = 4.dp,
@@ -466,10 +462,6 @@ fun GoalsDetailScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
-                    // Check if user is already on the team
-                    val isOnTeam = team.any { it.id == viewModel.getCurrentUserId() }
-                    val isCreator = goal?.creatorId == viewModel.getCurrentUserId()
-
                     // Show "Join Team" only if user is not already on the team
                     if (!isOnTeam && !isCreator && goal?.typeName == "Recruiting") {
                         Text(
@@ -534,34 +526,56 @@ fun GoalsDetailScreen(
                     }
 
                     Text(
-                        text = "Edit Goal",
-                        fontSize = 22.sp, // .title2 equivalent - same as other primary actions
+                        text = "Share",
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF8CC75D),
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
                                 showSheet = false
-                                onEditGoal()
+                                val url = "https://www.repsomething.com/goal/${goal?.id}"
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, url)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share Goal"))
                             }
                             .padding(vertical = 5.dp),
                         textAlign = TextAlign.Center
                     )
 
-                    Text(
-                        text = "Delete Goal",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color.Red,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                showSheet = false
-                                showDeleteGoalDialog = true
-                            }
-                            .padding(vertical = 5.dp),
-                        textAlign = TextAlign.Center
-                    )
+                    if (isCreator) {
+                        Text(
+                            text = "Edit Goal",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF8CC75D),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showSheet = false
+                                    onEditGoal()
+                                }
+                                .padding(vertical = 5.dp),
+                            textAlign = TextAlign.Center
+                        )
+
+                        Text(
+                            text = "Delete Goal",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color.Red,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showSheet = false
+                                    showDeleteGoalDialog = true
+                                }
+                                .padding(vertical = 5.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
 
                     Text(
                         text = "Cancel",
@@ -751,154 +765,6 @@ fun GoalsDetailScreen(
             )
         }
 
-        // Enhanced Payment/Support Sheet
-        if (showSupportSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showSupportSheet = false },
-                sheetState = rememberModalBottomSheetState()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Text(
-                        text = "Support ${goal?.title ?: "Goal"}",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Text("Your support helps this goal succeed")
-                    
-                    // Payment Amount
-                    OutlinedTextField(
-                        value = paymentAmount,
-                        onValueChange = { paymentAmount = it },
-                        label = { Text("Amount") },
-                        leadingIcon = {
-                            Text(
-                                "$",
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(start = 12.dp)
-                            )
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    // Message field
-                    OutlinedTextField(
-                        value = paymentMessage,
-                        onValueChange = { paymentMessage = it },
-                        label = { Text("Message (Optional)") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    
-                    // Submit payment button
-                    Button(
-                        onClick = {
-                            // Process payment
-                            viewModel.processPayment(
-                                goalId = goal?.id ?: 0,
-                                portalId = goal?.portalId ?: 0,
-                                amount = paymentAmount.toDoubleOrNull() ?: 0.0,
-                                message = paymentMessage
-                            )
-                            showSupportSheet = false
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF006400)
-                        ),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = "Submit Payment",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-                    }
-                    
-                    TextButton(
-                        onClick = { showSupportSheet = false },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text("Cancel")
-                    }
-                }
-            }
-        }
-
-        // Enhanced Profile Dialog
-        if (selectedProfileUser != null) {
-            AlertDialog(
-                onDismissRequest = { selectedProfileUser = null },
-                title = { 
-                    Text(
-                        "${selectedProfileUser!!.fullName ?: selectedProfileUser!!.username ?: "User"} Profile",
-                        fontWeight = FontWeight.Bold
-                    ) 
-                },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Profile image
-                        Box(modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                            if (!selectedProfileUser!!.profile_picture_url.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = selectedProfileUser!!.profile_picture_url,
-                                    contentDescription = "Profile picture",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFE0E0E0))
-                                )
-                            } else {
-                                Box(
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                        .background(Color(0xFFE0E0E0), CircleShape),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        (selectedProfileUser!!.fullName ?: selectedProfileUser!!.username ?: "").take(1), 
-                                        fontWeight = FontWeight.Bold, 
-                                        fontSize = 32.sp,
-                                        color = Color.Black
-                                    )
-                                }
-                            }
-                        }
-                        
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                        
-                        Text("ID: ${selectedProfileUser!!.id}")
-                        Text("Username: ${selectedProfileUser!!.username ?: "(none)"}")
-                        Text("Full Name: ${selectedProfileUser!!.fullName ?: selectedProfileUser!!.fname ?: "(none)"}")
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = { 
-                            onMessage(selectedProfileUser!!)
-                            selectedProfileUser = null 
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF8CC55D)
-                        )
-                    ) {
-                        Text("Message")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { selectedProfileUser = null }) {
-                        Text("Close")
-                    }
-                }
-            )
-        }
         // Payment checkout WebView overlay
         if (paymentUrl != null) {
             WebViewScreen(

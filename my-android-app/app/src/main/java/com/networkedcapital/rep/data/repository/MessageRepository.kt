@@ -165,6 +165,33 @@ class MessageRepository @Inject constructor(
         emit(Result.failure(Exception("Failed to remove member", e)))
     }
 
+    fun deleteDmMessage(messageId: Int): Flow<Result<Unit>> = flow {
+        val response = messagingApi.deleteDmMessage(messageId)
+        if (response.isSuccessful) emit(Result.success(Unit))
+        else throw Exception("Failed to delete message: ${response.message()}")
+    }.catch { e -> emit(Result.failure(Exception("Failed to delete message", e))) }
+
+    fun deleteGroupMessage(messageId: Int): Flow<Result<Unit>> = flow {
+        val response = messagingApi.deleteGroupMessage(messageId)
+        if (response.isSuccessful) emit(Result.success(Unit))
+        else throw Exception("Failed to delete message: ${response.message()}")
+    }.catch { e -> emit(Result.failure(Exception("Failed to delete message", e))) }
+
+    fun updateGroupChatName(
+        chatId: Int,
+        newName: String
+    ): Flow<Result<Unit>> = flow {
+        val request = ManageGroupChatRequest(chats_id = chatId, title = newName)
+        val response = messagingApi.manageGroupChat(request)
+        if (response.isSuccessful) {
+            emit(Result.success(Unit))
+        } else {
+            throw Exception("Failed to update chat name: ${response.message()}")
+        }
+    }.catch { e ->
+        emit(Result.failure(Exception("Failed to update chat name", e)))
+    }
+
     fun deleteGroupChat(
         chatId: Int
     ): Flow<Result<Unit>> = flow {

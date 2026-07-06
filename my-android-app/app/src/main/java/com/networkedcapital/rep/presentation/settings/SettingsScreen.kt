@@ -1,5 +1,7 @@
 package com.networkedcapital.rep.presentation.settings
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,7 +13,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -27,7 +31,12 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showChangePasswordDialog by remember { mutableStateOf(false) }
+    var newPassword by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var passwordError by remember { mutableStateOf("") }
 
     // Dark green color matching iOS
     val darkGreen = Color(0xFF006600)
@@ -76,6 +85,21 @@ fun SettingsScreen(
                     title = "Edit Profile",
                     iconTint = darkGreen,
                     onClick = onNavigateToEditProfile
+                )
+                HorizontalDivider()
+            }
+
+            item {
+                SettingsItem(
+                    icon = Icons.Default.Lock,
+                    title = "Change Password",
+                    iconTint = darkGreen,
+                    onClick = {
+                        newPassword = ""
+                        confirmPassword = ""
+                        passwordError = ""
+                        showChangePasswordDialog = true
+                    }
                 )
                 HorizontalDivider()
             }
@@ -154,6 +178,19 @@ fun SettingsScreen(
                 HorizontalDivider()
             }
 
+            item {
+                SettingsItem(
+                    icon = Icons.Default.Email,
+                    title = "Contact Us",
+                    iconTint = Color.Gray,
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.repsomething.com/contact-us"))
+                        context.startActivity(intent)
+                    }
+                )
+                HorizontalDivider()
+            }
+
             // Admin Tools Section (conditional)
             if (uiState.isAdmin) {
                 item {
@@ -209,6 +246,57 @@ fun SettingsScreen(
             ) {
                 CircularProgressIndicator(color = repGreen)
             }
+        }
+
+        // Change Password dialog
+        if (showChangePasswordDialog) {
+            AlertDialog(
+                onDismissRequest = { showChangePasswordDialog = false },
+                title = { Text("Change Password", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = newPassword,
+                            onValueChange = { newPassword = it; passwordError = "" },
+                            label = { Text("New Password") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = confirmPassword,
+                            onValueChange = { confirmPassword = it; passwordError = "" },
+                            label = { Text("Confirm New Password") },
+                            visualTransformation = PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        if (passwordError.isNotEmpty()) {
+                            Text(passwordError, color = Color(0xFFFF3B30))
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            when {
+                                newPassword.length < 6 -> passwordError = "Password must be at least 6 characters."
+                                newPassword != confirmPassword -> passwordError = "Passwords do not match."
+                                else -> viewModel.changePassword(newPassword) {
+                                    showChangePasswordDialog = false
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Save", color = darkGreen, fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showChangePasswordDialog = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
 
         // Logout confirmation dialog

@@ -7,6 +7,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -38,7 +39,7 @@ fun EditGoalScreen(
     var goalType by remember { mutableStateOf(existingGoal?.typeName ?: "Recruiting") }
     var metric by remember { mutableStateOf(existingGoal?.metricName ?: "") }
 
-    val goalTypes = listOf("Recruiting", "Sales", "Fund", "Marketing", "Hours", "Other")
+    val goalTypes = listOf("Recruiting", "Sales", "Fund", "Donations", "Marketing", "Hours", "Other")
     val scope = rememberCoroutineScope()
 
     // Set the selected reporting increment to match existing goal passed directly
@@ -108,9 +109,15 @@ fun EditGoalScreen(
             )
             OutlinedTextField(
                 value = description,
-                onValueChange = { description = it },
+                onValueChange = { if (it.length <= 1000) description = it },
                 label = { Text("Description") },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                supportingText = {
+                    Text(
+                        "${description.length}/1000",
+                        color = if (description.length > 950) Color.Red else Color.Gray
+                    )
+                }
             )
             var goalTypeExpanded by remember { mutableStateOf(false) }
             ExposedDropdownMenuBox(

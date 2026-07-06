@@ -111,6 +111,18 @@ interface MessagingApiService {
         @Body request: EditMessageRequest
     ): Response<EditMessageResponse>
 
+    /** Soft-delete a DM (sender only) — DELETE /api/message/{id} */
+    @DELETE("api/message/{messageId}")
+    suspend fun deleteDmMessage(
+        @Path("messageId") messageId: Int
+    ): Response<Unit>
+
+    /** Get edit history for a DM — GET /api/message/{id}/history */
+    @GET("api/message/{messageId}/history")
+    suspend fun getDmMessageHistory(
+        @Path("messageId") messageId: Int
+    ): Response<MessageHistoryResponse>
+
     // MARK: - Reactions (Group Messages)
 
     /** Toggle emoji reaction on a group message — POST /api/message/group/toggle-reaction/{id} */
@@ -128,6 +140,12 @@ interface MessagingApiService {
         @Path("messageId") messageId: Int,
         @Body request: EditMessageRequest
     ): Response<EditMessageResponse>
+
+    /** Soft-delete a group message (sender only) — DELETE /api/message/group/{id} */
+    @DELETE("api/message/group/{messageId}")
+    suspend fun deleteGroupMessage(
+        @Path("messageId") messageId: Int
+    ): Response<Unit>
 }
 
 data class ToggleReactionRequest(val emoji: String)
@@ -201,4 +219,15 @@ data class ManageGroupChatResponse(
 
 data class NetworkMembersResponse(
     val result: List<User>
+)
+
+data class MessageHistoryItem(
+    val id: Int,
+    val text: String,
+    val edited_at: String? = null,
+    val timestamp: String? = null
+)
+
+data class MessageHistoryResponse(
+    val history: List<MessageHistoryItem>
 )

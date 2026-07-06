@@ -291,6 +291,14 @@ fun RepNavigation(
                         )
                     )
                 },
+                onNavigateToProfile = { userId ->
+                    navController.navigate(Screen.Profile.createRoute(userId))
+                },
+                onNavigateToPayTransaction = { pId, portalName, goalId, goalName, transactionType ->
+                    navController.navigate(
+                        Screen.PayTransaction.createRoute(pId, portalName, goalId, goalName, transactionType)
+                    )
+                },
                 viewModel = viewModel
             )
         }
@@ -342,6 +350,14 @@ fun RepNavigation(
                 },
                 onNavigateToGroupChat = { chatId ->
                     navController.navigate(Screen.GroupChat.createRoute(chatId))
+                },
+                onNavigateToPayTransaction = { pId, portalName, gId, goalName, transactionType ->
+                    navController.navigate(
+                        Screen.PayTransaction.createRoute(pId, portalName, gId, goalName, transactionType)
+                    )
+                },
+                onNavigateToProfile = { userId ->
+                    navController.navigate(Screen.Profile.createRoute(userId))
                 }
             )
         }
@@ -618,7 +634,7 @@ fun RepNavigation(
                 goalId = goalId,
                 quota = quota,
                 metricName = metricName,
-                onSubmit = { _, _ ->
+                onSuccess = {
                     navController.popBackStack()
                 },
                 onCancel = {

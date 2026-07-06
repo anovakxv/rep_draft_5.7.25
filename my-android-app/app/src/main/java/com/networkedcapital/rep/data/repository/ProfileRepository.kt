@@ -7,6 +7,9 @@ import com.networkedcapital.rep.domain.model.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.catch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import javax.inject.Inject
 
 interface ProfileRepository {
@@ -23,6 +26,10 @@ interface ProfileRepository {
     suspend fun unblockUser(userId: Int): Flow<Result<Unit>>
     suspend fun flagUser(userId: Int, reason: String): Flow<Result<Unit>>
     suspend fun addToNetwork(userId: Int, targetUserId: Int): Flow<Result<Unit>>
+    suspend fun getUserPhotos(userId: Int): Flow<Result<List<UserPhoto>>>
+    suspend fun uploadPhoto(photoPart: MultipartBody.Part, caption: String?): Flow<Result<UserPhoto>>
+    suspend fun deletePhoto(photoId: Int): Flow<Result<Unit>>
+    suspend fun reorderPhotos(userId: Int, photos: List<UserPhoto>): Flow<Result<Unit>>
 }
 
 class ProfileRepositoryImpl @Inject constructor(
@@ -191,6 +198,55 @@ class ProfileRepositoryImpl @Inject constructor(
             emit(Result.success(Unit))
         } else {
             throw Exception("Failed to add to network: ${response.message()}")
+        }
+    }.catch { e ->
+        emit(Result.failure(e as? Exception ?: Exception(e.message)))
+    }
+
+    override suspend fun getUserPhotos(userId: Int): Flow<Result<List<UserPhoto>>> = flow {
+        val response = profileApiService.getUserPhotos(userId)
+        if (response.isSuccessful && response.body() != null) {
+            emit(Result.success(response.body()!!.result))
+        } else {
+            throw Exception("Failed to load photos: ${response.message()}")
+        }
+    }.catch { e ->
+        emit(Result.failure(e as? Exception ?: Exception(e.message)))
+    }
+
+    override suspend fun uploadPhoto(photoPart: MultipartBody.Part, caption: String?): Flow<Result<UserPhoto>> = flow {
+        val captionBody = caption?.let {
+            it.toRequestBody("text/plain".toMediaTypeOrNull())
+        }
+        val response = profileApiService.uploadPhoto(photoPart, captionBody)
+        if (response.isSuccessful && response.body() != null) {
+            emit(Result.success(response.body()!!.result))
+        } else {
+            throw Exception("Failed to upload photo: ${response.message()}")
+        }
+    }.catch { e ->
+        emit(Result.failure(e as? Exception ?: Exception(e.message)))
+    }
+
+    override suspend fun deletePhoto(photoId: Int): Flow<Result<Unit>> = flow {
+        val response = profileApiService.deletePhoto(photoId)
+        if (response.isSuccessful) {
+            emit(Result.success(Unit))
+        } else {
+            throw Exception("Failed to delete photo: ${response.message()}")
+        }
+    }.catch { e ->
+        emit(Result.failure(e as? Exception ?: Exception(e.message)))
+    }
+
+    override suspend fun reorderPhotos(userId: Int, photos: List<UserPhoto>): Flow<Result<Unit>> = flow {
+        val photoOrder = photos.mapIndexed { idx, photo -> mapOf("id" to photo.id, "position" to idx) }
+        val params = mapOf("users_id" to userId, "photo_order" to photoOrder)
+        val response = profileApiService.reorderPhotos(params)
+        if (response.isSuccessful) {
+            emit(Result.success(Unit))
+        } else {
+            throw Exception("Failed to reorder photos: ${response.message()}")
         }
     }.catch { e ->
         emit(Result.failure(e as? Exception ?: Exception(e.message)))

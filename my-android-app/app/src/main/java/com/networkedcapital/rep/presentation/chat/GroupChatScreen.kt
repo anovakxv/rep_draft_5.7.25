@@ -80,6 +80,11 @@ fun GroupChatScreen(
         viewModel.initialize(currentUserId, chatId)
         viewModel.activate()
     }
+
+    // Navigate back after leaving or deleting the group
+    LaunchedEffect(uiState.leftGroup) {
+        if (uiState.leftGroup) onNavigateBack()
+    }
     
     // Cleanup on dispose
     DisposableEffect(Unit) {
@@ -208,7 +213,8 @@ fun GroupChatScreen(
     if (showGroupReactionPicker && selectedMessageForReaction != null) {
         val msg = selectedMessageForReaction!!
         ChatReactionPicker(
-            showEdit = msg.senderId == currentUserId,
+            showEdit = msg.senderId == currentUserId && msg.isDeleted != true,
+            showDelete = msg.senderId == currentUserId && msg.isDeleted != true,
             onSelectEmoji = { emoji ->
                 viewModel.toggleReaction(msg.id, emoji)
                 showGroupReactionPicker = false
@@ -217,6 +223,11 @@ fun GroupChatScreen(
             onEdit = {
                 selectedMessageForEdit = msg
                 showGroupEditSheet = true
+                showGroupReactionPicker = false
+                selectedMessageForReaction = null
+            },
+            onDelete = {
+                viewModel.deleteGroupMessage(msg.id)
                 showGroupReactionPicker = false
                 selectedMessageForReaction = null
             },
@@ -286,20 +297,18 @@ fun GroupChatHeader(
             modifier = Modifier.align(Alignment.Center)
         )
         
-        // Edit button (only for creator)
-        if (isCreator) {
-            IconButton(
-                onClick = onEditGroupClick,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Edit, 
-                    contentDescription = "Edit Group",
-                    tint = Color(0xFF8CC55D)
-                )
-            }
+        // Edit/info button — creators get edit icon, all members get access (to see members + leave)
+        IconButton(
+            onClick = onEditGroupClick,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 8.dp)
+        ) {
+            Icon(
+                imageVector = if (isCreator) Icons.Default.Edit else Icons.Default.Info,
+                contentDescription = if (isCreator) "Edit Group" else "Group Info",
+                tint = Color(0xFF8CC55D)
+            )
         }
     }
 }
@@ -493,25 +502,28 @@ fun MessageBubble(
                 )
             }
 
+            val isDeleted = message.isDeleted == true
+
             // Bubble with long-press
             Surface(
-                color = if (isFromCurrentUser) Color.Black else Color(0xFFF0F0F0),
+                color = if (isDeleted) Color(0xFFF0F0F0) else if (isFromCurrentUser) Color.Black else Color(0xFFF0F0F0),
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.combinedClickable(
                     onClick = {},
-                    onLongClick = onLongPress
+                    onLongClick = if (isDeleted) ({}) else onLongPress
                 )
             ) {
                 Text(
-                    text = message.text ?: "",
-                    color = if (isFromCurrentUser) Color(0xFF8CC55D) else Color.Black,
+                    text = if (isDeleted) "Message deleted" else (message.text ?: ""),
+                    color = if (isDeleted) Color.Gray else if (isFromCurrentUser) Color(0xFF8CC55D) else Color.Black,
+                    fontStyle = if (isDeleted) androidx.compose.ui.text.font.FontStyle.Italic else androidx.compose.ui.text.font.FontStyle.Normal,
                     modifier = Modifier.padding(vertical = 10.dp, horizontal = 10.dp),
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
 
             // Edited indicator
-            if (message.isEdited == true) {
+            if (!isDeleted && message.isEdited == true) {
                 Text(
                     text = "(edited)",
                     fontSize = 10.sp,
@@ -564,10 +576,22 @@ fun GrowingTextInput(
     val density = LocalDensity.current
     val lineHeight = MaterialTheme.typography.bodyLarge.lineHeight.value * density.density
     
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .background(Color(0xFFF9F9F9))
+    ) {
+    if (value.length > 9800) {
+        Text(
+            text = "${10000 - value.length} remaining",
+            fontSize = 12.sp,
+            color = if (value.length >= 10000) Color.Red else Color.Gray,
+            modifier = Modifier.padding(horizontal = 16.dp, top = 4.dp).align(Alignment.End)
+        )
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.Bottom
     ) {
@@ -579,7 +603,7 @@ fun GrowingTextInput(
         ) {
             BasicTextField(
                 value = value,
-                onValueChange = onValueChange,
+                onValueChange = { if (it.length <= 10000) onValueChange(it) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -622,11 +646,11 @@ fun GrowingTextInput(
             modifier = Modifier
                 .size(36.dp)
                 .background(
-                    if (value.trim().isEmpty()) Color(0xFFE0E0E0) else Color(0xFF8CC55D),
+                    if (value.trim().isEmpty() || value.length > 10000) Color(0xFFE0E0E0) else Color(0xFF8CC55D),
                     CircleShape
                 )
-                .clickable(enabled = value.trim().isNotEmpty()) {
-                    if (value.trim().isNotEmpty()) {
+                .clickable(enabled = value.trim().isNotEmpty() && value.length <= 10000) {
+                    if (value.trim().isNotEmpty() && value.length <= 10000) {
                         onSend()
                     }
                 },
@@ -640,6 +664,7 @@ fun GrowingTextInput(
             )
         }
     }
+    } // close Column
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

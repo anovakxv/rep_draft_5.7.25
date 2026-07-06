@@ -1,5 +1,9 @@
 package com.networkedcapital.rep.presentation.profile
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.networkedcapital.rep.data.repository.AuthRepository
@@ -8,6 +12,12 @@ import com.networkedcapital.rep.domain.model.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 data class ProfileUiState(
@@ -15,6 +25,9 @@ data class ProfileUiState(
     val portals: List<Portal> = emptyList(),
     val goals: List<Goal> = emptyList(),
     val writeBlocks: List<WriteBlock> = emptyList(),
+    val userPhotos: List<UserPhoto> = emptyList(),
+    val isUploadingPhoto: Boolean = false,
+    val photoError: String? = null,
     val availableSkills: List<Skill> = emptyList(),
     val isBlocked: Boolean = false,
     val isLoading: Boolean = false,
@@ -99,10 +112,11 @@ class ProfileViewModel @Inject constructor(
                                     isLoaded = true,
                                     isLoading = false
                                 )
-                                // Still fetch other data (portals, goals, writes)
+                                // Still fetch other data (portals, goals, writes, photos)
                                 fetchPortals()
                                 fetchGoals()
                                 fetchWrites()
+                                fetchPhotos()
                                 fetchAvailableSkills()
                             } else {
                                 // Viewing another user's profile - fetch all data
@@ -128,6 +142,7 @@ class ProfileViewModel @Inject constructor(
             fetchPortals()
             fetchGoals()
             fetchWrites()
+            fetchPhotos()
             fetchAvailableSkills()
             fetchBlockStatus()
         }
@@ -425,6 +440,97 @@ class ProfileViewModel @Inject constructor(
                             onComplete(false, throwable.message ?: "Failed to add to network")
                         }
                     )
+        }
+    }
+
+    // Photos
+    fun fetchPhotos() {
+        viewModelScope.launch {
+            profileRepository.getUserPhotos(_uiState.value.viewedUserId)
+                .catch { /* Handle silently */ }
+                .firstOrNull()?.fold(
+                    onSuccess = { photos ->
+                        _uiState.value = _uiState.value.copy(userPhotos = photos)
+                    },
+                    onFailure = { /* Handle silently */ }
+                )
+        }
+    }
+
+    fun uploadPhoto(uri: Uri, caption: String, context: Context) {
+        _uiState.value = _uiState.value.copy(isUploadingPhoto = true, photoError = null)
+        viewModelScope.launch {
+            try {
+                val bitmap = context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it)
+                } ?: run {
+                    _uiState.value = _uiState.value.copy(isUploadingPhoto = false, photoError = "Could not read image")
+                    return@launch
+                }
+                val file = File(context.cacheDir, "user_photo_upload.jpg")
+                FileOutputStream(file).use { out ->
+                    val stream = ByteArrayOutputStream()
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 85, stream)
+                    out.write(stream.toByteArray())
+                }
+                val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
+                val photoPart = MultipartBody.Part.createFormData("photo", "photo.jpg", requestFile)
+                profileRepository.uploadPhoto(photoPart, caption.ifBlank { null })
+                    .catch { e ->
+                        _uiState.value = _uiState.value.copy(isUploadingPhoto = false, photoError = e.message)
+                    }
+                    .firstOrNull()?.fold(
+                        onSuccess = { newPhoto ->
+                            _uiState.value = _uiState.value.copy(
+                                isUploadingPhoto = false,
+                                userPhotos = listOf(newPhoto) + _uiState.value.userPhotos
+                            )
+                        },
+                        onFailure = { e ->
+                            _uiState.value = _uiState.value.copy(isUploadingPhoto = false, photoError = e.message)
+                        }
+                    )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(isUploadingPhoto = false, photoError = e.message)
+            }
+        }
+    }
+
+    fun deletePhoto(photo: UserPhoto) {
+        viewModelScope.launch {
+            profileRepository.deletePhoto(photo.id)
+                .catch { /* Handle silently */ }
+                .firstOrNull()?.fold(
+                    onSuccess = {
+                        _uiState.value = _uiState.value.copy(
+                            userPhotos = _uiState.value.userPhotos.filter { it.id != photo.id }
+                        )
+                    },
+                    onFailure = { /* Handle silently */ }
+                )
+        }
+    }
+
+    fun movePhotoUp(index: Int) {
+        if (index <= 0) return
+        val photos = _uiState.value.userPhotos.toMutableList()
+        val temp = photos[index]; photos[index] = photos[index - 1]; photos[index - 1] = temp
+        _uiState.value = _uiState.value.copy(userPhotos = photos)
+        viewModelScope.launch {
+            profileRepository.reorderPhotos(_uiState.value.viewedUserId, photos)
+                .catch { }.firstOrNull()
+        }
+    }
+
+    fun movePhotoDown(index: Int) {
+        val photos = _uiState.value.userPhotos
+        if (index >= photos.size - 1) return
+        val mutable = photos.toMutableList()
+        val temp = mutable[index]; mutable[index] = mutable[index + 1]; mutable[index + 1] = temp
+        _uiState.value = _uiState.value.copy(userPhotos = mutable)
+        viewModelScope.launch {
+            profileRepository.reorderPhotos(_uiState.value.viewedUserId, mutable)
+                .catch { }.firstOrNull()
         }
     }
 

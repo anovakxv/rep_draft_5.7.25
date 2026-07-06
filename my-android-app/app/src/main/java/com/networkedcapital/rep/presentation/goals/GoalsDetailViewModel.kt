@@ -201,6 +201,31 @@ class GoalsDetailViewModel @Inject constructor(
         }
     }
 
+    // Open or create team chat via server-side endpoint — matches iOS/web behavior.
+    // Backend derives membership from goal, self-heals existing chats, sets goal.chats_id.
+    fun openTeamChat(goalId: Int, onComplete: (Int?, String?) -> Unit) {
+        _isCreatingChat.value = true
+        _error.value = null
+        viewModelScope.launch {
+            try {
+                val response = goalApiService.openTeamChat(goalId)
+                if (response.isSuccessful && response.body() != null) {
+                    onComplete(response.body()!!.chatsId, null)
+                } else {
+                    val errorMsg = "Failed to open team chat: ${response.message()}"
+                    _error.value = errorMsg
+                    onComplete(null, errorMsg)
+                }
+            } catch (e: Exception) {
+                val errorMsg = e.message ?: "Unknown error opening team chat"
+                _error.value = errorMsg
+                onComplete(null, errorMsg)
+            } finally {
+                _isCreatingChat.value = false
+            }
+        }
+    }
+
     // Team chat creation - FULLY IMPLEMENTED ✅
     fun createTeamChat(goalId: Int, title: String, onComplete: (Int?, String?) -> Unit) {
         _isCreatingChat.value = true

@@ -41,7 +41,8 @@ data class GroupChatUiState(
     val scrollToMessageId: Int? = null,
     // NEW: Member management properties
     val memberToRemove: GroupMemberModel? = null,
-    val selectedUsersToAdd: List<User> = emptyList()
+    val selectedUsersToAdd: List<User> = emptyList(),
+    val leftGroup: Boolean = false
 )
 
 /**
@@ -438,10 +439,14 @@ class GroupChatViewModel @Inject constructor(
     
     // Group management functions
     fun editGroupName(newName: String) {
-        // TODO: Implement updateGroupChat in MessageRepository
         viewModelScope.launch {
-            _uiState.update { it.copy(groupName = newName) }
-            android.util.Log.d("GroupChatVM", "TODO: Update group name to: $newName")
+            messageRepository.updateGroupChatName(chatId, newName).firstOrNull()?.let { result ->
+                result.onSuccess {
+                    _uiState.update { it.copy(groupName = newName) }
+                }.onFailure { error ->
+                    _uiState.update { it.copy(error = error.message) }
+                }
+            }
         }
     }
 
@@ -476,21 +481,28 @@ class GroupChatViewModel @Inject constructor(
     }
 
     fun leaveGroup() {
-        // TODO: Implement leaveGroupChat in MessageRepository
         viewModelScope.launch {
-            android.util.Log.d("GroupChatVM", "TODO: Leave group chat $chatId")
+            _uiState.update { it.copy(isLoading = true) }
+            messageRepository.removeMemberFromGroupChat(chatId, currentUserId).firstOrNull()?.let { result ->
+                result.onSuccess {
+                    _uiState.update { it.copy(isLoading = false, leftGroup = true) }
+                }.onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false, error = error.message) }
+                }
+            }
         }
     }
 
     fun deleteGroupChat() {
         if (!_uiState.value.isCreator) return
-        
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             messageRepository.deleteGroupChat(chatId).firstOrNull()?.let { result ->
-                _uiState.update { it.copy(isLoading = false) }
-                result.onFailure { error ->
-                    _uiState.update { it.copy(error = error.message) }
+                result.onSuccess {
+                    _uiState.update { it.copy(isLoading = false, leftGroup = true) }
+                }.onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false, error = error.message) }
                 }
             }
         }
@@ -650,6 +662,34 @@ class GroupChatViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 android.util.Log.e("GroupChatVM", "editGroupMessage error: ${e.message}")
+            }
+        }
+    }
+
+    // Soft-delete own group message
+    fun deleteGroupMessage(messageId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = messagingApiService.deleteGroupMessage(messageId)
+                if (response.isSuccessful) {
+                    _uiState.update { state ->
+                        val updated = state.messages.map { msg ->
+                            if (msg.id == messageId) {
+                                GroupMessageModel(
+                                    id = msg.id, senderId = msg.senderId,
+                                    senderName = msg.senderName, senderPhotoUrl = msg.senderPhotoUrl,
+                                    text = "[Message deleted]", timestamp = msg.timestamp,
+                                    chatId = msg.chatId, reactions = emptyList(),
+                                    isEdited = msg.isEdited, editedAt = msg.editedAt,
+                                    isDeleted = true
+                                )
+                            } else msg
+                        }
+                        state.copy(messages = updated)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("GroupChatVM", "deleteGroupMessage error: ${e.message}")
             }
         }
     }

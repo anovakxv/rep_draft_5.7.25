@@ -1,10 +1,14 @@
 package com.networkedcapital.rep.presentation.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,7 +22,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,6 +36,7 @@ import coil.compose.AsyncImage
 import com.networkedcapital.rep.domain.model.User
 import com.networkedcapital.rep.domain.model.Portal
 import com.networkedcapital.rep.domain.model.Goal
+import com.networkedcapital.rep.domain.model.UserPhoto
 import com.networkedcapital.rep.domain.model.WriteBlock
 import com.networkedcapital.rep.presentation.goals.GoalListItem
 import com.networkedcapital.rep.presentation.main.EnhancedPortalItem
@@ -43,8 +54,13 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var showActionSheet by remember { mutableStateOf(false) }
     var showDeleteWriteDialog by remember { mutableStateOf<WriteBlock?>(null) }
+    var showDeletePhotoDialog by remember { mutableStateOf<UserPhoto?>(null) }
+    val photoPickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { viewModel.uploadPhoto(it, "", context) }
+    }
     var showFlagDialog by remember { mutableStateOf(false) }
     var showActionResultDialog by remember { mutableStateOf(false) }
 
@@ -136,7 +152,7 @@ fun ProfileScreen(
                 // Segmented Picker
                 item {
                     ProfileSegmentedPicker(
-                        segments = listOf("Rep", "Goals", "Write"),
+                        segments = listOf("Rep", "Goals", "Write", "Photos"),
                         selectedIndex = uiState.selectedTab,
                         onSelectionChanged = { viewModel.selectTab(it) },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -222,7 +238,75 @@ fun ProfileScreen(
                             }
                         }
                     }
+                    3 -> {
+                        // Photos Tab
+                        if (viewModel.isCurrentUser) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Photos", fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    Button(
+                                        onClick = { photoPickerLauncher.launch("image/*") },
+                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8CC65D))
+                                    ) {
+                                        if (uiState.isUploadingPhoto) {
+                                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
+                                        } else {
+                                            Text("+ Add Photo", color = Color.White)
+                                        }
+                                    }
+                                }
+                            }
+                            uiState.photoError?.let { err ->
+                                item {
+                                    Text(err, color = Color.Red, modifier = Modifier.padding(horizontal = 16.dp))
+                                }
+                            }
+                        }
+                        if (uiState.userPhotos.isEmpty()) {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                    Text("No photos yet.", color = Color.Gray)
+                                }
+                            }
+                        } else {
+                            itemsIndexed(uiState.userPhotos) { index, photo ->
+                                UserPhotoItem(
+                                    photo = photo,
+                                    index = index,
+                                    total = uiState.userPhotos.size,
+                                    isCurrentUser = viewModel.isCurrentUser,
+                                    onMoveUp = { viewModel.movePhotoUp(index) },
+                                    onMoveDown = { viewModel.movePhotoDown(index) },
+                                    onDelete = { showDeletePhotoDialog = photo }
+                                )
+                            }
+                        }
+                    }
                 }
+            }
+
+            // Delete photo confirmation dialog
+            showDeletePhotoDialog?.let { photo ->
+                AlertDialog(
+                    onDismissRequest = { showDeletePhotoDialog = null },
+                    title = { Text("Delete Photo") },
+                    text = { Text("Delete this photo? This cannot be undone.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            viewModel.deletePhoto(photo)
+                            showDeletePhotoDialog = null
+                        }) { Text("Delete", color = Color.Red) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeletePhotoDialog = null }) { Text("Cancel") }
+                    }
+                )
             }
 
             // Bottom Action Bar
@@ -670,6 +754,37 @@ private fun ProfileSegmentedPicker(
     }
 }
 
+private fun renderMarkdownAnnotated(text: String): AnnotatedString = buildAnnotatedString {
+    val lines = text.split("\n")
+    lines.forEachIndexed { lineIndex, line ->
+        if (lineIndex > 0) append("\n")
+        val headerMatch = Regex("^(#{1,6})\\s+(.*)").find(line)
+        if (headerMatch != null) {
+            val level = headerMatch.groupValues[1].length
+            val headerText = headerMatch.groupValues[2]
+            val size = when (level) { 1 -> 1.4f; 2 -> 1.25f; 3 -> 1.1f; else -> 1.0f }
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, fontSize = (18 * size).sp)) {
+                append(headerText)
+            }
+        } else {
+            var remaining = line
+            while (remaining.isNotEmpty()) {
+                val boldMatch = Regex("\\*\\*(.+?)\\*\\*").find(remaining)
+                val italicMatch = Regex("(?<!\\*)\\*(?!\\*)(.+?)(?<!\\*)\\*(?!\\*)").find(remaining)
+                val first = listOfNotNull(boldMatch, italicMatch).minByOrNull { it.range.first }
+                if (first == null) { append(remaining); break }
+                append(remaining.substring(0, first.range.first))
+                if (first == boldMatch) {
+                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(first.groupValues[1]) }
+                } else {
+                    withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(first.groupValues[1]) }
+                }
+                remaining = remaining.substring(first.range.last + 1)
+            }
+        }
+    }
+}
+
 @Composable
 private fun WriteBlockItem(
     write: WriteBlock,
@@ -677,6 +792,7 @@ private fun WriteBlockItem(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val isMarkdown = write.content_format == "markdown"
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -691,10 +807,17 @@ private fun WriteBlockItem(
             Spacer(modifier = Modifier.height(4.dp))
         }
 
-        Text(
-            text = write.content,
-            fontSize = 18.sp
-        )
+        if (isMarkdown) {
+            Text(
+                text = renderMarkdownAnnotated(write.content),
+                fontSize = 18.sp
+            )
+        } else {
+            Text(
+                text = write.content,
+                fontSize = 18.sp
+            )
+        }
 
         if (isCurrentUser) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -782,6 +905,48 @@ private fun WriteEditor(
                 Text(if (isEditing) "Update" else "Save")
             }
         }
+    }
+}
+
+@Composable
+private fun UserPhotoItem(
+    photo: UserPhoto,
+    index: Int,
+    total: Int,
+    isCurrentUser: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+        AsyncImage(
+            model = if (photo.url.startsWith("http")) photo.url
+                    else "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/${photo.url}",
+            contentDescription = photo.caption ?: "Photo",
+            contentScale = ContentScale.FillWidth,
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
+        )
+        if (!photo.caption.isNullOrBlank()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(photo.caption, fontSize = 14.sp, color = Color.Gray)
+        }
+        if (isCurrentUser) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row {
+                    if (index > 0) {
+                        TextButton(onClick = onMoveUp) { Text("↑", fontSize = 18.sp) }
+                    }
+                    if (index < total - 1) {
+                        TextButton(onClick = onMoveDown) { Text("↓", fontSize = 18.sp) }
+                    }
+                }
+                TextButton(onClick = onDelete) { Text("Delete", color = Color.Red) }
+            }
+        }
+        HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
     }
 }
 

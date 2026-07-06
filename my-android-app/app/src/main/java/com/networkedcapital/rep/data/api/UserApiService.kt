@@ -32,4 +32,12 @@ interface UserApiService {
     suspend fun updateDeviceToken(
         @Body params: Map<String, String>
     ): Response<Unit>
+
+    // Matches web: POST /api/user/edit with {password: newPassword}
+    @POST("api/user/edit")
+    suspend fun changePassword(
+        @Body request: ChangePasswordRequest
+    ): Response<Unit>
 }
+
+data class ChangePasswordRequest(val password: String)

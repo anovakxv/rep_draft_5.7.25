@@ -240,6 +240,7 @@ fun MainSegmentedPicker(
 @Composable
 fun MainActionSheet(
     showOnlySafePortals: Boolean,
+    showSafeFilter: Boolean = true,
     onToggleSafe: () -> Unit,
     onAddPurpose: () -> Unit,
     onTeamChat: () -> Unit,
@@ -257,77 +258,79 @@ fun MainActionSheet(
                 .padding(vertical = 16.dp, horizontal = 24.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Show option (Safe/All) - centered like other action sheet items
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    "Show:",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-
-                // All button
+            // Show option (Safe/All) — only relevant when browsing portals
+            if (showSafeFilter) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { if (showOnlySafePortals) onToggleSafe() }
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .border(2.dp, Color.Gray, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (!showOnlySafePortals) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.Blue,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "All",
+                        "Show:",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (!showOnlySafePortals) FontWeight.Bold else FontWeight.Normal,
                         color = Color.Gray
                     )
-                }
+                    Spacer(modifier = Modifier.width(16.dp))
 
-                Spacer(modifier = Modifier.width(16.dp))
-
-                // Safe button
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.clickable { if (!showOnlySafePortals) onToggleSafe() }
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .border(2.dp, Color.Gray, CircleShape),
-                        contentAlignment = Alignment.Center
+                    // All button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { if (showOnlySafePortals) onToggleSafe() }
                     ) {
-                        if (showOnlySafePortals) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Color.Blue,
-                                modifier = Modifier.size(14.dp)
-                            )
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .border(2.dp, Color.Gray, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (!showOnlySafePortals) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.Blue,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "All",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (!showOnlySafePortals) FontWeight.Bold else FontWeight.Normal,
+                            color = Color.Gray
+                        )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Safe",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = if (showOnlySafePortals) FontWeight.Bold else FontWeight.Normal,
-                        color = Color.Gray
-                    )
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    // Safe button
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable { if (!showOnlySafePortals) onToggleSafe() }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .border(2.dp, Color.Gray, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (showOnlySafePortals) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = Color.Blue,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Safe",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = if (showOnlySafePortals) FontWeight.Bold else FontWeight.Normal,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
             
@@ -705,6 +708,7 @@ fun MainScreen(
     if (showActionSheet) {
         MainActionSheet(
             showOnlySafePortals = uiState.showOnlySafePortals,
+            showSafeFilter = uiState.currentPage == MainViewModel.MainPage.PORTALS,
             onToggleSafe = {
                 val userId = uiState.currentUser?.id ?: 0
                 viewModel.toggleSafePortals(userId)

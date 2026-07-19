@@ -251,10 +251,10 @@ def get_portal_payment_status():
             stripe_account = stripe.Account.retrieve(portal.stripe_account_id)
             
             # An account is FULLY setup if BOTH details_submitted AND charges_enabled are true
-            account_status = stripe_account.get('details_submitted', False) and stripe_account.get('charges_enabled', False)
-            
+            account_status = getattr(stripe_account, 'details_submitted', False) and getattr(stripe_account, 'charges_enabled', False)
+
             # Log for debugging
-            print(f"[Payment Status] Portal {portal_id}: details_submitted={stripe_account.get('details_submitted', False)}, charges_enabled={stripe_account.get('charges_enabled', False)}")
+            print(f"[Payment Status] Portal {portal_id}: details_submitted={getattr(stripe_account, 'details_submitted', False)}, charges_enabled={getattr(stripe_account, 'charges_enabled', False)}")
             
         except Exception as e:
             # On error, fall back to database value
@@ -283,8 +283,8 @@ def stripe_webhook():
             account = event['data']['object']
             portal = db.session.query(Portal).filter_by(stripe_account_id=account['id']).first()
             if portal:
-                portal.stripe_account_status = account.get('details_submitted', False) and account.get('charges_enabled', False)
-                print(f"[Webhook] Updated portal {portal.id} account status: details_submitted={account.get('details_submitted', False)}, charges_enabled={account.get('charges_enabled', False)}")
+                portal.stripe_account_status = getattr(account, 'details_submitted', False) and getattr(account, 'charges_enabled', False)
+                print(f"[Webhook] Updated portal {portal.id} account status: details_submitted={getattr(account, 'details_submitted', False)}, charges_enabled={getattr(account, 'charges_enabled', False)}")
                 db.session.commit()
 
         elif event['type'] == 'payment_intent.succeeded':
@@ -337,8 +337,6 @@ def stripe_webhook():
                                 print(f"[Webhook] Retrieved metadata from subscription: goal_id={goal_id}, user_id={user_id}, portal_id={portal_id}")
                         except Exception as e:
                             print(f"[Webhook] Error retrieving subscription data: {str(e)}")
-                            import traceback
-                            traceback.print_exc()
                     # Validate metadata: portal_id required, user_id required unless is_public
                     if not portal_id:
                         print(f"[Webhook] Missing portal_id: {portal_id}")
@@ -362,9 +360,7 @@ def stripe_webhook():
                     db.session.commit()
                     print(f"[Webhook] Created transaction {transaction.id}")
                 except Exception as e:
-                    import traceback
                     print(f"[Webhook] Error creating transaction: {str(e)}")
-                    print(f"[Webhook] Traceback: {traceback.format_exc()}")
                     db.session.rollback()
                     return jsonify({'error': str(e)}), 500
             if transaction.goal_id and transaction.transaction_type in ['donation', 'payment', 'subscription']:

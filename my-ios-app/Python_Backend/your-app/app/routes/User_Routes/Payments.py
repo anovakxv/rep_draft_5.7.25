@@ -310,14 +310,15 @@ def stripe_webhook():
                 transaction = existing_transaction
             else:
                 try:
-                    # dict() conversion needed: Stripe SDK v5+ returns metadata as StripeObject (no .get())
-                    _meta = dict(payment_intent['metadata'] or {})
-                    goal_id = _meta.get('goal_id')
-                    user_id = _meta.get('user_id')
-                    portal_id = _meta.get('portal_id')
-                    message = _meta.get('message', '')
-                    transaction_type = _meta.get('transaction_type', 'donation')
-                    is_public = _meta.get('is_public') == 'true'  # Guest payment flag
+                    # StripeObject metadata: use .get() if plain dict, bracket+in if StripeObject (new SDK)
+                    _meta = payment_intent.metadata or {}
+                    _mget = _meta.get if hasattr(_meta, 'get') else lambda k, d=None: _meta[k] if k in _meta else d
+                    goal_id = _mget('goal_id')
+                    user_id = _mget('user_id')
+                    portal_id = _mget('portal_id')
+                    message = _mget('message', '')
+                    transaction_type = _mget('transaction_type', 'donation')
+                    is_public = _mget('is_public') == 'true'  # Guest payment flag
                     if (not goal_id or not user_id or not portal_id) and getattr(payment_intent, 'invoice', None):
                         print(f"[Webhook] This appears to be a subscription payment, retrieving invoice: {payment_intent['invoice']}")
                         try:
@@ -326,11 +327,12 @@ def stripe_webhook():
                             if subscription_id:
                                 print(f"[Webhook] Found subscription: {subscription_id}")
                                 subscription = stripe.Subscription.retrieve(subscription_id)
-                                _sub_meta = dict(subscription.metadata or {})
-                                goal_id = _sub_meta.get('goal_id')
-                                user_id = _sub_meta.get('user_id')
-                                portal_id = _sub_meta.get('portal_id')
-                                message = _sub_meta.get('message', 'Monthly subscription payment')
+                                _sub_meta = subscription.metadata or {}
+                                _smget = _sub_meta.get if hasattr(_sub_meta, 'get') else lambda k, d=None: _sub_meta[k] if k in _sub_meta else d
+                                goal_id = _smget('goal_id')
+                                user_id = _smget('user_id')
+                                portal_id = _smget('portal_id')
+                                message = _smget('message', 'Monthly subscription payment')
                                 transaction_type = 'subscription'
                                 print(f"[Webhook] Retrieved metadata from subscription: goal_id={goal_id}, user_id={user_id}, portal_id={portal_id}")
                         except Exception as e:
@@ -413,10 +415,11 @@ def stripe_webhook():
                             break
 
                     if subscription:
-                        _sub_meta2 = dict(subscription.metadata or {})
-                        goal_id = _sub_meta2.get('goal_id')
-                        user_id = _sub_meta2.get('user_id')
-                        portal_id = _sub_meta2.get('portal_id')
+                        _sub_meta2 = subscription.metadata or {}
+                        _s2get = _sub_meta2.get if hasattr(_sub_meta2, 'get') else lambda k, d=None: _sub_meta2[k] if k in _sub_meta2 else d
+                        goal_id = _s2get('goal_id')
+                        user_id = _s2get('user_id')
+                        portal_id = _s2get('portal_id')
                         payment_intent_id = getattr(invoice, 'payment_intent', None)
 
                         # CRITICAL FIX: Make payment_intent_id unique for each recurring payment
@@ -531,9 +534,10 @@ def get_subscriptions():
         )
         results = []
         for sub in subscriptions.data:
-            _s_meta = dict(sub.metadata or {})
-            portal_id = _s_meta.get('portal_id')
-            goal_id = _s_meta.get('goal_id')
+            _s_meta = sub.metadata or {}
+            _sgmet = _s_meta.get if hasattr(_s_meta, 'get') else lambda k, d=None: _s_meta[k] if k in _s_meta else d
+            portal_id = _sgmet('portal_id')
+            goal_id = _sgmet('goal_id')
             display_name = "Rep Subscription"
             if goal_id:
                 goal = db.session.query(Goal).filter_by(id=goal_id).first()
@@ -575,10 +579,11 @@ def get_payment_history():
         for pi in payment_intents.data:
             if pi.status != 'succeeded':
                 continue
-            _pi_meta = dict(pi.metadata or {})
-            portal_id = _pi_meta.get('portal_id')
-            goal_id = _pi_meta.get('goal_id')
-            transaction_type = _pi_meta.get('transaction_type', 'Payment')
+            _pi_meta = pi.metadata or {}
+            _pmget = _pi_meta.get if hasattr(_pi_meta, 'get') else lambda k, d=None: _pi_meta[k] if k in _pi_meta else d
+            portal_id = _pmget('portal_id')
+            goal_id = _pmget('goal_id')
+            transaction_type = _pmget('transaction_type', 'Payment')
             display_name = f"{transaction_type.capitalize()}"
             if goal_id:
                 goal = db.session.query(Goal).filter_by(id=goal_id).first()

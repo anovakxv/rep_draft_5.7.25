@@ -187,23 +187,13 @@ def create_public_checkout_session():
         # Create Stripe Checkout Session
         checkout_session = stripe.checkout.Session.create(**session_params)
 
-        # Pre-record transaction as pending (will be updated by webhook on success)
-        # Note: user_id is NULL for public transactions
-        transaction = Transaction(
-            user_id=None,  # No user_id for public transactions
-            portal_id=portal_id,
-            goal_id=goal_id if goal_id else None,
-            amount=amount,
-            currency=currency,
-            transaction_type=transaction_type,
-            message=message,
-            stripe_payment_intent_id=checkout_session.id,  # Store session_id temporarily
-            status='pending',
-            created_at=datetime.utcnow()
-        )
-        db.session.add(transaction)
-        db.session.commit()
-
+        # NOTE: We intentionally do NOT pre-create a pending Transaction here.
+        # The Stripe webhook (payment_intent.succeeded) is the single source of truth and
+        # creates the completed Transaction keyed on the payment_intent id (pi_...). Previously
+        # this pre-created a row keyed on the checkout-session id (cs_...); the webhook never
+        # reconciled the two ids, so every guest donation left an orphaned 'pending' row.
+        # This now mirrors the authenticated /api/create_checkout_session flow, which also
+        # relies solely on the webhook to record the transaction.
         return jsonify({
             'checkout_url': checkout_session.url,
             'session_id': checkout_session.id

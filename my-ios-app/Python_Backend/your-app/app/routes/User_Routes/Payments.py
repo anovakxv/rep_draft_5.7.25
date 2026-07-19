@@ -305,8 +305,10 @@ def stripe_webhook():
                 if existing_transaction.status == 'completed':
                     print(f"[Webhook] Transaction {existing_transaction.id} already processed")
                     return jsonify({'status': 'success'})
+                # Mark completed but defer the commit — the status change and the goal-progress
+                # update below are now committed together (atomic), so a webhook retry can never
+                # leave a completed transaction without its GoalProgressLog.
                 existing_transaction.status = 'completed'
-                db.session.commit()
                 transaction = existing_transaction
             else:
                 try:
@@ -357,14 +359,19 @@ def stripe_webhook():
                         created_at=datetime.fromtimestamp(payment_intent['created'])
                     )
                     db.session.add(transaction)
-                    db.session.commit()
-                    print(f"[Webhook] Created transaction {transaction.id}")
+                    # Defer commit to the shared atomic commit below (transaction + goal progress),
+                    # so a completed transaction and its GoalProgressLog are always written together.
                 except Exception as e:
                     print(f"[Webhook] Error creating transaction: {str(e)}")
                     db.session.rollback()
                     return jsonify({'error': str(e)}), 500
-            if transaction.goal_id and transaction.transaction_type in ['donation', 'payment', 'subscription']:
-                try:
+            # Persist the transaction and (if applicable) its goal-progress update in a single
+            # atomic commit. This guarantees a completed transaction always has its GoalProgressLog,
+            # even if Stripe retries the webhook — the retry short-circuits on the already-completed
+            # transaction above and never double-applies progress. On a successful donation the
+            # resulting rows are identical to the previous two-commit version.
+            try:
+                if transaction.goal_id and transaction.transaction_type in ['donation', 'payment', 'subscription']:
                     goal = db.session.query(Goal).filter_by(id=transaction.goal_id).first()
                     if goal and goal.goal_type in ['Fund', 'Sales', 'Donations']:
                         amount_in_units = transaction.amount / 100
@@ -377,12 +384,13 @@ def stripe_webhook():
                         )
                         db.session.add(progress_log)
                         goal.filled_quota = (goal.filled_quota or 0) + amount_in_units
-                        db.session.commit()
-                        print(f"[Webhook] Updated goal {goal.id} progress: +{amount_in_units} units")
-                except Exception as e:
-                    print(f"[Webhook] Error updating goal progress: {str(e)}")
-                    db.session.rollback()
-                    return jsonify({'error': str(e)}), 500
+                        print(f"[Webhook] Applying goal {goal.id} progress: +{amount_in_units} units")
+                db.session.commit()
+                print(f"[Webhook] Committed transaction {transaction.id}")
+            except Exception as e:
+                print(f"[Webhook] Error committing transaction/goal progress: {str(e)}")
+                db.session.rollback()
+                return jsonify({'error': str(e)}), 500
 
         elif event['type'] == 'invoice.payment_succeeded':
             invoice = event['data']['object']

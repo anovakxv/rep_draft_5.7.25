@@ -363,7 +363,7 @@ const startPayment = async () => {
 
     const body: any = {
       portal_id: props.portalId,
-      amount: parseFloat(amount.value) * 100, // Convert to cents
+      amount: Math.round(parseFloat(amount.value) * 100), // Convert to cents (round to avoid float artifacts like 1009.9999)
       currency: 'usd',
       transaction_type: transactionType.key,
       success_url: successUrl,

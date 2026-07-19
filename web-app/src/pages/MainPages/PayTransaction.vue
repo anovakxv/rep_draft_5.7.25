@@ -416,8 +416,9 @@ const startPayment = async () => {
     if (json.checkout_url) {
       if (json.session_id) {
         localStorage.setItem('lastCheckoutSessionId', json.session_id);
-        // Store goal ID for refreshing after payment
         if (props.goalId) localStorage.setItem('lastPaymentGoalId', props.goalId.toString());
+        // Save current page so StripePaymentReturn can redirect back here
+        localStorage.setItem('lastPaymentReturnUrl', window.location.pathname);
       }
       // Redirect to Stripe checkout in same window (works on mobile unlike window.open)
       window.location.href = json.checkout_url;

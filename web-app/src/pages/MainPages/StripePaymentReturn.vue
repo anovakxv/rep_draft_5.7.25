@@ -57,13 +57,15 @@ const status = ref<'success' | 'canceled'>('canceled');
 const showButton = ref(false);
 
 function redirectBack() {
-  const goalId = localStorage.getItem('lastPaymentGoalId');
-  if (goalId) {
-    // Clean up and return to the goal page
-    localStorage.removeItem('lastPaymentGoalId');
-    router.push(`/goal/${goalId}`);
+  // Prefer the originating page (portal, goal, etc.) saved before Stripe redirect
+  const returnUrl = localStorage.getItem('lastPaymentReturnUrl');
+  localStorage.removeItem('lastPaymentReturnUrl');
+  localStorage.removeItem('lastPaymentGoalId');
+  localStorage.removeItem('lastCheckoutSessionId');
+
+  if (returnUrl) {
+    router.push(returnUrl);
   } else {
-    // Return to main screen if no goal context
     router.push('/main');
   }
 }
@@ -79,14 +81,17 @@ onMounted(() => {
   }
   channel.close();
 
-  // Try auto-redirect first
+  // On success: wait 3s before redirecting — gives the Stripe webhook time to update
+  // goal progress on the backend before the portal/goal page re-fetches on mount.
+  // On cancel: redirect immediately.
+  const delay = status.value === 'success' ? 3000 : 1500;
   setTimeout(() => {
     redirectBack();
-  }, 1500);
+  }, delay);
 
   // Show manual button as fallback if auto-redirect doesn't work
   setTimeout(() => {
     showButton.value = true;
-  }, 2000);
+  }, delay + 1000);
 });
 </script>

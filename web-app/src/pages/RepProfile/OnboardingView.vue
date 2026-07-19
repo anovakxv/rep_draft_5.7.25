@@ -11,7 +11,7 @@
     <!-- Step indicators -->
     <div class="flex justify-center py-4">
       <div class="flex space-x-2">
-        <div class="w-3 h-3 rounded-full" :class="step === 0 ? '' : 'bg-gray-300'" :style="step === 0 ? 'background-color: #8cc65d;' : ''"></div>
+        <div v-if="!isEventRegistration" class="w-3 h-3 rounded-full" :class="step === 0 ? '' : 'bg-gray-300'" :style="step === 0 ? 'background-color: #8cc65d;' : ''"></div>
         <div class="w-3 h-3 rounded-full" :class="step === 1 ? '' : 'bg-gray-300'" :style="step === 1 ? 'background-color: #8cc65d;' : ''"></div>
         <div v-if="!isEventRegistration" class="w-3 h-3 rounded-full" :class="step === 2 ? '' : 'bg-gray-300'" :style="step === 2 ? 'background-color: #8cc65d;' : ''"></div>
       </div>
@@ -153,6 +153,8 @@ onMounted(() => {
     step.value = 2 // Go directly to walkthrough
   } else if (hasCompletedProfile) {
     step.value = 1 // Go to terms
+  } else if (isEventRegistration.value) {
+    step.value = 1 // Skip profile for event registration, go straight to Terms
   }
   // Otherwise start at profile (step 0)
 })

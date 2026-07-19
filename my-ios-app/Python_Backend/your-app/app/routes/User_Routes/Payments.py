@@ -292,8 +292,10 @@ def stripe_webhook():
             print(f"[Webhook] Payment succeeded: {payment_intent['id']}")
 
             # Skip processing for invoice payments - let the invoice handler handle subscriptions
-            if payment_intent.get('invoice'):
-                print(f"[Webhook] Payment intent is for an invoice ({payment_intent.get('invoice')}). Skipping to avoid duplicate processing.")
+            # Note: use getattr() not .get() — Stripe SDK v5 StripeObject no longer inherits dict
+            _invoice_id = getattr(payment_intent, 'invoice', None)
+            if _invoice_id:
+                print(f"[Webhook] Payment intent is for an invoice ({_invoice_id}). Skipping to avoid duplicate processing.")
                 return jsonify({'status': 'success - handled by invoice webhook'})
 
             existing_transaction = db.session.query(Transaction).filter_by(
@@ -318,7 +320,7 @@ def stripe_webhook():
                         print(f"[Webhook] This appears to be a subscription payment, retrieving invoice: {payment_intent['invoice']}")
                         try:
                             invoice = stripe.Invoice.retrieve(payment_intent['invoice'])
-                            subscription_id = invoice.get('subscription')
+                            subscription_id = getattr(invoice, 'subscription', None)
                             if subscription_id:
                                 print(f"[Webhook] Found subscription: {subscription_id}")
                                 subscription = stripe.Subscription.retrieve(subscription_id)
@@ -384,7 +386,8 @@ def stripe_webhook():
             print(f"[Webhook] Invoice payment succeeded: {invoice.id}")
             try:
                 # DIRECT APPROACH: Get customer_id and find their active subscriptions
-                customer_id = invoice.get('customer')
+                # Note: use getattr() not .get() — Stripe SDK v5 StripeObject no longer inherits dict
+                customer_id = getattr(invoice, 'customer', None)
                 if customer_id:
                     print(f"[Webhook] Looking up subscriptions for customer: {customer_id}")
                     subscriptions = stripe.Subscription.list(
@@ -408,7 +411,7 @@ def stripe_webhook():
                         goal_id = subscription.metadata.get('goal_id')
                         user_id = subscription.metadata.get('user_id')
                         portal_id = subscription.metadata.get('portal_id')
-                        payment_intent_id = invoice.get('payment_intent')
+                        payment_intent_id = getattr(invoice, 'payment_intent', None)
 
                         # CRITICAL FIX: Make payment_intent_id unique for each recurring payment
                         # by adding timestamp to avoid unique constraint violation
@@ -427,20 +430,20 @@ def stripe_webhook():
                                     user_id=user_id,
                                     portal_id=portal_id,
                                     goal_id=goal_id if goal_id else None,
-                                    amount=invoice.get('amount_paid'),
-                                    currency=invoice.get('currency'),
+                                    amount=getattr(invoice, 'amount_paid', 0),
+                                    currency=getattr(invoice, 'currency', 'usd'),
                                     transaction_type='subscription',
                                     message="Monthly subscription payment",
-                                    stripe_payment_intent_id=invoice.id, 
+                                    stripe_payment_intent_id=invoice.id,
                                     status='completed',
-                                    created_at=datetime.fromtimestamp(invoice.get('created'))
+                                    created_at=datetime.fromtimestamp(getattr(invoice, 'created', 0))
                                 )
                                 db.session.add(transaction)
 
                                 if goal_id:
                                     goal = db.session.query(Goal).filter_by(id=goal_id).first()
                                     if goal and goal.goal_type in ['Fund', 'Sales', 'Donations']:
-                                        amount_in_units = invoice.get('amount_paid') / 100
+                                        amount_in_units = getattr(invoice, 'amount_paid', 0) / 100
                                         progress_log = GoalProgressLog(
                                             users_id=user_id,
                                             goals_id=goal_id,

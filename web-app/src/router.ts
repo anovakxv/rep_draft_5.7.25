@@ -23,6 +23,7 @@ import GoalsDetailView from './pages/GoalPages/GoalsDetailView.vue'
 import EditGoal from './pages/GoalPages/EditGoal.vue'
 import StripePaymentReturn from './pages/MainPages/StripePaymentReturn.vue'
 import StripeConnectReturn from './pages/MainPages/StripeConnectReturn.vue'
+import Portal93Page from './pages/CustomPortals/Portal93Page.vue'
 
 const routes = [
   // Authentication routes
@@ -38,6 +39,7 @@ const routes = [
   // Main app routes
   // PUBLIC ROUTES (accessible without login)
   { path: '/main', component: MainScreen }, // Public - MainScreen All tab
+  { path: '/portal/93', component: Portal93Page }, // Custom: high school reunion event portal
   { path: '/portal/:id', component: PortalPage }, // Public - Portal details
   { path: '/goal/:id', component: GoalsDetailView }, // Public - Goal details
 

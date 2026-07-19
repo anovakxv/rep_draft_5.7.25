@@ -452,7 +452,7 @@ const updateOrientation = () => {
 // --- Composables & Initial Setup ---
 const route = useRoute();
 const router = useRouter();
-const portalId = Number(route.params.id);
+const portalId = 93;
 const userId = Number(localStorage.getItem('userId') || '0');
 
 // --- State ---

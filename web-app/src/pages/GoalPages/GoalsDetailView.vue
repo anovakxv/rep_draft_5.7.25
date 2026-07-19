@@ -866,7 +866,7 @@ const loadGoalDetails = async () => {
       // Show only the individual transaction value, not the cumulative (EXACTLY matching Swift)
       const transactionValue = log.added_value || 0;
       let valueString: string;
-      if (goal.value?.typeName === "Fund" || goal.value?.typeName === "Sales") {
+      if (goal.value?.typeName === "Fund" || goal.value?.typeName === "Sales" || goal.value?.typeName === "Donations") {
         valueString = `Value: $${Math.round(transactionValue)}`;
       } else {
         valueString = `Value: ${Math.round(transactionValue)}`;

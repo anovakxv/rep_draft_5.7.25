@@ -360,7 +360,9 @@ def stripe_webhook():
                     db.session.commit()
                     print(f"[Webhook] Created transaction {transaction.id}")
                 except Exception as e:
+                    import traceback
                     print(f"[Webhook] Error creating transaction: {str(e)}")
+                    print(f"[Webhook] Traceback: {traceback.format_exc()}")
                     db.session.rollback()
                     return jsonify({'error': str(e)}), 500
             if transaction.goal_id and transaction.transaction_type in ['donation', 'payment', 'subscription']:

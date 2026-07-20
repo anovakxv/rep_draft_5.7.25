@@ -686,6 +686,7 @@ import api from '@/pages/utils/api';
 import { isAuthenticated } from '@/utils/auth';
 import { useSocketManager } from '../utils/useSocketManager';
 import REPLogo from '@/assets/REPLogo.png';
+import { HIDDEN_ALL_TAB_PORTAL_IDS } from '@/constants/hiddenPortals';
 
 // --- Types (minimal — just what this component needs) ---
 interface User {
@@ -805,10 +806,18 @@ const desktopFilteredNetworkUsers = computed(() => {
 const desktopPortals = ref<Portal[]>([]);
 
 const desktopFilteredPortals = computed(() => {
-  if (!searchText.value.trim()) return desktopPortals.value;
-  return desktopPortals.value.filter(p =>
-    p.name.toLowerCase().includes(searchText.value.toLowerCase())
-  );
+  let list = desktopPortals.value;
+  if (searchText.value.trim()) {
+    list = list.filter(p =>
+      p.name.toLowerCase().includes(searchText.value.toLowerCase())
+    );
+  }
+  // Hide designated portals from the public ALL tab (tab 2) only.
+  // Still reachable via direct link, the Network tab, and the portal page.
+  if (desktopRightTab.value === 2) {
+    list = list.filter(p => !HIDDEN_ALL_TAB_PORTAL_IDS.includes(p.id));
+  }
+  return list;
 });
 
 // 0 = My portals (open), 1 = Network portals (ntwk), 2 = All portals (all)

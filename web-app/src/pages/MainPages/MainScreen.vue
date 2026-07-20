@@ -267,6 +267,7 @@ import REPLogo from '@/assets/REPLogo.png';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
 import ErrorState from '@/components/ErrorState.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import { HIDDEN_ALL_TAB_PORTAL_IDS } from '@/constants/hiddenPortals';
 
 // Simple debounce utility
 function debounce<T extends (...args: any[]) => any>(fn: T, delay: number): (...args: Parameters<T>) => void {
@@ -726,15 +727,22 @@ const initialUnreadPollScheduled = ref(false);
 
 // --- Computed Filters ---
 const filteredPortals = computed(() => {
+  let list: Portal[];
   if (showSearch.value && searchText.value.trim()) {
-    return searchResultsPortals.value;
-  }
-  if (searchText.value.trim()) {
-    return portals.value.filter(portal => 
+    list = searchResultsPortals.value;
+  } else if (searchText.value.trim()) {
+    list = portals.value.filter(portal =>
       portal.name.toLowerCase().includes(searchText.value.toLowerCase())
     );
+  } else {
+    list = portals.value;
   }
-  return portals.value;
+  // Hide designated portals from the public ALL tab (section 2) only.
+  // Still reachable via direct link, the Network tab, and the portal page.
+  if (section.value === 2) {
+    list = list.filter(portal => !HIDDEN_ALL_TAB_PORTAL_IDS.includes(portal.id));
+  }
+  return list;
 });
 
 const filteredUsers = computed(() => {

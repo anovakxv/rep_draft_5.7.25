@@ -11,9 +11,9 @@
     <!-- Step indicators -->
     <div class="flex justify-center py-4">
       <div class="flex space-x-2">
-        <div v-if="!isEventRegistration" class="w-3 h-3 rounded-full" :class="step === 0 ? '' : 'bg-gray-300'" :style="step === 0 ? 'background-color: #8cc65d;' : ''"></div>
+        <div v-if="!fastOnboarding" class="w-3 h-3 rounded-full" :class="step === 0 ? '' : 'bg-gray-300'" :style="step === 0 ? 'background-color: #8cc65d;' : ''"></div>
         <div class="w-3 h-3 rounded-full" :class="step === 1 ? '' : 'bg-gray-300'" :style="step === 1 ? 'background-color: #8cc65d;' : ''"></div>
-        <div v-if="!isEventRegistration" class="w-3 h-3 rounded-full" :class="step === 2 ? '' : 'bg-gray-300'" :style="step === 2 ? 'background-color: #8cc65d;' : ''"></div>
+        <div v-if="!fastOnboarding" class="w-3 h-3 rounded-full" :class="step === 2 ? '' : 'bg-gray-300'" :style="step === 2 ? 'background-color: #8cc65d;' : ''"></div>
       </div>
     </div>
 
@@ -90,6 +90,10 @@ const safeReturnPath = (url: string | null | undefined): string => {
 }
 const step = ref(0)
 const isEventRegistration = ref(false)
+// Fast onboarding = skip the profile step and walkthrough, going straight to
+// Terms of Use, then back to the origin page. Used for low-friction event
+// registration (rsvpIntent) and Portal 93 donations (donateIntent).
+const fastOnboarding = ref(false)
 
 // Terms of use content (could be moved to a separate file or fetched from API)
 const termsText = `
@@ -146,6 +150,10 @@ onMounted(() => {
     }
   }
 
+  // Portal 93 donation flow also uses the fast (skip profile + walkthrough) path.
+  const hasDonateIntent = !!localStorage.getItem('donateIntent')
+  fastOnboarding.value = isEventRegistration.value || hasDonateIntent
+
   const hasCompletedProfile = localStorage.getItem('profileComplete') === 'true'
   const hasAcceptedTerms = localStorage.getItem('acceptedTermsOfUse') === 'true'
 
@@ -153,8 +161,8 @@ onMounted(() => {
     step.value = 2 // Go directly to walkthrough
   } else if (hasCompletedProfile) {
     step.value = 1 // Go to terms
-  } else if (isEventRegistration.value) {
-    step.value = 1 // Skip profile for event registration, go straight to Terms
+  } else if (fastOnboarding.value) {
+    step.value = 1 // Skip profile for fast flow, go straight to Terms
   }
   // Otherwise start at profile (step 0)
 })
@@ -169,19 +177,11 @@ function onProfileSaved() {
 function onTermsAccepted() {
   localStorage.setItem('acceptedTermsOfUse', 'true')
 
-  // Check if this is an event registration - if so, skip walkthrough
-  const rsvpIntentStr = localStorage.getItem('rsvpIntent')
-  if (rsvpIntentStr) {
-    try {
-      const rsvpIntent = JSON.parse(rsvpIntentStr)
-      if (rsvpIntent.isEventRegistration) {
-        // Skip walkthrough and complete onboarding immediately
-        completeOnboarding()
-        return
-      }
-    } catch (err) {
-      console.error('Failed to parse rsvpIntent:', err)
-    }
+  // Fast flow (event registration or Portal 93 donation): skip walkthrough and
+  // complete onboarding immediately so the user returns straight to the action.
+  if (fastOnboarding.value) {
+    completeOnboarding()
+    return
   }
 
   // Normal flow - go to walkthrough

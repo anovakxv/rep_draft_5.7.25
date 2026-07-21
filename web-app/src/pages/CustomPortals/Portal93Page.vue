@@ -681,9 +681,25 @@ const openMessageSheet = () => {
 
 const openPaymentSheet = () => {
   activeSheet.value = null;
-  if (supportGoal.value) {
-    showPaymentSheet.value = true;
+  if (!supportGoal.value) return;
+
+  // Portal 93 is a private class-reunion portal: require registration + terms
+  // acceptance before an unauthenticated visitor can donate. Mirrors handleRSVP:
+  // stash the intent, send them through register → terms (fast flow), then return
+  // here where onMounted re-opens the payment sheet automatically.
+  if (!isAuthenticated()) {
+    localStorage.setItem('donateIntent', JSON.stringify({
+      portalId: portalId,
+      goalId: supportGoal.value.id
+    }));
+    router.push({
+      path: '/register',
+      query: { returnTo: `/portal/${portalId}` }
+    });
+    return;
   }
+
+  showPaymentSheet.value = true;
 };
 
 const navigateToEdit = () => {
@@ -753,6 +769,21 @@ onMounted(async () => {
       if (err instanceof SyntaxError) {
         localStorage.removeItem('rsvpIntent');
       }
+    }
+  }
+
+  // Donate intent: visitor clicked Donate while unauthenticated, registered +
+  // accepted terms, and was routed back here. Re-open the payment sheet.
+  const donateIntentStr = localStorage.getItem('donateIntent');
+  if (donateIntentStr && isAuthenticated()) {
+    localStorage.removeItem('donateIntent');
+    try {
+      const donateIntent = JSON.parse(donateIntentStr);
+      if (donateIntent.portalId === portalId && supportGoal.value) {
+        showPaymentSheet.value = true;
+      }
+    } catch (err) {
+      console.error('Failed to process donate intent:', err);
     }
   }
 

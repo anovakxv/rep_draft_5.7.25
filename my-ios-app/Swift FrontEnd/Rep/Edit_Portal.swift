@@ -121,6 +121,10 @@ class EditPortalViewModel: ObservableObject {
     @Published var mainImageIndex: Int = 0
     @Published var portalDetail: PortalDetail? // Added to pass to subviews
 
+    // Drives the Save button's spinner / disabled state. Set true synchronously
+    // on the main thread when a save begins, reset to false when it completes.
+    @Published var isSaving: Bool = false
+
     // Portal type + event fields
     @Published var portalType: String = ""
     @Published var eventDatetime: Date = Date()
@@ -250,6 +254,11 @@ class EditPortalViewModel: ObservableObject {
         let isNew = portalId == 0
         let endpoint = isNew ? "/api/portal/" : "/api/portal/edit"
         guard let url = URL(string: "\(APIConfig.baseURL)\(endpoint)") else { return }
+
+        // Reflect the saving state immediately on the UI (this runs on the main
+        // thread since save() is invoked from the Save button action).
+        isSaving = true
+
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
@@ -306,24 +315,34 @@ class EditPortalViewModel: ObservableObject {
             }
         }
 
-        for (idx, image) in selectedImages.prefix(maxImages).enumerated() {
-            if let imageData = image.jpegData(compressionQuality: 0.85) {
-                body.append("--\(boundary)\r\n".data(using: .utf8)!)
-                body.append("Content-Disposition: form-data; name=\"images\"; filename=\"portal_image_\(idx).jpg\"\r\n".data(using: .utf8)!)
-                body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-                body.append(imageData)
-                body.append("\r\n".data(using: .utf8)!)
+        // Snapshot the images on the main thread so the background work can't
+        // race with further UI edits (this copies UIImage references, not pixels).
+        let imagesToUpload = Array(selectedImages.prefix(maxImages))
+
+        // Move the expensive JPEG compression + network upload off the main
+        // thread. Previously this ran inline on the main thread, freezing the UI
+        // for several seconds while large photos were re-encoded.
+        DispatchQueue.global(qos: .userInitiated).async {
+            for (idx, image) in imagesToUpload.enumerated() {
+                if let imageData = image.jpegData(compressionQuality: 0.85) {
+                    body.append("--\(boundary)\r\n".data(using: .utf8)!)
+                    body.append("Content-Disposition: form-data; name=\"images\"; filename=\"portal_image_\(idx).jpg\"\r\n".data(using: .utf8)!)
+                    body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+                    body.append(imageData)
+                    body.append("\r\n".data(using: .utf8)!)
+                }
             }
+
+            body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+            request.httpBody = body
+
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                DispatchQueue.main.async {
+                    self.isSaving = false
+                    completion()
+                }
+            }.resume()
         }
-
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        request.httpBody = body
-
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                completion()
-            }
-        }.resume()
     }
 }
 
@@ -836,13 +855,20 @@ struct EditPortalView: View {
                 Text("Edit Portal")
                     .font(.system(size: 20, weight: .bold))
                 Spacer()
-                Button("Save") {
+                Button(action: {
                     viewModel.save {
                         dismiss()
+                    }
+                }) {
+                    if viewModel.isSaving {
+                        ProgressView()
+                    } else {
+                        Text("Save")
                     }
                 }
                 .font(.system(size: 16, weight: .bold))
                 .foregroundColor(.green)
+                .disabled(viewModel.isSaving)
             }
             .frame(height: 60)
             .padding(.horizontal, 15)

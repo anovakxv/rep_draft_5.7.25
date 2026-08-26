@@ -166,8 +166,17 @@ def api_join_leave_goal():
                             text=f"{full_name} has joined the Team."
                         ))
 
-            # Collect for event registration email (checked after commit)
-            if _joined_ok and goal.goal_type == 'Recruiting' and goal.portals_id:
+            # Collect for event registration email (checked after commit).
+            # Only the "Attendees" goal represents actual event registration — a
+            # Supporters join (also a Recruiting goal) must NOT trigger the
+            # "You're Registered!" email. Match the frontend's title convention
+            # (typeName Recruiting + title contains "attendee").
+            if (
+                _joined_ok
+                and goal.goal_type == 'Recruiting'
+                and goal.portals_id
+                and 'attendee' in (goal.title or '').lower()
+            ):
                 event_reg_goals.append(goal)
 
         elif todo == 'leave':

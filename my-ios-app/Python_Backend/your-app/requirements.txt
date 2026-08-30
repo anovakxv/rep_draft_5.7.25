@@ -17,6 +17,6 @@ requests
 google-auth
 stripe
 flask-apscheduler
-bleach>=6.0.0
+bleach>=6.4.0
 Flask-Limiter
 bcrypt

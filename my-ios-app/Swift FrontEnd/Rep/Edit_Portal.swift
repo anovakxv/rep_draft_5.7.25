@@ -324,7 +324,11 @@ class EditPortalViewModel: ObservableObject {
         // for several seconds while large photos were re-encoded.
         DispatchQueue.global(qos: .userInitiated).async {
             for (idx, image) in imagesToUpload.enumerated() {
-                if let imageData = image.jpegData(compressionQuality: 0.85) {
+                // Downscale to a max long-edge of 1600px before encoding. Full-res
+                // (e.g. 12MP) photos produce multi-MB uploads that dominate save time
+                // on mobile; 1600px is plenty for portal display and cuts payloads
+                // to a few hundred KB.
+                if let imageData = image.downscaled(maxDimension: 1600).jpegData(compressionQuality: 0.85) {
                     body.append("--\(boundary)\r\n".data(using: .utf8)!)
                     body.append("Content-Disposition: form-data; name=\"images\"; filename=\"portal_image_\(idx).jpg\"\r\n".data(using: .utf8)!)
                     body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
@@ -342,6 +346,28 @@ class EditPortalViewModel: ObservableObject {
                     completion()
                 }
             }.resume()
+        }
+    }
+}
+
+// MARK: - Image Downscaling Helper
+
+extension UIImage {
+    /// Returns a copy scaled so its longest edge is at most `maxDimension` points,
+    /// preserving aspect ratio. Returns `self` unchanged if already within bounds.
+    /// Used to shrink large photos before upload so portal saves are fast.
+    func downscaled(maxDimension: CGFloat) -> UIImage {
+        let longestEdge = max(size.width, size.height)
+        guard longestEdge > maxDimension, longestEdge > 0 else { return self }
+
+        let scale = maxDimension / longestEdge
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1 // render at exact pixel size (avoid @2x/@3x multiplying dimensions)
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { _ in
+            self.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }

@@ -204,6 +204,50 @@ def api_portal_details():
 
     return jsonify({'result': portal_data})
 
+def _upload_portal_images_bg(app, portal_id, main_section_id, images_data):
+    """Background task: upload portal images to S3 and create their DB rows.
+
+    Runs in an eventlet green thread (via socketio.start_background_task), so it needs
+    its own Flask app context and DB session. It must NOT reuse the request's session
+    or ORM objects — only plain ints and raw bytes are passed in.
+
+    images_data: list of {'data': bytes, 'filename': str, 'mimetype': str}.
+    Best-effort: the client already received a 201, so failures are logged, not raised.
+    """
+    with app.app_context():
+        try:
+            for img in images_data:
+                try:
+                    unique_filename = f"{portal_id}_{uuid.uuid4().hex}_{secure_filename(img['filename'])}"
+                    s3.put_object(Body=img['data'], Bucket=S3_BUCKET, Key=unique_filename, ContentType=img['mimetype'])
+                    s3_url = f"{S3_BASE_URL}{unique_filename}"
+                    gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
+                    s3_content = S3Content(
+                        gr_hash=gr_hash,
+                        tbl_id=main_section_id,
+                        tbl_index=6,
+                        key=unique_filename,
+                        url=s3_url,
+                        file_type=img['mimetype'],
+                        file_size=None
+                    )
+                    db.session.add(s3_content)
+                    db.session.flush()
+                    link = PortalGraphicSectionS3Content(
+                        portals_graphic_sections_id=main_section_id,
+                        s3_gr_hash=gr_hash
+                    )
+                    db.session.add(link)
+                except Exception as e:
+                    print(f"[Portal image bg] image failed (portal={portal_id}, file={img.get('filename')}): {e}")
+            db.session.commit()
+            print(f"[Portal image bg] Completed: portal={portal_id}, section={main_section_id}, {len(images_data)} image(s)")
+        except Exception as e:
+            db.session.rollback()
+            print(f"[Portal image bg] FAILED: portal={portal_id}, section={main_section_id}: {e}")
+        finally:
+            db.session.remove()
+
 # POST: Create portal (with optional images)
 @portal_bp.route('/', methods=['POST'])
 @jwt_required
@@ -244,6 +288,23 @@ def api_create_portal():
         if img_error:
             return jsonify({'error': img_error}), 400
 
+    # Read image bytes into memory NOW, while the request (and request.files) is still
+    # alive — they're needed either synchronously below or by the background task
+    # after the response has already returned.
+    images_data = []
+    for img in images:
+        if img and img.filename:
+            img.seek(0)
+            images_data.append({
+                'data': img.read(),
+                'filename': img.filename,
+                'mimetype': img.mimetype,
+            })
+
+    # Kill-switch: set ASYNC_PORTAL_IMAGE_UPLOAD=false on the server to fall back to
+    # the original synchronous upload (images uploaded before the response returns).
+    async_upload = os.environ.get('ASYNC_PORTAL_IMAGE_UPLOAD', 'true').lower() == 'true'
+
     try:
         portal = Portal(
             name=data['name'],
@@ -269,43 +330,45 @@ def api_create_portal():
         )
         db.session.add(portal)
         db.session.flush()  # Get portal.id before commit
+        new_portal_id = portal.id
 
-        # Handle images (uploaded files; already validated above)
-        if images:
-            # Find or create the main graphic section for this portal
+        # Ensure the "Main Section" exists so images (sync now, or async later) attach to it.
+        new_section_id = None
+        if images_data:
             main_section = PortalGraphicSection.query.filter_by(portals_id=portal.id, title="Main Section").first()
             if not main_section:
                 main_section = PortalGraphicSection(portals_id=portal.id, title="Main Section", position=1)
                 db.session.add(main_section)
                 db.session.flush()
-            # Remove existing links (should be none for new portal, but safe)
-            PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=main_section.id).delete(synchronize_session=False)
-            # Delete old S3Content files for this section (should be none for new portal)
-            old_files = S3Content.query.filter_by(tbl_id=main_section.id, tbl_index=6).all()
-            for f in old_files:
-                db.session.delete(f)
-            for img in images:
-                unique_filename = f"{portal.id}_{uuid.uuid4().hex}_{secure_filename(img.filename)}"
-                img.seek(0)
-                s3.put_object(Body=img.read(), Bucket=S3_BUCKET, Key=unique_filename, ContentType=img.mimetype)
-                s3_url = f"{S3_BASE_URL}{unique_filename}"
-                gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
-                s3_content = S3Content(
-                    gr_hash=gr_hash,
-                    tbl_id=main_section.id,
-                    tbl_index=6,
-                    key=unique_filename,
-                    url=s3_url,
-                    file_type=img.mimetype,
-                    file_size=None  # Or remove if not required
-                )
-                db.session.add(s3_content)
-                db.session.flush()
-                link = PortalGraphicSectionS3Content(
-                    portals_graphic_sections_id=main_section.id,
-                    s3_gr_hash=gr_hash
-                )
-                db.session.add(link)
+            new_section_id = main_section.id
+
+            # Synchronous fallback (original behavior) — only when async is disabled.
+            if not async_upload:
+                PortalGraphicSectionS3Content.query.filter_by(portals_graphic_sections_id=main_section.id).delete(synchronize_session=False)
+                old_files = S3Content.query.filter_by(tbl_id=main_section.id, tbl_index=6).all()
+                for f in old_files:
+                    db.session.delete(f)
+                for img in images_data:
+                    unique_filename = f"{portal.id}_{uuid.uuid4().hex}_{secure_filename(img['filename'])}"
+                    s3.put_object(Body=img['data'], Bucket=S3_BUCKET, Key=unique_filename, ContentType=img['mimetype'])
+                    s3_url = f"{S3_BASE_URL}{unique_filename}"
+                    gr_hash = f"{uuid.uuid4().hex}_{unique_filename}"
+                    s3_content = S3Content(
+                        gr_hash=gr_hash,
+                        tbl_id=main_section.id,
+                        tbl_index=6,
+                        key=unique_filename,
+                        url=s3_url,
+                        file_type=img['mimetype'],
+                        file_size=None
+                    )
+                    db.session.add(s3_content)
+                    db.session.flush()
+                    link = PortalGraphicSectionS3Content(
+                        portals_graphic_sections_id=main_section.id,
+                        s3_gr_hash=gr_hash
+                    )
+                    db.session.add(link)
 
         db.session.commit()
     except Exception as e:
@@ -314,8 +377,30 @@ def api_create_portal():
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
-    # Return the full portal card dict for immediate frontend use
-    return jsonify({'result': portal.as_card_dict()}), 201
+    # Build the response card NOW, while the request's DB session is guaranteed valid,
+    # so nothing below (e.g. the inline fallback's db.session.remove()) can detach the
+    # portal instance out from under us. On the async path mainImageUrl is null until
+    # the background upload finishes.
+    portal_card = portal.as_card_dict()
+
+    # Async path: the portal + Main Section are already committed; finish the S3
+    # uploads in a background green thread so the client isn't blocked on them. If the
+    # spawn itself fails, fall back to an inline upload so images are never dropped.
+    if images_data and async_upload and new_section_id is not None:
+        from flask import current_app
+        app_obj = current_app._get_current_object()
+        try:
+            from app import socketio
+            socketio.start_background_task(
+                _upload_portal_images_bg, app_obj, new_portal_id, new_section_id, images_data
+            )
+        except Exception as e:
+            print(f"[Portal create] async spawn failed, uploading inline: {e}")
+            _upload_portal_images_bg(app_obj, new_portal_id, new_section_id, images_data)
+
+    # Return the pre-built portal card (see note above re: mainImageUrl on the async
+    # path). Clients refetch to show images once the background upload completes.
+    return jsonify({'result': portal_card}), 201
 
 # POST: Edit portal (with optional images)
 @portal_bp.route('/edit', methods=['POST'])

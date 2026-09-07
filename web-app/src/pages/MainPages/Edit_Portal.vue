@@ -926,23 +926,60 @@ const fetchPortalData = async () => {
   }
 };
 
-const handleImageSelection = (event: Event) => {
+// Downscale a selected image File to a max long-edge of `maxDim` px (JPEG q0.85)
+// before upload. Full-size phone photos are multi-MB and dominate portal-save time;
+// 1600px is plenty for portal display and cuts payloads to a few hundred KB.
+// Returns the original file unchanged if it's already small enough or can't be
+// processed (non-image type, decode/canvas failure) — always safe.
+const downscaleImageFile = (file: File, maxDim = 1600): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) { resolve(file); return; }
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const longest = Math.max(img.width, img.height);
+      if (longest <= maxDim || longest === 0) {
+        URL.revokeObjectURL(objectUrl);
+        resolve(file);
+        return;
+      }
+      const scale = maxDim / longest;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(objectUrl); resolve(file); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(objectUrl);
+        if (!blob) { resolve(file); return; }
+        const newName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+        resolve(new File([blob], newName, { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); };
+    img.src = objectUrl;
+  });
+};
+
+const handleImageSelection = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (!input.files) return;
-  
+
   const availableSlots = maxImages - selectedImages.value.length;
   if (availableSlots <= 0) return;
-  
+
   const files = Array.from(input.files).slice(0, availableSlots);
-  
-  // Process files
-  for (const file of files) {
+  // Reset input now (we've captured the files) so the same file can be re-selected.
+  input.value = '';
+
+  // Downscale each file before storing/uploading. On failure the helper returns
+  // the original file, so selection never breaks.
+  for (const original of files) {
+    const file = await downscaleImageFile(original, 1600);
     const url = URL.createObjectURL(file);
     selectedImages.value.push({ file, url, isExisting: false });
   }
-  
-  // Reset input so the same file can be selected again
-  input.value = '';
 };
 
 const removeImage = (index: number) => {
@@ -1131,16 +1168,17 @@ const closeImageSectionModal = () => {
 
 const sectionImageCount = computed(() => imgSectionExisting.value.length + imgSectionNewFiles.value.length);
 
-const handleSectionImageSelection = (event: Event) => {
+const handleSectionImageSelection = async (event: Event) => {
   const input = event.target as HTMLInputElement;
   if (!input.files) return;
   const files = Array.from(input.files);
   const availableSlots = maxImages - sectionImageCount.value;
   const filesToAdd = files.slice(0, availableSlots);
-  for (const file of filesToAdd) {
+  input.value = '';
+  for (const original of filesToAdd) {
+    const file = await downscaleImageFile(original, 1600);
     imgSectionNewFiles.value.push({ file, url: URL.createObjectURL(file) });
   }
-  input.value = '';
 };
 
 const removeExistingImage = (index: number) => {

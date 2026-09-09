@@ -18,6 +18,10 @@ class S3Content(db.Model):
     file_size = db.Column(db.Integer, nullable=True)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
     description = db.Column(db.String(255), nullable=True)
+    # Display order within a parent (e.g. a portal graphic section). Default 0 so
+    # existing rows and non-reordered content keep their original upload order
+    # (read paths use ORDER BY position, id). Set explicitly when a user reorders.
+    position = db.Column(db.Integer, nullable=False, server_default='0', default=0)
 
     graphic_section_links = db.relationship('PortalGraphicSectionS3Content', back_populates='s3_content')
 

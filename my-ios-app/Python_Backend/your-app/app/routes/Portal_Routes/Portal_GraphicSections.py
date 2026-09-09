@@ -46,7 +46,10 @@ def api_get_portal_graphic_sections():
 
     sections = PortalGraphicSection.query.filter_by(portals_id=portal_id).all()
     section_ids = [section.id for section in sections]
-    files = S3Content.query.filter(S3Content.tbl_index == 6, S3Content.tbl_id.in_(section_ids)).all()
+    files = (S3Content.query
+             .filter(S3Content.tbl_index == 6, S3Content.tbl_id.in_(section_ids))
+             .order_by(S3Content.position.asc(), S3Content.id.asc())
+             .all())
     files_by_section = {}
     for f in files:
         file_url = f.url
@@ -115,9 +118,13 @@ def api_add_update_portal_graphic_sections():
             aLog.append({'error': f'Maximum of {MAX_IMAGES_PER_SECTION} images per section', 'index': idx})
             continue
         files_log = []
-        for gr_hash in file_indexes:
+        for pos, gr_hash in enumerate(file_indexes):
             s3_file = S3Content.query.filter_by(gr_hash=gr_hash, tbl_index=6).first()
             if s3_file:
+                # Persist display order onto the file row. Read paths ORDER BY
+                # position, id, so this is what actually makes re-ordering stick
+                # (the link table below is not consulted for ordering).
+                s3_file.position = pos
                 link = PortalGraphicSectionS3Content(
                     portals_graphic_sections_id=pgs.id,
                     s3_gr_hash=gr_hash
@@ -284,7 +291,10 @@ def api_upload_graphic_section_images():
         db.session.commit()
 
         # Build response with all files for this section
-        files = S3Content.query.filter(S3Content.tbl_index == 6, S3Content.tbl_id == section.id).all()
+        files = (S3Content.query
+                 .filter(S3Content.tbl_index == 6, S3Content.tbl_id == section.id)
+                 .order_by(S3Content.position.asc(), S3Content.id.asc())
+                 .all())
         a_files = []
         for f in files:
             file_url = f.url

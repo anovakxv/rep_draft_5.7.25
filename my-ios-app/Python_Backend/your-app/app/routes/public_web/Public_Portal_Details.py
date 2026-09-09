@@ -134,7 +134,7 @@ def api_public_portal_details(portal_id):
         files = S3Content.query.filter(
             S3Content.tbl_index == 6,
             S3Content.tbl_id.in_(section_ids)
-        ).all()
+        ).order_by(S3Content.position.asc(), S3Content.id.asc()).all()
 
         for f in files:
             file_url = f.url

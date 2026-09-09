@@ -68,7 +68,7 @@ class Portal(db.Model):
         first_section = sorted(self.graphic_sections, key=lambda s: (getattr(s, 'position', 0), getattr(s, 'id', 0)))[0]
         if first_section and hasattr(first_section, 's3_files'):
             s3_files = list(first_section.s3_files) if hasattr(first_section.s3_files, '__iter__') else []
-            first_files = sorted(s3_files, key=lambda f: getattr(f, 'id', 0))
+            first_files = sorted(s3_files, key=lambda f: (getattr(f, 'position', 0) or 0, getattr(f, 'id', 0)))
             first_file = first_files[0] if first_files else None
             if first_file:
                 return first_file.url

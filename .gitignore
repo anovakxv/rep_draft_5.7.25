@@ -28,6 +28,7 @@ AI_INTEGRATION_ANALYSIS.md
 SECURITY_PLAN.md
 PORTAL_APPROVAL_PLAN.md
 CLAUDE.md
+TODO.md
 
 # Python cache and local DB
 **/__pycache__/

@@ -1,0 +1,30 @@
+# CODEOWNERS — auto-require @anovakxv review on high-risk areas.
+#
+# How it works: when a Pull Request touches any path below, GitHub automatically
+# requests a review from the listed owner. Combined with branch protection on the
+# deploy branch (Settings → Branches → "Require review from Code Owners"), a PR that
+# changes these paths CANNOT be merged until @anovakxv approves it.
+#
+# Everything NOT listed here (most frontend work) can be reviewed/merged normally.
+# Order matters: the LAST matching pattern wins.
+
+# ---- Live production backend (Flask on Render — auto-deploys on merge) ----
+/my-ios-app/Python_Backend/            @anovakxv
+
+# ---- Database migrations (schema changes are hard to roll back — Adam only) ----
+**/migrations/                         @anovakxv
+
+# ---- iOS app entry point + tab navigation (do not touch without care) ----
+RepApp.swift                           @anovakxv
+MainScreen.swift                       @anovakxv
+
+# ---- Deploy / dependency / config files ----
+**/Procfile                            @anovakxv
+**/requirements.txt                    @anovakxv
+**/render.yaml                         @anovakxv
+**/package.json                        @anovakxv
+/web-app/vercel.json                   @anovakxv
+
+# ---- These process files themselves ----
+/.github/CODEOWNERS                    @anovakxv
+/CONTRIBUTING.md                       @anovakxv

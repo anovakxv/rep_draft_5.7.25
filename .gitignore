@@ -29,6 +29,7 @@ SECURITY_PLAN.md
 PORTAL_APPROVAL_PLAN.md
 CLAUDE.md
 TODO.md
+STAGING_SETUP.md
 
 # Python cache and local DB
 **/__pycache__/

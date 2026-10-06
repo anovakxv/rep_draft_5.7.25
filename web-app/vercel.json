@@ -38,6 +38,30 @@
           "value": "default-src 'self'; script-src 'self' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://rep-app-dbbucket.s3.us-west-2.amazonaws.com https://rep-app-dbbucket.s3.amazonaws.com https://rep-june2025.onrender.com https://www.repsomething.com; font-src 'self' data:; connect-src 'self' https://rep-june2025.onrender.com wss://rep-june2025.onrender.com https://api.stripe.com; worker-src 'self'; manifest-src 'self'; frame-src https://js.stripe.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
         }
       ]
+    },
+    {
+      "source": "/(.+)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "rep-staging-vercel.vercel.app"
+        }
+      ],
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        }
+      ]
     }
   ]
 }

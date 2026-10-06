@@ -14,6 +14,7 @@ from app.models.People_Models.UserNetwork import UserNetwork
 from app.models.People_Models.Skill import Skill
 from app.models.People_Models.UserSkill import UserSkill
 from app.utils.auth import jwt_required
+from app.utils.welcome_dm import expired_welcome_dm_filter
 
 # --- S3 BASE URL ---
 S3_BASE_URL = "https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/"
@@ -36,7 +37,7 @@ def batch_get_users(user_ids):
 #     chats = Chats.query.filter(Chats.id.in_(chat_ids)).all()
 #     return {c.id: c for c in chats}
 
-def batch_get_last_direct_messages(user_id, contact_ids):
+def batch_get_last_direct_messages(user_id, contact_ids, visibility_filter):
     if not contact_ids:
         return {}
     # Get max message ID per contact in one query, then batch-fetch those messages
@@ -49,7 +50,8 @@ def batch_get_last_direct_messages(user_id, contact_ids):
             db.func.max(DirectMessage.id).label('max_id')
         )
         .filter(
-            (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)
+            (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id),
+            visibility_filter
         )
         .group_by('contact_id')
         .subquery()
@@ -101,6 +103,8 @@ def api_active_chat_list():
         return jsonify({'error': 'offset is wrong!'}), 400
 
     # --- DIRECT CHATS ---
+    # Hides the admin welcome DM once the account is a day old (drops the convo if it was the only message)
+    dm_visibility = expired_welcome_dm_filter(g.current_user)
     direct_contacts = db.session.query(
         db.case(
             (DirectMessage.sender_id == user_id, DirectMessage.recipient_id),
@@ -108,12 +112,13 @@ def api_active_chat_list():
         ).label('contact_id'),
         db.func.max(DirectMessage.created_at).label('last_message_time')
     ).filter(
-        (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id)
+        (DirectMessage.sender_id == user_id) | (DirectMessage.recipient_id == user_id),
+        dm_visibility
     ).group_by('contact_id').all()
 
     contact_ids = [row.contact_id for row in direct_contacts]
     users_map = batch_get_users(contact_ids) if contact_ids else {}
-    last_direct_msgs = batch_get_last_direct_messages(user_id, contact_ids) if contact_ids else {}
+    last_direct_msgs = batch_get_last_direct_messages(user_id, contact_ids, dm_visibility) if contact_ids else {}
 
     # --- GROUP CHATS (with at least one message) ---
     group_chats = (

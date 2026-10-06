@@ -8,6 +8,7 @@ from app import db
 from app.utils.auth import jwt_required
 from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
 from app.models.People_Models.Messaging_Models.messages_read import MessagesRead
+from app.utils.welcome_dm import expired_welcome_dm_filter
 
 user_bp = Blueprint('get_messages', __name__)
 
@@ -48,7 +49,8 @@ def api_get_messages():
         or_(
             and_(DirectMessage.sender_id == current_id, DirectMessage.recipient_id == other_id),
             and_(DirectMessage.sender_id == other_id, DirectMessage.recipient_id == current_id)
-        )
+        ),
+        expired_welcome_dm_filter(g.current_user)
     )
     if before_id:
         q = q.filter(DirectMessage.id < before_id)

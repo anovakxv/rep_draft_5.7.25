@@ -3,7 +3,13 @@
 # Created by Adam Novak: August 2025
 
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+
+# Every version of the admin welcome DM starts with this prefix; it's how the
+# message is recognized when hiding it (see expired_welcome_dm_filter).
+WELCOME_DM_PREFIX = "Welcome to Rep!"
+# The welcome DM stops showing once the account is older than this.
+WELCOME_DM_LIFETIME = timedelta(days=1)
 
 def get_admin_user_id():
     val = os.getenv("ADMIN_USER_ID")
@@ -13,6 +19,25 @@ def get_admin_user_id():
         return int(val)
     except Exception:
         return None
+
+def expired_welcome_dm_filter(user):
+    """
+    SQLAlchemy criterion for DirectMessage queries that hides the admin welcome DM
+    once `user`'s account is older than WELCOME_DM_LIFETIME.
+    The row is kept (not deleted) so send_welcome_dm_once stays idempotent on login.
+    """
+    from sqlalchemy import true, not_, and_
+    from app.models.People_Models.Messaging_Models.Direct_Messages import DirectMessage
+
+    admin_id = get_admin_user_id()
+    created_at = getattr(user, "created_at", None)
+    if not admin_id or (created_at and datetime.utcnow() - created_at < WELCOME_DM_LIFETIME):
+        return true()
+    return not_(and_(
+        DirectMessage.sender_id == admin_id,
+        DirectMessage.recipient_id == user.id,
+        DirectMessage.text.startswith(WELCOME_DM_PREFIX),
+    ))
 
 def send_welcome_dm_once(db, socketio, recipient_id: int, text: str = "Welcome to Rep! \n\nClicking the Rep logo in the bottom right toggles between Purposes / People. \n\n View the Purpose Pitches in fullscreen by clicking the image at the top of a Purpose page."
 "\n\nStart by viewing a Purpose that you'd like to prioritize."

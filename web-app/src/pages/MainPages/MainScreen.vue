@@ -13,12 +13,20 @@
   <div class="lg:hidden flex flex-col h-screen bg-white">
     <!-- Header/Toolbar -->
     <header class="sticky top-0 z-20 border-b border-gray-200 flex items-center justify-between h-14 px-4" style="background-color: #f7f7f7">
-      <button @click="handleProfileClick" class="focus:outline-none">
+      <button
+        @click="handleProfileClick"
+        class="flex items-center gap-0.5 focus:outline-none"
+        :aria-label="userId > 0 ? 'Profile menu' : 'Log in or register'"
+        :aria-haspopup="userId > 0 ? 'menu' : undefined"
+      >
         <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
              class="w-8 h-8 rounded-full object-cover" alt="Profile"/>
         <div v-else class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center text-white text-xs font-semibold">
           {{ getInitials(currentUser?.full_name || 'User') }}
         </div>
+        <svg v-if="userId > 0" xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
       <MainSegmentedPicker
@@ -180,7 +188,7 @@
 
     <!-- Action Sheet Modal -->
     <Transition name="fade">
-      <div v-if="mainActiveSheet" @click="mainActiveSheet = null" class="fixed inset-0 z-30 flex items-end justify-center">
+      <div v-if="mainActiveSheet && mainActiveSheet !== 'profileMenu'" @click="mainActiveSheet = null" class="fixed inset-0 z-30 flex items-end justify-center">
         <div class="bg-black bg-opacity-50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
         <Transition name="slide-up">
           <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 768px">
@@ -226,7 +234,42 @@
         </Transition>
       </div>
     </Transition>
-    
+
+    <!-- Profile Menu Sheet (opened from the profile picture) -->
+    <Transition name="fade">
+      <div v-if="mainActiveSheet === 'profileMenu'" @click="mainActiveSheet = null" class="fixed inset-0 z-30 flex items-end justify-center">
+        <div class="bg-black/50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+        <Transition name="slide-up">
+          <div v-if="mainActiveSheet === 'profileMenu'" @click.stop role="menu" class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 768px">
+            <div class="flex flex-col items-center space-y-6">
+              <div class="flex items-center gap-2.5">
+                <img v-if="currentUser?.profile_picture_url" :src="currentUser.profile_picture_url"
+                     class="w-9 h-9 rounded-full object-cover" alt=""/>
+                <div v-else class="w-9 h-9 rounded-full bg-gray-300 flex items-center justify-center text-white text-sm font-semibold">
+                  {{ getInitials(currentUser?.full_name || 'User') }}
+                </div>
+                <span class="font-semibold text-gray-700">{{ currentUser?.full_name }}</span>
+              </div>
+
+              <button role="menuitem" @click="goToMyProfile" class="text-[#8cc65d] font-bold text-[28px] py-3">
+                My Profile
+              </button>
+              <button role="menuitem" @click="goToSettings" class="text-[#8cc65d] font-bold text-[28px] py-3">
+                Settings
+              </button>
+              <button role="menuitem" @click="handleLogout" class="text-red-600 font-bold text-[28px] py-3">
+                Log Out
+              </button>
+
+              <button @click="mainActiveSheet = null" class="w-full text-center py-3 text-gray-500">
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Transition>
+      </div>
+    </Transition>
+
     <!-- Add Purpose Modal -->
     <div v-if="mainActiveSheet === 'addPurpose'" class="fixed inset-0 z-40">
       <router-view name="portalEditor" />
@@ -261,7 +304,7 @@ defineOptions({
 });
 import api from '@/pages/utils/api';
 import { useSocketManager } from '../utils/useSocketManager';
-import { isAuthenticated } from '@/utils/auth';
+import { isAuthenticated, logout } from '@/utils/auth';
 import DesktopDashboard from './DesktopDashboard.vue';
 import REPLogo from '@/assets/REPLogo.png';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
@@ -719,7 +762,7 @@ const {
 const isLoading = computed(() => isLoadingPortals.value || isLoadingPeople.value);
 const errorMessage = computed(() => errorPortals.value || errorPeople.value);
 const currentUser = ref<User | null>(null);
-const mainActiveSheet = ref<'actionSheet' | 'addPurpose' | null>(null);
+const mainActiveSheet = ref<'actionSheet' | 'addPurpose' | 'profileMenu' | null>(null);
 const showSearch = ref(false);
 const searchText = ref('');
 const searchInput = ref<HTMLInputElement | null>(null);
@@ -852,7 +895,23 @@ const handleProfileClick = () => {
     });
     return;
   }
+  mainActiveSheet.value = 'profileMenu';
+};
+
+const goToMyProfile = () => {
+  mainActiveSheet.value = null;
   router.push(`/profile/${userId.value}`);
+};
+
+const goToSettings = () => {
+  mainActiveSheet.value = null;
+  router.push('/settings');
+};
+
+const handleLogout = () => {
+  mainActiveSheet.value = null;
+  logout();
+  router.push('/login');
 };
 
 const startSearch = () => {

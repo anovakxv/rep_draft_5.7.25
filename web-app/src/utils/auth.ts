@@ -2,6 +2,8 @@
 // Authentication helper utilities for public web app
 
 import { useRouter } from 'vue-router'
+import api from '@/pages/utils/api'
+import { useSocketManager } from '@/pages/utils/useSocketManager'
 
 /**
  * Check if user is authenticated
@@ -40,4 +42,16 @@ export function getCurrentUserId(): string | null {
  */
 export function getJwtToken(): string | null {
   return localStorage.getItem('jwtToken')
+}
+
+/**
+ * Sign the user out on this device: tell the server, drop the realtime
+ * connection, and clear the local session. The caller navigates to /login.
+ * The server call is fire-and-forget (api reads the token before any await),
+ * so a slow or sleeping backend never blocks signing out.
+ */
+export function logout(): void {
+  api.post('/api/user/logout', {}).catch(() => {})
+  useSocketManager().disconnect()
+  localStorage.clear()
 }

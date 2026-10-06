@@ -959,16 +959,6 @@ const goToMessages = () => {
   router.push(`/chat/user/${viewedUserId.value}`)
 }
 
-const logout = () => {
-  // API call to logout like in Swift
-  api.post('/api/user/logout', {})
-    .finally(() => {
-      localStorage.clear()
-      router.push('/login')
-      showActionMenu.value = false
-    })
-}
-
 const addToNetwork = async () => {
   try {
     await api.post('/api/user/network_action', {

@@ -59,7 +59,7 @@
 
         <!-- Logout Section -->
         <section>
-          <button @click="logout" class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer text-red-600 font-bold justify-center">
+          <button @click="handleLogout" class="flex items-center py-3 px-2 w-full text-lg rounded hover:bg-gray-100 transition cursor-pointer text-red-600 font-bold justify-center">
             Log Out
           </button>
         </section>
@@ -139,6 +139,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/pages/utils/api'
+import { logout } from '@/utils/auth'
 
 const router = useRouter()
 const showPayments = ref(false)
@@ -171,8 +172,8 @@ function goToPayments() {
   router.push({ name: 'Payments' })
 }
 
-function logout() {
-  localStorage.clear()
+function handleLogout() {
+  logout()
   router.push('/login')
 }
 

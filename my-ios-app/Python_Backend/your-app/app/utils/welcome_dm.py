@@ -134,7 +134,7 @@ def send_founder_dm_once(db, socketio, recipient_id: int):
     text = (
         "Hi! I'm Adam, founder of Rep. Welcome!\n\n"
         "Rep helps communities make progress on their top priorities. "
-        "Think of it as an intelligent rolodex working in the background to help you and your causes—not keeping you scrolling on screens.\n\n"
+        "Think of it as an intelligent rolodex working in the background to help you and your causes, not keeping you scrolling on screens.\n\n"
         "I'd love to hear your thoughts and feedback as you explore. "
         "Please message me directly with any questions or ideas!"
     )

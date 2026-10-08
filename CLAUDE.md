@@ -151,6 +151,7 @@ my-ios-app/                    ← repo root
 - `REDIS_URL` env var optional — enables multi-worker message queue (not needed for single worker).
 
 ### DB Migrations
+**Read `Python_Backend/your-app/DB_MIGRATION_WORKFLOW.md` before making any schema changes.** It is the full runbook and is required reading — the notes below are a quick reference only.
 - **Must run from:** `my-ios-app/Python_Backend/your-app/` — wrong directory breaks everything.
 - **New NOT NULL columns** must have `server_default='value'` in the migration file, not just Python `default=`. Without it, migration fails on existing rows.
 - **Eventlet warnings on Render shell are harmless** — ignore `RuntimeError: Working outside of application context`. Focus on `INFO [alembic]` lines and the final revision ID.
@@ -173,6 +174,7 @@ These tables must be pre-populated — a fresh staging DB needs them seeded via 
 ---
 
 ## Key Files
+- `Python_Backend/your-app/DB_MIGRATION_WORKFLOW.md` — **full DB migration runbook** (must-read before any schema change)
 - `app/__init__.py` — Flask app factory, all blueprint registration, CORS origins, limiter init, SocketIO config
 - `app/utils/auth.py` — `@jwt_required` decorator
 - `app/utils/mail_utils.py` — Resend email helper
@@ -198,7 +200,6 @@ These tables must be pre-populated — a fresh staging DB needs them seeded via 
 ---
 
 ## Gitignored Private Files
-- `Python_Backend/DB_MIGRATION_WORKFLOW.md` — full migration runbook (must-read before any schema change)
 - `Python_Backend/SECURITY_PERFORMANCE_BACKLOG.md` — security/performance backlog incl. bot/spam-defense playbook
 - `PORTAL_APPROVAL_PLAN.md` — approval workflow plan + activation steps
 - `AI_INTEGRATION_ANALYSIS.md` — AI stack analysis and decisions

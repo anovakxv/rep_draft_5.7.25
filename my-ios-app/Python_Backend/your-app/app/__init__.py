@@ -231,6 +231,10 @@ def create_app():
     app.register_blueprint(update_goal_filled_quota_bp, url_prefix='/api/goals')
     app.register_blueprint(get_goals_bp, url_prefix='/api/goals')
 
+    # --- Rep Coach (AI guide; off unless COACH_ENABLED=true) ---
+    from app.routes.Coach_Routes.Coach import coach_bp
+    app.register_blueprint(coach_bp, url_prefix='/api/coach')
+
     # --- Public Web Routes (no auth required) ---
     from app.routes.public_web import register_public_routes
     register_public_routes(app)

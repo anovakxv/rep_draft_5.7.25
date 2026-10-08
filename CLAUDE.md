@@ -138,6 +138,7 @@ my-ios-app/                    ← repo root
 - **Rate limiting:** Flask-Limiter on `/register` (10/hr), `/login` (20/min), portal creation (10/day).
 - **CORS:** controlled by `WEB_APP_ORIGIN` env var (prod web URL) + `CORS_ALLOW_LOCALHOST=true` for local dev against staging.
 - **Admin user:** user ID 45 = Adam. `users_types_id = 3` = Admin in DB checks.
+- **Rep Coach (AI guide):** `app/utils/rep_coach.py` (briefing, read-only search tools, Claude loop) + `app/routes/Coach_Routes/Coach.py` (`GET /api/coach/status`, `POST /api/coach/message`). Off unless `COACH_ENABLED=true` and `ANTHROPIC_API_KEY` are set; optional `COACH_MODEL` (default `claude-sonnet-5-5`) and `COACH_DAILY_LIMIT` (default `40 per day` per member). No DB tables: the web app keeps the conversation in sessionStorage. The Anthropic client must get a plain `ssl` context — the SDK's default TLS (truststore) recurses forever under gevent.
 
 ### Payments (Stripe)
 - **Checkout sessions:** `POST /api/public/create_checkout_session` → Stripe hosted page → return URL → `GET /api/public/checkout_session_status`.

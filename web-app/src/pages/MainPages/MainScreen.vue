@@ -89,6 +89,10 @@
         <div v-else key="content">
         <!-- Tab 0: MESSAGES - Always show Active Chat List regardless of page -->
         <template v-if="section === 0">
+          <template v-if="userId > 0 && coachEnabled">
+            <RepCoachRow variant="mobile" @select="router.push('/coach')" />
+            <div class="h-px" style="background-color: rgb(228, 228, 228)"></div>
+          </template>
           <ActiveChatList
             :chats="filteredActiveChats"
             :invites="pendingInvites"
@@ -310,6 +314,8 @@ import REPLogo from '@/assets/REPLogo.png';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
 import ErrorState from '@/components/ErrorState.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import RepCoachRow from '@/components/RepCoachRow.vue';
+import { useRepCoach } from '@/pages/utils/useRepCoach';
 import { HIDDEN_ALL_TAB_PORTAL_IDS } from '@/constants/hiddenPortals';
 
 // Simple debounce utility
@@ -702,6 +708,7 @@ const route = useRoute();
 const userId = ref(Number(localStorage.getItem('userId')) || 0);
 const token = ref(localStorage.getItem('jwtToken') || '');
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+const { enabled: coachEnabled, checkStatus: checkCoachStatus } = useRepCoach();
 
 // --- Persistent App State ---
 const persistedUnreadDM = ref(localStorage.getItem('hasUnreadDMFlag') === 'true');
@@ -1083,6 +1090,7 @@ onMounted(() => {
   // For public web, we allow viewing MainScreen ALL tab without authentication
   // Only initialize authenticated features if user is logged in
   const authenticated = isAuthenticated();
+  if (authenticated) checkCoachStatus();
 
   // Check for tab query parameter to set initial section
   const tabParam = route.query.tab;

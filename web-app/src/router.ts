@@ -69,6 +69,7 @@ const routes = [
   { path: '/chat/direct/:id', redirect: to => `/chat/dm/${to.params.id}`, meta: { requiresAuth: true } },
   { path: '/chat/group/new', component: NewGroupChat, meta: { requiresAuth: true } },
   { path: '/chat/group/:id', component: ChatGroupWrapper, meta: { requiresAuth: true } },
+  { path: '/coach', component: () => import('./pages/Messaging/RepCoachPage.vue'), meta: { requiresAuth: true } },
 
   // Invites (placeholder for now, we'll create this page)
   {

@@ -20,3 +20,5 @@ flask-apscheduler
 bleach>=6.0.0
 Flask-Limiter
 bcrypt
+anthropic>=1.12,<2
+certifi

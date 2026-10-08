@@ -212,6 +212,9 @@
 
           <!-- Chats list -->
           <div v-else-if="desktopLeftTab === 0" class="flex-1 overflow-y-auto">
+            <!-- Rep Coach, pinned (only when it's turned on) -->
+            <RepCoachRow v-if="coachEnabled" variant="desktop" :selected="coachOpen" @select="openCoach" />
+
             <!-- Pending invites banner -->
             <RouterLink
               v-if="pendingInvites.length"
@@ -331,6 +334,9 @@
               class="mt-2.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
             >Already have an account? Log in</RouterLink>
           </div>
+
+          <!-- Rep Coach open -->
+          <RepCoachChat v-else-if="coachOpen" embedded class="flex-1 min-h-0" />
 
           <!-- No chat selected (authenticated) -->
           <div
@@ -776,6 +782,9 @@ import { isAuthenticated, logout } from '@/utils/auth';
 import { useSocketManager } from '../utils/useSocketManager';
 import REPLogo from '@/assets/REPLogo.png';
 import { HIDDEN_ALL_TAB_PORTAL_IDS } from '@/constants/hiddenPortals';
+import RepCoachRow from '@/components/RepCoachRow.vue';
+import RepCoachChat from '@/components/RepCoachChat.vue';
+import { useRepCoach } from '@/pages/utils/useRepCoach';
 
 // --- Types (minimal — just what this component needs) ---
 interface User {
@@ -1130,7 +1139,20 @@ const scrollInlineChatToBottom = () => {
   nextTick(() => { const el = inlineChatScrollRef.value; if (el) el.scrollTop = el.scrollHeight; });
 };
 
+// --- Rep Coach (pinned at the top of Chats; opens in the inline chat area) ---
+const { enabled: coachEnabled, checkStatus: checkCoachStatus } = useRepCoach();
+const coachOpen = ref(false);
+
+const openCoach = () => {
+  if (selectedChat.value?.type === 'group' && selectedChat.value.chat?.id) {
+    leaveChat(selectedChat.value.chat.id);
+  }
+  selectedChat.value = null;
+  coachOpen.value = true;
+};
+
 const loadInlineChat = async (chat: ActiveChat) => {
+  coachOpen.value = false;
   // Leave previous group chat room, join new one
   if (selectedChat.value?.type === 'group' && selectedChat.value.chat?.id) {
     leaveChat(selectedChat.value.chat.id);
@@ -1269,6 +1291,7 @@ let unsubGroupNotif: (() => void) | null = null;
 // --- Lifecycle ---
 onMounted(() => {
   fetchDesktopPortals();
+  if (isAuth.value) checkCoachStatus();
 
   // 1. DM received — append to open DM pane (sidebar updated by MainScreen's own handler)
   unsubDM = onDirectMessageNotification((payload: Record<string, any>) => {

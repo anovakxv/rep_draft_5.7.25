@@ -183,7 +183,7 @@
     />
 
     <!-- Group Info Modal -->
-    <div v-if="showGroupInfo && groupMembers.length > 0" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div v-if="showGroupInfo && groupMembers.length > 0" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-lg max-w-md w-full max-h-[80vh] overflow-y-auto p-6">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold">Group Info</h2>
@@ -219,7 +219,7 @@
     </div>
 
     <!-- Leave Alert -->
-    <div v-if="showLeaveAlert" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div v-if="showLeaveAlert" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div class="bg-white rounded-lg p-6 max-w-sm mx-auto">
         <h3 class="font-bold text-lg mb-4">Leave Group?</h3>
         <p class="mb-6">Are you sure you want to leave this group chat?</p>
@@ -231,7 +231,7 @@
     </div>
 
     <!-- Delete Alert (for creators) -->
-    <div v-if="showDeleteAlert" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div v-if="showDeleteAlert" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
       <div class="bg-white rounded-lg p-6 max-w-sm mx-auto">
         <h3 class="font-bold text-lg mb-4">Delete Group Chat?</h3>
         <p class="mb-6">This will permanently delete the group chat for all members. This action cannot be undone.</p>

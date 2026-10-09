@@ -107,7 +107,7 @@
 
     <!-- Keyboard Shortcuts Overlay -->
     <Transition name="fade">
-      <div v-if="showShortcuts" @click="showShortcuts = false" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div v-if="showShortcuts" @click="showShortcuts = false" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div @click.stop class="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-bold">Keyboard Shortcuts</h2>
@@ -147,7 +147,7 @@
       <div v-if="distractionFreeMode" class="fixed top-4 right-4 z-30">
         <button
           @click="toggleDistractionFree"
-          class="bg-gray-800 bg-opacity-75 hover:bg-opacity-100 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
+          class="bg-gray-800/75 hover:bg-gray-800/100 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-all"
           title="Exit Distraction-Free Mode (F11)"
         >
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

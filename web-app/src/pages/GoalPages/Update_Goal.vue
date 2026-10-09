@@ -5,7 +5,7 @@
 -->
 
 <template>
-  <div class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center">
+  <div class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
     <form
       class="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md space-y-6"
       @submit.prevent="submitUpdate"

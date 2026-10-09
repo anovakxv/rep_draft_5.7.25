@@ -64,7 +64,7 @@
       <button v-if="!fromOnboarding" type="button" @click="showDelete = true" class="w-full mt-4 text-red-600 font-bold" aria-label="Delete Profile">Delete Profile</button>
     
     <!-- Delete Modal and Toast remain the same -->
-    <div v-if="showDelete" class="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center">
+    <div v-if="showDelete" class="fixed inset-0 bg-black/30 flex items-center justify-center">
       <div class="bg-white p-6 rounded shadow">
         <div class="mb-4">Are you sure you want to delete your profile? This cannot be undone.</div>
         <button @click="deleteProfile" class="text-red-600 font-bold mr-4" aria-label="Confirm Delete">Delete</button>

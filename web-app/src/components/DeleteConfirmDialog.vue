@@ -1,6 +1,6 @@
 <template>
   <Transition name="fade">
-    <div v-if="show" @click="close" class="fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center p-4">
+    <div v-if="show" @click="close" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
       <div @click.stop class="bg-white rounded-lg shadow-2xl max-w-sm w-full overflow-hidden">
         <!-- Header -->
         <div class="bg-red-50 px-5 py-4 border-b border-red-100">

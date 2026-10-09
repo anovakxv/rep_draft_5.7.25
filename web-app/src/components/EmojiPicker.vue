@@ -1,6 +1,6 @@
 <template>
   <Transition name="fade">
-    <div v-if="show" @click="close" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
+    <div v-if="show" @click="close" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
       <div @click.stop class="bg-white rounded-lg shadow-xl p-4 max-w-sm w-full">
         <div class="flex justify-between items-center mb-3">
           <h3 class="font-semibold text-gray-800">Add Reaction</h3>

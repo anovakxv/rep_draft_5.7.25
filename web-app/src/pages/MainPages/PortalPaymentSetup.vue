@@ -85,7 +85,7 @@
     </div>
 
     <!-- Loading Overlay -->
-    <div v-if="isLoading" class="fixed inset-0 bg-white bg-opacity-75 z-50 flex items-center justify-center">
+    <div v-if="isLoading" class="fixed inset-0 bg-white/75 z-50 flex items-center justify-center">
       <div class="animate-spin h-10 w-10 border-4 border-green-600 border-t-transparent rounded-full"></div>
     </div>
   </div>

@@ -56,7 +56,7 @@
     </div>
 
     <!-- Cancel Subscription Modal -->
-    <div v-if="showCancelModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div v-if="showCancelModal" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
         <h3 class="text-xl font-bold mb-4">Cancel Subscription?</h3>
         <p class="mb-4">

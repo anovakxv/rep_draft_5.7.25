@@ -213,7 +213,7 @@
         @click="closeContextMenu"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black bg-opacity-30 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
 
         <!-- Menu -->
         <div

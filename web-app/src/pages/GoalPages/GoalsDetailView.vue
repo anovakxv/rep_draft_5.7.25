@@ -292,7 +292,7 @@
     </div>
 
     <!-- Team Chat Loading Overlay - EXACTLY matching Swift -->
-    <div v-if="isCreatingTeamChat" class="fixed inset-0 bg-black bg-opacity-15 z-40 flex items-center justify-center">
+    <div v-if="isCreatingTeamChat" class="fixed inset-0 bg-black/15 z-40 flex items-center justify-center">
       <div class="bg-white p-4 rounded-xl shadow-lg flex flex-col items-center gap-3">
         <div class="animate-spin h-6 w-6 border-2 border-rep-green border-t-transparent rounded-full"></div>
         <div class="text-center">Opening Team Chat...</div>
@@ -302,7 +302,7 @@
     <!-- Action Sheet - iOS style design -->
     <transition name="fade">
       <div v-if="activeSheet === 'action'" @click="activeSheet = null" class="fixed inset-0 z-50 flex items-end lg:items-center justify-center">
-        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="absolute inset-0 bg-black/50"></div>
         <div @click.stop class="bg-white w-full rounded-t-2xl lg:rounded-2xl p-6 lg:p-0 relative z-10 max-h-[80vh] overflow-y-auto lg:overflow-hidden lg:w-72 lg:max-w-none lg:shadow-2xl">
           <div class="flex flex-col items-center lg:items-stretch space-y-6 lg:space-y-0 lg:px-2 lg:py-2">
             <!-- Join Team (only if not on team and not creator, for Recruiting goals) -->
@@ -474,7 +474,7 @@
 
     <!-- Delete Alert - EXACTLY matching Swift -->
     <transition name="fade">
-      <div v-if="showDeleteAlert" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
+      <div v-if="showDeleteAlert" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 max-w-sm w-full">
           <h3 class="text-lg font-semibold mb-2">Delete Goal?</h3>
           <p class="text-gray-600 mb-6">Are you sure you want to delete this goal? This cannot be undone.</p>
@@ -492,7 +492,7 @@
 
     <!-- Chat Error Alert - EXACTLY matching Swift -->
     <transition name="fade">
-      <div v-if="chatCreationError" class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4">
+      <div v-if="chatCreationError" class="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg p-6 max-w-sm w-full">
           <h3 class="text-lg font-semibold mb-2">Chat Error</h3>
           <p class="text-gray-600 mb-6">{{ chatCreationError }}</p>

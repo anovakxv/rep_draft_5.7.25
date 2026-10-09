@@ -344,7 +344,7 @@
 
     <!-- Alerts -->
     <transition name="fade">
-      <div v-if="showFlagConfirmation" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div v-if="showFlagConfirmation" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
           <h3 class="text-lg font-bold mb-3">Flag Portal?</h3>
           <p class="mb-4">Are you sure you want to flag this portal as inappropriate?</p>
@@ -367,7 +367,7 @@
     </transition>
 
     <transition name="fade">
-      <div v-if="flagResultMessage" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div v-if="flagResultMessage" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div class="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full">
           <p class="mb-4">{{ flagResultMessage }}</p>
           <div class="flex justify-end">
@@ -1038,7 +1038,7 @@ const ImageTabView = defineComponent({
             // ← prev arrow
             images.value.length > 1 && h('button', {
               key: 'prev',
-              class: 'absolute left-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+              class: 'absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 rounded-full p-1',
               onClick: prevImage,
               onMousedown: (e: MouseEvent) => e.preventDefault()
             }, [arrowSvg('M15 19l-7-7 7-7')]),
@@ -1046,7 +1046,7 @@ const ImageTabView = defineComponent({
             // → next arrow
             images.value.length > 1 && h('button', {
               key: 'next',
-              class: 'absolute right-2 top-1/2 -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+              class: 'absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 rounded-full p-1',
               onClick: nextImage,
               onMousedown: (e: MouseEvent) => e.preventDefault()
             }, [arrowSvg('M9 5l7 7-7 7')]),
@@ -1104,13 +1104,13 @@ const ImageTabView = defineComponent({
         images.value.length > 1 && [
           h('button', {
             key: 'prev',
-            class: 'absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+            class: 'absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/30 rounded-full p-1',
             onClick: prevImage,
             onMousedown: (e: MouseEvent) => e.preventDefault()
           }, [arrowSvg('M15 19l-7-7 7-7')]),
           h('button', {
             key: 'next',
-            class: 'absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 rounded-full p-1',
+            class: 'absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/30 rounded-full p-1',
             onClick: nextImage,
             onMousedown: (e: MouseEvent) => e.preventDefault()
           }, [arrowSvg('M9 5l7 7-7 7')])
@@ -1504,13 +1504,13 @@ const PortalStorySection = defineComponent({
 
         // Previous arrow
         fullscreenIndex.value > 0 && h('button', {
-          class: 'absolute left-3 top-1/2 -translate-y-1/2 z-10 text-white text-4xl font-light w-12 h-12 flex items-center justify-center rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 transition-colors',
+          class: 'absolute left-3 top-1/2 -translate-y-1/2 z-10 text-white text-4xl font-light w-12 h-12 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 transition-colors',
           onClick: (e: Event) => { e.stopPropagation(); fullscreenPrev(); }
         }, '\u2039'),
 
         // Next arrow
         fullscreenIndex.value < fullscreenImages.value.length - 1 && h('button', {
-          class: 'absolute right-3 top-1/2 -translate-y-1/2 z-10 text-white text-4xl font-light w-12 h-12 flex items-center justify-center rounded-full bg-black bg-opacity-40 hover:bg-opacity-60 transition-colors',
+          class: 'absolute right-3 top-1/2 -translate-y-1/2 z-10 text-white text-4xl font-light w-12 h-12 flex items-center justify-center rounded-full bg-black/40 hover:bg-black/60 transition-colors',
           onClick: (e: Event) => { e.stopPropagation(); fullscreenNext(); }
         }, '\u203A'),
 
@@ -1671,7 +1671,7 @@ const ActionSheetModal = defineComponent({
         onClick: () => emit('close')
       }, [
         h('div', {
-          class: 'bg-black bg-opacity-50 w-full',
+          class: 'bg-black/50 w-full',
           style: {
             maxWidth: '768px',
             position: 'absolute',
@@ -1882,7 +1882,7 @@ const GoalPickerSheet = defineComponent({
       onClick: () => emit('close')
     }, [
       h('div', {
-        class: 'bg-black bg-opacity-50 absolute inset-0'
+        class: 'bg-black/50 absolute inset-0'
       }),
       h('div', {
         class: isDesktop.value
@@ -2150,7 +2150,7 @@ const FullscreenImageViewer = defineComponent({
 
         // Close button overlay (top-right)
         h('button', {
-          class: 'absolute top-4 right-4 bg-black bg-opacity-50 rounded-full p-2 z-10',
+          class: 'absolute top-4 right-4 bg-black/50 rounded-full p-2 z-10',
           onClick: handleClose,
           onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
         }, [
@@ -2174,7 +2174,7 @@ const FullscreenImageViewer = defineComponent({
         (props.images?.length || 0) > 1 && [
           h('button', {
             key: 'prev',
-            class: 'absolute left-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-2 z-10',
+            class: 'absolute left-4 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-2 z-10',
             onClick: prevImage,
             onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
           }, [
@@ -2195,7 +2195,7 @@ const FullscreenImageViewer = defineComponent({
           ]),
           h('button', {
             key: 'next',
-            class: 'absolute right-4 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 rounded-full p-2 z-10',
+            class: 'absolute right-4 top-1/2 transform -translate-y-1/2 bg-black/50 rounded-full p-2 z-10',
             onClick: nextImage,
             onMousedown: (e: MouseEvent) => e.preventDefault() // Prevent selection on click
           }, [

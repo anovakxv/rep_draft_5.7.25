@@ -189,7 +189,7 @@
     <!-- Action Sheet Modal -->
     <Transition name="fade">
       <div v-if="mainActiveSheet && mainActiveSheet !== 'profileMenu'" @click="mainActiveSheet = null" class="fixed inset-0 z-30 flex items-end justify-center">
-        <div class="bg-black bg-opacity-50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
+        <div class="bg-black/50 w-full" style="max-width: 768px; position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);"></div>
         <Transition name="slide-up">
           <div v-if="mainActiveSheet" @click.stop class="bg-white w-full rounded-t-2xl p-6 relative z-10" style="max-width: 768px">
             <div class="flex flex-col items-center space-y-6">

@@ -128,7 +128,7 @@
     </div>
 
     <!-- Success Modal -->
-    <div v-if="paymentStatus.status === 'success'" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4">
+    <div v-if="paymentStatus.status === 'success'" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
       <div class="bg-white rounded-lg p-6 max-w-sm w-full text-center">
         <h2 class="text-xl font-bold mb-2">{{ transactionType.receiptTitle }}</h2>
         <p class="text-gray-600 mb-6">{{ transactionType.receiptMessage }}</p>
@@ -139,7 +139,7 @@
     </div>
 
     <!-- Donation Disclosure Modal -->
-    <div v-if="showDonationDisclosure" class="fixed inset-0 bg-black bg-opacity-60 z-50 overflow-y-auto">
+    <div v-if="showDonationDisclosure" class="fixed inset-0 bg-black/60 z-50 overflow-y-auto">
       <div class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <!-- Header -->

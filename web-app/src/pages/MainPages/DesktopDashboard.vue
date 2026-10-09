@@ -278,7 +278,7 @@
                   :class="chat.last_message?.read === '0' && chat.last_message?.sender_id !== userId
                     ? 'font-semibold text-green-600'
                     : 'text-gray-500'"
-                >{{ chat.last_message?.text || '' }}</p>
+                >{{ messagePreview(chat.last_message?.text) }}</p>
               </div>
             </div>
           </div>
@@ -375,6 +375,7 @@
             <div
               ref="inlineChatScrollRef"
               class="flex-1 overflow-y-auto px-4 py-3 space-y-2"
+              @click="inlineReplyMenuId = null"
             >
               <div
                 v-if="inlineChatLoading"
@@ -388,25 +389,48 @@
                 <div
                   v-for="msg in inlineChatMessages"
                   :key="msg.id"
-                  class="flex"
-                  :class="isInlineMessageFromMe(msg) ? 'justify-end' : 'justify-start'"
+                  class="flex flex-col"
+                  :class="isInlineMessageFromMe(msg) ? 'items-end' : 'items-start'"
                 >
                   <div
                     class="max-w-xs xl:max-w-sm rounded-2xl px-3 py-2 text-sm"
-                    :class="isInlineMessageFromMe(msg)
-                      ? 'bg-black rounded-br-sm'
-                      : 'bg-gray-100 text-gray-900 rounded-bl-sm'"
+                    :class="[
+                      isInlineMessageFromMe(msg)
+                        ? 'bg-black rounded-br-sm'
+                        : 'bg-gray-100 text-gray-900 rounded-bl-sm',
+                      canInlineReplyPrivately(msg) ? 'cursor-pointer hover:bg-gray-200' : '',
+                      inlineReplyMenuId === msg.id ? 'ring-2 ring-[#8cc65d]' : ''
+                    ]"
                     :style="isInlineMessageFromMe(msg) ? 'color:#8cc65d' : ''"
+                    :title="canInlineReplyPrivately(msg) ? `Click to reply privately to ${inlineSenderFirstName(msg)}` : undefined"
+                    @click="onInlineMessageClick(msg, $event)"
                   >
                     <p
                       v-if="!isInlineMessageFromMe(msg) && selectedChat?.type === 'group' && getInlineMessageSenderName(msg)"
                       class="text-xs text-gray-500 mb-0.5 font-medium"
                     >{{ getInlineMessageSenderName(msg) }}</p>
-                    <p>{{ msg.text }}</p>
+                    <div
+                      v-if="splitQuote(msg.text).quote.length"
+                      class="mb-1 pl-2 border-l-2 text-xs opacity-75"
+                      :class="isInlineMessageFromMe(msg) ? 'border-[#8cc65d]' : 'border-gray-400'"
+                    >
+                      <p v-for="(line, i) in splitQuote(msg.text).quote" :key="i">{{ line }}</p>
+                    </div>
+                    <p>{{ splitQuote(msg.text).body }}</p>
                     <p class="text-right text-xs mt-0.5 opacity-60">
                       {{ timeAgoDisplay(msg.created_at || msg.timestamp) }}
                     </p>
                   </div>
+                  <button
+                    v-if="inlineReplyMenuId === msg.id"
+                    @click.stop="replyPrivatelyFromInline(msg)"
+                    class="mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white border border-gray-200 shadow-sm text-xs font-medium text-gray-800 hover:bg-gray-50"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" style="color:#8cc65d" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                    </svg>
+                    Reply privately to {{ inlineSenderFirstName(msg) }}
+                  </button>
                 </div>
               </template>
             </div>
@@ -776,6 +800,7 @@ import { isAuthenticated, logout } from '@/utils/auth';
 import { useSocketManager } from '../utils/useSocketManager';
 import REPLogo from '@/assets/REPLogo.png';
 import { HIDDEN_ALL_TAB_PORTAL_IDS } from '@/constants/hiddenPortals';
+import { startPrivateReply, splitQuote, messagePreview } from '@/pages/utils/privateReply';
 
 // --- Types (minimal — just what this component needs) ---
 interface User {
@@ -1140,6 +1165,7 @@ const loadInlineChat = async (chat: ActiveChat) => {
     joinChat(chat.chat.id);
   }
   inlineChatMessages.value = [];
+  inlineReplyMenuId.value = null;
   inlineChatLoading.value = true;
   try {
     if (chat.type === 'direct' && chat.user) {
@@ -1198,6 +1224,30 @@ const inlineChatAvatar = computed(() =>
 
 const isInlineMessageFromMe = (msg: any) => (msg.sender_id ?? msg.senderId) === props.userId;
 const getInlineMessageSenderName = (msg: any) => msg.sender_name || msg.senderName || '';
+
+// --- Reply privately: click someone's group message → answer them in a 1:1 DM ---
+const inlineReplyMenuId = ref<number | null>(null);
+const canInlineReplyPrivately = (msg: any) =>
+  selectedChat.value?.type === 'group' && !isInlineMessageFromMe(msg) && !!(msg.sender_id ?? msg.senderId);
+const inlineSenderFirstName = (msg: any) => (getInlineMessageSenderName(msg) || 'them').trim().split(' ')[0];
+
+const onInlineMessageClick = (msg: any, event: MouseEvent) => {
+  if (!canInlineReplyPrivately(msg)) return;
+  event.stopPropagation();
+  inlineReplyMenuId.value = inlineReplyMenuId.value === msg.id ? null : msg.id;
+};
+
+const replyPrivatelyFromInline = (msg: any) => {
+  const senderId = msg.sender_id ?? msg.senderId;
+  inlineReplyMenuId.value = null;
+  startPrivateReply({
+    recipientId: senderId,
+    recipientName: getInlineMessageSenderName(msg) || 'them',
+    groupName: inlineChatName.value,
+    text: msg.text || '',
+  });
+  router.push({ path: `/chat/dm/${senderId}`, query: { returnTo: router.currentRoute.value.fullPath } });
+};
 
 // Silently appends new messages from socket events without clearing the list or showing a loading flash.
 // Deduplicates by message ID so re-fetching never causes duplicates.

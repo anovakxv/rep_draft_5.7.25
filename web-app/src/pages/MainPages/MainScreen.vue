@@ -310,6 +310,7 @@ import REPLogo from '@/assets/REPLogo.png';
 import LoadingSkeleton from '@/components/LoadingSkeleton.vue';
 import ErrorState from '@/components/ErrorState.vue';
 import EmptyState from '@/components/EmptyState.vue';
+import { messagePreview } from '@/pages/utils/privateReply';
 import { HIDDEN_ALL_TAB_PORTAL_IDS } from '@/constants/hiddenPortals';
 
 // Simple debounce utility
@@ -1582,7 +1583,7 @@ const ActiveChatList = defineComponent({
                   'text-[15px] truncate mt-1',
                   isUnread ? 'font-bold text-green-600' : 'text-gray-600'
                 ]
-              }, chat.last_message?.text || '')
+              }, messagePreview(chat.last_message?.text))
             ])
           )
         ]),

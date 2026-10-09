@@ -90,7 +90,7 @@
           </div>
 
           <!-- Messages List -->
-          <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 lg:px-8 py-3 lg:py-5 pb-32 lg:pb-5" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll">
+          <div ref="scrollContainer" class="flex-1 overflow-y-auto px-3 lg:px-8 py-3 lg:py-5 pb-32 lg:pb-5" style="-webkit-overflow-scrolling: touch; overscroll-behavior-y: contain;" @scroll.passive="onScroll" @click="replyMenuMessageId = null">
             <!-- Load older: divider style on desktop, plain link on mobile -->
             <div v-if="canLoadOlder" class="flex items-center gap-3 py-2 lg:my-3">
               <div class="hidden lg:block flex-1 h-px bg-gray-200"></div>
@@ -106,6 +106,10 @@
                 :isCurrentUser="msg.sender_id === currentUserId"
                 :profilePicURL="getProfilePicForSender(msg.sender_id)"
                 :editMode="editingMessageId === msg.id"
+                :replyPrivatelyTo="msg.sender_id !== currentUserId ? senderFirstName(msg) : undefined"
+                :showReplyPrivately="replyMenuMessageId === msg.id"
+                @toggleReplyPrivately="toggleReplyMenu"
+                @replyPrivately="handleReplyPrivately"
                 @toggleReaction="handleToggleReaction"
                 @showEmojiPicker="handleShowEmojiPicker"
                 @startEdit="handleStartEdit"
@@ -242,7 +246,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '@/pages/utils/api';
+import { startPrivateReply } from '@/pages/utils/privateReply';
 import MessageBubble from '@/components/MessageBubble.vue';
 import EmojiPicker from '@/components/EmojiPicker.vue';
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog.vue';
@@ -260,6 +266,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['close', 'refresh-chats']);
+const router = useRouter();
 
 // --- State ---
 const messages = ref<GroupMessage[]>([]);
@@ -285,6 +292,7 @@ const selectedMessageIdForEmoji = ref<number | null>(null);
 const showDeleteConfirm = ref(false);
 const messageToDelete = ref<number | null>(null);
 const editingMessageId = ref<number | null>(null);
+const replyMenuMessageId = ref<number | null>(null); // message showing "Reply privately"
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;        // onGroupMessageNotification (user room)
 let groupMsgObserverId: string | null = null; // onGroupMessage (chat room)
@@ -635,6 +643,34 @@ function getProfilePicForSender(senderId: number): string | undefined {
 
   // Otherwise, construct the full S3 URL (same as GroupMemberAvatar component)
   return `https://rep-app-dbbucket.s3.us-west-2.amazonaws.com/${member.profile_picture_url}`;
+}
+
+// --- Reply Privately ---
+function senderFullName(msg: GroupMessage): string {
+  return msg.sender_name || groupMembers.value.find(m => m.id === msg.sender_id)?.name || 'them';
+}
+
+function senderFirstName(msg: GroupMessage): string {
+  return senderFullName(msg).trim().split(' ')[0];
+}
+
+function toggleReplyMenu(messageId: number) {
+  replyMenuMessageId.value = replyMenuMessageId.value === messageId ? null : messageId;
+}
+
+// Opens a 1:1 DM with the sender, with this message quoted above the composer
+function handleReplyPrivately(msg: GroupMessage) {
+  replyMenuMessageId.value = null;
+  startPrivateReply({
+    recipientId: msg.sender_id,
+    recipientName: senderFullName(msg),
+    groupName: groupName.value || 'a group chat',
+    text: msg.text
+  });
+  router.push({
+    path: `/chat/dm/${msg.sender_id}`,
+    query: { returnTo: router.currentRoute.value.fullPath }
+  });
 }
 
 // --- Reaction Handlers ---

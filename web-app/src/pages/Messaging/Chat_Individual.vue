@@ -31,6 +31,24 @@
           </div>
         </div>
 
+        <!-- Private reply: the group message being answered -->
+        <div v-if="privateReply" class="mx-6 mt-4 rounded-lg border border-gray-200 bg-white px-4 py-3 shrink-0">
+          <div class="flex items-start gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5 shrink-0" style="color: #8cc65d" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            <p class="flex-1 min-w-0 text-xs font-semibold text-gray-500">
+              Replying privately to {{ privateReply.recipientName }}'s message in {{ privateReply.groupName }}
+            </p>
+            <button @click="privateReply = null" class="text-gray-400 hover:text-gray-600 shrink-0" aria-label="Cancel private reply">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <p class="mt-2 pl-3 border-l-2 border-[#8cc65d] text-sm text-gray-700 line-clamp-3 break-words">{{ quoteSnippet(privateReply.text) }}</p>
+        </div>
+
         <!-- Full-height textarea — no border, fills panel -->
         <div class="flex-1 flex flex-col px-6 py-4 min-h-0">
           <textarea
@@ -124,8 +142,21 @@
     <!-- Input Bar (MOBILE ONLY - hidden on desktop) -->
     <div class="lg:hidden fixed bottom-0 left-0 right-0 z-20 flex justify-center">
       <div class="w-full border-t border-gray-200 bg-white px-3 py-2" style="max-width: 768px;">
+        <!-- Private reply: the group message being answered -->
+        <div v-if="privateReply" class="flex items-start gap-2 mb-2 pl-3 border-l-2 border-[#8cc65d]">
+          <div class="flex-1 min-w-0">
+            <p class="text-xs font-semibold text-gray-500 truncate">Replying privately · {{ privateReply.groupName }}</p>
+            <p class="text-sm text-gray-700 line-clamp-2 break-words">{{ quoteSnippet(privateReply.text) }}</p>
+          </div>
+          <button @click="privateReply = null" class="p-1 text-gray-400 hover:text-gray-600 shrink-0" aria-label="Cancel private reply">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         <div class="flex items-center gap-2">
           <textarea
+            ref="mobileTextareaRef"
             v-model="inputText"
             @input="handleInputChange"
             @keydown.enter.exact.prevent="sendMessage()"
@@ -185,6 +216,7 @@ import EmojiPicker from '@/components/EmojiPicker.vue';
 import DeleteConfirmDialog from '@/components/DeleteConfirmDialog.vue';
 import EditHistoryModal from '@/components/EditHistoryModal.vue';
 import { BREAKPOINTS } from '@/constants/breakpoints';
+import { takePrivateReply, buildPrivateReplyText, quoteSnippet } from '@/pages/utils/privateReply';
 
 // --- Constants ---
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
@@ -212,8 +244,12 @@ const isTyping = ref(false);
 const otherUserTyping = ref(false);
 const isDesktop = ref(window.innerWidth >= BREAKPOINTS.DESKTOP);
 const textareaRef = ref<HTMLTextAreaElement | null>(null);
+const mobileTextareaRef = ref<HTMLTextAreaElement | null>(null);
 let typingTimeout: ReturnType<typeof setTimeout> | null = null;
 let observerId: string | null = null;
+
+// Set when arriving from "Reply privately" in a group chat; quoted into the next message sent
+const privateReply = ref(takePrivateReply(props.otherUserId));
 
 // Emoji picker state
 const showEmojiPicker = ref(false);
@@ -310,12 +346,13 @@ async function sendMessage() {
   try {
     const res = await api.post('/api/message/send_message', {
       users_id: props.otherUserId,
-      message: trimmed
+      message: privateReply.value ? buildPrivateReplyText(privateReply.value, trimmed) : trimmed
     });
     const msg: SimpleMessage = res.data.message;
     appendIfNeeded(msg);
 
     inputText.value = '';
+    privateReply.value = null;
     stopTyping();
 
     // Reset textarea height on desktop after sending
@@ -597,6 +634,10 @@ onMounted(() => {
   }
   fetchMessages();
   setupRealtimeListener();
+
+  if (privateReply.value) {
+    (isDesktop.value ? textareaRef : mobileTextareaRef).value?.focus();
+  }
 
   // Add desktop detection listener
   window.addEventListener('resize', updateDesktopDetection);

@@ -21,7 +21,7 @@ export default defineComponent({
           ])
         ])
       );
-      return h('div', { class: 'fixed inset-0 bg-black bg-opacity-30 z-50' }, [
+      return h('div', { class: 'fixed inset-0 bg-black/30 z-50' }, [
         h('div', { class: 'bg-white h-full max-w-md mx-auto flex flex-col' }, [
           h('div', { class: 'flex items-center justify-between p-4 border-b' }, [
             h('button', { onClick: props.onCancel, class: 'text-gray-600' }, 'Cancel'),

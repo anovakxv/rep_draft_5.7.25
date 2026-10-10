@@ -58,8 +58,14 @@
           class="rounded-lg px-4 py-2 md:px-5 md:py-3 transition-all duration-200 relative select-none"
           :class="[
             isCurrentUser ? 'bg-black text-rep-green' : 'bg-gray-200 text-gray-800',
-            longPressActive ? 'scale-95' : ''
+            longPressActive ? 'scale-95' : '',
+            replyPrivatelyTo ? 'cursor-pointer hover:bg-gray-300' : '',
+            showReplyPrivately ? 'ring-2 ring-[#8cc65d]' : ''
           ]"
+          :title="replyPrivatelyTo ? `Click to reply privately to ${replyPrivatelyTo}` : undefined"
+          :tabindex="replyPrivatelyTo ? 0 : undefined"
+          @click="handleBubbleClick"
+          @keydown.enter.self.prevent="replyPrivatelyTo && $emit('toggleReplyPrivately', message.id)"
           @touchstart="handleTouchStart"
           @touchend="handleTouchEnd"
           @touchmove="handleTouchMove"
@@ -96,14 +102,37 @@
             </div>
           </div>
 
+          <!-- Quoted group message (private replies) -->
+          <div
+            v-if="quoteParts.quote.length"
+            class="mb-2 pl-3 border-l-2 text-xs md:text-sm leading-snug break-words"
+            :class="isCurrentUser ? 'border-[#8cc65d] opacity-75' : 'border-gray-400 text-gray-600'"
+          >
+            <p v-for="(line, i) in quoteParts.quote" :key="i" :class="i === 0 && quoteParts.quote.length > 1 ? 'font-semibold mb-0.5' : ''">{{ line }}</p>
+          </div>
+
           <!-- Message Text with Link Detection -->
-          <p v-if="message.text" class="text-sm md:text-[15px] break-words whitespace-pre-wrap leading-relaxed" v-html="formattedText"></p>
+          <p v-if="quoteParts.body" class="text-sm md:text-[15px] break-words whitespace-pre-wrap leading-relaxed" v-html="formattedText"></p>
 
           <!-- Edited Badge -->
           <div v-if="message.is_edited" class="mt-1 text-xs opacity-60" :class="isCurrentUser ? 'text-rep-green' : 'text-gray-600'">
             (edited)
           </div>
         </div>
+
+        <!-- Reply privately (group chats: appears when someone else's message is clicked) -->
+        <Transition name="reply-pop">
+          <button
+            v-if="showReplyPrivately && replyPrivatelyTo"
+            @click.stop="$emit('replyPrivately', message)"
+            class="mt-1.5 inline-flex items-center gap-1.5 max-w-full px-3 py-1.5 rounded-full bg-white border border-gray-200 shadow-sm text-sm font-medium text-gray-800 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" style="color: #8cc65d" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            <span class="truncate">Reply privately to {{ replyPrivatelyTo }}</span>
+          </button>
+        </Transition>
 
         <!-- Reactions Display -->
         <div v-if="hasReactions" class="flex flex-wrap gap-1 mt-1 px-1">
@@ -184,7 +213,7 @@
         @click="closeContextMenu"
       >
         <!-- Backdrop -->
-        <div class="absolute inset-0 bg-black bg-opacity-30 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
 
         <!-- Menu -->
         <div
@@ -197,6 +226,18 @@
           </div>
 
           <div class="px-4 pb-6 space-y-1">
+            <!-- Reply Privately Option (group chats, other people's messages) -->
+            <button
+              v-if="replyPrivatelyTo"
+              @click="handleMenuAction('replyPrivately')"
+              class="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" style="color: #8cc65d" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              </svg>
+              <span class="text-base font-medium text-gray-900">Reply privately to {{ replyPrivatelyTo }}</span>
+            </button>
+
             <!-- React Option -->
             <button
               @click="handleMenuAction('react')"
@@ -249,6 +290,7 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
 import DOMPurify from 'dompurify'
+import { splitQuote } from '@/pages/utils/privateReply'
 
 interface MessageAttachment {
   url: string
@@ -283,6 +325,9 @@ const props = defineProps<{
   profilePicURL?: string
   editMode?: boolean
   currentUserId?: number
+  // Group chats only: the sender's first name. Set = clicking the message offers a private reply.
+  replyPrivatelyTo?: string
+  showReplyPrivately?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -294,6 +339,8 @@ const emit = defineEmits<{
   delete: [messageId: number]
   restore: [messageId: number]
   showEditHistory: [messageId: number]
+  toggleReplyPrivately: [messageId: number]
+  replyPrivately: [message: Message]
 }>()
 
 // Edit mode state
@@ -304,6 +351,7 @@ const editTextarea = ref<HTMLTextAreaElement | null>(null)
 const longPressTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const longPressActive = ref(false)
 const showContextMenu = ref(false)
+let longPressFired = false // swallow the click that ends a long press
 let touchStartX = 0
 let touchStartY = 0
 
@@ -337,11 +385,14 @@ const formattedTimestamp = computed(() => {
   }
 })
 
+// Leading "> " lines (a private reply's quote) are shown as a quote card above the text
+const quoteParts = computed(() => splitQuote(props.message.text))
+
 // Link detection and formatting
 const formattedText = computed(() => {
-  if (!props.message.text) return ''
+  if (!quoteParts.value.body) return ''
 
-  const text = props.message.text
+  const text = quoteParts.value.body
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)/gi
 
   // Escape HTML to prevent XSS — textContent/innerHTML escapes <, >, & but not "
@@ -381,6 +432,19 @@ function openImageLightbox(url: string) {
   window.open(url, '_blank')
 }
 
+// Plain click/tap on someone else's group message shows "Reply privately"
+function handleBubbleClick(event: MouseEvent) {
+  if (longPressFired) {
+    longPressFired = false
+    return
+  }
+  if (!props.replyPrivatelyTo || props.editMode) return
+  // Links and images inside the bubble keep their own click behavior
+  if ((event.target as HTMLElement).closest('a, img')) return
+  event.stopPropagation()
+  emit('toggleReplyPrivately', props.message.id)
+}
+
 // Long press handlers for mobile context menu
 function handleTouchStart(event: TouchEvent) {
   if (props.editMode) return // Don't trigger in edit mode
@@ -390,9 +454,11 @@ function handleTouchStart(event: TouchEvent) {
   touchStartY = touch.clientY
 
   longPressActive.value = true
+  longPressFired = false
 
   // Trigger long press after 500ms
   longPressTimer.value = setTimeout(() => {
+    longPressFired = true
     showContextMenu.value = true
     // Add haptic feedback if available
     if (navigator.vibrate) {
@@ -428,10 +494,13 @@ function closeContextMenu() {
   showContextMenu.value = false
 }
 
-function handleMenuAction(action: 'react' | 'edit' | 'delete') {
+function handleMenuAction(action: 'replyPrivately' | 'react' | 'edit' | 'delete') {
   closeContextMenu()
 
   switch (action) {
+    case 'replyPrivately':
+      emit('replyPrivately', props.message)
+      break
     case 'react':
       emit('showEmojiPicker', props.message.id)
       break
@@ -452,9 +521,11 @@ function handleMouseDown(event: MouseEvent) {
   event.preventDefault()
 
   longPressActive.value = true
+  longPressFired = false
 
   // Trigger long press after 500ms
   longPressTimer.value = setTimeout(() => {
+    longPressFired = true
     showContextMenu.value = true
   }, 500)
 }
@@ -513,5 +584,16 @@ function handleRightClick(event: MouseEvent) {
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
+}
+
+.reply-pop-enter-active,
+.reply-pop-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.reply-pop-enter-from,
+.reply-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 </style>

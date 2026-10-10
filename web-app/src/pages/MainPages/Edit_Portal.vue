@@ -56,7 +56,7 @@
           <!-- Large preview of selected image -->
           <div v-if="selectedImages.length > 0" class="relative w-full aspect-video bg-gray-200 rounded-lg overflow-hidden">
             <img :src="selectedImages[mainImageIndex]?.url" class="w-full h-full object-cover" alt="Portal image" />
-            <div class="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+            <div class="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
               {{ mainImageIndex === 0 ? 'Main Icon' : `Image ${mainImageIndex + 1} of ${selectedImages.length}` }}
             </div>
           </div>
@@ -83,7 +83,7 @@
               <!-- "Main" badge on first image -->
               <span
                 v-if="idx === 0"
-                class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white text-center rounded-b"
+                class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-center rounded-b"
                 style="font-size: 9px; padding: 2px 0;"
               >Main</span>
 
@@ -99,13 +99,13 @@
                 <button
                   v-if="idx > 0"
                   @click.stop="moveImageLeft(idx)"
-                  class="bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded px-1 text-xs leading-tight"
+                  class="bg-black/60 hover:bg-black/80 text-white rounded px-1 text-xs leading-tight"
                   title="Move left"
                 >←</button>
                 <button
                   v-if="idx < selectedImages.length - 1"
                   @click.stop="moveImageRight(idx)"
-                  class="bg-black bg-opacity-60 hover:bg-opacity-80 text-white rounded px-1 text-xs leading-tight ml-auto"
+                  class="bg-black/60 hover:bg-black/80 text-white rounded px-1 text-xs leading-tight ml-auto"
                   title="Move right"
                 >→</button>
               </div>
@@ -387,7 +387,7 @@
     <!-- Add Leads Sheet -->
     <div 
       v-if="showAddLeadsSheet" 
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center"
       @click="showAddLeadsSheet = false"
     >
       <div 
@@ -443,7 +443,7 @@
     <!-- Delete Story Block Confirmation -->
     <div 
       v-if="showDeleteStoryBlockAlert" 
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
     >
       <div class="bg-white rounded-lg p-6 max-w-sm w-full">
         <h3 class="text-lg font-bold mb-3">Delete Story Block</h3>
@@ -468,7 +468,7 @@
     <!-- Delete Portal Confirmation -->
     <div
       v-if="showDeletePortalAlert"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
     >
       <div class="bg-white rounded-lg p-6 max-w-sm w-full">
         <h3 class="text-lg font-bold mb-3">Delete Portal?</h3>
@@ -493,7 +493,7 @@
     <!-- Edit/Add Story Block Modal -->
     <div
       v-if="showStoryBlockModal"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
       @click="closeStoryBlockModal"
     >
       <div
@@ -548,7 +548,7 @@
     <!-- Add/Edit Image Section Modal -->
     <div
       v-if="showImageSectionModal"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
       @click="closeImageSectionModal"
     >
       <div
@@ -655,7 +655,7 @@
     <!-- Delete Image Section Confirmation -->
     <div
       v-if="showDeleteImageSectionAlert"
-      class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
     >
       <div class="bg-white rounded-lg p-6 max-w-sm w-full">
         <h3 class="text-lg font-bold mb-3">Delete Image Section</h3>

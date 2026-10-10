@@ -34,7 +34,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
           </div>
-          <label class="absolute bottom-0 right-0 bg-white bg-opacity-80 px-2 py-1 rounded text-xs text-gray-600 cursor-pointer border border-gray-300">
+          <label class="absolute bottom-0 right-0 bg-white/80 px-2 py-1 rounded text-xs text-gray-600 cursor-pointer border border-gray-300">
             <input type="file" accept="image/*" @change="handleImageSelect" class="hidden" />
             +Edit<br />Photo
           </label>
@@ -146,7 +146,7 @@
     </div>
 
     <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
+    <div v-if="showDeleteConfirm" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
         <h3 class="text-xl font-bold mb-4">Delete Profile?</h3>
         <p class="mb-6 text-gray-700">
@@ -164,7 +164,7 @@
     </div>
 
     <!-- Error Modal -->
-    <div v-if="errorMessage" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 px-4">
+    <div v-if="errorMessage" class="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
       <div class="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
         <h3 class="text-xl font-bold mb-4 text-red-600">Error</h3>
         <p class="mb-6 text-gray-700">{{ errorMessage }}</p>

@@ -5,7 +5,7 @@
 -->
 
 <template>
-  <div class="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-end justify-center">
+  <div class="fixed inset-0 bg-black/30 z-50 flex items-end justify-center">
     <div class="bg-white rounded-t-xl w-full max-w-md h-[80vh] flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between p-4 border-b shrink-0">
@@ -85,7 +85,7 @@
       <!-- Success Message -->
       <div
         v-if="inviteSuccess"
-        class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-10"
+        class="absolute inset-0 bg-black/40 flex items-center justify-center z-10"
       >
         <div class="bg-white rounded-lg p-6 max-w-sm mx-4">
           <h3 class="text-lg font-bold mb-2">Invitation Sent</h3>
@@ -102,7 +102,7 @@
       <!-- Error Message -->
       <div
         v-if="errorMessage"
-        class="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-10"
+        class="absolute inset-0 bg-black/40 flex items-center justify-center z-10"
       >
         <div class="bg-white rounded-lg p-6 max-w-sm mx-4">
           <h3 class="text-lg font-bold mb-2 text-red-600">Error</h3>

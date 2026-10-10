@@ -85,6 +85,13 @@ async function fetchOtherUser() {
 }
 
 function handleBack() {
+  // Private replies come from a group chat — go back there (internal paths only)
+  const returnTo = route.query.returnTo;
+  if (typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//')) {
+    router.push(returnTo);
+    return;
+  }
+
   const fromTab = route.query.from;
   if (fromTab) {
     router.push({ path: '/main', query: { tab: fromTab } });

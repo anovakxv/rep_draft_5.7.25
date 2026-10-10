@@ -201,7 +201,7 @@
 
     <!-- Action Menu Modal -->
     <div v-if="showActionMenu" @click="showActionMenu = false" class="fixed inset-0 z-30 flex items-end lg:items-center justify-center">
-      <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+      <div class="absolute inset-0 bg-black/50"></div>
       <div @click.stop class="bg-white w-full rounded-t-2xl lg:rounded-2xl p-6 lg:p-0 relative z-10 max-w-[768px] lg:w-72 lg:max-w-none max-h-[80vh] overflow-y-auto lg:overflow-hidden lg:shadow-2xl">
         <div class="flex flex-col items-center lg:items-stretch space-y-6 lg:space-y-0 lg:px-2 lg:py-2">
           <!-- Current User Actions -->
@@ -299,7 +299,7 @@
     </div>
 
     <!-- Flag Confirmation Dialog -->
-    <div v-if="showFlagConfirmation" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+    <div v-if="showFlagConfirmation" class="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
       <div class="bg-white p-4 rounded-lg shadow-lg max-w-md">
         <h3 class="font-bold text-lg mb-2">Flag User?</h3>
         <p>Are you sure you want to flag this person as inappropriate?</p>

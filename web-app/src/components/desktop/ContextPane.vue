@@ -263,6 +263,7 @@
         layout="pane"
         @open-group="(chat) => emit('open-group', chat)"
         @toast="(msg) => emit('toast', msg)"
+        @expand="emit('expand-purposes')"
       />
     </div>
   </div>
@@ -302,6 +303,7 @@ const emit = defineEmits<{
   (e: 'open-group', chat: { id: number; name: string }): void;
   (e: 'ask-coach', text: string): void;
   (e: 'toast', message: string): void;
+  (e: 'expand-purposes'): void;
   (e: 'close'): void;
 }>();
 

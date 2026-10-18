@@ -105,7 +105,31 @@
           </Transition>
         </div>
 
-        <span class="flex-1 min-w-0 text-[15px] font-semibold text-gray-900 truncate">{{ ['Chats', 'Network', 'All people'][leftTab] }}</span>
+        <!-- Mode: Chats (conversation in the center) or Purposes (Purpose-Value in the center) -->
+        <div class="flex-1 min-w-0 flex justify-center">
+          <div v-if="isAuth" class="flex p-0.5 rounded-lg bg-gray-200/70" role="tablist" aria-label="Dashboard mode">
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="mode === 'chat'"
+              class="relative px-2.5 h-7 rounded-md text-[13px] font-semibold transition-colors"
+              :class="mode === 'chat' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+              @click="enterChatMode"
+            >
+              Chats
+              <span v-if="mode !== 'chat' && openNeedsAttention" class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style="background: #8cc65d"></span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="mode === 'purposes'"
+              class="px-2.5 h-7 rounded-md text-[13px] font-semibold transition-colors"
+              :class="mode === 'purposes' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+              @click="enterPurposeMode"
+            >Purposes</button>
+          </div>
+          <span v-else class="text-[15px] font-semibold text-gray-900">Rep</span>
+        </div>
 
         <button
           @click="toggleLeftSearch"
@@ -284,11 +308,22 @@
             </div>
           </div>
         </div>
-        <PurposeFeed v-if="isDesktop" class="flex-1 min-h-0 pt-2" :user-id="0" :is-auth="false" layout="grid" />
+        <PurposeFeed v-if="isDesktop" class="flex-1 min-h-0" :user-id="0" :is-auth="false" layout="wide" />
       </template>
 
       <!-- Nothing renders (or loads) here on phones; the mobile layout is MainScreen's -->
       <template v-else-if="!isDesktop"></template>
+
+      <!-- Purpose mode: the Purpose-Value side of the rolodex takes the center -->
+      <PurposeFeed
+        v-else-if="mode === 'purposes'"
+        class="flex-1 min-h-0"
+        :user-id="userId"
+        :is-auth="isAuth"
+        layout="wide"
+        @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
+        @toast="triggerToast"
+      />
 
       <!-- Rep Coach -->
       <template v-else-if="selected?.kind === 'coach'">
@@ -336,16 +371,23 @@
         <p class="text-sm text-gray-500 mt-1 max-w-sm">
           Choose someone on the left{{ coachEnabled ? ', or ask Rep Coach to find people and Purposes for what you’re working on' : '' }}.
         </p>
-        <button
-          v-if="coachEnabled"
-          type="button"
-          class="mt-5 px-5 h-10 rounded-full text-white text-sm font-semibold hover:opacity-90 inline-flex items-center gap-2"
-          style="background: #8cc65d"
-          @click="openConversation({ kind: 'coach' })"
-        >
-          <img :src="RepCoachAvatar" alt="" class="w-5 h-5 rounded-full bg-white" />
-          Open Rep Coach
-        </button>
+        <div class="mt-5 flex flex-wrap justify-center gap-2">
+          <button
+            v-if="coachEnabled"
+            type="button"
+            class="px-5 h-10 rounded-full text-white text-sm font-semibold hover:opacity-90 inline-flex items-center gap-2"
+            style="background: #8cc65d"
+            @click="openConversation({ kind: 'coach' })"
+          >
+            <img :src="RepCoachAvatar" alt="" class="w-5 h-5 rounded-full bg-white" />
+            Open Rep Coach
+          </button>
+          <button
+            type="button"
+            class="px-5 h-10 rounded-full border border-gray-300 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+            @click="enterPurposeMode"
+          >Browse Purposes</button>
+        </div>
       </div>
     </main>
 
@@ -353,7 +395,7 @@
          PURPOSE · VALUE: context pane (inline on wide screens)
          ====================================================== -->
     <aside
-      v-if="isAuth && isDesktop && isWide && contextOpen && !focusMode"
+      v-if="isAuth && isDesktop && mode === 'chat' && isWide && contextOpen && !focusMode"
       class="flex flex-col shrink-0 w-[380px] 2xl:w-[420px] border-l border-gray-200"
     >
       <ContextPane
@@ -368,12 +410,13 @@
         @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
         @ask-coach="askCoach"
         @toast="triggerToast"
+        @expand-purposes="enterPurposeMode"
       />
     </aside>
 
     <!-- Context pane as a drawer on narrower desktops -->
     <Transition name="drawer">
-      <div v-if="isAuth && isDesktop && !isWide && drawerOpen && !focusMode" class="fixed inset-0 z-40 flex justify-end">
+      <div v-if="isAuth && isDesktop && mode === 'chat' && !isWide && drawerOpen && !focusMode" class="fixed inset-0 z-40 flex justify-end">
         <div class="absolute inset-0 bg-black/30" @click="drawerOpen = false"></div>
         <div class="drawer-panel relative flex flex-col w-[380px] max-w-[90vw] h-full bg-white shadow-2xl">
           <ContextPane
@@ -390,6 +433,7 @@
             @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
             @ask-coach="askCoach"
             @toast="triggerToast"
+            @expand-purposes="enterPurposeMode"
           />
         </div>
       </div>
@@ -709,6 +753,22 @@ function applyKey(key: ConversationKey | null) {
   if (key && isAuth.value) saveLastConversation(props.userId, key);
 }
 
+// --- Mode: Chats (a conversation in the center) or Purposes (the Purpose feed in the center) ---
+// Kept in the URL as /main?view=purposes. Only updated while on /main, so a cached
+// (keep-alive) dashboard never mounts a conversation behind another page.
+const mode = ref<'chat' | 'purposes'>('chat');
+
+function enterPurposeMode() {
+  if (route.path === '/main' && route.query.view === 'purposes') return;
+  router.push({ path: '/main', query: { view: 'purposes' } });
+}
+
+function enterChatMode() {
+  if (mode.value === 'chat') return;
+  if (selected.value) openConversation(selected.value);
+  else router.push({ path: '/main' }); // landing picks Rep Coach or the last conversation
+}
+
 function clearSelection() {
   applyKey(null);
   saveLastConversation(props.userId, null);
@@ -742,6 +802,13 @@ async function chooseLanding() {
 
 function syncFromRoute() {
   if (!isDesktop.value || !isAuth.value || route.path !== '/main') return;
+  if (route.query.view === 'purposes') {
+    mode.value = 'purposes';
+    focusMode.value = false;
+    drawerOpen.value = false;
+    return;
+  }
+  mode.value = 'chat';
   const key = parseConversationKey(route.query.c);
   if (key) {
     applyKey(key);
@@ -755,7 +822,7 @@ function syncFromRoute() {
   chooseLanding();
 }
 
-watch(() => [route.path, route.query.c, isDesktop.value, isAuth.value], syncFromRoute, { immediate: true });
+watch(() => [route.path, route.query.c, route.query.view, isDesktop.value, isAuth.value], syncFromRoute, { immediate: true });
 
 // Signed out: forget the open conversation and onboarding state
 watch(isAuth, (auth) => {
@@ -764,6 +831,7 @@ watch(isAuth, (auth) => {
   groupInfo.value = null;
   myWriteCount.value = null;
   focusMode.value = false;
+  mode.value = 'chat';
 });
 
 // Back from writing your story (or anywhere else): refresh the onboarding check

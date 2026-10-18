@@ -14,46 +14,37 @@
     <div v-else-if="errorMessage" class="flex items-center justify-center h-full text-red-500 p-4">
       <p>{{ errorMessage }}</p>
     </div>
-    <template v-else-if="portalDetail">
-    <!-- DESKTOP (lg+): one main stage (Pitch · Goal Teams · Story) + the Purpose card.
-         Same data, actions and modals as the mobile layout below. -->
-    <div class="hidden lg:block flex-1 min-h-0">
-      <PurposePageDesktop
-        :portal="portalDetail"
-        :goals="portalGoals"
-        :supporters-goal="supportersGoal"
-        :attendees-goal="attendeesGoal"
-        :support-goal="supportGoal"
-        :is-lead="isCurrentUserLead"
-        :is-owner="isPortalOwner"
-        :is-event-registered="isEventRegistered"
-        :is-auth="isAuthenticated()"
-        :user-id="userId"
-        :google-cal-url="buildGoogleCalUrlFromPortal()"
-        :ics-url="`https://rep-june2025.onrender.com/api/portal/${portalDetail.id}/calendar.ics`"
-        @back="goBackDesktop"
-        @rsvp="handleRSVP"
-        @join-supporters="handleJoinSupporters"
-        @message="openMessageSheet"
-        @support="openPaymentSheet"
-        @join-team="openGoalPicker"
-        @share="handleShare"
-        @edit="router.push(`/portal/edit/${portalId}`)"
-        @add-goal="activeSheet = 'addGoal'"
-        @flag="showFlagConfirmation = true"
-        @open-fullscreen="openFullscreen"
-      />
-    </div>
+    <div v-else-if="portalDetail" class="flex flex-col flex-1 min-h-0">
+      <!-- Header (phones) -->
+      <PortalHeader class="lg:hidden" :portal-name="portalDetail.name" @back="goBack" />
 
-    <!-- MOBILE layout (below lg) -->
-    <div class="flex flex-col flex-1 min-h-0 lg:hidden">
-      <!-- Header - Full Width Across Both Columns -->
-      <PortalHeader :portal-name="portalDetail.name" @back="goBack" />
+      <!-- Header (desktop): title over the pitch deck, Goal Teams | Story over the right column -->
+      <div class="hidden lg:flex h-12 shrink-0 border-b border-gray-200" style="background-color: #f7f7f7">
+        <div class="w-[60%] min-w-0 flex items-center gap-2 px-4">
+          <button @click="goBackDesktop" class="shrink-0" style="color: #8cc65d" aria-label="Back">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <h1 class="flex-1 min-w-0 text-center text-sm truncate">
+            <span class="font-semibold text-gray-900">{{ portalDetail.name }}</span>
+            <span v-if="portalDetail.subtitle?.trim()" class="text-gray-400"> — {{ portalDetail.subtitle }}</span>
+          </h1>
+          <span class="w-5 shrink-0"></span>
+        </div>
+        <div class="w-[40%] flex items-center px-4">
+          <PortalSegmentedPicker
+            class="w-full max-w-md mx-auto"
+            :segments="['Goal Teams', 'Story']"
+            v-model="selectedSection"
+          />
+        </div>
+      </div>
 
       <!-- Two Column Layout (Desktop Only) -->
       <div class="flex flex-col flex-1 min-h-0 lg:flex-row">
         <!-- DESKTOP: Left Column - Image Gallery (70% width, full screen height) -->
-        <div class="hidden lg:flex lg:w-[70%] lg:h-[calc(100vh-3rem)] lg:sticky lg:top-[3rem] lg:flex-col lg:bg-black" style="border: 12px solid black;">
+        <div class="hidden lg:flex lg:w-[60%] lg:h-[calc(100vh-3rem)] lg:sticky lg:top-[3rem] lg:flex-col lg:bg-[#141414]" style="border: 12px solid #141414;">
           <ImageTabView
             :sections="(portalDetail.aSections || []).filter(s => s.title === 'Main Section')"
             @image-tap="openFullscreen"
@@ -61,8 +52,8 @@
           />
         </div>
 
-        <!-- MOBILE & DESKTOP: Right Column - Content (30% on desktop) -->
-        <div class="flex flex-col flex-1 min-h-0 lg:w-[30%]">
+        <!-- MOBILE & DESKTOP: Right Column - Content (40% on desktop) -->
+        <div class="flex flex-col flex-1 min-h-0 lg:w-[40%]">
 
         <!-- 2. Main Scrollable Content -->
         <div class="flex-1 overflow-y-auto overflow-x-hidden pb-20 lg:pb-0" style="overscroll-behavior-y: contain;">
@@ -75,9 +66,9 @@
               />
             </div>
 
-            <!-- Sticky Segmented Picker (mobile & desktop) -->
-            <div class="sticky top-0 z-10 bg-white">
-              <div class="py-2 px-4 border-b border-t border-gray-200">
+            <!-- Sticky Segmented Picker (phones; on desktop it lives in the top bar) -->
+            <div class="sticky top-0 z-10 bg-white lg:hidden">
+              <div class="py-2 px-4 border-b border-t border-gray-200 lg:border-t-0 lg:border-gray-100">
                 <PortalSegmentedPicker
                   :segments="['Goal Teams', 'Story']"
                   v-model="selectedSection"
@@ -106,13 +97,13 @@
           <button
             v-if="attendeesGoal && !isEventRegistered"
             @click="handleRSVP"
-            class="w-full h-10 rounded-xl font-semibold text-sm text-white hover:opacity-90 transition-opacity"
+            class="w-full h-10 rounded-sm font-semibold text-sm text-white hover:opacity-90 transition-opacity"
             style="background-color: #8cc65d;"
           >
             Register for Event
           </button>
           <div v-else-if="isEventRegistered && portalDetail?.event_datetime" class="relative">
-            <div v-if="showCalendarPicker" class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden z-50">
+            <div v-if="showCalendarPicker" class="absolute bottom-full left-0 right-0 mb-2 bg-white rounded shadow-lg border border-gray-200 overflow-hidden z-50">
               <a
                 v-if="buildGoogleCalUrlFromPortal()"
                 :href="buildGoogleCalUrlFromPortal()"
@@ -151,7 +142,7 @@
             </div>
             <button
               @click="showCalendarPicker = !showCalendarPicker"
-              class="w-full h-10 flex items-center justify-center gap-2 rounded-xl font-semibold text-sm text-white hover:opacity-90 transition-opacity"
+              class="w-full h-10 flex items-center justify-center gap-2 rounded-sm font-semibold text-sm text-white hover:opacity-90 transition-opacity"
               style="background-color: #006600;"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -163,7 +154,7 @@
           <button
             v-else-if="supportersGoal && !attendeesGoal"
             @click="handleJoinSupporters"
-            class="w-full h-10 rounded-xl font-semibold text-sm text-white hover:opacity-90 transition-opacity"
+            class="w-full h-10 rounded-sm font-semibold text-sm text-white hover:opacity-90 transition-opacity"
             style="background-color: #8cc65d;"
           >
             Join Supporters
@@ -172,7 +163,7 @@
           <div class="flex items-center gap-2">
             <button
               @click="openMessageSheet"
-              class="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full text-sm font-semibold hover:opacity-80 transition-opacity"
+              class="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-sm text-sm font-semibold hover:opacity-80 transition-opacity"
               style="border: 2px solid #006600; color: #006600; background: white;"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -182,7 +173,7 @@
             </button>
             <button
               @click="handleAddAction"
-              class="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-full text-sm font-semibold text-white hover:opacity-80 transition-opacity"
+              class="flex-1 flex items-center justify-center gap-1.5 h-9 rounded-sm text-sm font-semibold text-white hover:opacity-80 transition-opacity"
               style="background: #8cc65d;"
             >
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -315,7 +306,6 @@
         </div>
       </div>
     </div>
-    </template>
 
     <!-- Modals & Fullscreen Views -->
     <transition name="fade">
@@ -432,7 +422,6 @@ const EditGoal = defineAsyncComponent(() => import('../GoalPages/EditGoal.vue'))
 import PayTransaction from './PayTransaction.vue';
 import { BREAKPOINTS } from '@/constants/breakpoints';
 import { shareUrl } from '@/utils/share';
-import PurposePageDesktop from '@/components/desktop/PurposePageDesktop.vue';
 
 // --- Interfaces (from Swift Models) ---
 interface User { 
@@ -562,9 +551,6 @@ const isCurrentUserLead = computed(() => {
 const reportingIncrementsForEditGoal = computed(() => {
   return reportingIncrements.value.map(ri => ({ id: ri.id, title: ri.name }));
 });
-
-// The portal's creator (can edit it) — same check as the action menu's "Edit Purpose"
-const isPortalOwner = computed(() => userId > 0 && portalDetail.value?.users_id === userId);
 
 const leadRepUser = computed(() => {
   // Find the portal creator from aUsers using users_id
@@ -785,20 +771,12 @@ const goBack = () => {
   }
 };
 
-// Desktop: back to wherever the member came from, else the dashboard's Purpose view
+// Desktop: back to wherever the member came from (Purpose view, a chat, a profile…),
+// else the dashboard's Purpose view. Phones keep goBack above.
 const goBackDesktop = () => {
   if (window.history.state?.back) router.back();
   else if (isAuthenticated()) router.push({ path: '/main', query: { view: 'purposes' } });
   else router.push('/main');
-};
-
-// Desktop "Join a Team" (the mobile action menu's "Join Team")
-const openGoalPicker = () => {
-  if (!isAuthenticated()) {
-    router.push({ path: '/register', query: { returnTo: `/portal/${portalId}` } });
-    return;
-  }
-  activeSheet.value = 'goalPicker';
 };
 
 const handleAddAction = () => {
@@ -1044,11 +1022,21 @@ const ImageTabView = defineComponent({
       }
     });
 
+    // Desktop: ← → flip slides (not while typing in a field)
+    const onKeydown = (e: KeyboardEvent) => {
+      if (window.innerWidth < BREAKPOINTS.DESKTOP) return;
+      if ((e.target as HTMLElement)?.closest?.('input, textarea, [contenteditable]')) return;
+      if (e.key === 'ArrowRight') nextImage();
+      else if (e.key === 'ArrowLeft') prevImage();
+    };
+    onMounted(() => { if (props.desktopMode) window.addEventListener('keydown', onKeydown); });
+
     onBeforeUnmount(() => {
       if (slideshowTimer) {
         clearInterval(slideshowTimer);
         slideshowTimer = null;
       }
+      window.removeEventListener('keydown', onKeydown);
     });
 
     const nextImage = () => {
@@ -1079,7 +1067,7 @@ const ImageTabView = defineComponent({
     return () => {
       // ── DESKTOP layout: main image + thumbnail strip ──────────────────
       if (props.desktopMode) {
-        return h('div', { class: 'w-full h-full bg-black flex flex-col overflow-hidden', style: noSelectStyle }, [
+        return h('div', { class: 'w-full h-full bg-[#141414] flex flex-col overflow-hidden', style: noSelectStyle }, [
 
           // Main image area (fills remaining height)
           h('div', { class: 'relative flex-1 overflow-hidden flex items-center justify-center' }, [
@@ -1111,7 +1099,7 @@ const ImageTabView = defineComponent({
           // Thumbnail strip — only shown when there are multiple images
           images.value.length > 1 && h('div', {
             class: 'flex gap-2 px-4 py-2 justify-center overflow-x-auto shrink-0',
-            style: 'background:#000'
+            style: 'background:#141414'
           }, images.value.map((img, idx) =>
             h('button', {
               key: idx,
@@ -1121,7 +1109,7 @@ const ImageTabView = defineComponent({
             }, [
               h('img', {
                 src: img.url,
-                class: `object-cover rounded transition-all duration-150 ${
+                class: `object-contain bg-black rounded transition-all duration-150 ${
                   idx === currentImageIndex.value
                     ? 'ring-2 ring-white opacity-100'
                     : 'opacity-50 hover:opacity-80'
@@ -1183,16 +1171,19 @@ const PortalSegmentedPicker = defineComponent({
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    return () => h('div', { 
-      class: 'flex border border-black rounded-md overflow-hidden'
+    // Phones: black-and-white segmented control. Desktop (lg+): the dashboard's compact gray pill.
+    return () => h('div', {
+      class: 'flex border border-black rounded-md overflow-hidden lg:border-0 lg:rounded-lg lg:p-0.5 lg:bg-gray-100'
     },
       props.segments?.map((segment, index) =>
         h('button', {
           key: index,
           class: [
-            'flex-1 py-2 text-sm font-medium transition-colors',
-            props.modelValue === index ? 'bg-black text-white' : 'bg-white text-black',
-            index < (props.segments?.length || 0) - 1 ? 'border-r border-black' : ''
+            'flex-1 py-2 text-sm font-medium transition-colors lg:py-0 lg:h-7 lg:text-[13px] lg:rounded-md',
+            props.modelValue === index
+              ? 'bg-black text-white lg:bg-white lg:text-gray-900 lg:shadow-sm'
+              : 'bg-white text-black lg:bg-transparent lg:text-gray-500 lg:hover:text-gray-800',
+            index < (props.segments?.length || 0) - 1 ? 'border-r border-black lg:border-r-0' : ''
           ],
           onClick: () => emit('update:modelValue', index)
         }, segment)
@@ -1217,7 +1208,8 @@ const PortalResultsSection = defineComponent({
       const chartBars = (goal.chartData || []).slice(-4);
 
       return h('div', {
-        class: 'flex items-center gap-4 py-1 px-4 bg-white hover:bg-gray-50 transition',
+        // Desktop: the column already has side padding, so the row only needs a little
+        class: 'flex items-center gap-4 py-1 px-4 lg:px-2 bg-white hover:bg-gray-50 transition',
         style: { height: '89px' } // 81px + 8px padding
       }, [
         // Mini bar chart (left side)
@@ -1289,8 +1281,8 @@ const PortalResultsSection = defineComponent({
                 class: 'border-b border-gray-200'
               })
             ]).flat(),
-            // Extra bottom padding to allow scrolling past floating buttons
-            h('div', { key: 'bottom-spacer', style: { height: '80px' } })
+            // Extra bottom padding to allow scrolling past the phone's floating buttons
+            h('div', { key: 'bottom-spacer', class: 'lg:hidden', style: { height: '80px' } })
           ]
         : h('p', { class: 'text-gray-500 py-8 text-center' }, 'No goals for this portal yet.')
     ]);

@@ -132,6 +132,7 @@
         </div>
 
         <button
+          v-if="isAuth"
           @click="toggleLeftSearch"
           class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-gray-200/60"
           :class="showLeftSearch ? 'bg-gray-200/60' : ''"
@@ -150,7 +151,7 @@
       </div>
 
       <!-- Chats / Network / All + search -->
-      <div class="shrink-0 px-3 py-2 space-y-2 border-b border-gray-100">
+      <div v-if="isAuth" class="shrink-0 px-3 py-2 space-y-2 border-b border-gray-100">
         <div class="flex p-0.5 rounded-lg bg-gray-100" role="tablist" aria-label="People to show">
           <button
             v-for="(label, i) in ['Chats', 'Network', 'All']"
@@ -181,12 +182,27 @@
       <!-- List -->
       <div class="flex-1 min-h-0 overflow-y-auto">
         <!-- Logged out: ghost rows hint at what's inside -->
+        <!-- Logged out: the pitch, then ghost rows hinting at what's inside -->
         <template v-if="!isAuth">
-          <div v-for="i in 7" :key="i" class="flex items-center gap-3 px-3 py-3 border-b border-gray-50 animate-pulse">
+          <div class="px-5 pt-8 pb-6 text-center border-b border-gray-100">
+            <img :src="REPLogo" alt="Rep" class="w-14 h-14 object-contain mx-auto" />
+            <h1 class="mt-3 font-bold text-[19px] leading-snug text-gray-900">Accelerate prioritized Purpose</h1>
+            <p class="mt-2 text-sm text-gray-500 leading-relaxed">
+              Find Purposes worth your time, meet the people behind them, and build Goal Teams that move.
+            </p>
+            <RouterLink
+              to="/register"
+              class="mt-5 flex items-center justify-center h-10 rounded-full text-white text-sm font-semibold hover:opacity-90"
+              style="background: #8cc65d"
+            >Join Rep</RouterLink>
+            <RouterLink to="/login" class="mt-3 inline-block text-xs text-gray-500 hover:text-gray-800">Already a member? Log in</RouterLink>
+          </div>
+          <p class="px-4 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-300">Your conversations will appear here</p>
+          <div v-for="i in 5" :key="i" class="flex items-center gap-3 px-3 py-3 opacity-70" aria-hidden="true">
             <div class="w-10 h-10 rounded-full bg-gray-100 shrink-0"></div>
             <div class="flex-1 space-y-2">
-              <div class="h-3 bg-gray-100 rounded" :style="`width:${[55, 70, 60, 75, 50, 65, 58][i - 1]}%`"></div>
-              <div class="h-2.5 bg-gray-50 rounded" :style="`width:${[80, 65, 90, 70, 85, 60, 75][i - 1]}%`"></div>
+              <div class="h-3 bg-gray-100 rounded" :style="`width:${[55, 70, 60, 75, 50][i - 1]}%`"></div>
+              <div class="h-2.5 bg-gray-50 rounded" :style="`width:${[80, 65, 90, 70, 85][i - 1]}%`"></div>
             </div>
           </div>
         </template>
@@ -293,23 +309,9 @@
          ====================================================== -->
     <main class="flex-1 min-w-0 flex flex-col bg-white">
 
-      <!-- Logged out: pitch + the public Purpose feed, full width -->
-      <template v-if="!isAuth">
-        <div class="shrink-0 border-b border-gray-100">
-          <div class="max-w-[1100px] mx-auto px-6 py-8 flex items-center gap-6">
-            <img :src="REPLogo" alt="Rep" class="w-14 h-14 object-contain shrink-0" />
-            <div class="flex-1 min-w-0">
-              <h1 class="font-bold text-2xl text-gray-900">Accelerate prioritized Purpose</h1>
-              <p class="text-gray-500 mt-1">Find Purposes worth your time, meet the people behind them, and build Goal Teams that move.</p>
-            </div>
-            <div class="flex flex-col items-center gap-2 shrink-0">
-              <RouterLink to="/register" class="px-6 py-2.5 rounded-full text-white text-sm font-semibold hover:opacity-90" style="background: #8cc65d">Join Rep</RouterLink>
-              <RouterLink to="/login" class="text-xs text-gray-500 hover:text-gray-800">Already a member? Log in</RouterLink>
-            </div>
-          </div>
-        </div>
-        <PurposeFeed v-if="isDesktop" class="flex-1 min-h-0" :user-id="0" :is-auth="false" layout="wide" />
-      </template>
+      <!-- Logged out: the public Purpose feed fills the center (the pitch is in the left column) -->
+      <PurposeFeed v-if="!isAuth && isDesktop" class="flex-1 min-h-0" :user-id="0" :is-auth="false" layout="wide" />
+      <template v-else-if="!isAuth"></template>
 
       <!-- Nothing renders (or loads) here on phones; the mobile layout is MainScreen's -->
       <template v-else-if="!isDesktop"></template>

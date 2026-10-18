@@ -109,7 +109,7 @@
       <div :class="wide ? 'max-w-[1100px] mx-auto px-6 py-5 space-y-4' : 'space-y-3'">
         <template v-if="loading && !portals.length">
           <div v-for="i in 3" :key="i" class="rounded-xl border border-gray-100 bg-white overflow-hidden animate-pulse" :class="wide ? 'flex' : ''">
-            <div class="bg-gray-100" :class="wide ? 'w-[42%] aspect-[16/10]' : 'aspect-[16/9]'"></div>
+            <div class="bg-gray-100 aspect-video" :class="wide ? 'w-[46%] max-w-[480px] self-start shrink-0' : 'w-full'"></div>
             <div class="p-4 flex-1 space-y-2">
               <div class="h-4 bg-gray-100 rounded w-2/3"></div>
               <div class="h-3 bg-gray-100 rounded w-full"></div>
@@ -136,11 +136,13 @@
             : 'rounded-xl border-gray-200 hover:border-gray-300 hover:shadow-md'"
         >
           <!-- Pitch-deck image (← → cycles) -->
+          <!-- Always 16:9 (self-start stops the flex row stretching it to the text's height);
+               object-contain so a slide is never cropped, even if its file isn't exactly 16:9 -->
           <div
-            class="relative bg-gray-100 shrink-0"
-            :class="wide ? 'w-[42%] max-w-[440px] aspect-[16/10]' : 'aspect-[16/9]'"
+            class="relative bg-gray-100 shrink-0 aspect-video"
+            :class="wide ? 'w-[46%] max-w-[480px] self-start' : 'w-full'"
           >
-            <img v-if="cardImage(portal)" :src="cardImage(portal)" :alt="portal.name" loading="lazy" class="absolute inset-0 w-full h-full object-cover" />
+            <img v-if="cardImage(portal)" :src="cardImage(portal)" :alt="portal.name" loading="lazy" class="absolute inset-0 w-full h-full object-contain" />
             <template v-if="(images[portal.id]?.length ?? 0) > 1">
               <button
                 v-if="(imageIndex[portal.id] ?? 0) > 0"

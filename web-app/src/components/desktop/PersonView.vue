@@ -1,0 +1,564 @@
+<!--
+  PersonView.vue
+  Desktop Person card, shown in the center of the Rolodex Shell (/main?person=:id).
+  Reads Person → Purpose → Value: a header card for who they are, their Write section,
+  then the Purposes they're part of and their Goal Teams' progress. No tabs on desktop.
+  Phones keep ProfileView.vue.
+-->
+
+<template>
+  <div class="flex flex-col h-full min-h-0 bg-white">
+    <!-- Header -->
+    <header class="shrink-0 flex items-center gap-2 h-14 px-4 border-b border-gray-200">
+      <button
+        type="button"
+        class="flex items-center gap-1 h-9 pl-1.5 pr-3 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+        @click="emit('back')"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" style="color: #8cc65d" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+        </svg>
+        Back
+      </button>
+      <span class="text-gray-300">/</span>
+      <span class="text-sm font-semibold text-gray-900 truncate">{{ profile?.full_name || 'Profile' }}</span>
+      <RouterLink
+        v-if="isMe"
+        to="/settings"
+        class="ml-auto h-9 px-3 inline-flex items-center gap-1.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        Settings
+      </RouterLink>
+    </header>
+
+    <div class="flex-1 min-h-0 overflow-y-auto bg-[#f7f7f7]">
+      <div class="max-w-[1100px] mx-auto px-6 py-6 space-y-5">
+
+        <!-- Loading -->
+        <div v-if="loading" class="space-y-5 animate-pulse" aria-hidden="true">
+          <div class="bg-white border border-gray-200 rounded p-6 flex gap-6">
+            <div class="w-32 h-32 rounded-full bg-gray-100 shrink-0"></div>
+            <div class="flex-1 space-y-3 pt-4"><div class="h-6 bg-gray-100 rounded w-1/3"></div><div class="h-4 bg-gray-100 rounded w-1/4"></div><div class="h-4 bg-gray-100 rounded w-1/2"></div></div>
+          </div>
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5">
+            <div class="bg-white border border-gray-200 rounded h-72"></div>
+            <div class="bg-white border border-gray-200 rounded h-72"></div>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div v-else-if="loadError" class="bg-white border border-gray-200 rounded p-10 text-center">
+          <p class="text-gray-600">{{ loadError }}</p>
+          <button type="button" class="mt-3 text-sm font-semibold hover:underline" style="color: #8cc65d" @click="load">Try again</button>
+        </div>
+
+        <template v-else-if="profile">
+          <!-- ===================== PERSON: rolodex header card ===================== -->
+          <section class="bg-white border border-gray-200 rounded">
+            <div class="p-6 flex gap-6">
+              <RouterLink :to="`/profile/${userId}/photos`" class="shrink-0 rounded-full hover:opacity-90" :title="`${firstName}'s photos`">
+                <img v-if="profile.profile_picture_url && !photoFailed" :src="profile.profile_picture_url" alt="" class="w-32 h-32 rounded-full object-cover" @error="photoFailed = true" />
+                <span v-else class="w-32 h-32 rounded-full bg-gray-300 flex items-center justify-center text-white text-3xl font-bold">{{ getInitials(name) }}</span>
+              </RouterLink>
+
+              <div class="flex-1 min-w-0">
+                <div class="flex flex-wrap items-start gap-4">
+                  <div class="flex-1 min-w-[220px]">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Person</p>
+                    <h1 class="text-[28px] font-bold text-gray-900 leading-tight mt-0.5">{{ name }}</h1>
+                    <p v-if="meta" class="text-[15px] text-gray-500 mt-1">{{ meta }}</p>
+                  </div>
+
+                  <!-- Actions -->
+                  <div class="flex items-center gap-2 shrink-0">
+                    <template v-if="isMe">
+                      <RouterLink to="/profile/edit" class="h-9 px-4 inline-flex items-center rounded border border-gray-300 text-sm font-semibold text-gray-800 hover:bg-gray-50">Edit profile</RouterLink>
+                    </template>
+                    <template v-else>
+                      <button
+                        type="button"
+                        class="h-9 px-4 inline-flex items-center gap-1.5 rounded text-sm font-semibold text-white hover:opacity-90"
+                        style="background-color: #8cc65d"
+                        @click="emit('message', userId)"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                        Message
+                      </button>
+                      <button
+                        type="button"
+                        class="h-9 px-4 inline-flex items-center gap-1 rounded border text-sm font-semibold hover:bg-[#f3f9ee] disabled:opacity-60"
+                        style="border-color: #006600; color: #006600"
+                        :disabled="networkBusy"
+                        @click="addToNetwork"
+                      >+ Network</button>
+                      <div class="relative">
+                        <button
+                          type="button"
+                          class="w-9 h-9 rounded flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                          aria-label="More options"
+                          :aria-expanded="showMenu"
+                          @click="showMenu = !showMenu"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" /></svg>
+                        </button>
+                        <div v-if="showMenu" class="fixed inset-0 z-30" @click="showMenu = false"></div>
+                        <div v-if="showMenu" role="menu" class="absolute right-0 top-full mt-1 z-40 w-52 bg-white rounded shadow-xl border border-gray-100 py-1">
+                          <button role="menuitem" class="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-gray-50" @click="toggleBlock">
+                            {{ isBlocked ? 'Unblock' : 'Block' }} {{ firstName }}
+                          </button>
+                          <button role="menuitem" class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50" @click="showMenu = false; showFlagConfirm = true">
+                            Flag as inappropriate
+                          </button>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <!-- Skills -->
+                <div v-if="skills.length" class="mt-3 flex flex-wrap gap-1.5">
+                  <span v-for="skill in skills" :key="skill" class="px-2.5 py-1 rounded bg-gray-100 text-xs font-medium text-gray-700">{{ skill }}</span>
+                </div>
+
+                <!-- Broadcast -->
+                <p v-if="profile.broadcast?.trim()" class="mt-4 pl-3 border-l-2 text-[15px] text-gray-700 leading-relaxed" style="border-color: #8cc65d">
+                  {{ profile.broadcast }}
+                </p>
+
+                <p v-if="isBlocked" class="mt-3 text-sm text-red-600">You’ve blocked {{ firstName }}.</p>
+              </div>
+            </div>
+
+            <!-- Stats strip -->
+            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 border-t border-gray-100 text-sm text-gray-500">
+              <span><strong class="text-gray-900">{{ portals.length }}</strong> Purpose{{ portals.length === 1 ? '' : 's' }}</span>
+              <span class="text-gray-300">·</span>
+              <span><strong class="text-gray-900">{{ goals.length }}</strong> Goal Team{{ goals.length === 1 ? '' : 's' }}</span>
+              <template v-if="sharedPortals.length">
+                <span class="text-gray-300">·</span>
+                <span class="flex flex-wrap items-center gap-1.5">
+                  <span class="font-semibold" style="color: #006600">You both work on</span>
+                  <RouterLink
+                    v-for="p in sharedPortals"
+                    :key="p.id"
+                    :to="`/portal/${p.id}`"
+                    class="px-2 py-0.5 rounded bg-[#f3f9ee] text-xs font-medium text-gray-800 hover:underline"
+                  >{{ p.name }}</RouterLink>
+                </span>
+              </template>
+              <button
+                v-if="coachEnabled && !isMe"
+                type="button"
+                class="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
+                style="color: #006600"
+                @click="askCoachAboutPerson"
+              >
+                <img :src="RepCoachAvatar" alt="" class="w-5 h-5 rounded-full" />
+                Ask Coach about {{ firstName }}
+              </button>
+            </div>
+          </section>
+
+          <!-- ===================== Body: Write | Purpose + Value ===================== -->
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 items-start">
+
+            <!-- PERSON · Write -->
+            <section class="bg-white border border-gray-200 rounded">
+              <div class="flex items-center justify-between gap-3 px-6 pt-5 pb-3">
+                <h2 class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Person · Write</h2>
+                <RouterLink v-if="isMe && writes.length" to="/write/new" class="text-sm font-semibold hover:underline" style="color: #006600">+ Add</RouterLink>
+              </div>
+
+              <!-- Empty: your own profile → the three pillars, with Coach -->
+              <div v-if="!writes.length && isMe" class="mx-6 mb-6 rounded border border-dashed border-gray-300 p-5">
+                <p class="font-semibold text-gray-900">Tell people what you’re working toward</p>
+                <p class="mt-1 text-sm text-gray-600">Your Write section is how people on Rep understand you. It answers three questions:</p>
+                <ol class="mt-3 space-y-1.5 text-sm text-gray-800">
+                  <li class="flex gap-2"><span class="font-semibold" style="color: #8cc65d">1</span> What are you trying to accomplish?</li>
+                  <li class="flex gap-2"><span class="font-semibold" style="color: #8cc65d">2</span> What are you looking for?</li>
+                  <li class="flex gap-2"><span class="font-semibold" style="color: #8cc65d">3</span> What’s holding you back?</li>
+                </ol>
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <button
+                    v-if="coachEnabled"
+                    type="button"
+                    class="h-9 px-4 inline-flex items-center gap-1.5 rounded text-sm font-semibold text-white hover:opacity-90"
+                    style="background-color: #8cc65d"
+                    @click="emit('ask-coach', writeStarter)"
+                  >
+                    <img :src="RepCoachAvatar" alt="" class="w-4 h-4 rounded-full bg-white" />
+                    Write it with Coach
+                  </button>
+                  <RouterLink to="/write/new" class="h-9 px-4 inline-flex items-center rounded border border-gray-300 text-sm font-semibold text-gray-800 hover:bg-gray-50">Write it myself</RouterLink>
+                </div>
+              </div>
+
+              <p v-else-if="!writes.length" class="px-6 pb-6 text-sm text-gray-500">{{ firstName }} hasn’t written their story yet.</p>
+
+              <article
+                v-for="(block, index) in writes"
+                :key="block.id"
+                class="px-6 py-5 border-t border-gray-100"
+              >
+                <div class="flex items-start gap-3">
+                  <h3 v-if="block.title" class="flex-1 font-bold text-[17px] text-gray-900 leading-snug">{{ block.title }}</h3>
+                  <span v-if="isMe && block.status === 'draft'" class="shrink-0 px-2 py-0.5 rounded bg-gray-100 text-[11px] font-semibold text-gray-500">Draft</span>
+                </div>
+                <div class="relative" :class="block.title ? 'mt-2' : ''">
+                  <div
+                    class="prose prose-sm max-w-none text-gray-800 leading-relaxed break-words"
+                    :class="isLong(block) && !expanded[block.id] ? 'max-h-60 overflow-hidden' : ''"
+                    :style="block.content_format === 'markdown' ? '' : 'white-space: pre-wrap'"
+                    v-html="renderWrite(block)"
+                  ></div>
+                  <div v-if="isLong(block) && !expanded[block.id]" class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                </div>
+                <div class="mt-2 flex items-center gap-3">
+                  <button
+                    v-if="isLong(block)"
+                    type="button"
+                    class="text-sm font-semibold hover:underline"
+                    style="color: #006600"
+                    @click="expanded = { ...expanded, [block.id]: !expanded[block.id] }"
+                  >{{ expanded[block.id] ? 'Read less' : 'Read more' }}</button>
+                  <div v-if="isMe" class="ml-auto flex items-center gap-1 text-sm">
+                    <button v-if="index > 0" type="button" class="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Move up" aria-label="Move up" @click="moveWrite(index, -1)">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
+                    </button>
+                    <button v-if="index < writes.length - 1" type="button" class="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Move down" aria-label="Move down" @click="moveWrite(index, 1)">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    <RouterLink :to="`/write/edit/${block.id}`" class="px-2 py-1 rounded font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">Edit</RouterLink>
+                    <button type="button" class="px-2 py-1 rounded font-medium text-red-600 hover:bg-red-50" @click="deleteTarget = block">Delete</button>
+                  </div>
+                </div>
+              </article>
+            </section>
+
+            <div class="space-y-5">
+              <!-- PURPOSE -->
+              <section class="bg-white border border-gray-200 rounded">
+                <div class="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
+                  <h2 class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Purpose</h2>
+                  <RouterLink v-if="isMe" to="/portal/edit/new" class="text-sm font-semibold hover:underline" style="color: #006600">+ Add Purpose</RouterLink>
+                </div>
+                <p v-if="!portals.length" class="px-5 pb-5 text-sm text-gray-500">
+                  {{ isMe ? 'You aren’t part of a Purpose yet.' : `${firstName} isn’t part of a Purpose yet.` }}
+                </p>
+                <RouterLink
+                  v-for="p in portals"
+                  :key="p.id"
+                  :to="`/portal/${p.id}`"
+                  class="flex items-start gap-3 px-5 py-3 border-t border-gray-100 hover:bg-gray-50"
+                >
+                  <span class="w-32 aspect-video shrink-0 bg-gray-100 rounded-sm overflow-hidden">
+                    <img v-if="p.mainImageUrl" :src="p.mainImageUrl" :alt="p.name" loading="lazy" class="w-full h-full object-contain" />
+                  </span>
+                  <span class="min-w-0 pt-0.5">
+                    <span class="block font-semibold text-[15px] text-gray-900 leading-snug line-clamp-2">{{ p.name }}</span>
+                    <span v-if="p.subtitle?.trim()" class="block text-sm text-gray-500 leading-snug line-clamp-2 mt-0.5">{{ p.subtitle }}</span>
+                  </span>
+                </RouterLink>
+              </section>
+
+              <!-- VALUE · Goal Teams -->
+              <section class="bg-white border border-gray-200 rounded">
+                <div class="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
+                  <h2 class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Value · Goal Teams</h2>
+                  <RouterLink v-if="isMe" to="/goal/edit/new" class="text-sm font-semibold hover:underline" style="color: #006600">+ Add Goal</RouterLink>
+                </div>
+                <p v-if="!goals.length" class="px-5 pb-5 text-sm text-gray-500">
+                  {{ isMe ? 'You aren’t on a Goal Team yet.' : `${firstName} isn’t on a Goal Team yet.` }}
+                </p>
+                <RouterLink
+                  v-for="g in goals"
+                  :key="g.id"
+                  :to="`/goal/${g.id}`"
+                  class="flex items-center gap-4 px-5 py-3 border-t border-gray-100 hover:bg-gray-50"
+                >
+                  <!-- Mini chart: last 4 reporting periods against quota (as on mobile) -->
+                  <span class="flex items-end gap-1 shrink-0 h-12 w-[68px]" aria-hidden="true">
+                    <span
+                      v-for="(bar, i) in chartBars(g)"
+                      :key="i"
+                      class="w-3.5 rounded-sm"
+                      style="background-color: #8cc65d"
+                      :style="{ height: `${bar}%`, minHeight: bar > 0 ? '2px' : '0' }"
+                    ></span>
+                    <span v-if="!chartBars(g).length" class="w-full h-px bg-gray-200 self-end"></span>
+                  </span>
+                  <span class="flex-1 min-w-0">
+                    <span class="block font-semibold text-[15px] text-gray-900 leading-snug truncate">{{ g.title || g.name }}</span>
+                    <span class="mt-1.5 flex items-center gap-2">
+                      <span class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                        <span class="block h-full rounded-full" style="background-color: #8cc65d" :style="{ width: `${goalPct(g)}%` }"></span>
+                      </span>
+                      <span class="text-xs text-gray-600 shrink-0">{{ goalPct(g) }}% <span class="text-gray-400">[{{ goalTag(g) }}]</span></span>
+                    </span>
+                  </span>
+                </RouterLink>
+              </section>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- Delete Write confirmation -->
+    <Transition name="fade">
+      <div v-if="deleteTarget" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40" @click="deleteTarget = null"></div>
+        <div class="relative bg-white rounded shadow-2xl w-full max-w-sm p-6" role="dialog" aria-modal="true">
+          <h3 class="font-bold text-lg">Delete this entry?</h3>
+          <p class="mt-2 text-sm text-gray-600">“{{ deleteTarget.title || 'Untitled' }}” will be removed from your Write section.</p>
+          <div class="mt-6 flex justify-end gap-3">
+            <button type="button" class="px-4 py-2 rounded border border-gray-300 text-sm" @click="deleteTarget = null">Cancel</button>
+            <button type="button" class="px-4 py-2 rounded bg-red-600 text-white text-sm font-semibold hover:bg-red-700" @click="confirmDeleteWrite">Delete</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Flag confirmation -->
+    <Transition name="fade">
+      <div v-if="showFlagConfirm" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/40" @click="showFlagConfirm = false"></div>
+        <div class="relative bg-white rounded shadow-2xl w-full max-w-sm p-6" role="dialog" aria-modal="true">
+          <h3 class="font-bold text-lg">Flag {{ firstName }}?</h3>
+          <p class="mt-2 text-sm text-gray-600">This reports the profile to Rep as inappropriate.</p>
+          <div class="mt-6 flex justify-end gap-3">
+            <button type="button" class="px-4 py-2 rounded border border-gray-300 text-sm" @click="showFlagConfirm = false">Cancel</button>
+            <button type="button" class="px-4 py-2 rounded bg-red-600 text-white text-sm font-semibold hover:bg-red-700" @click="confirmFlag">Flag</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch, onMounted } from 'vue';
+import { useRoute, RouterLink } from 'vue-router';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import api from '@/pages/utils/api';
+import RepCoachAvatar from '@/assets/RepCoachAvatar.svg';
+import { getInitials } from '@/pages/utils/desktopShell';
+
+interface Profile {
+  id: number;
+  full_name?: string;
+  profile_picture_url?: string;
+  city?: string;
+  user_type?: string;
+  broadcast?: string;
+  skills?: Array<{ id: number; title: string }>;
+  other_skill?: string;
+}
+interface Portal { id: number; name: string; subtitle?: string; mainImageUrl?: string }
+interface WriteBlock { id: number; title?: string; content: string; content_format?: string; status?: string }
+
+const props = defineProps<{
+  userId: number;
+  currentUserId: number;
+  coachEnabled: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'back'): void;
+  (e: 'message', userId: number): void;
+  (e: 'ask-coach', text: string): void;
+  (e: 'toast', message: string): void;
+}>();
+
+const route = useRoute();
+
+const writeStarter =
+  'Help me write my Rep profile. Ask me, one question at a time, what I’m trying to accomplish, what I’m looking for, and what’s holding me back, then draft my Write section for me to review.';
+
+// --- State ---
+const loading = ref(true);
+const loadError = ref('');
+const profile = ref<Profile | null>(null);
+const portals = ref<Portal[]>([]);
+const goals = ref<any[]>([]);
+const writes = ref<WriteBlock[]>([]);
+const myPortals = ref<Portal[]>([]);
+const isBlocked = ref(false);
+const photoFailed = ref(false);
+const expanded = ref<Record<number, boolean>>({});
+const showMenu = ref(false);
+const showFlagConfirm = ref(false);
+const deleteTarget = ref<WriteBlock | null>(null);
+const networkBusy = ref(false);
+
+const isMe = computed(() => props.userId === props.currentUserId);
+const name = computed(() => profile.value?.full_name || 'Member');
+const firstName = computed(() => name.value.trim().split(/\s+/)[0] || name.value);
+const meta = computed(() => [profile.value?.user_type, profile.value?.city].filter(Boolean).join(' · '));
+const skills = computed(() => {
+  const list = (profile.value?.skills || []).map((s) => s.title).filter(Boolean);
+  if (profile.value?.other_skill?.trim()) list.push(profile.value.other_skill.trim());
+  return list;
+});
+const sharedPortals = computed(() => {
+  if (isMe.value) return [];
+  const mine = new Set(myPortals.value.map((p) => p.id));
+  return portals.value.filter((p) => mine.has(p.id));
+});
+
+// --- Loading ---
+let seq = 0;
+async function load() {
+  const mySeq = ++seq;
+  loading.value = !profile.value; // background refreshes keep the page in place
+  loadError.value = '';
+  try {
+    const [profileRes, portalsRes, goalsRes, writesRes, blockRes, myPortalsRes] = await Promise.all([
+      api.get(`/api/user/profile?users_id=${props.userId}`),
+      api.get(`/api/portal/filter_network_portals?user_id=${props.userId}&tab=open`).catch(() => null),
+      api.get(`/api/goals/list?users_id=${props.userId}`).catch(() => null),
+      api.get(`/api/user/writes?users_id=${props.userId}`).catch(() => null),
+      isMe.value ? Promise.resolve(null) : api.get(`/api/user/is_blocked?users_id=${props.userId}`).catch(() => null),
+      isMe.value ? Promise.resolve(null) : api.get(`/api/portal/filter_network_portals?user_id=${props.currentUserId}&tab=open&limit=200`).catch(() => null),
+    ]);
+    if (mySeq !== seq) return;
+    const p = profileRes.data?.result;
+    if (!p?.id) {
+      loadError.value = 'This profile could not be found.';
+      return;
+    }
+    profile.value = p;
+    photoFailed.value = false;
+    portals.value = portalsRes?.data?.result || [];
+    goals.value = goalsRes?.data?.aGoals || [];
+    writes.value = writesRes?.data?.result || [];
+    isBlocked.value = !!blockRes?.data?.is_blocked;
+    myPortals.value = myPortalsRes?.data?.result || [];
+  } catch (e: any) {
+    if (mySeq !== seq) return;
+    loadError.value = e?.response?.data?.error || 'Couldn’t load this profile.';
+  } finally {
+    if (mySeq === seq) loading.value = false;
+  }
+}
+
+// Coming back from editing your profile or a Write entry: refresh in place
+let away = false;
+watch(
+  () => route.path,
+  (path) => {
+    if (path !== '/main') away = true;
+    else if (away) {
+      away = false;
+      load();
+    }
+  }
+);
+
+// --- Write ---
+function renderWrite(block: WriteBlock): string {
+  const raw = block.content || '';
+  const html = block.content_format === 'markdown' ? (marked.parse(raw) as string) : raw;
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: ['p', 'strong', 'em', 'b', 'i', 'u', 'a', 'br', 'h1', 'h2', 'h3', 'h4', 'ul', 'ol', 'li', 'blockquote', 'code', 'pre', 'img', 'hr'],
+    ALLOWED_ATTR: ['href', 'target', 'rel', 'src', 'alt'],
+  });
+}
+
+const isLong = (block: WriteBlock) => (block.content || '').length > 700;
+
+async function moveWrite(index: number, delta: -1 | 1) {
+  const to = index + delta;
+  if (to < 0 || to >= writes.value.length) return;
+  const list = [...writes.value];
+  [list[index], list[to]] = [list[to], list[index]];
+  writes.value = list;
+  try {
+    await Promise.all(list.map((w, i) => api.put(`/api/user/write/${w.id}`, { order: i })));
+  } catch {
+    emit('toast', 'Couldn’t save the new order.');
+    load();
+  }
+}
+
+async function confirmDeleteWrite() {
+  const block = deleteTarget.value;
+  if (!block) return;
+  deleteTarget.value = null;
+  try {
+    await api.delete(`/api/user/write/${block.id}`);
+    writes.value = writes.value.filter((w) => w.id !== block.id);
+  } catch {
+    emit('toast', 'Couldn’t delete that entry.');
+  }
+}
+
+// --- Visitor actions ---
+async function addToNetwork() {
+  networkBusy.value = true;
+  try {
+    await api.post('/api/user/network_action', {
+      action: 'add',
+      user_id: props.currentUserId,
+      target_user_id: props.userId,
+    });
+    emit('toast', `${firstName.value} is in your network.`);
+    document.dispatchEvent(new Event('refreshNetworkList'));
+  } catch (error: any) {
+    emit('toast', error?.response?.data?.error || 'Couldn’t add to your network.');
+  } finally {
+    networkBusy.value = false;
+  }
+}
+
+async function toggleBlock() {
+  showMenu.value = false;
+  const action = isBlocked.value ? 'unblock' : 'block';
+  try {
+    await api.post(`/api/user/${action}`, { users_id: props.userId });
+    isBlocked.value = !isBlocked.value;
+    emit('toast', isBlocked.value ? `${firstName.value} is blocked.` : `${firstName.value} is unblocked.`);
+  } catch {
+    emit('toast', `Couldn’t ${action} ${firstName.value}.`);
+  }
+}
+
+async function confirmFlag() {
+  showFlagConfirm.value = false;
+  try {
+    await api.post('/api/user/flag_user', { users_id: props.userId, reason: 'Inappropriate content' });
+    emit('toast', 'Thanks. The profile has been flagged for review.');
+  } catch {
+    emit('toast', 'Couldn’t flag this profile.');
+  }
+}
+
+function askCoachAboutPerson() {
+  emit(
+    'ask-coach',
+    `I'm looking at ${name.value}'s profile on Rep. What are they working on, and how could we help each other? Suggest a good way to start the conversation.`
+  );
+}
+
+// --- Goals ---
+function goalPct(g: any): number {
+  const raw = g.progressPercent ?? (g.progress ?? 0) * 100;
+  return Math.round(Math.min(100, Math.max(0, Number(raw) || 0)));
+}
+
+// Matches the mobile tag: the goal type, or for "Other" the metric name (9 chars)
+function goalTag(g: any): string {
+  if (g.typeName?.toLowerCase() === 'other') return (g.metricName?.trim() || g.typeName || 'Goal').substring(0, 9);
+  return g.typeName || 'Goal';
+}
+
+// Last 4 reporting periods as % of quota
+function chartBars(g: any): number[] {
+  const quota = g.quota > 0 ? g.quota : 1;
+  return (g.chartData || []).slice(-4).map((bar: any) => Math.min(100, Math.max(0, ((bar.value || 0) / quota) * 100)));
+}
+
+onMounted(load);
+</script>

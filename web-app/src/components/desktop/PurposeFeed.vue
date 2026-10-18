@@ -108,7 +108,7 @@
     <div ref="listRef" class="flex-1 min-h-0 overflow-y-auto" :class="wide ? 'bg-[#f7f7f7]' : 'px-4 pb-4'">
       <div :class="wide ? 'max-w-[1100px] mx-auto px-6 py-5 space-y-4' : 'space-y-3'">
         <template v-if="loading && !portals.length">
-          <div v-for="i in 3" :key="i" class="rounded-xl border border-gray-100 bg-white overflow-hidden animate-pulse" :class="wide ? 'flex' : ''">
+          <div v-for="i in 3" :key="i" class="rounded border border-gray-100 bg-white overflow-hidden animate-pulse" :class="wide ? 'flex' : ''">
             <div class="bg-gray-100 aspect-video" :class="wide ? 'w-[46%] max-w-[480px] self-start shrink-0' : 'w-full'"></div>
             <div class="p-4 flex-1 space-y-2">
               <div class="h-4 bg-gray-100 rounded w-2/3"></div>
@@ -132,8 +132,8 @@
           :to="`/portal/${portal.id}`"
           class="group block bg-white overflow-hidden border transition"
           :class="wide
-            ? 'flex rounded-2xl border-gray-200 hover:border-gray-300 hover:shadow-lg'
-            : 'rounded-xl border-gray-200 hover:border-gray-300 hover:shadow-md'"
+            ? 'flex rounded border-gray-200 hover:border-gray-300 hover:shadow-md'
+            : 'rounded border-gray-200 hover:border-gray-300 hover:shadow-sm'"
         >
           <!-- Pitch-deck image (← → cycles) -->
           <!-- Always 16:9 (self-start stops the flex row stretching it to the text's height);

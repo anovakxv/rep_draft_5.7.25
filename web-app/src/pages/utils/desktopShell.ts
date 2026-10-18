@@ -114,16 +114,20 @@ export function savePref(name: string, value: string) {
   }
 }
 
-// --- Routing: desktop chat links open inside the shell ---
+// --- Routing: desktop chat and profile links open inside the shell ---
 
-// Returns the shell key for a full-page chat path on desktop, or null to leave the route alone.
-export function shellKeyForPath(path: string): string | null {
+// Returns the /main query for a full-page path on desktop, or null to leave the route alone.
+//   /chat/dm/12 → { c: 'dm-12' }   /chat/group/7 → { c: 'group-7' }   /coach → { c: 'coach' }
+//   /profile/45 → { person: '45' }
+export function shellQueryForPath(path: string): Record<string, string> | null {
   if (!isDesktopViewport()) return null;
-  if (path === '/coach') return 'coach';
+  if (path === '/coach') return { c: 'coach' };
   const dm = /^\/chat\/dm\/(\d+)\/?$/.exec(path);
-  if (dm) return `dm-${dm[1]}`;
+  if (dm) return { c: `dm-${dm[1]}` };
   const group = /^\/chat\/group\/(\d+)\/?$/.exec(path); // "/chat/group/new" stays a page
-  if (group) return `group-${group[1]}`;
+  if (group) return { c: `group-${group[1]}` };
+  const person = /^\/profile\/(\d+)\/?$/.exec(path); // photos and edit stay pages
+  if (person) return { person: person[1] };
   return null;
 }
 

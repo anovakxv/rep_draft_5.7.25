@@ -181,7 +181,6 @@
 
       <!-- List -->
       <div class="flex-1 min-h-0 overflow-y-auto">
-        <!-- Logged out: ghost rows hint at what's inside -->
         <!-- Logged out: the pitch, then ghost rows hinting at what's inside -->
         <template v-if="!isAuth">
           <div class="px-5 pt-8 pb-6 text-center border-b border-gray-100">
@@ -324,6 +323,20 @@
         :is-auth="isAuth"
         layout="wide"
         @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
+        @toast="triggerToast"
+      />
+
+      <!-- Person: a full profile card in the center (desktop /profile/:id links land here) -->
+      <PersonView
+        v-else-if="mode === 'person' && personId"
+        :key="personId"
+        class="flex-1 min-h-0"
+        :user-id="personId"
+        :current-user-id="userId"
+        :coach-enabled="!!coachEnabled"
+        @back="closePerson"
+        @message="(id) => openConversation({ kind: 'direct', id })"
+        @ask-coach="askCoach"
         @toast="triggerToast"
       />
 
@@ -506,6 +519,7 @@ import ConversationView from '@/components/desktop/ConversationView.vue';
 import ContextPane from '@/components/desktop/ContextPane.vue';
 import PurposeFeed from '@/components/desktop/PurposeFeed.vue';
 import ShellPaneControls from '@/components/desktop/ShellPaneControls.vue';
+import PersonView from '@/components/desktop/PersonView.vue';
 import { useRepCoach } from '@/pages/utils/useRepCoach';
 import { messagePreview } from '@/pages/utils/privateReply';
 import {
@@ -755,10 +769,20 @@ function applyKey(key: ConversationKey | null) {
   if (key && isAuth.value) saveLastConversation(props.userId, key);
 }
 
-// --- Mode: Chats (a conversation in the center) or Purposes (the Purpose feed in the center) ---
-// Kept in the URL as /main?view=purposes. Only updated while on /main, so a cached
-// (keep-alive) dashboard never mounts a conversation behind another page.
-const mode = ref<'chat' | 'purposes'>('chat');
+// --- Mode: what the center shows ---
+//   chat     — a conversation (/main?c=…)
+//   purposes — the Purpose feed (/main?view=purposes)
+//   person   — a full profile card (/main?person=45)
+// Only updated while on /main, so a cached (keep-alive) dashboard never mounts a
+// conversation behind another page.
+const mode = ref<'chat' | 'purposes' | 'person'>('chat');
+const personId = ref(0);
+
+// Back from a profile: to wherever the member came from, or to their conversations
+function closePerson() {
+  if (window.history.state?.back) router.back();
+  else enterChatMode();
+}
 
 function enterPurposeMode() {
   if (route.path === '/main' && route.query.view === 'purposes') return;
@@ -804,6 +828,14 @@ async function chooseLanding() {
 
 function syncFromRoute() {
   if (!isDesktop.value || !isAuth.value || route.path !== '/main') return;
+  const person = Number(route.query.person) || 0;
+  if (person) {
+    mode.value = 'person';
+    personId.value = person;
+    focusMode.value = false;
+    drawerOpen.value = false;
+    return;
+  }
   if (route.query.view === 'purposes') {
     mode.value = 'purposes';
     focusMode.value = false;
@@ -824,7 +856,11 @@ function syncFromRoute() {
   chooseLanding();
 }
 
-watch(() => [route.path, route.query.c, route.query.view, isDesktop.value, isAuth.value], syncFromRoute, { immediate: true });
+watch(
+  () => [route.path, route.query.c, route.query.view, route.query.person, isDesktop.value, isAuth.value],
+  syncFromRoute,
+  { immediate: true }
+);
 
 // Signed out: forget the open conversation and onboarding state
 watch(isAuth, (auth) => {

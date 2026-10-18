@@ -1,9 +1,8 @@
 <!--
   PersonView.vue
   Desktop Person card, shown in the center of the Rolodex Shell (/main?person=:id).
-  Reads Person → Purpose → Value: a header card for who they are, their Write section,
-  then the Purposes they're part of and their Goal Teams' progress. No tabs on desktop.
-  Phones keep ProfileView.vue.
+  A header card for who they are (the Person), then one main content card with the
+  mobile profile's toggle: Purpose · Goals · Write. Phones keep ProfileView.vue.
 -->
 
 <template>
@@ -37,14 +36,11 @@
 
         <!-- Loading -->
         <div v-if="loading" class="space-y-5 animate-pulse" aria-hidden="true">
-          <div class="bg-white border border-gray-200 rounded p-6 flex gap-6">
-            <div class="w-32 h-32 rounded-full bg-gray-100 shrink-0"></div>
-            <div class="flex-1 space-y-3 pt-4"><div class="h-6 bg-gray-100 rounded w-1/3"></div><div class="h-4 bg-gray-100 rounded w-1/4"></div><div class="h-4 bg-gray-100 rounded w-1/2"></div></div>
+          <div class="bg-white border border-gray-200 rounded px-5 py-4 flex gap-5">
+            <div class="w-24 h-24 rounded-full bg-gray-100 shrink-0"></div>
+            <div class="flex-1 space-y-3 pt-2"><div class="h-6 bg-gray-100 rounded w-1/3"></div><div class="h-4 bg-gray-100 rounded w-1/4"></div><div class="h-4 bg-gray-100 rounded w-1/2"></div></div>
           </div>
-          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5">
-            <div class="bg-white border border-gray-200 rounded h-72"></div>
-            <div class="bg-white border border-gray-200 rounded h-72"></div>
-          </div>
+          <div class="bg-white border border-gray-200 rounded h-80"></div>
         </div>
 
         <!-- Error -->
@@ -56,18 +52,17 @@
         <template v-else-if="profile">
           <!-- ===================== PERSON: rolodex header card ===================== -->
           <section class="bg-white border border-gray-200 rounded">
-            <div class="p-6 flex gap-6">
-              <RouterLink :to="`/profile/${userId}/photos`" class="shrink-0 rounded-full hover:opacity-90" :title="`${firstName}'s photos`">
-                <img v-if="profile.profile_picture_url && !photoFailed" :src="profile.profile_picture_url" alt="" class="w-32 h-32 rounded-full object-cover" @error="photoFailed = true" />
-                <span v-else class="w-32 h-32 rounded-full bg-gray-300 flex items-center justify-center text-white text-3xl font-bold">{{ getInitials(name) }}</span>
+            <div class="px-5 py-4 flex gap-5">
+              <RouterLink :to="`/profile/${userId}/photos`" class="shrink-0 self-start rounded-full hover:opacity-90" :title="`${firstName}'s photos`">
+                <img v-if="profile.profile_picture_url && !photoFailed" :src="profile.profile_picture_url" alt="" class="w-24 h-24 rounded-full object-cover" @error="photoFailed = true" />
+                <span v-else class="w-24 h-24 rounded-full bg-gray-300 flex items-center justify-center text-white text-2xl font-bold">{{ getInitials(name) }}</span>
               </RouterLink>
 
               <div class="flex-1 min-w-0">
-                <div class="flex flex-wrap items-start gap-4">
-                  <div class="flex-1 min-w-[220px]">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Person</p>
-                    <h1 class="text-[28px] font-bold text-gray-900 leading-tight mt-0.5">{{ name }}</h1>
-                    <p v-if="meta" class="text-[15px] text-gray-500 mt-1">{{ meta }}</p>
+                <div class="flex flex-wrap items-start gap-x-4 gap-y-2">
+                  <div class="flex-1 min-w-[200px]">
+                    <h1 class="text-2xl font-bold text-gray-900 leading-tight">{{ name }}</h1>
+                    <p v-if="meta" class="text-sm text-gray-500 mt-0.5">{{ meta }}</p>
                   </div>
 
                   <!-- Actions -->
@@ -76,6 +71,17 @@
                       <RouterLink to="/profile/edit" class="h-9 px-4 inline-flex items-center rounded border border-gray-300 text-sm font-semibold text-gray-800 hover:bg-gray-50">Edit profile</RouterLink>
                     </template>
                     <template v-else>
+                      <button
+                        v-if="coachEnabled"
+                        type="button"
+                        class="h-9 px-3 inline-flex items-center gap-1.5 rounded text-sm font-semibold hover:bg-[#f3f9ee]"
+                        style="color: #006600"
+                        :title="`Ask Rep Coach about ${firstName}`"
+                        @click="askCoachAboutPerson"
+                      >
+                        <img :src="RepCoachAvatar" alt="" class="w-5 h-5 rounded-full" />
+                        Ask Coach
+                      </button>
                       <button
                         type="button"
                         class="h-9 px-4 inline-flex items-center gap-1.5 rounded text-sm font-semibold text-white hover:opacity-90"
@@ -117,61 +123,52 @@
                 </div>
 
                 <!-- Skills -->
-                <div v-if="skills.length" class="mt-3 flex flex-wrap gap-1.5">
-                  <span v-for="skill in skills" :key="skill" class="px-2.5 py-1 rounded bg-gray-100 text-xs font-medium text-gray-700">{{ skill }}</span>
+                <div v-if="skills.length" class="mt-2 flex flex-wrap gap-1.5">
+                  <span v-for="skill in skills" :key="skill" class="px-2 py-0.5 rounded bg-gray-100 text-xs font-medium text-gray-700">{{ skill }}</span>
                 </div>
 
                 <!-- Broadcast -->
-                <p v-if="profile.broadcast?.trim()" class="mt-4 pl-3 border-l-2 text-[15px] text-gray-700 leading-relaxed" style="border-color: #8cc65d">
+                <p v-if="profile.broadcast?.trim()" class="mt-2 pl-3 border-l-2 text-sm text-gray-700 leading-relaxed line-clamp-2" style="border-color: #8cc65d" :title="profile.broadcast">
                   {{ profile.broadcast }}
                 </p>
 
-                <p v-if="isBlocked" class="mt-3 text-sm text-red-600">You’ve blocked {{ firstName }}.</p>
+                <p v-if="isBlocked" class="mt-2 text-sm text-red-600">You’ve blocked {{ firstName }}.</p>
               </div>
-            </div>
-
-            <!-- Stats strip -->
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-2 px-6 py-3 border-t border-gray-100 text-sm text-gray-500">
-              <span><strong class="text-gray-900">{{ portals.length }}</strong> Purpose{{ portals.length === 1 ? '' : 's' }}</span>
-              <span class="text-gray-300">·</span>
-              <span><strong class="text-gray-900">{{ goals.length }}</strong> Goal Team{{ goals.length === 1 ? '' : 's' }}</span>
-              <template v-if="sharedPortals.length">
-                <span class="text-gray-300">·</span>
-                <span class="flex flex-wrap items-center gap-1.5">
-                  <span class="font-semibold" style="color: #006600">You both work on</span>
-                  <RouterLink
-                    v-for="p in sharedPortals"
-                    :key="p.id"
-                    :to="`/portal/${p.id}`"
-                    class="px-2 py-0.5 rounded bg-[#f3f9ee] text-xs font-medium text-gray-800 hover:underline"
-                  >{{ p.name }}</RouterLink>
-                </span>
-              </template>
-              <button
-                v-if="coachEnabled && !isMe"
-                type="button"
-                class="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold hover:underline"
-                style="color: #006600"
-                @click="askCoachAboutPerson"
-              >
-                <img :src="RepCoachAvatar" alt="" class="w-5 h-5 rounded-full" />
-                Ask Coach about {{ firstName }}
-              </button>
             </div>
           </section>
 
-          <!-- ===================== Body: Write | Purpose + Value ===================== -->
-          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-5 items-start">
-
-            <!-- PERSON · Write -->
-            <section class="bg-white border border-gray-200 rounded">
-              <div class="flex items-center justify-between gap-3 px-6 pt-5 pb-3">
-                <h2 class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Person · Write</h2>
-                <RouterLink v-if="isMe && writes.length" to="/write/new" class="text-sm font-semibold hover:underline" style="color: #006600">+ Add</RouterLink>
+          <!-- ===================== Main content: Purpose · Goals · Write ===================== -->
+          <section class="bg-white border border-gray-200 rounded">
+            <div class="flex items-center gap-4 px-6 py-3 border-b border-gray-200">
+              <!-- Same black-and-white toggle as the mobile profile -->
+              <div class="flex w-full max-w-md border border-black rounded-sm overflow-hidden" role="tablist" aria-label="Profile content">
+                <button
+                  v-for="t in tabs"
+                  :key="t.id"
+                  type="button"
+                  role="tab"
+                  :aria-selected="tab === t.id"
+                  class="flex-1 h-8 text-sm font-semibold border-l border-black first:border-l-0 transition-colors"
+                  :class="tab === t.id ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'"
+                  @click="tab = t.id"
+                >
+                  {{ t.label }}
+                  <span class="ml-0.5 font-normal" :class="tab === t.id ? 'text-white/70' : 'text-gray-400'">{{ t.count }}</span>
+                </button>
               </div>
+              <RouterLink
+                v-if="isMe && addLink"
+                :to="addLink.to"
+                class="ml-auto shrink-0 text-sm font-semibold hover:underline"
+                style="color: #006600"
+              >{{ addLink.label }}</RouterLink>
+            </div>
+
+            <!-- Write -->
+            <div v-if="tab === 'write'">
 
               <!-- Empty: your own profile → the three pillars, with Coach -->
-              <div v-if="!writes.length && isMe" class="mx-6 mb-6 rounded border border-dashed border-gray-300 p-5">
+              <div v-if="!writes.length && isMe" class="m-6 rounded border border-dashed border-gray-300 p-5">
                 <p class="font-semibold text-gray-900">Tell people what you’re working toward</p>
                 <p class="mt-1 text-sm text-gray-600">Your Write section is how people on Rep understand you. It answers three questions:</p>
                 <ol class="mt-3 space-y-1.5 text-sm text-gray-800">
@@ -194,12 +191,12 @@
                 </div>
               </div>
 
-              <p v-else-if="!writes.length" class="px-6 pb-6 text-sm text-gray-500">{{ firstName }} hasn’t written their story yet.</p>
+              <p v-else-if="!writes.length" class="p-6 text-sm text-gray-500">{{ firstName }} hasn’t written their story yet.</p>
 
               <article
                 v-for="(block, index) in writes"
                 :key="block.id"
-                class="px-6 py-5 border-t border-gray-100"
+                class="px-6 py-5 border-b border-gray-100 last:border-b-0"
               >
                 <div class="flex items-start gap-3">
                   <h3 v-if="block.title" class="flex-1 font-bold text-[17px] text-gray-900 leading-snug">{{ block.title }}</h3>
@@ -234,25 +231,21 @@
                   </div>
                 </div>
               </article>
-            </section>
+            </div>
 
-            <div class="space-y-5">
-              <!-- PURPOSE -->
-              <section class="bg-white border border-gray-200 rounded">
-                <div class="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
-                  <h2 class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Purpose</h2>
-                  <RouterLink v-if="isMe" to="/portal/edit/new" class="text-sm font-semibold hover:underline" style="color: #006600">+ Add Purpose</RouterLink>
-                </div>
-                <p v-if="!portals.length" class="px-5 pb-5 text-sm text-gray-500">
-                  {{ isMe ? 'You aren’t part of a Purpose yet.' : `${firstName} isn’t part of a Purpose yet.` }}
-                </p>
+            <!-- Purpose -->
+            <div v-else-if="tab === 'purpose'">
+              <p v-if="!portals.length" class="p-6 text-sm text-gray-500">
+                {{ isMe ? 'You aren’t part of a Purpose yet.' : `${firstName} isn’t part of a Purpose yet.` }}
+              </p>
+              <div v-else class="grid grid-cols-1 xl:grid-cols-2">
                 <RouterLink
                   v-for="p in portals"
                   :key="p.id"
                   :to="`/portal/${p.id}`"
-                  class="flex items-start gap-3 px-5 py-3 border-t border-gray-100 hover:bg-gray-50"
+                  class="flex items-start gap-4 px-6 py-4 border-b border-gray-100 xl:odd:border-r hover:bg-gray-50"
                 >
-                  <span class="w-32 aspect-video shrink-0 bg-gray-100 rounded-sm overflow-hidden">
+                  <span class="w-40 aspect-video shrink-0 bg-gray-100 rounded-sm overflow-hidden">
                     <img v-if="p.mainImageUrl" :src="p.mainImageUrl" :alt="p.name" loading="lazy" class="w-full h-full object-contain" />
                   </span>
                   <span class="min-w-0 pt-0.5">
@@ -260,47 +253,43 @@
                     <span v-if="p.subtitle?.trim()" class="block text-sm text-gray-500 leading-snug line-clamp-2 mt-0.5">{{ p.subtitle }}</span>
                   </span>
                 </RouterLink>
-              </section>
-
-              <!-- VALUE · Goal Teams -->
-              <section class="bg-white border border-gray-200 rounded">
-                <div class="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
-                  <h2 class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Value · Goal Teams</h2>
-                  <RouterLink v-if="isMe" to="/goal/edit/new" class="text-sm font-semibold hover:underline" style="color: #006600">+ Add Goal</RouterLink>
-                </div>
-                <p v-if="!goals.length" class="px-5 pb-5 text-sm text-gray-500">
-                  {{ isMe ? 'You aren’t on a Goal Team yet.' : `${firstName} isn’t on a Goal Team yet.` }}
-                </p>
-                <RouterLink
-                  v-for="g in goals"
-                  :key="g.id"
-                  :to="`/goal/${g.id}`"
-                  class="flex items-center gap-4 px-5 py-3 border-t border-gray-100 hover:bg-gray-50"
-                >
-                  <!-- Mini chart: last 4 reporting periods against quota (as on mobile) -->
-                  <span class="flex items-end gap-1 shrink-0 h-12 w-[68px]" aria-hidden="true">
-                    <span
-                      v-for="(bar, i) in chartBars(g)"
-                      :key="i"
-                      class="w-3.5 rounded-sm"
-                      style="background-color: #8cc65d"
-                      :style="{ height: `${bar}%`, minHeight: bar > 0 ? '2px' : '0' }"
-                    ></span>
-                    <span v-if="!chartBars(g).length" class="w-full h-px bg-gray-200 self-end"></span>
-                  </span>
-                  <span class="flex-1 min-w-0">
-                    <span class="block font-semibold text-[15px] text-gray-900 leading-snug truncate">{{ g.title || g.name }}</span>
-                    <span class="mt-1.5 flex items-center gap-2">
-                      <span class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                        <span class="block h-full rounded-full" style="background-color: #8cc65d" :style="{ width: `${goalPct(g)}%` }"></span>
-                      </span>
-                      <span class="text-xs text-gray-600 shrink-0">{{ goalPct(g) }}% <span class="text-gray-400">[{{ goalTag(g) }}]</span></span>
-                    </span>
-                  </span>
-                </RouterLink>
-              </section>
+              </div>
             </div>
-          </div>
+
+            <!-- Goals (the Value side) -->
+            <div v-else>
+              <p v-if="!goals.length" class="p-6 text-sm text-gray-500">
+                {{ isMe ? 'You aren’t on a Goal Team yet.' : `${firstName} isn’t on a Goal Team yet.` }}
+              </p>
+              <RouterLink
+                v-for="g in goals"
+                :key="g.id"
+                :to="`/goal/${g.id}`"
+                class="flex items-center gap-4 px-6 py-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
+              >
+                <!-- Mini chart: last 4 reporting periods against quota (as on mobile) -->
+                <span class="flex items-end gap-1 shrink-0 h-12 w-[68px]" aria-hidden="true">
+                  <span
+                    v-for="(bar, i) in chartBars(g)"
+                    :key="i"
+                    class="w-3.5 rounded-sm"
+                    style="background-color: #8cc65d"
+                    :style="{ height: `${bar}%`, minHeight: bar > 0 ? '2px' : '0' }"
+                  ></span>
+                  <span v-if="!chartBars(g).length" class="w-full h-px bg-gray-200 self-end"></span>
+                </span>
+                <span class="flex-1 min-w-0">
+                  <span class="block font-semibold text-[15px] text-gray-900 leading-snug truncate">{{ g.title || g.name }}</span>
+                  <span class="mt-1.5 flex items-center gap-2">
+                    <span class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <span class="block h-full rounded-full" style="background-color: #8cc65d" :style="{ width: `${goalPct(g)}%` }"></span>
+                    </span>
+                    <span class="text-xs text-gray-600 shrink-0">{{ goalPct(g) }}% <span class="text-gray-400">[{{ goalTag(g) }}]</span></span>
+                  </span>
+                </span>
+              </RouterLink>
+            </div>
+          </section>
         </template>
       </div>
     </div>
@@ -384,7 +373,6 @@ const profile = ref<Profile | null>(null);
 const portals = ref<Portal[]>([]);
 const goals = ref<any[]>([]);
 const writes = ref<WriteBlock[]>([]);
-const myPortals = ref<Portal[]>([]);
 const isBlocked = ref(false);
 const photoFailed = ref(false);
 const expanded = ref<Record<number, boolean>>({});
@@ -392,6 +380,21 @@ const showMenu = ref(false);
 const showFlagConfirm = ref(false);
 const deleteTarget = ref<WriteBlock | null>(null);
 const networkBusy = ref(false);
+
+// Main content toggle, in the mobile profile's order (Rep / Goals / Write)
+type Tab = 'purpose' | 'goals' | 'write';
+const tab = ref<Tab>('purpose');
+const tabs = computed<Array<{ id: Tab; label: string; count: number }>>(() => [
+  { id: 'purpose', label: 'Purpose', count: portals.value.length },
+  { id: 'goals', label: 'Goals', count: goals.value.length },
+  { id: 'write', label: 'Write', count: writes.value.length },
+]);
+// Your own profile: the "+ Add" for whichever list is showing (an empty Write has its own prompt)
+const addLink = computed(() => {
+  if (tab.value === 'purpose') return { to: '/portal/edit/new', label: '+ Add Purpose' };
+  if (tab.value === 'goals') return { to: '/goal/edit/new', label: '+ Add Goal' };
+  return writes.value.length ? { to: '/write/new', label: '+ Add to Write' } : null;
+});
 
 const isMe = computed(() => props.userId === props.currentUserId);
 const name = computed(() => profile.value?.full_name || 'Member');
@@ -402,11 +405,6 @@ const skills = computed(() => {
   if (profile.value?.other_skill?.trim()) list.push(profile.value.other_skill.trim());
   return list;
 });
-const sharedPortals = computed(() => {
-  if (isMe.value) return [];
-  const mine = new Set(myPortals.value.map((p) => p.id));
-  return portals.value.filter((p) => mine.has(p.id));
-});
 
 // --- Loading ---
 let seq = 0;
@@ -415,13 +413,12 @@ async function load() {
   loading.value = !profile.value; // background refreshes keep the page in place
   loadError.value = '';
   try {
-    const [profileRes, portalsRes, goalsRes, writesRes, blockRes, myPortalsRes] = await Promise.all([
+    const [profileRes, portalsRes, goalsRes, writesRes, blockRes] = await Promise.all([
       api.get(`/api/user/profile?users_id=${props.userId}`),
       api.get(`/api/portal/filter_network_portals?user_id=${props.userId}&tab=open`).catch(() => null),
       api.get(`/api/goals/list?users_id=${props.userId}`).catch(() => null),
       api.get(`/api/user/writes?users_id=${props.userId}`).catch(() => null),
       isMe.value ? Promise.resolve(null) : api.get(`/api/user/is_blocked?users_id=${props.userId}`).catch(() => null),
-      isMe.value ? Promise.resolve(null) : api.get(`/api/portal/filter_network_portals?user_id=${props.currentUserId}&tab=open&limit=200`).catch(() => null),
     ]);
     if (mySeq !== seq) return;
     const p = profileRes.data?.result;
@@ -435,7 +432,6 @@ async function load() {
     goals.value = goalsRes?.data?.aGoals || [];
     writes.value = writesRes?.data?.result || [];
     isBlocked.value = !!blockRes?.data?.is_blocked;
-    myPortals.value = myPortalsRes?.data?.result || [];
   } catch (e: any) {
     if (mySeq !== seq) return;
     loadError.value = e?.response?.data?.error || 'Couldn’t load this profile.';

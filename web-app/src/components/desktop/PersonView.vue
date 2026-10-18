@@ -36,7 +36,7 @@
     </header>
 
     <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto bg-[#f7f7f7]">
-      <div class="max-w-[1100px] mx-auto px-6 pt-6 pb-10">
+      <div class="max-w-[1100px] mx-auto px-6 pt-4 pb-10">
 
         <!-- Loading -->
         <div v-if="loading" class="space-y-5 animate-pulse" aria-hidden="true">
@@ -143,33 +143,29 @@
           </section>
 
           <!-- ===================== Main content: Purpose · Goals · Write ===================== -->
-          <div ref="contentRef" class="mt-5">
-            <!-- The mobile profile's toggle: full width, and it stays put while you scroll -->
-            <div class="sticky top-0 z-10 -mx-6 px-6 pt-2 pb-3 bg-[#f7f7f7]">
-              <div class="flex bg-white border border-black rounded-sm overflow-hidden" role="tablist" aria-label="Profile content">
+          <div ref="contentRef" class="mt-2">
+            <!-- The mobile profile's toggle: full width, and it stays put while you scroll.
+                 On your own profile, the add action for the open tab sits on the same row. -->
+            <div class="sticky top-0 z-10 -mx-6 px-6 pt-1 pb-2 bg-[#f7f7f7] flex items-center gap-2">
+              <div class="flex flex-1 bg-white border border-black rounded-sm overflow-hidden" role="tablist" aria-label="Profile content">
                 <button
                   v-for="t in tabs"
                   :key="t.id"
                   type="button"
                   role="tab"
                   :aria-selected="tab === t.id"
-                  class="flex-1 h-10 text-[15px] font-semibold border-l border-black first:border-l-0 transition-colors"
+                  class="flex-1 h-8 text-sm font-semibold border-l border-black first:border-l-0 transition-colors"
                   :class="tab === t.id ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'"
                   @click="selectTab(t.id)"
                 >
                   {{ t.label }}
-                  <span class="ml-1 text-sm font-normal" :class="tab === t.id ? 'text-white/70' : 'text-gray-400'">{{ t.count }}</span>
+                  <span class="ml-0.5 font-normal" :class="tab === t.id ? 'text-white/70' : 'text-gray-400'">{{ t.count }}</span>
                 </button>
               </div>
-            </div>
-
-            <!-- Panel header: what this tab shows, and the add action on your own profile -->
-            <div class="flex items-center justify-between gap-3 mb-3 px-0.5">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{{ panelLabel }}</p>
               <RouterLink
                 v-if="isMe && addLink"
                 :to="addLink.to"
-                class="h-8 px-3 inline-flex items-center rounded text-sm font-semibold text-white hover:opacity-90"
+                class="shrink-0 h-8 px-3 inline-flex items-center rounded-sm text-sm font-semibold text-white hover:opacity-90"
                 style="background-color: #8cc65d"
               >{{ addLink.label }}</RouterLink>
             </div>
@@ -260,7 +256,7 @@
 
               <div v-else :class="showOutline ? 'grid grid-cols-[200px_minmax(0,1fr)] gap-6 items-start' : ''">
                 <!-- Outline: jump to an entry -->
-                <nav v-if="showOutline" class="sticky top-20" aria-label="Write entries">
+                <nav v-if="showOutline" class="sticky top-14" aria-label="Write entries">
                   <ol class="space-y-0.5 border-l border-gray-200">
                     <li v-for="(block, i) in writes" :key="block.id">
                       <button
@@ -278,7 +274,7 @@
                     v-for="(block, index) in writes"
                     :id="`write-${block.id}`"
                     :key="block.id"
-                    class="bg-white border border-gray-200 rounded px-7 py-6 scroll-mt-20"
+                    class="bg-white border border-gray-200 rounded px-7 py-6 scroll-mt-14"
                   >
                     <div class="flex items-start gap-3">
                       <h3 v-if="block.title" class="flex-1 font-bold text-xl text-gray-900 leading-snug">{{ block.title }}</h3>
@@ -436,13 +432,6 @@ const tabs = computed<Array<{ id: Tab; label: string; count: number }>>(() => [
   { id: 'goals', label: 'Goals', count: goals.value.length },
   { id: 'write', label: 'Write', count: writes.value.length },
 ]);
-
-const panelLabel = computed(() => {
-  const who = isMe.value ? 'Your' : `${firstName.value}’s`;
-  if (tab.value === 'purpose') return `${who} Purposes and their Goal Teams`;
-  if (tab.value === 'goals') return `${who} Goal Teams · Value`;
-  return `${who} Write`;
-});
 
 // Your own profile: the add action for whichever tab is showing (an empty Write has its own prompt)
 const addLink = computed(() => {

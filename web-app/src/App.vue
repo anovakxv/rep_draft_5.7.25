@@ -16,11 +16,18 @@
 
 <style>
 /* Global styles */
+/* #f7f7f7 matches the page headers and the theme-color in index.html. Mobile browsers
+   (Safari on iOS 26, among others) tint their own top bar from a sticky header or, failing
+   that, from the page background, so this keeps browser bar + header one solid color. */
+html,
+body {
+  background-color: #f7f7f7;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   margin: 0;
   padding: 0;
-  background-color: #e5e5e5; /* Gray background for sidebars */
 }
 
 /* Desktop-optimized container with responsive max-width */
@@ -28,7 +35,7 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  background-color: #e5e5e5;
+  background-color: #f7f7f7;
 }
 
 .app-content {

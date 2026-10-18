@@ -105,7 +105,7 @@
           </Transition>
         </div>
 
-        <!-- Mode: Chats (conversation in the center) or Purposes (Purpose-Value in the center) -->
+        <!-- Mode: People (conversations and profiles in the center) or Purposes (Purpose-Value in the center) -->
         <div class="flex-1 min-w-0 flex justify-center">
           <div v-if="isAuth" class="flex p-0.5 rounded-lg bg-gray-200/70" role="tablist" aria-label="Dashboard mode">
             <button
@@ -116,7 +116,7 @@
               :class="mode === 'chat' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
               @click="enterChatMode"
             >
-              Chats
+              People
               <span v-if="mode !== 'chat' && openNeedsAttention" class="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style="background: #8cc65d"></span>
             </button>
             <button

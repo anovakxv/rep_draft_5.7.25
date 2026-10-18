@@ -14,7 +14,39 @@
     <div v-else-if="errorMessage" class="flex items-center justify-center h-full text-red-500 p-4">
       <p>{{ errorMessage }}</p>
     </div>
-    <div v-else-if="portalDetail" class="flex flex-col flex-1 min-h-0">
+    <template v-else-if="portalDetail">
+    <!-- DESKTOP (lg+): one main stage (Pitch · Goal Teams · Story) + the Purpose card.
+         Same data, actions and modals as the mobile layout below. -->
+    <div class="hidden lg:block flex-1 min-h-0">
+      <PurposePageDesktop
+        :portal="portalDetail"
+        :goals="portalGoals"
+        :supporters-goal="supportersGoal"
+        :attendees-goal="attendeesGoal"
+        :support-goal="supportGoal"
+        :is-lead="isCurrentUserLead"
+        :is-owner="isPortalOwner"
+        :is-event-registered="isEventRegistered"
+        :is-auth="isAuthenticated()"
+        :user-id="userId"
+        :google-cal-url="buildGoogleCalUrlFromPortal()"
+        :ics-url="`https://rep-june2025.onrender.com/api/portal/${portalDetail.id}/calendar.ics`"
+        @back="goBackDesktop"
+        @rsvp="handleRSVP"
+        @join-supporters="handleJoinSupporters"
+        @message="openMessageSheet"
+        @support="openPaymentSheet"
+        @join-team="openGoalPicker"
+        @share="handleShare"
+        @edit="router.push(`/portal/edit/${portalId}`)"
+        @add-goal="activeSheet = 'addGoal'"
+        @flag="showFlagConfirmation = true"
+        @open-fullscreen="openFullscreen"
+      />
+    </div>
+
+    <!-- MOBILE layout (below lg) -->
+    <div class="flex flex-col flex-1 min-h-0 lg:hidden">
       <!-- Header - Full Width Across Both Columns -->
       <PortalHeader :portal-name="portalDetail.name" @back="goBack" />
 
@@ -283,6 +315,7 @@
         </div>
       </div>
     </div>
+    </template>
 
     <!-- Modals & Fullscreen Views -->
     <transition name="fade">
@@ -399,6 +432,7 @@ const EditGoal = defineAsyncComponent(() => import('../GoalPages/EditGoal.vue'))
 import PayTransaction from './PayTransaction.vue';
 import { BREAKPOINTS } from '@/constants/breakpoints';
 import { shareUrl } from '@/utils/share';
+import PurposePageDesktop from '@/components/desktop/PurposePageDesktop.vue';
 
 // --- Interfaces (from Swift Models) ---
 interface User { 
@@ -476,7 +510,10 @@ const isLandscape = ref(window.innerWidth > window.innerHeight);
 
 const updateOrientation = () => {
   isLandscape.value = window.innerWidth > window.innerHeight;
-  
+
+  // Phones only: a desktop window is always "landscape", and resizing it shouldn't open fullscreen
+  if (window.innerWidth >= BREAKPOINTS.DESKTOP) return;
+
   // Auto-open fullscreen in landscape mode, if not already open
   if (isLandscape.value && !isFullscreenOpen.value && portalDetail.value?.aSections?.length) {
     isFullscreenOpen.value = true;
@@ -525,6 +562,9 @@ const isCurrentUserLead = computed(() => {
 const reportingIncrementsForEditGoal = computed(() => {
   return reportingIncrements.value.map(ri => ({ id: ri.id, title: ri.name }));
 });
+
+// The portal's creator (can edit it) — same check as the action menu's "Edit Purpose"
+const isPortalOwner = computed(() => userId > 0 && portalDetail.value?.users_id === userId);
 
 const leadRepUser = computed(() => {
   // Find the portal creator from aUsers using users_id
@@ -743,6 +783,22 @@ const goBack = () => {
     // This handles external arrivals (like event registration links) properly
     router.push('/main');
   }
+};
+
+// Desktop: back to wherever the member came from, else the dashboard's Purpose view
+const goBackDesktop = () => {
+  if (window.history.state?.back) router.back();
+  else if (isAuthenticated()) router.push({ path: '/main', query: { view: 'purposes' } });
+  else router.push('/main');
+};
+
+// Desktop "Join a Team" (the mobile action menu's "Join Team")
+const openGoalPicker = () => {
+  if (!isAuthenticated()) {
+    router.push({ path: '/register', query: { returnTo: `/portal/${portalId}` } });
+    return;
+  }
+  activeSheet.value = 'goalPicker';
 };
 
 const handleAddAction = () => {

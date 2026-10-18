@@ -11,24 +11,22 @@
   <div class="flex flex-col h-full min-h-0">
     <!-- Header -->
     <div v-if="wide" class="shrink-0 border-b border-gray-100">
-      <div class="max-w-[1100px] mx-auto w-full px-6 pt-6 pb-4 flex flex-wrap items-end gap-4">
-        <div class="flex-1 min-w-[240px]">
-          <h1 class="text-2xl font-bold text-gray-900">Purposes</h1>
-          <p class="text-sm text-gray-500 mt-0.5">{{ tagline }}</p>
+      <div class="max-w-[1100px] mx-auto w-full px-6 py-2.5 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <!-- Title and Me / Network / All on one line -->
+        <h1 class="text-xl font-bold text-gray-900">Purposes</h1>
+        <div class="flex p-0.5 rounded-lg bg-gray-100" role="tablist" aria-label="Purposes to show">
+          <button
+            v-for="(label, i) in tabLabels"
+            :key="label"
+            type="button"
+            role="tab"
+            :aria-selected="tab === i"
+            class="px-4 h-8 rounded-md text-sm font-medium transition-colors"
+            :class="tab === i ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+            @click="selectTab(i)"
+          >{{ label }}</button>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="flex p-0.5 rounded-lg bg-gray-100" role="tablist" aria-label="Purposes to show">
-            <button
-              v-for="(label, i) in tabLabels"
-              :key="label"
-              type="button"
-              role="tab"
-              :aria-selected="tab === i"
-              class="px-4 h-8 rounded-md text-sm font-medium transition-colors"
-              :class="tab === i ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
-              @click="selectTab(i)"
-            >{{ label }}</button>
-          </div>
+        <div class="ml-auto flex items-center gap-2">
           <div class="relative">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -55,7 +53,7 @@
       </div>
     </div>
 
-    <div v-else class="shrink-0 px-4 pt-3 pb-2 space-y-2">
+    <div v-else class="shrink-0 px-4 pt-2 pb-1.5 space-y-2">
       <div class="flex items-center gap-1.5">
         <div class="flex flex-1 p-0.5 rounded-lg bg-gray-100" role="tablist" aria-label="Purposes to show">
           <button
@@ -105,7 +103,7 @@
 
     <!-- Feed -->
     <div ref="listRef" class="flex-1 min-h-0 overflow-y-auto" :class="wide ? 'bg-[#f7f7f7]' : 'px-4 pb-4'">
-      <div :class="wide ? 'max-w-[1100px] mx-auto px-6 py-5 space-y-4' : 'space-y-3'">
+      <div :class="wide ? 'max-w-[1100px] mx-auto px-6 py-4 space-y-4' : 'space-y-3'">
         <template v-if="loading && !portals.length">
           <div v-for="i in 3" :key="i" class="rounded border border-gray-100 bg-white overflow-hidden animate-pulse" :class="wide ? 'flex' : ''">
             <div class="bg-gray-100 aspect-video" :class="wide ? 'w-[46%] max-w-[480px] self-start shrink-0' : 'w-full'"></div>
@@ -184,12 +182,6 @@ const listRef = ref<HTMLElement | null>(null);
 const images = ref<Record<number, string[]>>({});
 const goals = ref<Record<number, any[]>>({});
 const busyGoalId = ref<number | null>(null);
-
-const tagline = computed(() => {
-  if (tab.value === 0) return 'The Purposes you lead or belong to, and how their Goal Teams are doing.';
-  if (tab.value === 1) return 'What the people in your network are working toward.';
-  return 'Purposes across Rep and the Goal Teams moving them forward.';
-});
 
 const filtered = computed(() => {
   let list = portals.value;

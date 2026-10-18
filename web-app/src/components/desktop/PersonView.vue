@@ -193,34 +193,7 @@
                 {{ isMe ? 'You aren’t on a Goal Team yet.' : `${firstName} isn’t on a Goal Team yet.` }}
               </div>
               <div v-else class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                <RouterLink
-                  v-for="g in goals"
-                  :key="g.id"
-                  :to="`/goal/${g.id}`"
-                  class="group flex items-center gap-5 bg-white border border-gray-200 rounded p-4 hover:border-gray-300 hover:shadow-sm transition"
-                >
-                  <!-- Last 4 reporting periods against quota, at mobile's full size -->
-                  <span class="flex items-end gap-1.5 shrink-0 h-20 w-[114px] border-b border-gray-200" aria-hidden="true">
-                    <span
-                      v-for="(bar, i) in chartBars(g)"
-                      :key="i"
-                      class="w-6 rounded-t-sm"
-                      style="background-color: #8cc65d"
-                      :style="{ height: `${bar}%`, minHeight: bar > 0 ? '3px' : '0' }"
-                    ></span>
-                  </span>
-                  <span class="flex-1 min-w-0">
-                    <span class="block font-semibold text-base text-gray-900 leading-snug line-clamp-2 group-hover:underline">{{ g.title || g.name }}</span>
-                    <span v-if="g.subtitle?.trim()" class="block text-sm text-gray-500 leading-snug truncate mt-0.5">{{ g.subtitle }}</span>
-                    <span class="mt-2.5 flex items-center gap-2.5">
-                      <span class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
-                        <span class="block h-full rounded-full" style="background-color: #8cc65d" :style="{ width: `${goalPct(g)}%` }"></span>
-                      </span>
-                      <span class="text-sm font-semibold text-gray-900 shrink-0">{{ goalPct(g) }}%</span>
-                    </span>
-                    <span class="mt-2 inline-block px-2 py-0.5 rounded-sm bg-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-600">{{ goalTag(g) }}</span>
-                  </span>
-                </RouterLink>
+                <GoalCard v-for="g in goals" :key="g.id" :goal="g" />
               </div>
             </div>
 
@@ -357,6 +330,7 @@ import DOMPurify from 'dompurify';
 import api from '@/pages/utils/api';
 import RepCoachAvatar from '@/assets/RepCoachAvatar.svg';
 import PurposeCard from './PurposeCard.vue';
+import GoalCard from './GoalCard.vue';
 import { getInitials } from '@/pages/utils/desktopShell';
 import { openGoalTeamChat } from '@/pages/utils/goalTeamChat';
 
@@ -617,24 +591,6 @@ function askCoachAboutPerson() {
     'ask-coach',
     `I'm looking at ${name.value}'s profile on Rep. What are they working on, and how could we help each other? Suggest a good way to start the conversation.`
   );
-}
-
-// --- Goals ---
-function goalPct(g: any): number {
-  const raw = g.progressPercent ?? (g.progress ?? 0) * 100;
-  return Math.round(Math.min(100, Math.max(0, Number(raw) || 0)));
-}
-
-// Matches the mobile tag: the goal type, or for "Other" the metric name (9 chars)
-function goalTag(g: any): string {
-  if (g.typeName?.toLowerCase() === 'other') return (g.metricName?.trim() || g.typeName || 'Goal').substring(0, 9);
-  return g.typeName || 'Goal';
-}
-
-// Last 4 reporting periods as % of quota
-function chartBars(g: any): number[] {
-  const quota = g.quota > 0 ? g.quota : 1;
-  return (g.chartData || []).slice(-4).map((bar: any) => Math.min(100, Math.max(0, ((bar.value || 0) / quota) * 100)));
 }
 
 onMounted(load);

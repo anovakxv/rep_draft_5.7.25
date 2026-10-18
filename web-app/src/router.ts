@@ -24,6 +24,7 @@ import EditGoal from './pages/GoalPages/EditGoal.vue'
 import StripePaymentReturn from './pages/MainPages/StripePaymentReturn.vue'
 import StripeConnectReturn from './pages/MainPages/StripeConnectReturn.vue'
 import Portal93Page from './pages/CustomPortals/Portal93Page.vue'
+import { shellKeyForPath } from './pages/utils/desktopShell'
 
 const routes = [
   // Authentication routes
@@ -120,7 +121,11 @@ router.beforeEach((to, from, next) => {
         query: { returnTo: to.fullPath }
       })
     } else {
-      next()
+      // Desktop: chat and Coach links open inside the dashboard's three-pane shell
+      // (/main?c=dm-12). Phones keep the full-page chat routes.
+      const shellKey = shellKeyForPath(to.path)
+      if (shellKey) next({ path: '/main', query: { c: shellKey } })
+      else next()
     }
   } else {
     next()

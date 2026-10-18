@@ -10,7 +10,7 @@
     <!-- Header -->
     <header
       class="shrink-0 flex items-center gap-2.5 border-b border-gray-200"
-      :class="embedded ? 'px-4 py-2.5 bg-white' : 'h-14 px-2'"
+      :class="embedded ? 'h-14 px-4 bg-white' : 'h-14 px-2'"
       :style="embedded ? '' : 'background-color: #f7f7f7'"
     >
       <button
@@ -33,18 +33,23 @@
         </p>
         <p class="text-xs text-gray-500 leading-tight">Suggests. You decide.</p>
       </div>
-      <button
-        v-if="messages.length"
-        type="button"
-        class="ml-auto text-sm text-gray-500 hover:text-gray-800 px-3 h-10 rounded-lg"
-        @click="startOver"
-      >
-        New chat
-      </button>
+      <div class="ml-auto flex items-center gap-1">
+        <button
+          v-if="messages.length"
+          type="button"
+          class="text-sm text-gray-500 hover:text-gray-800 px-3 h-10 rounded-lg"
+          @click="startOver"
+        >
+          New chat
+        </button>
+        <!-- Desktop shell puts its pane controls here -->
+        <slot name="header-actions" />
+      </div>
     </header>
 
     <!-- Messages -->
-    <div ref="listRef" class="flex-1 min-h-0 overflow-y-auto px-3 lg:px-4 py-4 flex flex-col gap-3" aria-live="polite">
+    <div ref="listRef" class="flex-1 min-h-0 overflow-y-auto" aria-live="polite">
+    <div class="w-full mx-auto px-3 lg:px-4 py-4 flex flex-col gap-3" :class="embedded ? 'max-w-[760px] lg:px-6' : ''">
       <!-- Welcome -->
       <div class="flex items-end gap-2 max-w-[85%]">
         <img :src="RepCoachAvatar" alt="" class="w-6 h-6 rounded-full shrink-0" />
@@ -131,9 +136,11 @@
         <span>Rep Coach is looking…</span>
       </div>
     </div>
+    </div>
 
     <!-- Input -->
     <form class="shrink-0 border-t border-gray-200 bg-white px-3 pt-2 pb-3" @submit.prevent="submit">
+      <div :class="embedded ? 'max-w-[760px] mx-auto lg:px-3' : ''">
       <div class="flex items-end gap-2">
         <label for="rep-coach-input" class="sr-only">Message Rep Coach</label>
         <textarea
@@ -162,6 +169,7 @@
         </button>
       </div>
       <p class="mt-1.5 text-[11px] text-gray-400 text-center">Rep Coach is AI and can make mistakes. It never sends anything for you.</p>
+      </div>
     </form>
   </div>
 </template>

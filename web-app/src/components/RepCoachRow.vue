@@ -35,7 +35,16 @@
           <path d="M16 3a1 1 0 0 1 .7 1.7L15 6.4v4.2l2.7 2.7A1 1 0 0 1 17 15h-4v5.5a1 1 0 0 1-2 0V15H7a1 1 0 0 1-.7-1.7L9 10.6V6.4L7.3 4.7A1 1 0 0 1 8 3h8z" />
         </svg>
       </span>
-      <span class="truncate text-gray-500" :class="variant === 'mobile' ? 'text-[15px] mt-1' : 'text-xs mt-1'">{{ preview }}</span>
+      <span
+        v-if="nudge && !messages.length"
+        class="flex items-center gap-1.5 truncate font-semibold mt-1"
+        :class="variant === 'mobile' ? 'text-[15px]' : 'text-xs'"
+        style="color: #006600"
+      >
+        <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: #8cc65d"></span>
+        <span class="truncate">{{ nudge }}</span>
+      </span>
+      <span v-else class="truncate text-gray-500" :class="variant === 'mobile' ? 'text-[15px] mt-1' : 'text-xs mt-1'">{{ preview }}</span>
     </span>
   </button>
 </template>
@@ -44,7 +53,8 @@
 import RepCoachAvatar from '@/assets/RepCoachAvatar.svg';
 import { useRepCoach } from '@/pages/utils/useRepCoach';
 
-defineProps<{ variant: 'mobile' | 'desktop'; selected?: boolean }>();
+// nudge: optional call to action shown until the member starts a Coach conversation
+defineProps<{ variant: 'mobile' | 'desktop'; selected?: boolean; nudge?: string }>();
 const emit = defineEmits<{ (e: 'select'): void }>();
-const { preview } = useRepCoach();
+const { preview, messages } = useRepCoach();
 </script>

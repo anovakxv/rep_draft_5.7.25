@@ -1171,18 +1171,21 @@ const PortalSegmentedPicker = defineComponent({
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    // Black-and-white segmented control (high contrast, so it never blends into the gray top bar).
-    // Desktop (lg+) just makes it more compact.
+    // Phones: black-and-white segmented control.
+    // Desktop (lg+): a compact pill. The track is a notch darker than the gray top bar and the
+    // selected tab is a white chip with a border and shadow, so it's visible but not loud.
     return () => h('div', {
-      class: 'flex border border-black rounded-md overflow-hidden lg:rounded-sm'
+      class: 'flex border border-black rounded-md overflow-hidden lg:border-0 lg:rounded-lg lg:p-0.5 lg:bg-gray-200 lg:overflow-visible'
     },
       props.segments?.map((segment, index) =>
         h('button', {
           key: index,
           class: [
-            'flex-1 py-2 text-sm font-medium transition-colors lg:py-0 lg:h-7 lg:text-[13px] lg:font-semibold',
-            props.modelValue === index ? 'bg-black text-white' : 'bg-white text-black lg:hover:bg-gray-100',
-            index < (props.segments?.length || 0) - 1 ? 'border-r border-black' : ''
+            'flex-1 py-2 text-sm font-medium transition-colors lg:py-0 lg:h-7 lg:text-[13px] lg:rounded-md',
+            props.modelValue === index
+              ? 'bg-black text-white lg:bg-white lg:text-gray-900 lg:font-semibold lg:shadow lg:ring-1 lg:ring-black/10'
+              : 'bg-white text-black lg:bg-transparent lg:text-gray-600 lg:hover:text-gray-900',
+            index < (props.segments?.length || 0) - 1 ? 'border-r border-black lg:border-r-0' : ''
           ],
           onClick: () => emit('update:modelValue', index)
         }, segment)

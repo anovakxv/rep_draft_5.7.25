@@ -26,7 +26,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <h1 class="flex-1 min-w-0 text-center text-sm truncate">
+          <h1 class="flex-1 min-w-0 text-center text-lg truncate">
             <span class="font-semibold text-gray-900">{{ portalDetail.name }}</span>
             <span v-if="portalDetail.subtitle?.trim()" class="text-gray-400"> — {{ portalDetail.subtitle }}</span>
           </h1>
@@ -34,7 +34,7 @@
         </div>
         <div class="w-[40%] flex items-center px-4">
           <PortalSegmentedPicker
-            class="w-full max-w-md mx-auto"
+            class="w-full max-w-sm mx-auto"
             :segments="['Goal Teams', 'Story']"
             v-model="selectedSection"
           />
@@ -1171,19 +1171,18 @@ const PortalSegmentedPicker = defineComponent({
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
-    // Phones: black-and-white segmented control. Desktop (lg+): the dashboard's compact gray pill.
+    // Black-and-white segmented control (high contrast, so it never blends into the gray top bar).
+    // Desktop (lg+) just makes it more compact.
     return () => h('div', {
-      class: 'flex border border-black rounded-md overflow-hidden lg:border-0 lg:rounded-lg lg:p-0.5 lg:bg-gray-100'
+      class: 'flex border border-black rounded-md overflow-hidden lg:rounded-sm'
     },
       props.segments?.map((segment, index) =>
         h('button', {
           key: index,
           class: [
-            'flex-1 py-2 text-sm font-medium transition-colors lg:py-0 lg:h-7 lg:text-[13px] lg:rounded-md',
-            props.modelValue === index
-              ? 'bg-black text-white lg:bg-white lg:text-gray-900 lg:shadow-sm'
-              : 'bg-white text-black lg:bg-transparent lg:text-gray-500 lg:hover:text-gray-800',
-            index < (props.segments?.length || 0) - 1 ? 'border-r border-black lg:border-r-0' : ''
+            'flex-1 py-2 text-sm font-medium transition-colors lg:py-0 lg:h-7 lg:text-[13px] lg:font-semibold',
+            props.modelValue === index ? 'bg-black text-white' : 'bg-white text-black lg:hover:bg-gray-100',
+            index < (props.segments?.length || 0) - 1 ? 'border-r border-black' : ''
           ],
           onClick: () => emit('update:modelValue', index)
         }, segment)

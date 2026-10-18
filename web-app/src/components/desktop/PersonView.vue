@@ -1,8 +1,12 @@
 <!--
   PersonView.vue
   Desktop Person card, shown in the center of the Rolodex Shell (/main?person=:id).
-  A header card for who they are (the Person), then one main content card with the
-  mobile profile's toggle: Purpose · Goals · Write. Phones keep ProfileView.vue.
+  A compact header card for who they are (the Person), then the mobile profile's
+  Purpose · Goals · Write toggle as a full-width, sticky control over rolodex cards:
+    Purpose — PurposeCard (16:9 pitch image beside the Purpose and its Goal Teams' progress)
+    Goals   — Value cards with mobile's 4-bar chart at full size
+    Write   — a reading column of entry cards, with an outline when there are several
+  Phones keep ProfileView.vue.
 -->
 
 <template>
@@ -31,8 +35,8 @@
       </RouterLink>
     </header>
 
-    <div class="flex-1 min-h-0 overflow-y-auto bg-[#f7f7f7]">
-      <div class="max-w-[1100px] mx-auto px-6 py-6 space-y-5">
+    <div ref="scrollRef" class="flex-1 min-h-0 overflow-y-auto bg-[#f7f7f7]">
+      <div class="max-w-[1100px] mx-auto px-6 pt-6 pb-10">
 
         <!-- Loading -->
         <div v-if="loading" class="space-y-5 animate-pulse" aria-hidden="true">
@@ -40,7 +44,8 @@
             <div class="w-24 h-24 rounded-full bg-gray-100 shrink-0"></div>
             <div class="flex-1 space-y-3 pt-2"><div class="h-6 bg-gray-100 rounded w-1/3"></div><div class="h-4 bg-gray-100 rounded w-1/4"></div><div class="h-4 bg-gray-100 rounded w-1/2"></div></div>
           </div>
-          <div class="bg-white border border-gray-200 rounded h-80"></div>
+          <div class="h-10 bg-white border border-gray-200 rounded-sm"></div>
+          <div class="bg-white border border-gray-200 rounded h-64"></div>
         </div>
 
         <!-- Error -->
@@ -138,37 +143,95 @@
           </section>
 
           <!-- ===================== Main content: Purpose · Goals · Write ===================== -->
-          <section class="bg-white border border-gray-200 rounded">
-            <div class="flex items-center gap-4 px-6 py-3 border-b border-gray-200">
-              <!-- Same black-and-white toggle as the mobile profile -->
-              <div class="flex w-full max-w-md border border-black rounded-sm overflow-hidden" role="tablist" aria-label="Profile content">
+          <div ref="contentRef" class="mt-5">
+            <!-- The mobile profile's toggle: full width, and it stays put while you scroll -->
+            <div class="sticky top-0 z-10 -mx-6 px-6 pt-2 pb-3 bg-[#f7f7f7]">
+              <div class="flex bg-white border border-black rounded-sm overflow-hidden" role="tablist" aria-label="Profile content">
                 <button
                   v-for="t in tabs"
                   :key="t.id"
                   type="button"
                   role="tab"
                   :aria-selected="tab === t.id"
-                  class="flex-1 h-8 text-sm font-semibold border-l border-black first:border-l-0 transition-colors"
+                  class="flex-1 h-10 text-[15px] font-semibold border-l border-black first:border-l-0 transition-colors"
                   :class="tab === t.id ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-50'"
-                  @click="tab = t.id"
+                  @click="selectTab(t.id)"
                 >
                   {{ t.label }}
-                  <span class="ml-0.5 font-normal" :class="tab === t.id ? 'text-white/70' : 'text-gray-400'">{{ t.count }}</span>
+                  <span class="ml-1 text-sm font-normal" :class="tab === t.id ? 'text-white/70' : 'text-gray-400'">{{ t.count }}</span>
                 </button>
               </div>
+            </div>
+
+            <!-- Panel header: what this tab shows, and the add action on your own profile -->
+            <div class="flex items-center justify-between gap-3 mb-3 px-0.5">
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-gray-400">{{ panelLabel }}</p>
               <RouterLink
                 v-if="isMe && addLink"
                 :to="addLink.to"
-                class="ml-auto shrink-0 text-sm font-semibold hover:underline"
-                style="color: #006600"
+                class="h-8 px-3 inline-flex items-center rounded text-sm font-semibold text-white hover:opacity-90"
+                style="background-color: #8cc65d"
               >{{ addLink.label }}</RouterLink>
             </div>
 
-            <!-- Write -->
-            <div v-if="tab === 'write'">
+            <!-- ---------- Purpose ---------- -->
+            <div v-if="tab === 'purpose'" class="space-y-4">
+              <div v-if="!portals.length" class="bg-white border border-gray-200 rounded p-8 text-center text-sm text-gray-500">
+                {{ isMe ? 'You aren’t part of a Purpose yet.' : `${firstName} isn’t part of a Purpose yet.` }}
+              </div>
+              <PurposeCard
+                v-for="p in portals"
+                :key="p.id"
+                :portal="p"
+                layout="wide"
+                :images="portalImages[p.id]"
+                :goals="portalGoals[p.id]"
+                :busy-goal-id="busyGoalId"
+                @goal-chat="(goal) => onGoalChat(goal, p.name)"
+              />
+            </div>
 
+            <!-- ---------- Goals (the Value side) ---------- -->
+            <div v-else-if="tab === 'goals'">
+              <div v-if="!goals.length" class="bg-white border border-gray-200 rounded p-8 text-center text-sm text-gray-500">
+                {{ isMe ? 'You aren’t on a Goal Team yet.' : `${firstName} isn’t on a Goal Team yet.` }}
+              </div>
+              <div v-else class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <RouterLink
+                  v-for="g in goals"
+                  :key="g.id"
+                  :to="`/goal/${g.id}`"
+                  class="group flex items-center gap-5 bg-white border border-gray-200 rounded p-4 hover:border-gray-300 hover:shadow-sm transition"
+                >
+                  <!-- Last 4 reporting periods against quota, at mobile's full size -->
+                  <span class="flex items-end gap-1.5 shrink-0 h-20 w-[114px] border-b border-gray-200" aria-hidden="true">
+                    <span
+                      v-for="(bar, i) in chartBars(g)"
+                      :key="i"
+                      class="w-6 rounded-t-sm"
+                      style="background-color: #8cc65d"
+                      :style="{ height: `${bar}%`, minHeight: bar > 0 ? '3px' : '0' }"
+                    ></span>
+                  </span>
+                  <span class="flex-1 min-w-0">
+                    <span class="block font-semibold text-base text-gray-900 leading-snug line-clamp-2 group-hover:underline">{{ g.title || g.name }}</span>
+                    <span v-if="g.subtitle?.trim()" class="block text-sm text-gray-500 leading-snug truncate mt-0.5">{{ g.subtitle }}</span>
+                    <span class="mt-2.5 flex items-center gap-2.5">
+                      <span class="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                        <span class="block h-full rounded-full" style="background-color: #8cc65d" :style="{ width: `${goalPct(g)}%` }"></span>
+                      </span>
+                      <span class="text-sm font-semibold text-gray-900 shrink-0">{{ goalPct(g) }}%</span>
+                    </span>
+                    <span class="mt-2 inline-block px-2 py-0.5 rounded-sm bg-gray-100 text-[11px] font-semibold uppercase tracking-wide text-gray-600">{{ goalTag(g) }}</span>
+                  </span>
+                </RouterLink>
+              </div>
+            </div>
+
+            <!-- ---------- Write ---------- -->
+            <div v-else>
               <!-- Empty: your own profile → the three pillars, with Coach -->
-              <div v-if="!writes.length && isMe" class="m-6 rounded border border-dashed border-gray-300 p-5">
+              <div v-if="!writes.length && isMe" class="bg-white border border-dashed border-gray-300 rounded p-6">
                 <p class="font-semibold text-gray-900">Tell people what you’re working toward</p>
                 <p class="mt-1 text-sm text-gray-600">Your Write section is how people on Rep understand you. It answers three questions:</p>
                 <ol class="mt-3 space-y-1.5 text-sm text-gray-800">
@@ -191,105 +254,69 @@
                 </div>
               </div>
 
-              <p v-else-if="!writes.length" class="p-6 text-sm text-gray-500">{{ firstName }} hasn’t written their story yet.</p>
+              <div v-else-if="!writes.length" class="bg-white border border-gray-200 rounded p-8 text-center text-sm text-gray-500">
+                {{ firstName }} hasn’t written their story yet.
+              </div>
 
-              <article
-                v-for="(block, index) in writes"
-                :key="block.id"
-                class="px-6 py-5 border-b border-gray-100 last:border-b-0"
-              >
-                <div class="flex items-start gap-3">
-                  <h3 v-if="block.title" class="flex-1 font-bold text-[17px] text-gray-900 leading-snug">{{ block.title }}</h3>
-                  <span v-if="isMe && block.status === 'draft'" class="shrink-0 px-2 py-0.5 rounded bg-gray-100 text-[11px] font-semibold text-gray-500">Draft</span>
-                </div>
-                <div class="relative" :class="block.title ? 'mt-2' : ''">
-                  <div
-                    class="prose prose-sm max-w-none text-gray-800 leading-relaxed break-words"
-                    :class="isLong(block) && !expanded[block.id] ? 'max-h-60 overflow-hidden' : ''"
-                    :style="block.content_format === 'markdown' ? '' : 'white-space: pre-wrap'"
-                    v-html="renderWrite(block)"
-                  ></div>
-                  <div v-if="isLong(block) && !expanded[block.id]" class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
-                </div>
-                <div class="mt-2 flex items-center gap-3">
-                  <button
-                    v-if="isLong(block)"
-                    type="button"
-                    class="text-sm font-semibold hover:underline"
-                    style="color: #006600"
-                    @click="expanded = { ...expanded, [block.id]: !expanded[block.id] }"
-                  >{{ expanded[block.id] ? 'Read less' : 'Read more' }}</button>
-                  <div v-if="isMe" class="ml-auto flex items-center gap-1 text-sm">
-                    <button v-if="index > 0" type="button" class="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Move up" aria-label="Move up" @click="moveWrite(index, -1)">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
-                    </button>
-                    <button v-if="index < writes.length - 1" type="button" class="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Move down" aria-label="Move down" @click="moveWrite(index, 1)">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
-                    </button>
-                    <RouterLink :to="`/write/edit/${block.id}`" class="px-2 py-1 rounded font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">Edit</RouterLink>
-                    <button type="button" class="px-2 py-1 rounded font-medium text-red-600 hover:bg-red-50" @click="deleteTarget = block">Delete</button>
-                  </div>
-                </div>
-              </article>
-            </div>
+              <div v-else :class="showOutline ? 'grid grid-cols-[200px_minmax(0,1fr)] gap-6 items-start' : ''">
+                <!-- Outline: jump to an entry -->
+                <nav v-if="showOutline" class="sticky top-20" aria-label="Write entries">
+                  <ol class="space-y-0.5 border-l border-gray-200">
+                    <li v-for="(block, i) in writes" :key="block.id">
+                      <button
+                        type="button"
+                        class="w-full text-left pl-3 pr-2 py-1.5 -ml-px border-l-2 border-transparent text-sm text-gray-600 hover:text-gray-900 hover:border-[#8cc65d] line-clamp-2"
+                        @click="scrollToWrite(block.id)"
+                      >{{ block.title || `Entry ${i + 1}` }}</button>
+                    </li>
+                  </ol>
+                </nav>
 
-            <!-- Purpose -->
-            <div v-else-if="tab === 'purpose'">
-              <p v-if="!portals.length" class="p-6 text-sm text-gray-500">
-                {{ isMe ? 'You aren’t part of a Purpose yet.' : `${firstName} isn’t part of a Purpose yet.` }}
-              </p>
-              <div v-else class="grid grid-cols-1 xl:grid-cols-2">
-                <RouterLink
-                  v-for="p in portals"
-                  :key="p.id"
-                  :to="`/portal/${p.id}`"
-                  class="flex items-start gap-4 px-6 py-4 border-b border-gray-100 xl:odd:border-r hover:bg-gray-50"
-                >
-                  <span class="w-40 aspect-video shrink-0 bg-gray-100 rounded-sm overflow-hidden">
-                    <img v-if="p.mainImageUrl" :src="p.mainImageUrl" :alt="p.name" loading="lazy" class="w-full h-full object-contain" />
-                  </span>
-                  <span class="min-w-0 pt-0.5">
-                    <span class="block font-semibold text-[15px] text-gray-900 leading-snug line-clamp-2">{{ p.name }}</span>
-                    <span v-if="p.subtitle?.trim()" class="block text-sm text-gray-500 leading-snug line-clamp-2 mt-0.5">{{ p.subtitle }}</span>
-                  </span>
-                </RouterLink>
+                <!-- Entries -->
+                <div class="space-y-4 min-w-0">
+                  <article
+                    v-for="(block, index) in writes"
+                    :id="`write-${block.id}`"
+                    :key="block.id"
+                    class="bg-white border border-gray-200 rounded px-7 py-6 scroll-mt-20"
+                  >
+                    <div class="flex items-start gap-3">
+                      <h3 v-if="block.title" class="flex-1 font-bold text-xl text-gray-900 leading-snug">{{ block.title }}</h3>
+                      <span v-if="isMe && block.status === 'draft'" class="shrink-0 px-2 py-0.5 rounded-sm bg-gray-100 text-[11px] font-semibold text-gray-500">Draft</span>
+                    </div>
+                    <div class="relative max-w-[72ch]" :class="block.title ? 'mt-3' : ''">
+                      <div
+                        class="prose max-w-none text-[15px] text-gray-800 leading-relaxed break-words"
+                        :class="isLong(block) && !expanded[block.id] ? 'max-h-72 overflow-hidden' : ''"
+                        :style="block.content_format === 'markdown' ? '' : 'white-space: pre-wrap'"
+                        v-html="renderWrite(block)"
+                      ></div>
+                      <div v-if="isLong(block) && !expanded[block.id]" class="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                    </div>
+                    <div v-if="isLong(block) || isMe" class="mt-3 flex items-center gap-3">
+                      <button
+                        v-if="isLong(block)"
+                        type="button"
+                        class="text-sm font-semibold hover:underline"
+                        style="color: #006600"
+                        @click="expanded = { ...expanded, [block.id]: !expanded[block.id] }"
+                      >{{ expanded[block.id] ? 'Read less' : 'Read more' }}</button>
+                      <div v-if="isMe" class="ml-auto flex items-center gap-1 text-sm">
+                        <button v-if="index > 0" type="button" class="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Move up" aria-label="Move up" @click="moveWrite(index, -1)">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
+                        </button>
+                        <button v-if="index < writes.length - 1" type="button" class="p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100" title="Move down" aria-label="Move down" @click="moveWrite(index, 1)">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        <RouterLink :to="`/write/edit/${block.id}`" class="px-2 py-1 rounded font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">Edit</RouterLink>
+                        <button type="button" class="px-2 py-1 rounded font-medium text-red-600 hover:bg-red-50" @click="deleteTarget = block">Delete</button>
+                      </div>
+                    </div>
+                  </article>
+                </div>
               </div>
             </div>
-
-            <!-- Goals (the Value side) -->
-            <div v-else>
-              <p v-if="!goals.length" class="p-6 text-sm text-gray-500">
-                {{ isMe ? 'You aren’t on a Goal Team yet.' : `${firstName} isn’t on a Goal Team yet.` }}
-              </p>
-              <RouterLink
-                v-for="g in goals"
-                :key="g.id"
-                :to="`/goal/${g.id}`"
-                class="flex items-center gap-4 px-6 py-4 border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
-              >
-                <!-- Mini chart: last 4 reporting periods against quota (as on mobile) -->
-                <span class="flex items-end gap-1 shrink-0 h-12 w-[68px]" aria-hidden="true">
-                  <span
-                    v-for="(bar, i) in chartBars(g)"
-                    :key="i"
-                    class="w-3.5 rounded-sm"
-                    style="background-color: #8cc65d"
-                    :style="{ height: `${bar}%`, minHeight: bar > 0 ? '2px' : '0' }"
-                  ></span>
-                  <span v-if="!chartBars(g).length" class="w-full h-px bg-gray-200 self-end"></span>
-                </span>
-                <span class="flex-1 min-w-0">
-                  <span class="block font-semibold text-[15px] text-gray-900 leading-snug truncate">{{ g.title || g.name }}</span>
-                  <span class="mt-1.5 flex items-center gap-2">
-                    <span class="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                      <span class="block h-full rounded-full" style="background-color: #8cc65d" :style="{ width: `${goalPct(g)}%` }"></span>
-                    </span>
-                    <span class="text-xs text-gray-600 shrink-0">{{ goalPct(g) }}% <span class="text-gray-400">[{{ goalTag(g) }}]</span></span>
-                  </span>
-                </span>
-              </RouterLink>
-            </div>
-          </section>
+          </div>
         </template>
       </div>
     </div>
@@ -333,7 +360,9 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import api from '@/pages/utils/api';
 import RepCoachAvatar from '@/assets/RepCoachAvatar.svg';
+import PurposeCard from './PurposeCard.vue';
 import { getInitials } from '@/pages/utils/desktopShell';
+import { openGoalTeamChat } from '@/pages/utils/goalTeamChat';
 
 interface Profile {
   id: number;
@@ -357,6 +386,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'back'): void;
   (e: 'message', userId: number): void;
+  (e: 'open-group', chat: { id: number; name: string }): void;
   (e: 'ask-coach', text: string): void;
   (e: 'toast', message: string): void;
 }>();
@@ -380,21 +410,13 @@ const showMenu = ref(false);
 const showFlagConfirm = ref(false);
 const deleteTarget = ref<WriteBlock | null>(null);
 const networkBusy = ref(false);
+const scrollRef = ref<HTMLElement | null>(null);
+const contentRef = ref<HTMLElement | null>(null);
 
-// Main content toggle, in the mobile profile's order (Rep / Goals / Write)
-type Tab = 'purpose' | 'goals' | 'write';
-const tab = ref<Tab>('purpose');
-const tabs = computed<Array<{ id: Tab; label: string; count: number }>>(() => [
-  { id: 'purpose', label: 'Purpose', count: portals.value.length },
-  { id: 'goals', label: 'Goals', count: goals.value.length },
-  { id: 'write', label: 'Write', count: writes.value.length },
-]);
-// Your own profile: the "+ Add" for whichever list is showing (an empty Write has its own prompt)
-const addLink = computed(() => {
-  if (tab.value === 'purpose') return { to: '/portal/edit/new', label: '+ Add Purpose' };
-  if (tab.value === 'goals') return { to: '/goal/edit/new', label: '+ Add Goal' };
-  return writes.value.length ? { to: '/write/new', label: '+ Add to Write' } : null;
-});
+// Purpose cards' images and Goal Teams (a missing goals entry means "still loading")
+const portalImages = ref<Record<number, string[]>>({});
+const portalGoals = ref<Record<number, any[]>>({});
+const busyGoalId = ref<number | null>(null);
 
 const isMe = computed(() => props.userId === props.currentUserId);
 const name = computed(() => profile.value?.full_name || 'Member');
@@ -405,6 +427,46 @@ const skills = computed(() => {
   if (profile.value?.other_skill?.trim()) list.push(profile.value.other_skill.trim());
   return list;
 });
+
+// --- Main content toggle, in the mobile profile's order (Rep / Goals / Write) ---
+type Tab = 'purpose' | 'goals' | 'write';
+const tab = ref<Tab>('purpose');
+const tabs = computed<Array<{ id: Tab; label: string; count: number }>>(() => [
+  { id: 'purpose', label: 'Purpose', count: portals.value.length },
+  { id: 'goals', label: 'Goals', count: goals.value.length },
+  { id: 'write', label: 'Write', count: writes.value.length },
+]);
+
+const panelLabel = computed(() => {
+  const who = isMe.value ? 'Your' : `${firstName.value}’s`;
+  if (tab.value === 'purpose') return `${who} Purposes and their Goal Teams`;
+  if (tab.value === 'goals') return `${who} Goal Teams · Value`;
+  return `${who} Write`;
+});
+
+// Your own profile: the add action for whichever tab is showing (an empty Write has its own prompt)
+const addLink = computed(() => {
+  if (tab.value === 'purpose') return { to: '/portal/edit/new', label: '+ Add Purpose' };
+  if (tab.value === 'goals') return { to: '/goal/edit/new', label: '+ Add Goal' };
+  return writes.value.length ? { to: '/write/new', label: '+ Add to Write' } : null;
+});
+
+// Long Write sections get an outline to jump between entries
+const showOutline = computed(() => writes.value.length >= 3);
+
+function selectTab(next: Tab) {
+  tab.value = next;
+  // If the toggle is stuck to the top, start the new tab from its first card
+  const el = scrollRef.value;
+  const content = contentRef.value;
+  if (!el || !content) return;
+  const contentTop = content.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop;
+  if (el.scrollTop > contentTop) el.scrollTo({ top: contentTop });
+}
+
+function scrollToWrite(id: number) {
+  document.getElementById(`write-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 // --- Loading ---
 let seq = 0;
@@ -432,12 +494,29 @@ async function load() {
     goals.value = goalsRes?.data?.aGoals || [];
     writes.value = writesRes?.data?.result || [];
     isBlocked.value = !!blockRes?.data?.is_blocked;
+    loadPortalDetails(mySeq);
   } catch (e: any) {
     if (mySeq !== seq) return;
     loadError.value = e?.response?.data?.error || 'Couldn’t load this profile.';
   } finally {
     if (mySeq === seq) loading.value = false;
   }
+}
+
+// Each Purpose card shows its pitch-deck images and Goal Teams (the Purpose → Value link)
+function loadPortalDetails(mySeq: number) {
+  portals.value.slice(0, 30).forEach(async (p) => {
+    try {
+      const res = await api.get(`/api/public/portal/${p.id}`);
+      if (mySeq !== seq) return;
+      const data = res.data.result;
+      const main = (data?.aSections || []).find((s: any) => s.title === 'Main Section');
+      portalImages.value = { ...portalImages.value, [p.id]: (main?.aFiles || []).map((f: any) => f.url).filter(Boolean) };
+      portalGoals.value = { ...portalGoals.value, [p.id]: data?.aGoals || [] };
+    } catch {
+      if (mySeq === seq) portalGoals.value = { ...portalGoals.value, [p.id]: [] };
+    }
+  });
 }
 
 // Coming back from editing your profile or a Write entry: refresh in place
@@ -453,6 +532,19 @@ watch(
   }
 );
 
+// --- Purpose cards: message a Goal Team (members only) ---
+async function onGoalChat(goal: any, portalName: string) {
+  if (busyGoalId.value) return;
+  busyGoalId.value = goal.id;
+  try {
+    emit('open-group', await openGoalTeamChat(goal, portalName, props.currentUserId));
+  } catch (e: any) {
+    emit('toast', e?.message || 'Couldn’t open the Goal Team chat.');
+  } finally {
+    busyGoalId.value = null;
+  }
+}
+
 // --- Write ---
 function renderWrite(block: WriteBlock): string {
   const raw = block.content || '';
@@ -463,7 +555,7 @@ function renderWrite(block: WriteBlock): string {
   });
 }
 
-const isLong = (block: WriteBlock) => (block.content || '').length > 700;
+const isLong = (block: WriteBlock) => (block.content || '').length > 900;
 
 async function moveWrite(index: number, delta: -1 | 1) {
   const to = index + delta;

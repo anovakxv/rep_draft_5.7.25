@@ -336,6 +336,7 @@
         :coach-enabled="!!coachEnabled"
         @back="closePerson"
         @message="(id) => openConversation({ kind: 'direct', id })"
+        @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
         @ask-coach="askCoach"
         @toast="triggerToast"
       />

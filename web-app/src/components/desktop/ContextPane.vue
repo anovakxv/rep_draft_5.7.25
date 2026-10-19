@@ -208,15 +208,20 @@
           </div>
         </section>
 
-        <!-- Write section status: the first thing Coach helps with -->
-        <section class="rounded-xl border border-gray-200 p-4">
-          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Your Write section</p>
-          <template v-if="myWriteCount === null">
-            <div class="mt-2 h-3 bg-gray-100 rounded w-2/3 animate-pulse"></div>
+        <!-- Profile setup: the first thing Coach helps with -->
+        <section class="rounded border border-gray-200 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">Your profile</p>
+          <template v-if="onboardingStatus === 'complete'">
+            <p class="mt-2 text-sm text-gray-800"><span style="color: #006600">✓</span> Your profile is set up.</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <RouterLink :to="`/profile/${currentUserId}`" class="px-3 h-8 inline-flex items-center rounded-sm border border-gray-300 text-sm font-medium text-gray-800 hover:bg-gray-50">View my profile</RouterLink>
+              <button type="button" class="px-3 h-8 rounded-sm text-sm font-medium hover:underline" style="color: #006600" @click="emit('ask-coach', refineStarter)">Refine it with Coach</button>
+            </div>
           </template>
-          <template v-else-if="myWriteCount === 0">
+          <template v-else>
             <p class="mt-2 text-sm text-gray-800 leading-relaxed">
-              Your Write section is how people on Rep understand what you’re working toward. It answers three questions:
+              <template v-if="myWriteCount">You have {{ myWriteCount }} {{ myWriteCount === 1 ? 'entry' : 'entries' }} in your Write section. </template>
+              Profile setup helps you write the three things people on Rep look for:
             </p>
             <ul class="mt-2 space-y-1 text-sm text-gray-700">
               <li class="flex gap-2"><span style="color: #8cc65d">●</span> What you’re trying to accomplish</li>
@@ -226,29 +231,87 @@
             <div class="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
-                class="px-3 h-8 rounded-full text-sm font-semibold text-white hover:opacity-90"
+                class="px-3 h-8 rounded-sm text-sm font-semibold text-white hover:opacity-90"
                 style="background-color: #8cc65d"
-                @click="emit('ask-coach', writeStarter)"
-              >Write it with Coach</button>
-              <RouterLink to="/write/new" class="px-3 h-8 inline-flex items-center rounded-full border border-gray-300 text-sm font-medium text-gray-800 hover:bg-gray-50">Write it myself</RouterLink>
-            </div>
-          </template>
-          <template v-else>
-            <p class="mt-2 text-sm text-gray-800">
-              You have {{ myWriteCount }} {{ myWriteCount === 1 ? 'entry' : 'entries' }} in your Write section.
-            </p>
-            <div class="mt-3 flex flex-wrap gap-2">
-              <RouterLink :to="`/profile/${currentUserId}`" class="px-3 h-8 inline-flex items-center rounded-full border border-gray-300 text-sm font-medium text-gray-800 hover:bg-gray-50">View my profile</RouterLink>
-              <button type="button" class="px-3 h-8 rounded-full text-sm font-medium hover:underline" style="color: #8cc65d" @click="emit('ask-coach', refineStarter)">Refine it with Coach</button>
+                @click="emit('start-onboarding')"
+              >{{ onboardingStatus === 'not_started' ? 'Set up my profile' : 'Continue profile setup' }}</button>
+              <RouterLink to="/write/new" class="px-3 h-8 inline-flex items-center rounded-sm border border-gray-300 text-sm font-medium text-gray-800 hover:bg-gray-50">Write it myself</RouterLink>
             </div>
           </template>
         </section>
 
-        <section class="rounded-xl bg-gray-50 p-4">
-          <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">What Coach knows about you</p>
-          <p class="mt-2 text-sm text-gray-600 leading-relaxed">
-            Coming soon: Rep Coach will remember your goals between conversations, and you’ll be able to see and edit what it knows right here.
-          </p>
+        <!-- What Coach knows: the member can see, edit and clear it -->
+        <section class="rounded border border-gray-200 p-4">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-400">What Coach knows about you</p>
+            <button
+              v-if="memoryLoaded && !editing && hasMemory"
+              type="button"
+              class="text-xs font-semibold hover:underline"
+              style="color: #006600"
+              @click="startEdit"
+            >Edit</button>
+          </div>
+
+          <div v-if="!memoryLoaded" class="mt-3 space-y-2 animate-pulse" aria-hidden="true">
+            <div class="h-3 bg-gray-100 rounded w-full"></div>
+            <div class="h-3 bg-gray-100 rounded w-2/3"></div>
+          </div>
+
+          <!-- Edit -->
+          <form v-else-if="editing" class="mt-3 space-y-3" @submit.prevent="saveMemory">
+            <label class="block">
+              <span class="text-xs font-medium text-gray-600">Summary</span>
+              <textarea v-model="form.narrative" rows="3" maxlength="2000" class="mt-1 w-full rounded-sm border border-gray-200 px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#8cc65d]"></textarea>
+            </label>
+            <label v-for="f in TEXT_FACTS" :key="f.key" class="block">
+              <span class="text-xs font-medium text-gray-600">{{ f.label }}</span>
+              <textarea v-model="form[f.key]" rows="2" maxlength="600" class="mt-1 w-full rounded-sm border border-gray-200 px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#8cc65d]"></textarea>
+            </label>
+            <label v-for="f in LIST_FACTS" :key="f.key" class="block">
+              <span class="text-xs font-medium text-gray-600">{{ f.label }} <span class="text-gray-400">(comma-separated)</span></span>
+              <input v-model="form[f.key]" type="text" class="mt-1 w-full h-8 rounded-sm border border-gray-200 px-2.5 text-sm focus:outline-none focus:border-[#8cc65d]" />
+            </label>
+            <p v-if="memoryError" class="text-sm text-red-600">{{ memoryError }}</p>
+            <div class="flex gap-2">
+              <button type="submit" class="h-8 px-3 rounded-sm text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50" style="background-color: #8cc65d" :disabled="memoryBusy">Save</button>
+              <button type="button" class="h-8 px-3 rounded-sm text-sm text-gray-600 hover:bg-gray-100" @click="editing = false">Cancel</button>
+            </div>
+          </form>
+
+          <!-- View -->
+          <template v-else>
+            <p v-if="!hasMemory" class="mt-2 text-sm text-gray-600 leading-relaxed">
+              Nothing yet. Rep Coach remembers what you share in profile setup and your chats, and you can always see, edit or clear it here.
+            </p>
+            <template v-else>
+              <p v-if="memory.narrative" class="mt-2 text-sm text-gray-800 leading-relaxed">{{ memory.narrative }}</p>
+              <dl class="mt-3 space-y-2">
+                <template v-for="f in TEXT_FACTS" :key="f.key">
+                  <div v-if="memory.facts[f.key]">
+                    <dt class="text-xs font-semibold text-gray-500">{{ f.label }}</dt>
+                    <dd class="text-sm text-gray-800">{{ memory.facts[f.key] }}</dd>
+                  </div>
+                </template>
+                <template v-for="f in LIST_FACTS" :key="f.key">
+                  <div v-if="memory.facts[f.key]?.length">
+                    <dt class="text-xs font-semibold text-gray-500">{{ f.label }}</dt>
+                    <dd class="mt-1 flex flex-wrap gap-1">
+                      <span v-for="item in memory.facts[f.key]" :key="item" class="px-2 py-0.5 rounded-sm bg-gray-100 text-xs text-gray-700">{{ item }}</span>
+                    </dd>
+                  </div>
+                </template>
+              </dl>
+              <div class="mt-3 pt-3 border-t border-gray-100">
+                <span v-if="confirmClear" class="flex items-center gap-2 text-sm">
+                  <span class="text-gray-700">Clear what Coach knows?</span>
+                  <button type="button" class="px-2 py-0.5 rounded-sm bg-red-600 text-white text-xs font-semibold disabled:opacity-50" :disabled="memoryBusy" @click="clearMemory">Clear</button>
+                  <button type="button" class="text-xs text-gray-500 hover:underline" @click="confirmClear = false">Cancel</button>
+                </span>
+                <button v-else type="button" class="text-xs text-gray-500 hover:text-red-600 hover:underline" @click="confirmClear = true">Clear what Coach knows</button>
+              </div>
+            </template>
+          </template>
         </section>
 
         <p class="text-xs text-gray-400 leading-relaxed">Rep Coach is AI and can make mistakes. It never sends messages or changes your profile for you.</p>
@@ -270,11 +333,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { RouterLink } from 'vue-router';
 import api from '@/pages/utils/api';
 import RepCoachAvatar from '@/assets/RepCoachAvatar.svg';
 import PurposeFeed from './PurposeFeed.vue';
+import { onboardingStatus } from '@/pages/utils/useRepOnboarding';
 import {
   getInitials,
   photoUrl,
@@ -302,13 +366,12 @@ const emit = defineEmits<{
   (e: 'open-conversation', key: ConversationKey): void;
   (e: 'open-group', chat: { id: number; name: string }): void;
   (e: 'ask-coach', text: string): void;
+  (e: 'start-onboarding'): void;
   (e: 'toast', message: string): void;
   (e: 'expand-purposes'): void;
   (e: 'close'): void;
 }>();
 
-const writeStarter =
-  'Help me write my Rep profile. Ask me, one question at a time, what I’m trying to accomplish, what I’m looking for, and what’s holding me back, then draft my Write section for me to review.';
 const refineStarter =
   'Help me sharpen my Rep Write section so it clearly says what I’m trying to accomplish, what I’m looking for, and what’s holding me back.';
 
@@ -320,6 +383,102 @@ function setTab(tab: 'about' | 'purposes') {
   tabPref.value = tab;
   savePref('contextTab', tab);
 }
+
+// --- What Coach knows (Coach's About) ---
+const TEXT_FACTS = [
+  { key: 'accomplish', label: 'Trying to accomplish' },
+  { key: 'looking_for', label: 'Looking for' },
+  { key: 'holding_back', label: 'Holding you back' },
+  { key: 'location', label: 'Location' },
+] as const;
+const LIST_FACTS = [
+  { key: 'skills', label: 'Skills' },
+  { key: 'interests', label: 'Interests' },
+] as const;
+
+const memory = ref<{ narrative: string | null; facts: Record<string, any> }>({ narrative: null, facts: {} });
+const memoryLoaded = ref(false);
+const editing = ref(false);
+const memoryBusy = ref(false);
+const memoryError = ref('');
+const confirmClear = ref(false);
+const form = ref<Record<string, string>>({});
+
+const hasMemory = computed(() => !!memory.value.narrative || Object.keys(memory.value.facts || {}).length > 0);
+const isCoach = computed(() => props.conversation?.kind === 'coach');
+
+async function loadMemory() {
+  try {
+    const res = await api.get('/api/coach/memory');
+    memory.value = { narrative: res.data?.narrative ?? null, facts: res.data?.facts || {} };
+  } catch {
+    // Keep what's shown; it loads again next time.
+  } finally {
+    memoryLoaded.value = true;
+  }
+}
+
+function startEdit() {
+  const facts = memory.value.facts || {};
+  form.value = {
+    narrative: memory.value.narrative || '',
+    ...Object.fromEntries(TEXT_FACTS.map((f) => [f.key, facts[f.key] || ''])),
+    ...Object.fromEntries(LIST_FACTS.map((f) => [f.key, (facts[f.key] || []).join(', ')])),
+  };
+  memoryError.value = '';
+  editing.value = true;
+}
+
+async function saveMemory() {
+  memoryBusy.value = true;
+  memoryError.value = '';
+  const facts: Record<string, any> = {};
+  for (const f of TEXT_FACTS) {
+    const v = (form.value[f.key] || '').trim();
+    if (v) facts[f.key] = v;
+  }
+  for (const f of LIST_FACTS) {
+    const items = (form.value[f.key] || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (items.length) facts[f.key] = items;
+  }
+  try {
+    const res = await api.put('/api/coach/memory', { narrative: (form.value.narrative || '').trim() || null, facts });
+    memory.value = { narrative: res.data?.narrative ?? null, facts: res.data?.facts || {} };
+    editing.value = false;
+  } catch {
+    memoryError.value = "Couldn't save. Try again.";
+  } finally {
+    memoryBusy.value = false;
+  }
+}
+
+async function clearMemory() {
+  memoryBusy.value = true;
+  try {
+    await api.delete('/api/coach/memory');
+    memory.value = { narrative: null, facts: {} };
+    confirmClear.value = false;
+  } catch {
+    emit('toast', "Couldn't clear what Coach knows. Try again.");
+  } finally {
+    memoryBusy.value = false;
+  }
+}
+
+watch(isCoach, (coach) => { if (coach) loadMemory(); }, { immediate: true });
+
+// Coach can learn something in any reply, and profile setup fills memory in when it's saved
+function refreshMemory() {
+  if (isCoach.value && !editing.value) loadMemory();
+}
+onMounted(() => {
+  window.addEventListener('rep:coach-replied', refreshMemory);
+  window.addEventListener('rep:write-updated', refreshMemory);
+});
+onUnmounted(() => {
+  window.removeEventListener('rep:coach-replied', refreshMemory);
+  window.removeEventListener('rep:write-updated', refreshMemory);
+});
 
 // --- Person About ---
 interface PersonState {

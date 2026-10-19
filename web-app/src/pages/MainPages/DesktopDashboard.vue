@@ -338,6 +338,7 @@
         @message="(id) => openConversation({ kind: 'direct', id })"
         @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
         @ask-coach="askCoach"
+        @start-onboarding="startOnboarding"
         @toast="triggerToast"
       />
 
@@ -425,6 +426,7 @@
         @open-conversation="openConversation"
         @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
         @ask-coach="askCoach"
+        @start-onboarding="startOnboarding"
         @toast="triggerToast"
         @expand-purposes="enterPurposeMode"
       />
@@ -448,6 +450,7 @@
             @open-conversation="openConversation"
             @open-group="(chat) => openConversation({ kind: 'group', id: chat.id })"
             @ask-coach="askCoach"
+            @start-onboarding="startOnboarding"
             @toast="triggerToast"
             @expand-purposes="enterPurposeMode"
           />
@@ -522,6 +525,7 @@ import PurposeFeed from '@/components/desktop/PurposeFeed.vue';
 import ShellPaneControls from '@/components/desktop/ShellPaneControls.vue';
 import PersonView from '@/components/desktop/PersonView.vue';
 import { useRepCoach } from '@/pages/utils/useRepCoach';
+import { useRepOnboarding, onboardingStatus } from '@/pages/utils/useRepOnboarding';
 import { messagePreview } from '@/pages/utils/privateReply';
 import {
   parseConversationKey,
@@ -699,9 +703,10 @@ function openChat(chat: ActiveChat) {
 
 // --- Rep Coach ---
 const { enabled: coachEnabled, checkStatus: checkCoachStatus, send: sendToCoach, sending: coachSending } = useRepCoach();
+const { setView: setCoachView, skipped: setupSkipped } = useRepOnboarding();
 
-// Rep Onboarding isn't built yet. Until it is, an empty Write section stands in for
-// "hasn't finished onboarding" (the Write section is what onboarding will produce).
+// Profile setup is the next step for nearly every member, so anyone who hasn't completed
+// it lands in it. (The Write count is still shown in Coach's About pane.)
 const myWriteCount = ref<number | null>(null);
 async function loadMyWriteCount() {
   if (!isAuth.value) return;
@@ -712,13 +717,26 @@ async function loadMyWriteCount() {
     myWriteCount.value = null;
   }
 }
-const needsOnboarding = computed(() => myWriteCount.value === 0);
+const needsOnboarding = computed(() => onboardingStatus.value !== 'complete');
 const coachNudge = computed(() => (needsOnboarding.value ? 'Finish your profile with Rep Coach' : undefined));
 
 function askCoach(text: string) {
   if (!coachEnabled.value) return;
+  setCoachView('coach');
   openConversation({ kind: 'coach' });
   if (!coachSending.value) sendToCoach(text);
+}
+
+// "Set up my profile" / "Write it with Coach": open Rep Coach on the profile-setup interview
+function startOnboarding(opts: { replace?: boolean } = {}) {
+  if (!coachEnabled.value) return;
+  setCoachView('onboarding');
+  openConversation({ kind: 'coach' }, opts);
+}
+
+// Saving the setup draft (or writing elsewhere) changes the Write count
+function onWriteUpdated() {
+  if (isAuth.value) loadMyWriteCount();
 }
 
 // --- The open conversation (driven by the URL) ---
@@ -793,38 +811,38 @@ function enterPurposeMode() {
 function enterChatMode() {
   if (mode.value === 'chat') return;
   if (selected.value) openConversation(selected.value);
-  else router.push({ path: '/main' }); // landing picks Rep Coach or the last conversation
+  else openDefaultConversation();
+}
+
+// People mode with nothing open yet: Rep Coach on profile setup for members who haven't
+// finished it, otherwise the conversation they last had open, else Rep Coach, else an
+// empty chat view. Never auto-opens (or marks read) anything else.
+async function openDefaultConversation() {
+  await checkCoachStatus();
+  if (coachEnabled.value && needsOnboarding.value && !setupSkipped.value) {
+    startOnboarding();
+    return;
+  }
+  const last = readLastConversation(props.userId);
+  if (last && (last.kind !== 'coach' || coachEnabled.value)) openConversation(last);
+  else if (coachEnabled.value) openConversation({ kind: 'coach' });
+  else router.push({ path: '/main', query: { view: 'chat' } });
 }
 
 function clearSelection() {
   applyKey(null);
   saveLastConversation(props.userId, null);
-  router.replace({ path: '/main' });
+  router.replace({ path: '/main', query: { view: 'chat' } });
 }
 
 function onLeftGroup() {
   clearSelection();
 }
 
-// Landing: Rep Coach for members who haven't finished their profile, otherwise the
-// conversation they last had open. Never auto-opens (or marks read) anything else.
-let landing = false;
-async function chooseLanding() {
-  if (landing) return;
-  landing = true;
-  try {
-    await Promise.all([checkCoachStatus(), myWriteCount.value === null ? loadMyWriteCount() : Promise.resolve()]);
-    // The member may have opened something, or left /main, while we were checking.
-    if (selected.value || route.path !== '/main' || parseConversationKey(route.query.c)) return;
-    if (needsOnboarding.value && coachEnabled.value) {
-      openConversation({ kind: 'coach' }, { replace: true });
-      return;
-    }
-    const last = readLastConversation(props.userId);
-    if (last && (last.kind !== 'coach' || coachEnabled.value)) openConversation(last, { replace: true });
-  } finally {
-    landing = false;
-  }
+// Landing (plain /main with nothing open): the Purpose feed is Rep's home screen. Members
+// move to People, Rep Coach or a chat from the left column.
+function chooseLanding() {
+  router.replace({ path: '/main', query: { view: 'purposes' } });
 }
 
 function syncFromRoute() {
@@ -854,6 +872,7 @@ function syncFromRoute() {
     router.replace({ path: '/main', query: { c: formatConversationKey(selected.value) } });
     return;
   }
+  if (route.query.view === 'chat') return; // People mode, nothing open yet
   chooseLanding();
 }
 
@@ -863,9 +882,13 @@ watch(
   { immediate: true }
 );
 
-// Signed out: forget the open conversation and onboarding state
+// Signed in: load the Write count (Coach's About pane). Signed out: forget the open
+// conversation and onboarding state.
 watch(isAuth, (auth) => {
-  if (auth) return;
+  if (auth) {
+    loadMyWriteCount();
+    return;
+  }
   selected.value = null;
   groupInfo.value = null;
   myWriteCount.value = null;
@@ -882,12 +905,17 @@ watch(() => route.path, (path) => {
 onMounted(() => {
   window.addEventListener('resize', onResize);
   window.addEventListener('keydown', onKeydown);
-  if (isAuth.value) checkCoachStatus();
+  window.addEventListener('rep:write-updated', onWriteUpdated);
+  if (isAuth.value) {
+    checkCoachStatus();
+    loadMyWriteCount();
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('resize', onResize);
   window.removeEventListener('keydown', onKeydown);
+  window.removeEventListener('rep:write-updated', onWriteUpdated);
   if (toastTimer) clearTimeout(toastTimer);
 });
 </script>

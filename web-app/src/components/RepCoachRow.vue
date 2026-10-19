@@ -36,7 +36,7 @@
         </svg>
       </span>
       <span
-        v-if="nudge && !messages.length"
+        v-if="nudge"
         class="flex items-center gap-1.5 truncate font-semibold mt-1"
         :class="variant === 'mobile' ? 'text-[15px]' : 'text-xs'"
         style="color: #006600"
@@ -50,11 +50,15 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue';
 import RepCoachAvatar from '@/assets/RepCoachAvatar.svg';
 import { useRepCoach } from '@/pages/utils/useRepCoach';
 
-// nudge: optional call to action shown until the member starts a Coach conversation
+// nudge: optional call to action (e.g. "Finish your profile") shown in place of the preview
 defineProps<{ variant: 'mobile' | 'desktop'; selected?: boolean; nudge?: string }>();
 const emit = defineEmits<{ (e: 'select'): void }>();
-const { preview, messages } = useRepCoach();
+const { preview, loadHistory } = useRepCoach();
+
+// The preview is the last saved Coach reply
+onMounted(() => { loadHistory(); });
 </script>

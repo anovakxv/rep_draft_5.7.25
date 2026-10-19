@@ -214,7 +214,7 @@
                     type="button"
                     class="h-9 px-4 inline-flex items-center gap-1.5 rounded text-sm font-semibold text-white hover:opacity-90"
                     style="background-color: #8cc65d"
-                    @click="emit('ask-coach', writeStarter)"
+                    @click="emit('start-onboarding')"
                   >
                     <img :src="RepCoachAvatar" alt="" class="w-4 h-4 rounded-full bg-white" />
                     Write it with Coach
@@ -358,13 +358,11 @@ const emit = defineEmits<{
   (e: 'message', userId: number): void;
   (e: 'open-group', chat: { id: number; name: string }): void;
   (e: 'ask-coach', text: string): void;
+  (e: 'start-onboarding'): void;
   (e: 'toast', message: string): void;
 }>();
 
 const route = useRoute();
-
-const writeStarter =
-  'Help me write my Rep profile. Ask me, one question at a time, what I’m trying to accomplish, what I’m looking for, and what’s holding me back, then draft my Write section for me to review.';
 
 // --- State ---
 const loading = ref(true);

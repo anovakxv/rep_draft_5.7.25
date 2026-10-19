@@ -28,7 +28,7 @@
 
 - **Backend is LIVE production.** Auto-deploys to Render on push to `Adam_July2025`. Always confirm backend changes with Adam before touching `Python_Backend/`.
 - **Never modify `RepApp.swift` or `MainScreen.swift`** without explicit instruction — these are app entry point and tab navigation.
-- **DB migrations:** After pushing backend model changes, `flask db upgrade` must be run manually on the Render shell. See `DB_MIGRATION_WORKFLOW.md`. Current prod head: `f6a7b8c9d0e1`.
+- **DB migrations:** After pushing backend model changes, `flask db upgrade` must be run manually on the Render shell. See `DB_MIGRATION_WORKFLOW.md`. Current prod head: `a7b8c9d0e1f2`.
 - **Never deploy on Friday evenings** — no weekend monitoring coverage.
 - **Android shares the same backend** — `my-android-app/` is a frontend only. Never modify `Python_Backend/` for Android work.
 - **S3 uploads:** always `put_object(Body=file.read())` — **never** `upload_fileobj()` (eventlet breaks boto3's ThreadPoolExecutor).
@@ -138,7 +138,7 @@ my-ios-app/                    ← repo root
 - **Rate limiting:** Flask-Limiter on `/register` (10/hr), `/login` (20/min), portal creation (10/day).
 - **CORS:** controlled by `WEB_APP_ORIGIN` env var (prod web URL) + `CORS_ALLOW_LOCALHOST=true` for local dev against staging.
 - **Admin user:** user ID 45 = Adam. `users_types_id = 3` = Admin in DB checks.
-- **Rep Coach (AI guide):** `app/utils/rep_coach.py` (briefing, read-only search tools, Claude loop) + `app/routes/Coach_Routes/Coach.py` (`GET /api/coach/status`, `POST /api/coach/message`). Off unless `COACH_ENABLED=true` and `ANTHROPIC_API_KEY` are set; optional `COACH_MODEL` (default `claude-sonnet-5-5`) and `COACH_DAILY_LIMIT` (default `40 per day` per member). No DB tables: the web app keeps the conversation in sessionStorage. The Anthropic client must get a plain `ssl` context — the SDK's default TLS (truststore) recurses forever under gevent.
+- **Rep Coach (AI guide):** `app/utils/rep_coach.py` (briefing, read-only search tools, Claude loop) + `app/routes/Coach_Routes/Coach.py` (`GET /api/coach/status`, `POST /api/coach/message`). Off unless `COACH_ENABLED=true` and `ANTHROPIC_API_KEY` are set; optional `COACH_MODEL` (default `claude-sonnet-5-5`) and `COACH_DAILY_LIMIT` (default `40 per day` per member). **Saved conversations + memory:** `coach_messages` and `coach_memories` (`app/models/Coach_Models/`, migration `a7b8c9d0e1f2`), kept separate from user content and chat (the only link is `user_id`). The server owns history: `POST /api/coach/message {text}` (the old `{messages:[...]}` body still works, unsaved). Other routes: `GET/DELETE /api/coach/messages` (members can hard-delete one or all), `GET/PUT/DELETE /api/coach/memory`, and Rep Onboarding under `/api/coach/onboarding/*` (`app/utils/rep_onboarding.py`). Helpers: `app/utils/coach_store.py`. Prompt text: `app/utils/coach_prompts.py` (defaults, overridable with a prompts file via `COACH_PROMPTS_FILE`). The Anthropic client must get a plain `ssl` context — the SDK's default TLS (truststore) recurses forever under gevent.
 
 ### Payments (Stripe)
 - **Checkout sessions:** `POST /api/public/create_checkout_session` → Stripe hosted page → return URL → `GET /api/public/checkout_session_status`.
@@ -157,7 +157,7 @@ my-ios-app/                    ← repo root
 - **Eventlet warnings on Render shell are harmless** — ignore `RuntimeError: Working outside of application context`. Focus on `INFO [alembic]` lines and the final revision ID.
 - **Rollback:** `flask db downgrade -1` (then `flask db current`).
 - **Staging first:** always test migrations on staging before prod. Staging shell: Render dashboard → staging service → Shell tab.
-- **Current prod head:** `f6a7b8c9d0e1`
+- **Current prod head:** `a7b8c9d0e1f2`
 
 ---
 

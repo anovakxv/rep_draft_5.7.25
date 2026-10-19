@@ -28,6 +28,8 @@ from app.models.Purpose_Models.PortalUser import PortalUser
 from app.models.ValueMetric_Models.Goal import Goal
 from app.models.ValueMetric_Models.GoalProgressLog import GoalProgressLog
 from app.models.ValueMetric_Models.GoalTeam import GoalTeam
+from app.utils import coach_store
+from app.utils.coach_prompts import prompt
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +159,30 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {}},
     },
 ]
+
+# Only offered when the member has a memory record (saved conversations)
+UPDATE_MEMORY_TOOL = {
+    "name": "update_memory",
+    "description": "Save lasting facts about the member so you remember them next time: what they're trying to accomplish, what they're looking for, what's holding them back, their location, skills and interests, and/or a short summary. Only save what the member told you.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "summary": {"type": "string", "description": "A short third-person summary of the member (replaces the current one)."},
+            "facts": {
+                "type": "object",
+                "description": "Any facts to add or replace.",
+                "properties": {
+                    "accomplish": {"type": "string"},
+                    "looking_for": {"type": "string"},
+                    "holding_back": {"type": "string"},
+                    "location": {"type": "string"},
+                    "skills": {"type": "array", "items": {"type": "string"}},
+                    "interests": {"type": "array", "items": {"type": "string"}},
+                },
+            },
+        },
+    },
+}
 
 STOPWORDS = set("""a an and are as at be been but by can could do does for from get go have help how i i'm im in into is it
 its just like looking me my near need of on or our people place places some something that the their them there these
@@ -383,7 +409,8 @@ def run_tool(member, name, args):
     return fn(member, query, city if isinstance(city, str) and city.strip() else None)
 
 
-def profile_block(member):
+def profile_block(member, memory=None):
+    """The member's profile (and, when given, what Coach remembers about them) for the first turn."""
     goals = _my_goals(member)
     since = member.created_at
     months = max(0, (datetime.utcnow() - since).days // 30) if since else None
@@ -399,7 +426,9 @@ def profile_block(member):
     if member.about:
         lines.append(f"About: {_clip(member.about, 300)}")
     lines.append("Goal Teams: " + (", ".join(f"{g.title} ([[goal:{g.id}]])" for g in goals) or "none yet"))
-    return "<member_profile>\n" + "\n".join(lines) + "\n</member_profile>"
+    block = "<member_profile>\n" + "\n".join(lines) + "\n</member_profile>"
+    remembered = coach_store.memory_block(memory)
+    return f"{block}\n{remembered}" if remembered else block
 
 
 CARD_RE = re.compile(r"\[\[\s*(purpose|person|goal)\s*:\s*(\d+)\s*\]\]", re.I)
@@ -451,10 +480,8 @@ REFUSAL_REPLY = ("I can't help with that one, but I can help you find Purposes, 
                  "What would you like to make progress on?")
 
 
-def reply(member, history):
-    """Answer the member's latest message. history: [{"role": "user"|"assistant", "text": str}, ...],
-    ending with the member's message. Returns {"reply": str, "cards": {key: card}}."""
-    profile = profile_block(member)
+def build_messages(profile, history):
+    """Claude messages from saved/sent turns, with the profile block on the first member turn."""
     messages = []
     for i, turn in enumerate(history):
         if i == 0 and turn["role"] == "user":
@@ -462,27 +489,36 @@ def reply(member, history):
         else:
             content = turn["text"]
         messages.append({"role": turn["role"], "content": content})
-    if messages[0]["role"] != "user":  # history was trimmed to start on an assistant turn
+    if not messages or messages[0]["role"] != "user":  # history starts on an assistant turn
         messages.insert(0, {"role": "user", "content": profile})
+    return messages
 
-    allowed = {"purpose": set(), "person": set(), "goal": {g.id for g in _my_goals(member)}}
+
+def converse(member, system, tools, messages, handle_tool, tag="RepCoach", max_tokens=4000):
+    """Run Claude until it answers in text (tool calls in between, at most MAX_MODEL_CALLS).
+
+    handle_tool(name, input) returns a JSON-able result, or raises ToolError for a problem the
+    model can fix. Returns {"text", "stop_reason", "model", "usage": {"input", "output"}}.
+    Shared by Rep Coach and Rep Onboarding.
+    """
     client = _get_client()
     final_text, stop_reason, served_model = "", None, coach_model()
     usage = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     t0, calls, tools_used = time.monotonic(), 0, []
+    extra = {"tools": tools} if tools else {}
 
     for _ in range(MAX_MODEL_CALLS):
         calls += 1
         resp = client.beta.messages.create(
             model=coach_model(),
-            max_tokens=4000,
-            system=SYSTEM_PROMPT,
-            tools=TOOLS,
+            max_tokens=max_tokens,
+            system=system,
             messages=messages,
             output_config={"effort": "low"},
             cache_control={"type": "ephemeral"},
             betas=["server-side-fallback-2026-07-01"],
             fallbacks="default",  # if a safety check declines, Anthropic retries on a fallback model
+            **extra,
         )
         u = resp.usage
         usage["input"] += u.input_tokens or 0
@@ -502,30 +538,70 @@ def reply(member, history):
         for b in uses:
             tools_used.append(b.name)
             try:
-                out = run_tool(member, b.name, b.input)
-                payload = json.dumps(out, ensure_ascii=False, default=str)
-                for kind, cid in re.findall(r'"card": "\[\[(purpose|person|goal):(\d+)\]\]"', payload):
-                    allowed[kind].add(int(cid))
-                results.append({"type": "tool_result", "tool_use_id": b.id, "content": payload})
+                out = handle_tool(b.name, b.input if isinstance(b.input, dict) else {})
+                results.append({"type": "tool_result", "tool_use_id": b.id,
+                                "content": json.dumps(out, ensure_ascii=False, default=str)})
             except ToolError as e:
                 results.append({"type": "tool_result", "tool_use_id": b.id, "content": f"Error: {e}", "is_error": True})
             except Exception:
-                logger.exception("Rep Coach tool %s failed", b.name)
+                logger.exception("%s tool %s failed", tag, b.name)
                 db.session.rollback()
                 results.append({"type": "tool_result", "tool_use_id": b.id,
-                                "content": "Error: the search failed. Try different words.", "is_error": True})
+                                "content": "Error: that didn't work. Try again or continue without it.", "is_error": True})
         messages.append({"role": "user", "content": results})
 
     # One line per reply in the Render logs, for cost tracking (same print style as [Scheduler]).
     print(
-        f"[RepCoach] user={member.id} model={served_model} calls={calls} tools={','.join(tools_used) or '-'} "
+        f"[{tag}] user={member.id} model={served_model} calls={calls} tools={','.join(tools_used) or '-'} "
         f"stop={stop_reason} tokens_in={usage['input']} tokens_out={usage['output']} "
         f"cache_read={usage['cache_read']} cache_write={usage['cache_write']} secs={time.monotonic() - t0:.1f}",
         flush=True,
     )
+    return {"text": final_text, "stop_reason": stop_reason, "model": served_model,
+            "usage": {"input": usage["input"], "output": usage["output"]}}
 
-    if stop_reason == "refusal" or not final_text:
-        return {"reply": REFUSAL_REPLY if stop_reason == "refusal" else
-                "Sorry, I couldn't finish that answer. Could you ask again in a few words?", "cards": {}}
-    text, cards = _resolve_cards(member, final_text, allowed)
-    return {"reply": text, "cards": cards}
+
+def reply(member, history, memory=None):
+    """Answer the member's latest message. history: [{"role": "user"|"assistant", "text": str}, ...],
+    ending with the member's message. With `memory` (a CoachMemory), Coach sees what it remembers
+    and can update it. Returns {"reply", "cards", "model", "usage"}; the caller commits."""
+    messages = build_messages(profile_block(member, memory), history)
+    allowed = {"purpose": set(), "person": set(), "goal": {g.id for g in _my_goals(member)}}
+
+    def handle_tool(name, args):
+        if name == "update_memory":
+            if memory is None:
+                raise ToolError("Memory isn't available in this conversation.")
+            return _update_memory(memory, args)
+        out = run_tool(member, name, args)
+        payload = json.dumps(out, ensure_ascii=False, default=str)
+        for kind, cid in re.findall(r'"card": "\[\[(purpose|person|goal):(\d+)\]\]"', payload):
+            allowed[kind].add(int(cid))
+        return out
+
+    system = SYSTEM_PROMPT
+    tools = TOOLS
+    if memory is not None:
+        system = f"{SYSTEM_PROMPT}\n\nMemory\n{prompt('coach_memory_rules')}"
+        tools = TOOLS + [UPDATE_MEMORY_TOOL]
+
+    result = converse(member, system, tools, messages, handle_tool)
+    meta = {"model": result["model"], "usage": result["usage"]}
+    if result["stop_reason"] == "refusal" or not result["text"]:
+        return {"reply": REFUSAL_REPLY if result["stop_reason"] == "refusal" else
+                "Sorry, I couldn't finish that answer. Could you ask again in a few words?", "cards": {}, **meta}
+    text, cards = _resolve_cards(member, result["text"], allowed)
+    return {"reply": text, "cards": cards, **meta}
+
+
+def _update_memory(memory, args):
+    """update_memory tool: merge facts and/or replace the summary (staged; the route commits)."""
+    saved = []
+    summary = args.get("summary")
+    if isinstance(summary, str) and summary.strip():
+        memory.narrative = summary.strip()[:coach_store.MAX_NARRATIVE_CHARS]
+        saved.append("summary")
+    saved += list(coach_store.merge_facts(memory, args.get("facts")))
+    if not saved:
+        raise ToolError("Nothing to save: include a summary or at least one fact.")
+    return {"saved": saved}

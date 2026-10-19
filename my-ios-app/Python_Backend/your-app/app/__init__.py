@@ -107,6 +107,8 @@ def create_app():
     from app.models.People_Models.PhotoReaction import PhotoReaction
     from app.models.People_Models.PhotoComment import PhotoComment
     from app.models.ValueMetric_Models.Transaction import Transaction  # <-- Add this line
+    # Coach_Models (AI: Rep Coach / Rep Onboarding) — separate from user content and chat
+    from app.models.Coach_Models import CoachMessage, CoachMemory
 
     # --- Register API Blueprints ---
     from app.routes.api import api_bp

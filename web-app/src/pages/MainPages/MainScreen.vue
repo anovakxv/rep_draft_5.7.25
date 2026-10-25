@@ -1281,6 +1281,7 @@ onActivated(() => {
   // User just logged in/registered — fetch all people tabs so the desktop dashboard
   // left panel and all mobile tabs have fresh data immediately
   if (userId.value > 0 && prevUserId === 0) {
+    checkCoachStatus(); // shows the Rep Coach row right after sign-up / log-in
     fetchPeople(0);
     fetchPeople(1);
     fetchPeople(2);

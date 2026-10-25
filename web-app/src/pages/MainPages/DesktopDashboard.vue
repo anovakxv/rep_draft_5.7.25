@@ -886,6 +886,7 @@ watch(
 // conversation and onboarding state.
 watch(isAuth, (auth) => {
   if (auth) {
+    checkCoachStatus(); // shows the Rep Coach row right after sign-up / log-in
     loadMyWriteCount();
     return;
   }

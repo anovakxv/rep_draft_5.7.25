@@ -39,6 +39,7 @@ const hasMore = ref(false);
 const loadingHistory = ref(false);
 let loadedFor = '';
 let statusRequest: Promise<void> | null = null;
+let statusFor = ''; // the member the cached status belongs to
 
 export function stripCardMarkers(text: string): string {
   return text.replace(/\[\[\s*(purpose|person|goal)\s*:\s*\d+\s*\]\]/gi, '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
@@ -50,7 +51,14 @@ export function useRepCoach() {
   function checkStatus(): Promise<void> {
     if (!localStorage.getItem('jwtToken')) {
       enabled.value = false;
+      statusRequest = null;
+      statusFor = '';
       return Promise.resolve();
+    }
+    // A different member signed in (or the first sign-in since a logged-out visit): ask again
+    if (statusFor !== userKey()) {
+      statusRequest = null;
+      statusFor = userKey();
     }
     if (!statusRequest) {
       statusRequest = api

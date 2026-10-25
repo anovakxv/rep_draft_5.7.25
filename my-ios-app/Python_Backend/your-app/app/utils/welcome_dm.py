@@ -39,7 +39,7 @@ def expired_welcome_dm_filter(user):
         DirectMessage.text.startswith(WELCOME_DM_PREFIX),
     ))
 
-def send_welcome_dm_once(db, socketio, recipient_id: int, text: str = "Welcome to Rep! \n\nClicking the Rep logo in the bottom right toggles between Purposes / People. \n\n View the Purpose Pitches in fullscreen by clicking the image at the top of a Purpose page."
+def send_welcome_dm_once(db, socketio, recipient_id: int, text: str = "Welcome to Rep! \n\nView the Purpose Pitches in fullscreen by clicking the image at the top of a Purpose page."
 "\n\nStart by viewing a Purpose that you'd like to prioritize."
 "\n\nThen join a Goal Team! \n\nThank you! "):
     """

@@ -75,6 +75,17 @@
                     <p class="text-xs text-gray-500">See your page</p>
                   </div>
                 </button>
+                <button role="menuitem" @click="goToEditProfile" class="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left">
+                  <span class="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style="background: #8cc65d">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </span>
+                  <div>
+                    <p class="font-semibold text-gray-900 text-[15px]">Edit Profile</p>
+                    <p class="text-xs text-gray-500">Photo, name, city, skills</p>
+                  </div>
+                </button>
                 <button role="menuitem" @click="goToSettings" class="w-full flex items-center gap-3 px-2 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left">
                   <span class="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style="background: #8cc65d">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -623,6 +634,7 @@ const handleProfileClick = () => {
   showProfileMenu.value = !showProfileMenu.value;
 };
 const goToMyProfile = () => { showProfileMenu.value = false; router.push(`/profile/${props.userId}`); };
+const goToEditProfile = () => { showProfileMenu.value = false; router.push('/profile/edit'); };
 const goToSettings = () => { showProfileMenu.value = false; router.push('/settings'); };
 const handleLogout = () => { showProfileMenu.value = false; logout(); router.push('/login'); };
 const handleAddClick = () => {

@@ -258,6 +258,9 @@
               <button role="menuitem" @click="goToMyProfile" class="text-[#8cc65d] font-bold text-[28px] py-3">
                 My Profile
               </button>
+              <button role="menuitem" @click="goToEditProfile" class="text-[#8cc65d] font-bold text-[28px] py-3">
+                Edit Profile
+              </button>
               <button role="menuitem" @click="goToSettings" class="text-[#8cc65d] font-bold text-[28px] py-3">
                 Settings
               </button>
@@ -909,6 +912,11 @@ const handleProfileClick = () => {
 const goToMyProfile = () => {
   mainActiveSheet.value = null;
   router.push(`/profile/${userId.value}`);
+};
+
+const goToEditProfile = () => {
+  mainActiveSheet.value = null;
+  router.push('/profile/edit');
 };
 
 const goToSettings = () => {

@@ -61,18 +61,29 @@ export function useRepCoach() {
       statusFor = userKey();
     }
     if (!statusRequest) {
-      statusRequest = api
-        .get('/api/coach/status')
-        .then((res) => {
-          enabled.value = !!res.data?.enabled;
-          if (res.data?.onboarding_status) onboardingStatus.value = res.data.onboarding_status as OnboardingStatus;
-        })
-        .catch(() => {
-          enabled.value = false;
-          statusRequest = null; // let a later screen try again
-        });
+      statusRequest = fetchStatus(userKey());
     }
     return statusRequest;
+  }
+
+  // The status check can fail right after sign-up, while the server is still setting up the new
+  // account, so retry a couple of times (1s, then 3s) before treating Coach as unavailable.
+  async function fetchStatus(forUser: string) {
+    const delays = [0, 1000, 3000];
+    for (let attempt = 0; attempt < delays.length; attempt++) {
+      if (delays[attempt]) await new Promise((r) => setTimeout(r, delays[attempt]));
+      if (statusFor !== forUser || !localStorage.getItem('jwtToken')) return; // signed out / switched meanwhile
+      try {
+        const res = await api.get('/api/coach/status');
+        enabled.value = !!res.data?.enabled;
+        if (res.data?.onboarding_status) onboardingStatus.value = res.data.onboarding_status as OnboardingStatus;
+        return;
+      } catch (e: any) {
+        console.warn(`[RepCoach] status check failed (attempt ${attempt + 1}):`, e?.response?.status ?? e?.message ?? e);
+      }
+    }
+    enabled.value = false;
+    statusRequest = null; // let a later screen try again
   }
 
   /** Load the saved conversation (once per signed-in member, unless forced). */

@@ -6,30 +6,14 @@
   Copyright (c) 2025 Networked Capital Inc. All rights reserved.
 -->
 
+<!--
+  New-member sign-up: Register → Terms of Use (this page) → the app.
+  The profile is edited later from the profile menu, and Rep Coach guides new members in the app.
+-->
+
 <template>
   <div class="min-h-screen bg-white flex flex-col">
-    <!-- Step indicators -->
-    <div class="flex justify-center py-4">
-      <div class="flex space-x-2">
-        <div v-if="!fastOnboarding" class="w-3 h-3 rounded-full" :class="step === 0 ? '' : 'bg-gray-300'" :style="step === 0 ? 'background-color: #8cc65d;' : ''"></div>
-        <div class="w-3 h-3 rounded-full" :class="step === 1 ? '' : 'bg-gray-300'" :style="step === 1 ? 'background-color: #8cc65d;' : ''"></div>
-        <div v-if="!fastOnboarding" class="w-3 h-3 rounded-full" :class="step === 2 ? '' : 'bg-gray-300'" :style="step === 2 ? 'background-color: #8cc65d;' : ''"></div>
-      </div>
-    </div>
-
-    <!-- Profile completion step -->
-    <div v-if="step === 0" class="flex-1">
-      <div class="max-w-lg mx-auto p-6">
-        <h2 class="text-xl font-bold mb-4 text-center">Complete Your Profile</h2>
-        <EditProfileComponent 
-          :from-onboarding="true" 
-          @profile-saved="onProfileSaved" 
-        />
-      </div>
-    </div>
-
-    <!-- Terms acceptance step -->
-    <div v-else-if="step === 1" class="flex-1">
+    <div class="flex-1">
       <div class="max-w-lg mx-auto p-6">
         <h2 class="text-xl font-bold mb-4 text-center">Terms of Use</h2>
         <div class="overflow-y-auto max-h-[60vh] mb-6 border rounded bg-gray-50 p-4 text-sm whitespace-pre-line">
@@ -44,43 +28,11 @@
         </button>
       </div>
     </div>
-
-    <!-- Walkthrough step -->
-    <div v-else-if="step === 2" class="flex-1 flex flex-col">
-      <div class="flex justify-between p-4">
-        <button @click="skipWalkthrough" class="text-gray-500">Skip</button>
-        <h2 class="font-bold">About Rep</h2>
-        <div class="w-10"></div> <!-- Spacer for alignment -->
-      </div>
-
-      <div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
-        <img :src="REPLogo" alt="REP Logo" class="w-32 h-32 mb-8" />
-
-        <h3 class="text-2xl font-bold mb-4">Welcome to Rep</h3>
-
-        <p class="text-lg mb-12 max-w-2xl">
-          Rep connects people with mentors and community opportunities based on shared values. Our software is designed to help communities better focus on the priorities that matter most. Start by viewing the list of Purposes and joining a Goal Team. Or create your own Purpose!
-        </p>
-      </div>
-
-      <div class="p-6">
-        <button
-          class="w-full py-4 text-white font-bold rounded-lg"
-          style="background-color: #8cc65d;"
-          @click="completeOnboarding"
-        >
-          Rep Something.
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import EditProfileComponent from '@/components/EditProfileComponent.vue'
-import REPLogo from '@/assets/REPLogo.png'
 
 const router = useRouter()
 
@@ -88,16 +40,10 @@ const safeReturnPath = (url: string | null | undefined): string => {
   if (!url) return '/main'
   return url.startsWith('/') && !url.startsWith('//') ? url : '/main'
 }
-const step = ref(0)
-const isEventRegistration = ref(false)
-// Fast onboarding = skip the profile step and walkthrough, going straight to
-// Terms of Use, then back to the origin page. Used for low-friction event
-// registration (rsvpIntent) and Portal 93 donations (donateIntent).
-const fastOnboarding = ref(false)
 
 // Terms of use content (could be moved to a separate file or fetched from API)
 const termsText = `
-Terms of Use:  
+Terms of Use:
 Version: 1.1
 Effective Date: 7/30/2025
 App Name: Rep 1
@@ -119,8 +65,8 @@ Rep reserves the right to monitor, moderate, and remove content at its discretio
 Inappropriate content can be flagged by users and reviewed by our team.
 Users can block others to prevent unwanted or abusive interactions.
 
-4. Removal of Objectionable Content    
-We will review flagged content and remove content that violates this policy within 24 hours of the content being flagged. Users who repeatedly violate our content policy will be ejected from the platform. 
+4. Removal of Objectionable Content
+We will review flagged content and remove content that violates this policy within 24 hours of the content being flagged. Users who repeatedly violate our content policy will be ejected from the platform.
 
 5. Intellectual Property
 Rep and its underlying software, design, content, trademarks, logos, and features are the exclusive property of Networked Capital Inc., unless otherwise noted.
@@ -135,65 +81,13 @@ For questions, contact us via our website at:  https://networkedcapital.co/conta
 Before proceeding, you must confirm acceptance of these terms.
 `
 
-// Check if we need to start at a specific step based on already completed steps
-onMounted(() => {
-  // Check if this is an event registration
-  const rsvpIntentStr = localStorage.getItem('rsvpIntent')
-  if (rsvpIntentStr) {
-    try {
-      const rsvpIntent = JSON.parse(rsvpIntentStr)
-      if (rsvpIntent.isEventRegistration) {
-        isEventRegistration.value = true
-      }
-    } catch (err) {
-      console.error('Failed to parse rsvpIntent:', err)
-    }
-  }
-
-  // Portal 93 donation flow also uses the fast (skip profile + walkthrough) path.
-  const hasDonateIntent = !!localStorage.getItem('donateIntent')
-  fastOnboarding.value = isEventRegistration.value || hasDonateIntent
-
-  const hasCompletedProfile = localStorage.getItem('profileComplete') === 'true'
-  const hasAcceptedTerms = localStorage.getItem('acceptedTermsOfUse') === 'true'
-
-  if (hasCompletedProfile && hasAcceptedTerms) {
-    step.value = 2 // Go directly to walkthrough
-  } else if (hasCompletedProfile) {
-    step.value = 1 // Go to terms
-  } else if (fastOnboarding.value) {
-    step.value = 1 // Skip profile for fast flow, go straight to Terms
-  }
-  // Otherwise start at profile (step 0)
-})
-
-// Handler for profile completion
-function onProfileSaved() {
-  localStorage.setItem('profileComplete', 'true')
-  step.value = 1
-}
-
-// Handler for terms acceptance
 function onTermsAccepted() {
   localStorage.setItem('acceptedTermsOfUse', 'true')
-
-  // Fast flow (event registration or Portal 93 donation): skip walkthrough and
-  // complete onboarding immediately so the user returns straight to the action.
-  if (fastOnboarding.value) {
-    completeOnboarding()
-    return
-  }
-
-  // Normal flow - go to walkthrough
-  step.value = 2
-}
-
-// Skip the walkthrough and complete onboarding
-function skipWalkthrough() {
   completeOnboarding()
 }
 
-// Complete onboarding and navigate to main app
+// Complete onboarding and go to the app, or back to the page the member came from
+// (event RSVP, Portal 93 donation, public page) via returnTo
 function completeOnboarding() {
   // Mirror Swift app's onboarding completion logic
   const pendingUserId = localStorage.getItem('pendingUserId')
@@ -205,14 +99,9 @@ function completeOnboarding() {
   localStorage.setItem('isRegistered', 'true')
   localStorage.setItem('onboardingComplete', 'true')
 
-  // Check for returnTo parameter (from public page redirect)
   // Using replace() instead of push() to remove onboarding from browser history
   const returnTo = localStorage.getItem('returnTo')
   localStorage.removeItem('returnTo')
   router.replace(safeReturnPath(returnTo))
 }
 </script>
-
-<style scoped>
-/* Add any custom styles here */
-</style>

@@ -184,7 +184,7 @@
             v-model="leftSearchText"
             type="search"
             :placeholder="leftTab === 0 ? 'Search conversations…' : 'Search people…'"
-            class="flex-1 h-8 px-3 rounded-lg bg-gray-100 text-sm focus:outline-none focus:ring-1 focus:ring-[#8cc65d]"
+            class="flex-1 h-8 px-3! py-0! rounded-lg bg-gray-100 text-sm focus:outline-none focus:ring-1 focus:ring-[#8cc65d]"
             @keydown.esc="toggleLeftSearch"
           />
         </div>

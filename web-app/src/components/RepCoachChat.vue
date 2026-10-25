@@ -435,6 +435,8 @@ function grow() {
   if (!el) return;
   el.style.height = 'auto';
   el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  // Past the cap, let the box scroll so long messages stay reachable
+  el.style.overflowY = el.scrollHeight > 120 ? 'auto' : 'hidden';
 }
 
 async function submit() {

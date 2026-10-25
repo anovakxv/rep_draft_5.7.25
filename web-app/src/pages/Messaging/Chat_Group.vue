@@ -415,6 +415,8 @@ async function sendMessage() {
     inputText.value = '';
     stopTyping();
 
+    // Shrink the mobile box back to one line after sending
+    nextTick(autoResizeTextarea);
     nextTick(() => scrollToBottom());
   } catch (e) {
     console.error('Failed to send message:', e);
@@ -474,10 +476,12 @@ function handleKeyDown(event: KeyboardEvent) {
 
 function autoResizeTextarea() {
   // Disable auto-resize on desktop - we have a fixed large textarea in the left column
-  // Only auto-resize on mobile if needed
-  if (!isDesktop.value && textareaRef.value) {
-    textareaRef.value.style.height = 'auto';
-    textareaRef.value.style.height = `${Math.min(textareaRef.value.scrollHeight, 180)}px`;
+  // Only auto-resize on mobile: grow with the text up to 180px, then scroll inside the box
+  const el = textareaRef.value;
+  if (!isDesktop.value && el) {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    el.style.overflowY = el.scrollHeight > 180 ? 'auto' : 'hidden';
   }
 }
 

@@ -355,10 +355,11 @@ async function sendMessage() {
     privateReply.value = null;
     stopTyping();
 
-    // Reset textarea height on desktop after sending
+    // Reset textarea height after sending (the mobile box shrinks back to one line)
     if (isDesktop.value && textareaRef.value) {
       textareaRef.value.style.height = 'auto';
     }
+    nextTick(autoResizeTextarea);
 
     nextTick(() => scrollToBottom());
   } catch (e) {
@@ -419,10 +420,12 @@ function handleKeyDown(event: KeyboardEvent) {
 
 function autoResizeTextarea() {
   // Disable auto-resize on desktop - we have a fixed large textarea in the left column
-  // Only auto-resize on mobile if needed
-  if (!isDesktop.value && textareaRef.value) {
-    textareaRef.value.style.height = 'auto';
-    textareaRef.value.style.height = `${Math.min(textareaRef.value.scrollHeight, 180)}px`;
+  // Only auto-resize on mobile: grow with the text up to 180px, then scroll inside the box
+  const el = mobileTextareaRef.value;
+  if (!isDesktop.value && el) {
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 180)}px`;
+    el.style.overflowY = el.scrollHeight > 180 ? 'auto' : 'hidden';
   }
 }
 

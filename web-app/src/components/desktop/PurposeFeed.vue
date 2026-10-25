@@ -36,7 +36,7 @@
               type="search"
               placeholder="Search Purposes"
               aria-label="Search Purposes"
-              class="w-52 h-9 pl-8 pr-3 rounded-lg bg-gray-100 text-sm focus:outline-none focus:ring-1 focus:ring-[#8cc65d] focus:bg-white"
+              class="w-52 h-9 pl-9! pr-3! py-0! rounded-lg bg-gray-100 text-sm focus:outline-none focus:ring-1 focus:ring-[#8cc65d] focus:bg-white"
             />
           </div>
           <button
@@ -97,7 +97,7 @@
         v-model="searchText"
         type="search"
         placeholder="Search Purposes…"
-        class="w-full h-8 px-3 rounded-lg bg-gray-100 text-sm focus:outline-none focus:ring-1 focus:ring-[#8cc65d]"
+        class="w-full h-8 px-3! py-0! rounded-lg bg-gray-100 text-sm focus:outline-none focus:ring-1 focus:ring-[#8cc65d]"
       />
     </div>
 
